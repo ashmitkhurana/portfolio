@@ -35,11 +35,11 @@ const Hero = () => {
       </motion.div>
 
       {/* Animated background shapes */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 overflow-hidden">
         {[...Array(3)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-[500px] h-[500px] rounded-full"
+            className="absolute w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full"
             style={{
               background: `radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(147,51,234,0.1) 100%)`,
               left: `${Math.random() * 100}%`,
@@ -62,13 +62,13 @@ const Hero = () => {
       {/* Content */}
       <motion.div 
         style={{ y, scale }} 
-        className="relative z-10 text-center px-4"
+        className="relative z-10 text-center px-4 max-w-full"
       >
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-gray-400 text-xl mb-4 font-light tracking-wider"
+          className="text-gray-400 text-lg md:text-xl mb-4 font-light tracking-wider"
         >
           Hello, I'm
         </motion.h2>
@@ -80,7 +80,7 @@ const Hero = () => {
           className="relative"
         >
           <motion.h1
-            className="text-6xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
             animate={{
               backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
             }}
@@ -101,7 +101,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="text-xl md:text-2xl text-gray-300 mb-8 relative"
+          className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-8 relative px-4"
         >
           <span className="font-light">Building the Future of Mobile,</span>
           <br />

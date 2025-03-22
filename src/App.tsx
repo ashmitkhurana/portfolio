@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { ParallaxProvider } from 'react-scroll-parallax';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -12,7 +13,7 @@ import Footer from './components/Footer';
 function App() {
   return (
     <ParallaxProvider>
-      <div className="bg-[#0a0a0a] text-white">
+      <div className="bg-[#0a0a0a] text-white overflow-x-hidden">
         <Navbar />
         <section id="home">
           <Hero />
