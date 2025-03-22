@@ -1,6 +1,15 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Github, Linkedin, Instagram } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+
+// Add type declaration for spline-viewer
+declare global {
+  interface HTMLElementTagNameMap {
+    'spline-viewer': HTMLElement & {
+      url: string;
+    };
+  }
+}
 
 const Hero = () => {
   const containerRef = useRef(null);
@@ -9,60 +18,35 @@ const Hero = () => {
     offset: ["start start", "end start"]
   });
 
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8]);
   const y = useTransform(scrollYProgress, [0, 1], [0, 100]);
 
+  useEffect(() => {
+    // Load Spline viewer script
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@splinetool/viewer@1.9.80/build/spline-viewer.js';
+    script.type = 'module';
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
-      {/* Background video with parallax effect */}
-      <motion.div 
-        style={{ opacity }}
-        className="absolute inset-0 z-0"
-      >
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover opacity-20"
-        >
-          <source
-            src="https://cdn.coverr.co/videos/coverr-programming-codes-on-screen-9867/1080p.mp4"
-            type="video/mp4"
-          />
-        </video>
-      </motion.div>
-
-      {/* Animated background shapes */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        {[...Array(3)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full"
-            style={{
-              background: `radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(147,51,234,0.1) 100%)`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              x: [0, 30, 0],
-              y: [0, 30, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              delay: i * 2,
-            }}
-          />
-        ))}
+      {/* Spline Background */}
+      <div className="fixed inset-0 z-0 pointer-events-auto">
+        <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
       </div>
 
+      {/* Content with dark overlay */}
+      <div className="absolute inset-0 bg-[#0a0a0a]/10 z-[1] pointer-events-none" />
+      
       {/* Content */}
       <motion.div 
         style={{ y, scale }} 
-        className="relative z-10 text-center px-4 max-w-full"
+        className="relative z-10 text-center px-4 max-w-full pointer-events-auto"
       >
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -168,7 +152,7 @@ const Hero = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1, duration: 1 }}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
+        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
       >
         <motion.div
           animate={{
