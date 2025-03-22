@@ -1,4 +1,5 @@
-import { Github, Linkedin, Twitter } from 'lucide-react';
+import { Github, Linkedin, Instagram } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const Footer = () => {
   return (
@@ -10,19 +11,34 @@ const Footer = () => {
           </p>
           <div className="flex space-x-6">
             {[
-              { Icon: Github, href: "https://github.com/ashmit" },
-              { Icon: Linkedin, href: "https://linkedin.com/in/ashmit" },
-              { Icon: Twitter, href: "https://twitter.com/ashmit" }
+              { Icon: Github, href: "https://github.com/ashmitkhurana" },
+              { Icon: Linkedin, href: "https://linkedin.com/in/ashmitkhurana" },
+              { Icon: Instagram, href: "https://www.instagram.com/ashmitkhurana_/" }
             ].map(({ Icon, href }, index) => (
-              <a
+              <motion.a
                 key={index}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transform hover:scale-110 transition-all duration-300"
+                className="text-gray-400 hover:text-white relative group"
+                whileHover={{
+                  scale: 1.2,
+                  filter: "brightness(1.5)",
+                }}
               >
-                <Icon size={20} />
-              </a>
+                <Icon size={24} className="relative z-10" />
+                <motion.div
+                  className="absolute inset-0 bg-blue-500 rounded-full opacity-0 group-hover:opacity-20 blur-lg"
+                  initial={false}
+                  animate={{
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                  }}
+                />
+              </motion.a>
             ))}
           </div>
         </div>
