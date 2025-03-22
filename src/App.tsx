@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { ParallaxProvider } from 'react-scroll-parallax';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -7,6 +5,7 @@ import About from './components/About';
 import Skills from './components/Skills';
 import Projects from './components/Projects';
 import Experience from './components/Experience';
+import Education from './components/Education';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
 
@@ -29,6 +28,9 @@ function App() {
         </section>
         <section id="experience">
           <Experience />
+        </section>
+        <section id="education">
+          <Education />
         </section>
         <section id="contact">
           <Contact />

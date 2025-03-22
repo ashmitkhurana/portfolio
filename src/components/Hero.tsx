@@ -1,18 +1,22 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Github, Linkedin, Instagram } from 'lucide-react';
-import { useRef, useEffect } from 'react';
+import { Github, Linkedin, Instagram, ChevronDown } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
 
 // Add type declaration for spline-viewer
+/* eslint-disable @typescript-eslint/no-namespace */
 declare global {
-  interface HTMLElementTagNameMap {
-    'spline-viewer': HTMLElement & {
-      url: string;
-    };
+  namespace JSX {
+    interface IntrinsicElements {
+      'spline-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        url: string;
+      }, HTMLElement>;
+    }
   }
 }
 
 const Hero = () => {
   const containerRef = useRef(null);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -22,14 +26,28 @@ const Hero = () => {
   const y = useTransform(scrollYProgress, [0, 1], [0, 100]);
 
   useEffect(() => {
+    // Check if script is already loaded
+    if (document.querySelector('script[src*="spline-viewer.js"]')) {
+      setIsScriptLoaded(true);
+      return;
+    }
+
     // Load Spline viewer script
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/@splinetool/viewer@1.9.80/build/spline-viewer.js';
     script.type = 'module';
+    script.async = true;
+    
+    script.onload = () => setIsScriptLoaded(true);
+    script.onerror = () => console.error('Failed to load Spline viewer script');
+    
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      const scriptElement = document.querySelector('script[src*="spline-viewer.js"]');
+      if (scriptElement) {
+        document.body.removeChild(scriptElement);
+      }
     };
   }, []);
 
@@ -37,11 +55,13 @@ const Hero = () => {
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
       {/* Spline Background */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
-        <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
+        {isScriptLoaded && (
+          <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
+        )}
       </div>
 
       {/* Content with dark overlay */}
-      <div className="absolute inset-0 bg-[#0a0a0a]/10 z-[1] pointer-events-none" />
+      <div className="absolute inset-0 bg-[#0a0a0a]/30 z-[1] pointer-events-none" />
       
       {/* Content */}
       <motion.div 
@@ -163,20 +183,10 @@ const Hero = () => {
             repeat: Infinity,
             repeatType: "reverse"
           }}
-          className="w-6 h-10 border-2 border-gray-400 rounded-full flex justify-center"
+          className="flex flex-col items-center gap-2"
         >
-          <motion.div
-            animate={{
-              y: [0, 15, 0],
-              opacity: [1, 0, 1],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              repeatType: "loop"
-            }}
-            className="w-1 h-2 bg-gray-400 rounded-full mt-2"
-          />
+          <span className="text-gray-400 text-sm">Scroll Down</span>
+          <ChevronDown className="w-6 h-6 text-gray-400" />
         </motion.div>
       </motion.div>
     </div>
