@@ -13,17 +13,17 @@ const projects = [
   },
   {
     title: "Portfolio Website",
-    description: "Personal portfolio website built with Next.js and Tailwind CSS",
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-    tags: ["Next.js", "Tailwind CSS", "TypeScript"],
+    description: "Modern personal portfolio featuring interactive 3D animations, smooth transitions, and responsive design built with React and Spline.",
+    image: "/images/portfolio.png",
+    tags: ["React", "Tailwind CSS", "TypeScript", "Spline"],
     github: "https://github.com/ashmitkhurana/portfolio",
     live: "#"
   },
   {
     title: "Monktechnology.net",
-    description: "A modern business website built with WIX Website Builder",
-    image: "https://images.unsplash.com/photo-1558002038-bb4237b50b11?auto=format&fit=crop&w=800&q=80",
-    tags: ["WIX", "Web Development", "UI/UX"],
+    description: "A modern business website showcasing development and design excellence for creators, featuring a dynamic 3D interface and seamless user experience.",
+    image: "/images/monk-tech.png",
+    tags: ["WIX", "Web Development", "UI/UX", "3D Design"],
     github: "#",
     live: "https://monktechnology.net"
   }
@@ -57,13 +57,17 @@ const Projects = () => {
               initial={{ opacity: 0, y: 50 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="bg-glass rounded-xl overflow-hidden group"
+              className="bg-glass rounded-xl overflow-hidden group hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300"
             >
               <div className="relative overflow-hidden">
                 <img
                   src={project.image}
                   alt={project.title}
-                  className="w-full h-48 object-cover transform group-hover:scale-110 transition-transform duration-500"
+                  className={`w-full h-48 object-cover transform transition-transform duration-500 ${
+                    project.title === "Portfolio Website" || project.title === "Monktechnology.net" 
+                    ? "scale-110 group-hover:scale-125" 
+                    : "group-hover:scale-110"
+                  }`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               </div>

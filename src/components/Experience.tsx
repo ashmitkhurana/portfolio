@@ -81,28 +81,35 @@ const Experience = () => {
               initial={{ opacity: 0, x: -50 }}
               animate={inView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="bg-glass rounded-xl p-6 backdrop-blur-lg"
+              className="relative border-l border-gray-700 ml-3"
             >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-semibold">{title}</h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      type === 'work' ? 'bg-blue-500/10 text-blue-500' :
-                      type === 'internship' ? 'bg-purple-500/10 text-purple-500' :
-                      'bg-green-500/10 text-green-500'
-                    }`}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </span>
+              <motion.div
+                initial={{ opacity: 0, x: -50 }}
+                animate={inView ? { opacity: 1, x: 0 } : {}}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="mb-8"
+              >
+                <div className="flex items-center mb-2">
+                  <div className="absolute -left-3 bg-blue-500/10 p-2 rounded-full">
+                    <Icon className="w-4 h-4 text-blue-500" />
                   </div>
-                  <h4 className="text-lg text-gray-300 mb-1">{role}</h4>
-                  <p className="text-gray-400 mb-2">{period}</p>
-                  <p className="text-gray-400">{description}</p>
+                  <div className="ml-6 p-4 rounded-xl hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300 bg-glass/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-xl font-semibold">{title}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        type === 'work' ? 'bg-blue-500/10 text-blue-500' :
+                        type === 'internship' ? 'bg-purple-500/10 text-purple-500' :
+                        'bg-green-500/10 text-green-500'
+                      }`}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </span>
+                    </div>
+                    <h4 className="text-lg text-gray-300 mb-1">{role}</h4>
+                    <p className="text-gray-400 mb-2">{period}</p>
+                    <p className="text-gray-400">{description}</p>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           ))}
         </div>
