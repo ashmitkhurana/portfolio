@@ -144,15 +144,15 @@ const Hero = () => {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white relative group"
+              className="relative group"
               whileHover={{
                 scale: 1.2,
                 filter: "brightness(1.5)",
               }}
             >
-              <Icon size={24} className="relative z-10" />
+              <Icon size={40} className="relative z-10 text-blue-500" />
               <motion.div
-                className="absolute inset-0 bg-blue-500 rounded-full opacity-0 group-hover:opacity-20 blur-lg"
+                className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full opacity-0 group-hover:opacity-20 blur-lg"
                 initial={false}
                 animate={{
                   scale: [1, 1.5, 1],
