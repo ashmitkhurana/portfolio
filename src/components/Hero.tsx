@@ -36,7 +36,7 @@ const Hero = () => {
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
       {/* Spline Background */}
-      <div className="fixed inset-0 z-0 pointer-events-auto">
+      <div className="absolute inset-0 z-0 pointer-events-auto">
         <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
       </div>
 
