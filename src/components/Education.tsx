@@ -47,14 +47,14 @@ const Education = () => {
           {education.map(({ Icon, title, role, period, type }, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, x: -50 }}
+              initial={{ opacity: 0, x: -100 }}
               animate={inView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.8, delay: index * 0.2 }}
               className="relative border-l border-gray-700 ml-3"
             >
               <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={inView ? { opacity: 1, x: 0 } : {}}
+                initial={{ opacity: 0 }}
+                animate={inView ? { opacity: 1 } : {}}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="mb-8"
               >
