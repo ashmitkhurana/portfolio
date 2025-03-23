@@ -33,6 +33,7 @@ const Skills = () => {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.2,
+    rootMargin: "50px",
   });
 
   const skills = [
@@ -128,9 +129,9 @@ const Skills = () => {
           {skills.map(({ Icon, title, description }, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 50 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
               className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300"
             >
               <div className="flex flex-col items-center text-center">
@@ -162,9 +163,9 @@ const Skills = () => {
           {tools.map(({ Icon, title, description }, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 50 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
               className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300"
             >
               <div className="flex flex-col items-center text-center">
