@@ -98,6 +98,7 @@ const Hero = () => {
             }}
           >
             Ashmit Khurana
+
           </motion.h1>
         </motion.div>
 
