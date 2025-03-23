@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Github, Linkedin, Instagram, ChevronDown } from 'lucide-react';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, Suspense } from 'react';
+import { useInView } from 'react-intersection-observer';
 
 // Add type declaration for spline-viewer
 /* eslint-disable @typescript-eslint/no-namespace */
@@ -17,6 +18,10 @@ declare global {
 const Hero = () => {
   const containerRef = useRef(null);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -26,22 +31,33 @@ const Hero = () => {
   const y = useTransform(scrollYProgress, [0, 1], [0, 100]);
 
   useEffect(() => {
-    // Check if script is already loaded
-    if (document.querySelector('script[src*="spline-viewer.js"]')) {
-      setIsScriptLoaded(true);
-      return;
-    }
+    if (!inView) return;
 
-    // Load Spline viewer script
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@splinetool/viewer@1.9.80/build/spline-viewer.js';
-    script.type = 'module';
-    script.async = true;
-    
-    script.onload = () => setIsScriptLoaded(true);
-    script.onerror = () => console.error('Failed to load Spline viewer script');
-    
-    document.body.appendChild(script);
+    const loadSplineScript = async () => {
+      try {
+        if (document.querySelector('script[src*="spline-viewer.js"]')) {
+          setIsScriptLoaded(true);
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@splinetool/viewer@1.9.80/build/spline-viewer.js';
+        script.type = 'module';
+        script.async = true;
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+
+        setIsScriptLoaded(true);
+      } catch (error) {
+        console.error('Failed to load Spline viewer script:', error);
+      }
+    };
+
+    loadSplineScript();
 
     return () => {
       const scriptElement = document.querySelector('script[src*="spline-viewer.js"]');
@@ -49,14 +65,16 @@ const Hero = () => {
         document.body.removeChild(scriptElement);
       }
     };
-  }, []);
+  }, [inView]);
 
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
       {/* Spline Background */}
-      <div className="absolute inset-0 z-0 pointer-events-auto">
-        {isScriptLoaded && (
-          <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
+      <div ref={ref} className="absolute inset-0 z-0 pointer-events-auto">
+        {inView && isScriptLoaded && (
+          <Suspense fallback={<div className="w-full h-full bg-[#0a0a0a]"></div>}>
+            <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
+          </Suspense>
         )}
       </div>
 

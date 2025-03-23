@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Github, ExternalLink } from 'lucide-react';
+import { lazy, Suspense } from 'react';
+
+const LazyImage = lazy(() => import('../components/LazyImage'));
 
 const projects = [
   {
@@ -60,15 +63,17 @@ const Projects = () => {
               className="bg-glass rounded-xl overflow-hidden group hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300"
             >
               <div className="relative overflow-hidden">
-                <img
-                  src={project.image}
-                  alt={project.title}
-                  className={`w-full h-48 object-cover transform transition-transform duration-500 ${
-                    project.title === "Portfolio Website" || project.title === "Monktechnology.net" 
-                    ? "scale-110 group-hover:scale-125" 
-                    : "group-hover:scale-110"
-                  }`}
-                />
+                <Suspense fallback={<div className="w-full h-48 bg-blue-500/10 animate-pulse rounded-t-xl" />}>
+                  <LazyImage
+                    src={project.image}
+                    alt={project.title}
+                    className={`w-full h-48 object-cover transform transition-transform duration-500 ${
+                      project.title === "Portfolio Website" || project.title === "Monktechnology.net" 
+                      ? "scale-110 group-hover:scale-125" 
+                      : "group-hover:scale-110"
+                    }`}
+                  />
+                </Suspense>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               </div>
               <div className="p-6">
