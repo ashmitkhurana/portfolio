@@ -32,7 +32,7 @@ const About = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
+          <h2 className="text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-[#474973] to-[#A69CAC]">
             About Me
           </h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -59,20 +59,20 @@ const About = () => {
               title: "Front End Web Developer",
               description: "Creating responsive and interactive web applications using React, TypeScript, and modern web technologies",
             },
-          ].map(({ Icon, title, description }, index) => (
+          ].map((item, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 50 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300"
+              className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(71,73,115,0.5)] transition-all duration-300"
             >
               <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
-                  <Icon className="w-8 h-8 text-blue-500" />
+                <div className="w-16 h-16 rounded-full bg-[#474973]/10 flex items-center justify-center mb-4">
+                  <item.Icon className="w-8 h-8 text-[#474973]" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">{title}</h3>
-                <p className="text-gray-400">{description}</p>
+                <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
+                <p className="text-gray-400">{item.description}</p>
               </div>
             </motion.div>
           ))}
