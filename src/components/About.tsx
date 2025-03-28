@@ -32,7 +32,7 @@ const About = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-[#474973] to-[#A69CAC]">
+          <h2 className="text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
             About Me
           </h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -69,7 +69,7 @@ const About = () => {
             >
               <div className="flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full bg-[#474973]/10 flex items-center justify-center mb-4">
-                  <item.Icon className="w-8 h-8 text-[#474973]" />
+                  <item.Icon className={`w-8 h-8 ${item.Icon === AppleLogo ? 'text-white' : 'text-blue-500'}`} />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                 <p className="text-gray-400">{item.description}</p>
