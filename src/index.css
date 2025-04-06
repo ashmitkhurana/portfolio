@@ -92,3 +92,138 @@ html {
 .glow-effect:hover::before {
   opacity: 0.5;
 }
+
+/* Terminal shake animation for nuke command */
+@keyframes shake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-5px, -5px) rotate(-1deg); }
+  20% { transform: translate(5px, -5px) rotate(1deg); }
+  30% { transform: translate(-5px, 5px) rotate(0deg); }
+  40% { transform: translate(5px, 5px) rotate(1deg); }
+  50% { transform: translate(-5px, -5px) rotate(-1deg); }
+  60% { transform: translate(5px, -5px) rotate(0deg); }
+  70% { transform: translate(-5px, 5px) rotate(-1deg); }
+  80% { transform: translate(-5px, -5px) rotate(1deg); }
+  90% { transform: translate(5px, 5px) rotate(0deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Matrix animation for hack command */
+@keyframes matrixFall {
+  0% {
+    top: -100%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+.matrix-char {
+  animation: matrixFall linear forwards;
+}
+
+/* Nuclear explosion animation for nuke command */
+@keyframes nuclearFlash {
+  0% { 
+    opacity: 0; 
+    background-color: white;
+  }
+  10% { 
+    opacity: 1; 
+    background-color: white;
+  }
+  30% { 
+    opacity: 0.8; 
+    background-color: rgba(255, 220, 150, 0.9);
+  }
+  100% { 
+    opacity: 0; 
+    background-color: rgba(255, 100, 50, 0.5);
+  }
+}
+
+@keyframes fadeToBlack {
+  0% { 
+    opacity: 0; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+  100% { 
+    opacity: 1; 
+  }
+}
+
+@keyframes fallDown {
+  0% { 
+    transform: translateY(0) rotate(0deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(1000px) rotate(20deg); 
+    opacity: 0;
+  }
+}
+
+@keyframes shockwave {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+    border: 50px solid rgba(255, 200, 50, 0.5);
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+    border: 0px solid rgba(255, 100, 50, 0);
+  }
+}
+
+.nuke-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  pointer-events: none;
+  animation: nuclearFlash 2s ease-out forwards;
+}
+
+.nuke-aftermath {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  z-index: 9999;
+  animation: fadeToBlack 3s ease-in forwards;
+}
+
+.nuke-shockwave {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10001;
+  animation: shockwave 2s cubic-bezier(0.1, 0.5, 0.1, 1) forwards;
+}
+
+.element-falling {
+  animation: fallDown 3s cubic-bezier(0.3, 0.1, 0.3, 1) forwards !important;
+  position: relative !important;
+  z-index: 9998 !important;
+}
+
+.hidden-after-nuke {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  transition: visibility 0s 2s, opacity 2s linear !important;
+}

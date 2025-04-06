@@ -8,6 +8,7 @@ import Experience from './components/Experience';
 import Education from './components/Education';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
+import Terminal from './components/Terminal';
 
 function App() {
   return (
@@ -31,6 +32,9 @@ function App() {
         </section>
         <section id="education">
           <Education />
+        </section>
+        <section id="terminal">
+          <Terminal />
         </section>
         <section id="contact">
           <Contact />
