@@ -44,10 +44,8 @@
   background: linear-gradient(to bottom, #2563eb, #7e22ce);
 }
 
-/* Smooth Scroll */
-html {
-  scroll-behavior: smooth;
-}
+/* Smooth Scroll behavior is now controlled via JavaScript instead of CSS */
+/* This prevents automatic scrolling to hash URLs on page load */
 
 /* Gradient Text Animation */
 .animate-gradient {

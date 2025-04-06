@@ -36,12 +36,6 @@ const Terminal = () => {
     }
   }, [history]);
 
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, []);
-
   // Matrix animation effect
   useEffect(() => {
     if (!showMatrix || !matrixContainerRef.current) return;
@@ -683,7 +677,6 @@ Created a unique and engaging way to present my professional experience and tech
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 className="ml-2 bg-transparent border-none outline-none text-white w-full"
-                autoFocus
               />
             </form>
           </div>

@@ -29,6 +29,7 @@ const Navbar = () => {
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+      history.pushState(null, '', href);
       setIsOpen(false);
     }
   };
