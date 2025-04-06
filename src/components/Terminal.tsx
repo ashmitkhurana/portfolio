@@ -213,6 +213,9 @@ const Terminal = () => {
           'cat project2.md    View web app details',
           'cat project3.md    View portfolio details',
           '',
+          '-- ACTIONS --',
+          'download resume    Download my resume (PDF)',
+          '',
           '-- FUN --',
           'sudo ask-me-anything  Get a random fun fact',
           'hack                  Try it and see...',
@@ -517,6 +520,20 @@ Created a unique and engaging way to present my professional experience and tech
       return {
         type: 'error',
         content: "☢️ NUCLEAR LAUNCH SEQUENCE INITIATED!\n\nTAKE COVER!"
+      };
+    } else if (lowerCmd === 'download resume') {
+      // Create an anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = '/resume.pdf'; // Path to the resume PDF
+      link.download = 'Ashmit_Khurana_Resume.pdf';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      return {
+        type: 'text',
+        content: "✅ Downloading resume... If the download doesn't start automatically, check your browser's download settings or try again."
       };
     } else {
       return {
