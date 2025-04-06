@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import './matrix.css';
 
 type CommandResult = {
   type: 'text' | 'error' | 'list' | 'warning' | 'clear';
@@ -49,46 +50,54 @@ const Terminal = () => {
     const terminalWindow = document.getElementById('terminal-output');
     if (!terminalWindow) return;
     
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>/?";
-    const columns = Math.floor(terminalWindow.clientWidth / 20);
-    const matrixChars: HTMLSpanElement[] = [];
-    
-    // Set container styles to match terminal window dimensions
-    container.style.position = 'absolute';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.overflow = 'hidden';
-    container.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-    container.style.zIndex = '10';
-    
-    // Create matrix characters
-    for (let i = 0; i < columns * 5; i++) {
-      const char = document.createElement('span');
-      char.className = 'matrix-char';
-      char.textContent = chars[Math.floor(Math.random() * chars.length)];
-      char.style.left = `${Math.floor(Math.random() * 100)}%`;
-      char.style.animationDuration = `${Math.random() * 2 + 1}s`;
-      char.style.position = 'absolute';
-      char.style.color = '#0f0';
-      char.style.fontFamily = 'monospace';
-      char.style.fontWeight = 'bold';
-      char.style.fontSize = '1.2rem';
-      char.style.textShadow = '0 0 5px #0f0';
-      container.appendChild(char);
-      matrixChars.push(char);
+    // Clear any existing content
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
     }
     
-    // Run the effect for 3-5 seconds
-    const duration = Math.random() * 2000 + 3000; // 3-5 seconds
+    // Set position based on scroll
+    if (terminalRef.current) {
+      const scrollTop = terminalRef.current.scrollTop;
+      container.style.position = 'absolute';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.transform = `translateY(${scrollTop}px)`;
+    }
+    
+    // Create matrix characters
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>/?";
+    const numCharacters = 300; // More characters for better coverage
+    
+    for (let i = 0; i < numCharacters; i++) {
+      const char = document.createElement('div');
+      char.className = 'matrix-character';
+      char.textContent = chars[Math.floor(Math.random() * chars.length)];
+      
+      // Random position across entire visible area
+      char.style.left = `${Math.random() * 100}%`;
+      
+      // Random animation delay and duration
+      const duration = 1 + Math.random() * 2;
+      const delay = Math.random() * 2;
+      char.style.animationDuration = `${duration}s`;
+      char.style.animationDelay = `${delay}s`;
+      
+      container.appendChild(char);
+    }
     
     // Update characters
     const interval = setInterval(() => {
-      matrixChars.forEach(char => {
-        char.textContent = chars[Math.floor(Math.random() * chars.length)];
+      container.querySelectorAll('.matrix-character').forEach(char => {
+        if (Math.random() > 0.9) {
+          (char as HTMLElement).textContent = chars[Math.floor(Math.random() * chars.length)];
+        }
       });
     }, 100);
+    
+    // Run the effect for 3-5 seconds
+    const duration = Math.random() * 2000 + 3000; // 3-5 seconds
     
     // Clean up
     const timer = setTimeout(() => {
@@ -497,10 +506,30 @@ Created a unique and engaging way to present my professional experience and tech
         content: funFacts[Math.floor(Math.random() * funFacts.length)]
       };
     } else if (lowerCmd === 'hack') {
-      // Trigger matrix effect instead of directly returning a result
+      // First turn off any existing animation
+      setShowMatrix(false);
+      
+      // Use a small timeout to ensure state update completes
       setTimeout(() => {
+        // Make sure the terminal is scrolled to the correct position
+        if (terminalRef.current) {
+          // We want the hack command to be visible
+          const currentScrollPos = terminalRef.current.scrollTop;
+          
+          // Ensure we're showing the current command in the view
+          // but don't auto-scroll to bottom if user has scrolled up
+          if (currentScrollPos < terminalRef.current.scrollHeight - terminalRef.current.clientHeight) {
+            // Only force scroll if we're near the bottom already
+            const nearBottom = terminalRef.current.scrollHeight - currentScrollPos - terminalRef.current.clientHeight < 200;
+            if (nearBottom) {
+              terminalRef.current.scrollTop = terminalRef.current.scrollHeight - terminalRef.current.clientHeight;
+            }
+          }
+        }
+        
+        // Then start the animation fresh
         setShowMatrix(true);
-      }, 100);
+      }, 10);
       
       return {
         type: 'warning',
@@ -604,7 +633,10 @@ Created a unique and engaging way to present my professional experience and tech
             className="p-6 h-[550px] overflow-y-auto font-mono text-sm relative"
           >
             {showMatrix && (
-              <div ref={matrixContainerRef} className="absolute inset-0 z-10"></div>
+              <div 
+                ref={matrixContainerRef} 
+                className="matrix-container"
+              ></div>
             )}
             {history.map((item, i) => (
               <div key={i} className="mb-2">
