@@ -126,7 +126,7 @@ const Hero = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-8 relative px-4"
         >
-          <span className="font-light">Building the Future of Mobile,</span>
+          <span className="font-light">Pixel Playmaker</span>
           <br />
           <motion.span 
             className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400"
@@ -142,7 +142,7 @@ const Hero = () => {
               backgroundSize: '200% 200%',
             }}
           >
-            One App at a Time
+            Code Conjurer
           </motion.span>
         </motion.div>
 
