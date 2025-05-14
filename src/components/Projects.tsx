@@ -29,6 +29,30 @@ const projects = [
     tags: ["WIX", "Web Development", "UI/UX", "3D Design"],
     github: "#",
     live: "https://monktechnology.net"
+  },
+  {
+    title: "EventSync (TechSprint48 Hackathon)",
+    description: "A one-stop solution for seamless event creation and management, EventSync empowers users to organize events effortlessly, manage RSVPs, and gain actionable analytics for better engagement and planning.",
+    image: "/images/eventsync.png",
+    tags: ["HTML", "CSS", "JavaScript", "React", "MongoDB", "Mongoose"],
+    github: "https://github.com/ashmitkhurana/EventSync",
+    live: "#"
+  },
+  {
+    title: "Bellarisse",
+    description: "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury handbag startup. The website combines elegant design with smooth shopping experiences, showcasing premium collections and providing a seamless journey from browsing to checkout.",
+    image: "/images/bellarisse.png",
+    tags: ["Framer", "Shopify"],
+    github: "#",
+    live: "https://www.bellarisse.com/"
+  },
+  {
+    title: "Arcadia Design",
+    description: "A modern and visually striking portfolio website for Arcadia Design, a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
+    image: "/images/arcadia.png",
+    tags: ["HTML", "CSS", "JavaScript", "Tailwind CSS", "TypeScript"],
+    github: "#",
+    live: "https://www.arcadiadesignsinc.com/"
   }
 ];
 
@@ -90,7 +114,7 @@ const Projects = () => {
                   ))}
                 </div>
                 <div className="flex gap-4">
-                  {project.title === "Monktechnology.net" ? (
+                  {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design") ? (
                     <a
                       href={project.live}
                       className="text-gray-400 hover:text-white transition-colors"
