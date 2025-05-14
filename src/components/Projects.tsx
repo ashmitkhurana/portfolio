@@ -34,7 +34,7 @@ const projects = [
     title: "EventSync (TechSprint48 Hackathon)",
     description: "A one-stop solution for seamless event creation and management, EventSync empowers users to organize events effortlessly, manage RSVPs, and gain actionable analytics for better engagement and planning.",
     image: "/images/eventsync.png",
-    tags: ["HTML", "CSS", "JavaScript", "React", "MongoDB", "Mongoose"],
+    tags: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
     github: "https://github.com/ashmitkhurana/EventSync",
     live: "#"
   },
