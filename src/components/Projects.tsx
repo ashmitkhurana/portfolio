@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Github, ExternalLink } from 'lucide-react';
 import { lazy, Suspense } from 'react';
+import SpotlightCard from './Card';
 
 const LazyImage = lazy(() => import('../components/LazyImage'));
 
@@ -78,64 +79,60 @@ const Projects = () => {
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {projects.map((project, index) => (
-            <motion.div
+          {projects.map((project) => (
+            <SpotlightCard
               key={project.title}
-              initial={{ opacity: 0, y: 50 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="bg-glass rounded-xl overflow-hidden group hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300"
+              className="custom-spotlight-card group"
+              spotlightColor="rgba(0, 229, 255, 0.2)"
             >
-              <div className="relative overflow-hidden">
-                <Suspense fallback={<div className="w-full h-48 bg-blue-500/10 animate-pulse rounded-t-xl" />}>
-                  <LazyImage
-                    src={project.image}
-                    alt={project.title}
-                    className={`w-full h-48 object-cover transform transition-transform duration-500 ${
-                      project.title === "Portfolio Website" || project.title === "Monktechnology.net" 
-                      ? "scale-110 group-hover:scale-125" 
-                      : "group-hover:scale-110"
-                    }`}
-                  />
-                </Suspense>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">{project.title}</h3>
-                <p className="text-gray-400 mb-4">{project.description}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {project.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-sm"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+              <div className="rounded-xl overflow-hidden transition-all duration-300 flex flex-col h-full bg-transparent" style={{ background: 'none', boxShadow: 'none' }}>
+                <div className="relative overflow-hidden">
+                  <Suspense fallback={<div className="w-full h-48 bg-blue-500/10 animate-pulse rounded-t-xl" />}>
+                    <LazyImage
+                      src={project.image}
+                      alt={project.title}
+                      className={"project-card-image w-full h-48 object-cover"}
+                    />
+                  </Suspense>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
-                <div className="flex gap-4">
-                  {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design") ? (
-                    <a
-                      href={project.live}
-                      className="text-gray-400 hover:text-white transition-colors"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-6 h-6" />
-                    </a>
-                  ) : (
-                    <a
-                      href={project.github}
-                      className="text-gray-400 hover:text-white transition-colors"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Github className="w-6 h-6" />
-                    </a>
-                  )}
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-semibold mb-2">{project.title}</h3>
+                  <p className="text-gray-400 mb-4">{project.description}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {project.tags.map(tag => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-4 mt-auto">
+                    {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design") ? (
+                      <a
+                        href={project.live}
+                        className="text-gray-400 hover:text-white transition-colors"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="w-6 h-6" />
+                      </a>
+                    ) : (
+                      <a
+                        href={project.github}
+                        className="text-gray-400 hover:text-white transition-colors"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Github className="w-6 h-6" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
-            </motion.div>
+            </SpotlightCard>
           ))}
         </div>
       </div>

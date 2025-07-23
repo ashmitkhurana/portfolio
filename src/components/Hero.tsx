@@ -1,24 +1,16 @@
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll } from 'framer-motion';
 import { Github, Linkedin, Instagram, ChevronDown } from 'lucide-react';
-import { useRef, useEffect, useState, Suspense } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
+import Squares from './Squares';
 
-// Add type declaration for spline-viewer
-/* eslint-disable @typescript-eslint/no-namespace */
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'spline-viewer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        url: string;
-      }, HTMLElement>;
-    }
-  }
-}
+// Remove Spline type declaration, state, useEffect, and Spline-related JSX
+
+// Remove the entire SquaresBackground component definition and any related code
 
 const Hero = () => {
   const containerRef = useRef(null);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
-  const [ref, inView] = useInView({
+  const [inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
   });
@@ -27,16 +19,12 @@ const Hero = () => {
     offset: ["start start", "end start"]
   });
 
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8]);
-  const y = useTransform(scrollYProgress, [0, 1], [0, 100]);
-
   useEffect(() => {
     if (!inView) return;
 
     const loadSplineScript = async () => {
       try {
         if (document.querySelector('script[src*="spline-viewer.js"]')) {
-          setIsScriptLoaded(true);
           return;
         }
 
@@ -51,7 +39,6 @@ const Hero = () => {
           document.body.appendChild(script);
         });
 
-        setIsScriptLoaded(true);
       } catch (error) {
         console.error('Failed to load Spline viewer script:', error);
       }
@@ -69,23 +56,14 @@ const Hero = () => {
 
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
-      {/* Spline Background */}
-      <div ref={ref} className="absolute inset-0 z-0 pointer-events-auto">
-        {inView && isScriptLoaded && (
-          <Suspense fallback={<div className="w-full h-full bg-[#0a0a0a]"></div>}>
-            <spline-viewer url="https://prod.spline.design/NLYCUfNZpAi3Ti9g/scene.splinecode"></spline-viewer>
-          </Suspense>
-        )}
+      {/* Animated Squares Background as true background */}
+      <div className="absolute inset-0 z-0 pointer-events-auto w-full h-full">
+        <Squares speed={0.5} squareSize={40} direction="diagonal" borderColor="#fff" hoverFillColor="#5a1fa2" />
       </div>
-
       {/* Content with dark overlay */}
       <div className="absolute inset-0 bg-[#0a0a0a]/30 z-[1] pointer-events-none" />
-      
       {/* Content */}
-      <motion.div 
-        style={{ y, scale }} 
-        className="relative z-10 text-center px-4 max-w-full pointer-events-auto"
-      >
+      <div className="relative z-10 w-full flex flex-col items-center justify-center pointer-events-none">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -151,7 +129,7 @@ const Hero = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.6 }}
-          className="flex justify-center space-x-6"
+          className="flex justify-center space-x-6 pointer-events-auto"
         >
           {[
             { Icon: Github, href: "https://github.com/ashmitkhurana" },
@@ -184,7 +162,7 @@ const Hero = () => {
             </motion.a>
           ))}
         </motion.div>
-      </motion.div>
+      </div>
 
       {/* Scroll Indicator */}
       <motion.div

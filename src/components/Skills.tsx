@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Code2, Smartphone, Globe, Database, GitBranch, Layout, Palette, Store, Sparkles, Boxes } from 'lucide-react';
+import SpotlightCard from './Card';
 
 interface LogoProps {
   className?: string;
@@ -71,6 +72,11 @@ const Skills = () => {
       Icon: GitBranch,
       title: "Git",
       description: "Version control and collaborative development using Git, managing code repositories and implementing efficient workflows.",
+    },
+    {
+      Icon: SplineLogo,
+      title: "Spline",
+      description: "3D design and interactive web experiences using Spline, creating immersive 3D content and animations for web applications.",
     }
   ];
 
@@ -99,11 +105,6 @@ const Skills = () => {
       Icon: Store,
       title: "Shopify",
       description: "E-commerce development using Shopify, building online stores with custom themes and integrated payment solutions.",
-    },
-    {
-      Icon: SplineLogo,
-      title: "Spline",
-      description: "3D design and interactive web experiences using Spline, creating immersive 3D content and animations for web applications.",
     }
   ];
 
@@ -127,21 +128,25 @@ const Skills = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
           {skills.map(({ Icon, title, description }, index) => (
-            <motion.div
+            <SpotlightCard
               key={index}
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
-              className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300"
+              className="custom-spotlight-card"
+              spotlightColor="rgba(0, 229, 255, 0.2)"
             >
-              <div className="flex flex-col items-center text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+                className="rounded-xl p-6 backdrop-blur-lg transition-all duration-300 flex flex-col items-center text-center"
+                style={{ background: 'none', boxShadow: 'none' }}
+              >
                 <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
                   <Icon />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{title}</h3>
                 <p className="text-gray-400">{description}</p>
-              </div>
-            </motion.div>
+              </motion.div>
+            </SpotlightCard>
           ))}
         </div>
 
@@ -161,21 +166,25 @@ const Skills = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {tools.map(({ Icon, title, description }, index) => (
-            <motion.div
+            <SpotlightCard
               key={index}
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-              transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
-              className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(59,130,246,0.5)] transition-all duration-300"
+              className="custom-spotlight-card"
+              spotlightColor="rgba(0, 229, 255, 0.2)"
             >
-              <div className="flex flex-col items-center text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+                className="rounded-xl p-6 backdrop-blur-lg transition-all duration-300 flex flex-col items-center text-center"
+                style={{ background: 'none', boxShadow: 'none' }}
+              >
                 <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
                   <Icon />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{title}</h3>
                 <p className="text-gray-400">{description}</p>
-              </div>
-            </motion.div>
+              </motion.div>
+            </SpotlightCard>
           ))}
         </div>
       </div>

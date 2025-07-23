@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Smartphone, Globe } from 'lucide-react';
+import SpotlightCard from './Card';
 
 interface LogoProps {
   className?: string;
@@ -60,21 +61,19 @@ const About = () => {
               description: "Creating responsive and interactive web applications using React, TypeScript, and modern web technologies",
             },
           ].map((item, index) => (
-            <motion.div
+            <SpotlightCard
               key={index}
-              initial={{ opacity: 0, y: 50 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, delay: index * 0.2 }}
-              className="bg-glass rounded-xl p-6 backdrop-blur-lg hover:scale-105 hover:shadow-[0_8px_50px_-12px_rgba(71,73,115,0.5)] transition-all duration-300"
+              className="custom-spotlight-card"
+              spotlightColor="rgba(0, 229, 255, 0.2)"
             >
-              <div className="flex flex-col items-center text-center">
+              <div className="rounded-xl p-6 backdrop-blur-lg transition-all duration-300 flex flex-col items-center text-center" style={{ background: 'none', boxShadow: 'none' }}>
                 <div className="w-16 h-16 rounded-full bg-[#474973]/10 flex items-center justify-center mb-4">
                   <item.Icon className={`w-8 h-8 ${item.Icon === AppleLogo ? 'text-white' : 'text-blue-500'}`} />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                 <p className="text-gray-400">{item.description}</p>
               </div>
-            </motion.div>
+            </SpotlightCard>
           ))}
         </div>
       </div>
