@@ -1,7 +1,6 @@
-import { motion, useScroll } from 'framer-motion';
-import { Github, Linkedin, Instagram, ChevronDown } from 'lucide-react';
-import React, { useRef, useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { motion } from 'framer-motion';
+import { Github, Linkedin, Instagram } from 'lucide-react';
+import React, { useRef } from 'react';
 import Squares from './Squares';
 
 // Remove Spline type declaration, state, useEffect, and Spline-related JSX
@@ -10,49 +9,6 @@ import Squares from './Squares';
 
 const Hero = () => {
   const containerRef = useRef(null);
-  const [inView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"]
-  });
-
-  useEffect(() => {
-    if (!inView) return;
-
-    const loadSplineScript = async () => {
-      try {
-        if (document.querySelector('script[src*="spline-viewer.js"]')) {
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@splinetool/viewer@1.9.80/build/spline-viewer.js';
-        script.type = 'module';
-        script.async = true;
-
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
-
-      } catch (error) {
-        console.error('Failed to load Spline viewer script:', error);
-      }
-    };
-
-    loadSplineScript();
-
-    return () => {
-      const scriptElement = document.querySelector('script[src*="spline-viewer.js"]');
-      if (scriptElement) {
-        document.body.removeChild(scriptElement);
-      }
-    };
-  }, [inView]);
 
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
@@ -163,29 +119,6 @@ const Hero = () => {
           ))}
         </motion.div>
       </div>
-
-      {/* Scroll Indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 1 }}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10"
-      >
-        <motion.div
-          animate={{
-            y: [0, 10, 0],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            repeatType: "reverse"
-          }}
-          className="flex flex-col items-center gap-2"
-        >
-          <span className="text-gray-400 text-sm">Scroll Down</span>
-          <ChevronDown className="w-6 h-6 text-gray-400" />
-        </motion.div>
-      </motion.div>
     </div>
   );
 };

@@ -7,7 +7,6 @@ import Projects from './components/Projects';
 import Experience from './components/Experience';
 import Education from './components/Education';
 import Contact from './components/Contact';
-import Footer from './components/Footer';
 import Terminal from './components/Terminal';
 
 function App() {
@@ -39,7 +38,6 @@ function App() {
         <section id="contact">
           <Contact />
         </section>
-        <Footer />
       </div>
     </ParallaxProvider>
   );

@@ -1,30 +1,13 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Mail, Github, Linkedin, Instagram, FileText } from 'lucide-react';
+import FlipLink from './text-flipper';
 
 const Contact = () => {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.2,
   });
-
-  const socialLinks = [
-    {
-      Icon: Github,
-      href: "https://github.com/ashmitkhurana",
-      label: "GitHub"
-    },
-    {
-      Icon: Linkedin,
-      href: "https://linkedin.com/in/ashmitkhurana",
-      label: "LinkedIn"
-    },
-    {
-      Icon: Instagram,
-      href: "https://www.instagram.com/ashmitkhurana_/",
-      label: "Instagram"
-    }
-  ];
 
   return (
     <section id="contact" className="py-16 w-full">
@@ -51,56 +34,67 @@ const Contact = () => {
           className="flex flex-col space-y-8 w-full max-w-sm"
         >
           <div className="flex flex-col items-center gap-3">
-            <motion.button
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              onClick={() => window.location.href = 'mailto:ashmit.khu@gmail.com'}
-              className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors duration-200"
+            <FlipLink
+              href="mailto:ashmit.khu@gmail.com"
+              icon={<Mail className="w-10 h-10" />}
+              iconBg="#e5e7eb"
+              iconHoverBg="#22c55e"
+              iconColor="#111"
+              iconHoverColor="#fff"
+              iconPosition="left"
             >
-              <Mail className="w-5 h-5 text-blue-500" />
-            </motion.button>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-center"
-            >
-              <h3 className="text-base font-semibold mb-0.5">Email</h3>
-              <a href="mailto:ashmit.khu@gmail.com" className="text-gray-400 hover:text-blue-500 transition-colors break-all">
-                ashmit.khu@gmail.com
-              </a>
-            </motion.div>
+              EMAIL
+            </FlipLink>
           </div>
 
           <div className="flex flex-col items-center gap-3">
             <motion.div 
-              className="flex gap-4"
+              className="flex flex-col gap-6 items-center"
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.4 }}
             >
-              {socialLinks.map(({ Icon, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors duration-200"
-                  aria-label={label}
-                >
-                  <Icon className="w-5 h-5 text-blue-500" />
-                </a>
-              ))}
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="text-center"
-            >
-              <h3 className="text-base font-semibold mb-0.5">Social Media</h3>
-              <p className="text-gray-400">Connect with me on social platforms</p>
+              <div className="flex flex-col gap-6 items-center">
+                <div className="flex items-center gap-4">
+                  <FlipLink
+                    href="https://linkedin.com/in/ashmitkhurana"
+                    icon={<Linkedin className="w-10 h-10" />}
+                    iconBg="#e5e7eb"
+                    iconHoverBg="#0077b5"
+                    iconColor="#111"
+                    iconHoverColor="#fff"
+                    iconPosition="right"
+                  >
+                    LINKEDIN
+                  </FlipLink>
+                </div>
+                <div className="flex items-center gap-4">
+                  <FlipLink
+                    href="https://github.com/ashmitkhurana"
+                    icon={<Github className="w-10 h-10" />}
+                    iconBg="#e5e7eb"
+                    iconHoverBg="#111"
+                    iconColor="#111"
+                    iconHoverColor="#fff"
+                    iconPosition="left"
+                  >
+                    GITHUB
+                  </FlipLink>
+                </div>
+                <div className="flex items-center gap-4">
+                  <FlipLink
+                    href="https://www.instagram.com/ashmitkhurana_/"
+                    icon={<Instagram className="w-10 h-10" />}
+                    iconBg="#e5e7eb"
+                    iconHoverBg="#e1306c"
+                    iconColor="#111"
+                    iconHoverColor="#fff"
+                    iconPosition="right"
+                  >
+                    INSTAGRAM
+                  </FlipLink>
+                </div>
+              </div>
             </motion.div>
           </div>
 
