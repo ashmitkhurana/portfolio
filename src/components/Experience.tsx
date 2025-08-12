@@ -57,7 +57,7 @@ const Experience = () => {
   ];
 
   return (
-    <section id="experience" className="py-24 relative overflow-hidden">
+    <section id="experience" className="py-24 relative">
       <div className="max-w-6xl mx-auto px-4">
         <motion.div
           ref={ref}

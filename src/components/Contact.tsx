@@ -10,7 +10,7 @@ const Contact = () => {
   });
 
   return (
-    <section id="contact" className="py-16 w-full">
+    <section id="contact" className="py-20 w-full">
       <div className="container mx-auto px-4 flex flex-col items-center justify-center">
         <motion.div
           ref={ref}
@@ -31,12 +31,12 @@ const Contact = () => {
           initial={{ opacity: 0, y: 50 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
-          className="flex flex-col space-y-8 w-full max-w-sm"
+          className="flex flex-col gap-10 w-full max-w-md"
         >
           <div className="flex flex-col items-center gap-3">
             <FlipLink
               href="mailto:ashmit.khu@gmail.com"
-              icon={<Mail className="w-10 h-10" />}
+              icon={<Mail className="w-8 h-8" />}
               iconBg="#e5e7eb"
               iconHoverBg="#22c55e"
               iconColor="#111"
@@ -47,7 +47,7 @@ const Contact = () => {
             </FlipLink>
           </div>
 
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-6">
             <motion.div 
               className="flex flex-col gap-6 items-center"
               initial={{ opacity: 0, y: 30 }}
@@ -58,7 +58,7 @@ const Contact = () => {
                 <div className="flex items-center gap-4">
                   <FlipLink
                     href="https://linkedin.com/in/ashmitkhurana"
-                    icon={<Linkedin className="w-10 h-10" />}
+                    icon={<Linkedin className="w-8 h-8" />}
                     iconBg="#e5e7eb"
                     iconHoverBg="#0077b5"
                     iconColor="#111"
@@ -71,7 +71,7 @@ const Contact = () => {
                 <div className="flex items-center gap-4">
                   <FlipLink
                     href="https://github.com/ashmitkhurana"
-                    icon={<Github className="w-10 h-10" />}
+                    icon={<Github className="w-8 h-8" />}
                     iconBg="#e5e7eb"
                     iconHoverBg="#111"
                     iconColor="#111"
@@ -84,7 +84,7 @@ const Contact = () => {
                 <div className="flex items-center gap-4">
                   <FlipLink
                     href="https://www.instagram.com/ashmitkhurana_/"
-                    icon={<Instagram className="w-10 h-10" />}
+                    icon={<Instagram className="w-8 h-8" />}
                     iconBg="#e5e7eb"
                     iconHoverBg="#e1306c"
                     iconColor="#111"

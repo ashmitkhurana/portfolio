@@ -48,10 +48,10 @@ const FlipLink: React.FC<FlipLinkProps> = ({
         initial="initial"
         whileHover="hovered"
         {...linkProps}
-        className="relative block overflow-hidden whitespace-nowrap text-4xl font-bold uppercase text-black dark:text-white/90 sm:text-7xl md:text-8xl"
+        className="relative block overflow-hidden whitespace-nowrap leading-none text-4xl font-bold uppercase text-black dark:text-white/90 sm:text-7xl md:text-8xl"
         style={{
-          lineHeight: 0.75,
-          height: '4.5rem',
+          lineHeight: 1,
+          height: '1em',
           display: 'inline-block',
         }}
       >

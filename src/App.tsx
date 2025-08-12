@@ -1,4 +1,3 @@
-import { ParallaxProvider } from 'react-scroll-parallax';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import About from './components/About';
@@ -11,35 +10,33 @@ import Terminal from './components/Terminal';
 
 function App() {
   return (
-    <ParallaxProvider>
-      <div className="bg-[#0a0a0a] text-white overflow-x-hidden">
-        <Navbar />
-        <section id="home">
-          <Hero />
-        </section>
-        <section id="about">
-          <About />
-        </section>
-        <section id="skills">
-          <Skills />
-        </section>
-        <section id="projects">
-          <Projects />
-        </section>
-        <section id="experience">
-          <Experience />
-        </section>
-        <section id="education">
-          <Education />
-        </section>
-        <section id="terminal">
-          <Terminal />
-        </section>
-        <section id="contact">
-          <Contact />
-        </section>
-      </div>
-    </ParallaxProvider>
+    <div className="bg-[#0a0a0a] text-white">
+      <Navbar />
+      <section id="home">
+        <Hero />
+      </section>
+      <section id="about">
+        <About />
+      </section>
+      <section id="skills">
+        <Skills />
+      </section>
+      <section id="projects">
+        <Projects />
+      </section>
+      <section id="experience">
+        <Experience />
+      </section>
+      <section id="education">
+        <Education />
+      </section>
+      <section id="terminal">
+        <Terminal />
+      </section>
+      <section id="contact">
+        <Contact />
+      </section>
+    </div>
   );
 }
 

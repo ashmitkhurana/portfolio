@@ -24,7 +24,7 @@ const About = () => {
   });
 
   return (
-    <section id="about" className="py-20 relative overflow-hidden">
+    <section id="about" className="py-20 relative">
       <div className="max-w-6xl mx-auto px-4">
         <motion.div
           ref={ref}
