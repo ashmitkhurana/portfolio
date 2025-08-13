@@ -8,19 +8,43 @@ const LazyImage = lazy(() => import('../components/LazyImage'));
 
 const projects = [
   {
-    title: "Chat App",
-    description: "A real-time chat application built with Flutter and Firebase",
-    image: "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?auto=format&fit=crop&w=800&q=80",
-    tags: ["Flutter", "Firebase", "Dart"],
-    github: "https://github.com/ashmitkhurana/ChatApp-Flutter",
+    title: "NerdWithABindi",
+    description: "A collaboration platform for influencers to connect, share resources, and coordinate campaigns. Streamlines partnership opportunities and content creation through an intuitive interface.",
+    image: "/images/nerdwithabindi.png",
+    tags: ["React", "Next.js", "Google Form", "HTML", "CSS"],
+    github: "#",
     live: "#"
   },
   {
-    title: "Portfolio Website",
-    description: "Modern personal portfolio featuring interactive 3D animations, smooth transitions, and responsive design built with React and Spline.",
-    image: "/images/portfolio.png",
-    tags: ["React", "Tailwind CSS", "TypeScript", "Spline"],
-    github: "https://github.com/ashmitkhurana/portfolio",
+    title: "Sleepara",
+    description: "A comprehensive sleep health platform that connects users with sleep apnea specialists, provides AI-powered sleep advice, and locates nearby pharmacies for CPAP supplies. Designed to make sleep healthcare more accessible and personalized.",
+    image: "/images/sleepara.png",
+    tags: ["Shopify", "Stripe", "Link", "React", "Next.js", "Custom AI"],
+    github: "#",
+    live: "https://sleepara.com/"
+  },
+  {
+    title: "Arcadia Design",
+    description: "A modern and visually striking portfolio website for Arcadia Design, a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
+    image: "/images/arcadia.png",
+    tags: ["HTML", "CSS", "JavaScript", "Tailwind CSS", "TypeScript"],
+    github: "#",
+    live: "https://www.arcadiadesignsinc.com/"
+  },
+  {
+    title: "Bellarisse",
+    description: "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury handbag startup. The website combines elegant design with smooth shopping experiences, showcasing premium collections and providing a seamless journey from browsing to checkout.",
+    image: "/images/bellarisse.png",
+    tags: ["Framer", "Shopify"],
+    github: "#",
+    live: "https://www.bellarisse.com/"
+  },
+  {
+    title: "EventSync (TechSprint48 Hackathon)",
+    description: "A one-stop solution for seamless event creation and management, EventSync empowers users to organize events effortlessly, manage RSVPs, and gain actionable analytics for better engagement and planning.",
+    image: "/images/eventsync.png",
+    tags: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
+    github: "https://github.com/ashmitkhurana/EventSync",
     live: "#"
   },
   {
@@ -32,28 +56,20 @@ const projects = [
     live: "https://monktechnology.net"
   },
   {
-    title: "EventSync (TechSprint48 Hackathon)",
-    description: "A one-stop solution for seamless event creation and management, EventSync empowers users to organize events effortlessly, manage RSVPs, and gain actionable analytics for better engagement and planning.",
-    image: "/images/eventsync.png",
-    tags: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
-    github: "https://github.com/ashmitkhurana/EventSync",
+    title: "Portfolio Website",
+    description: "Modern personal portfolio featuring interactive 3D animations, smooth transitions, and responsive design built with React and Spline.",
+    image: "/images/portfolio.png",
+    tags: ["React", "Tailwind CSS", "TypeScript", "Spline"],
+    github: "https://github.com/ashmitkhurana/portfolio",
     live: "#"
   },
   {
-    title: "Bellarisse",
-    description: "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury handbag startup. The website combines elegant design with smooth shopping experiences, showcasing premium collections and providing a seamless journey from browsing to checkout.",
-    image: "/images/bellarisse.png",
-    tags: ["Framer", "Shopify"],
-    github: "#",
-    live: "https://www.bellarisse.com/"
-  },
-  {
-    title: "Arcadia Design",
-    description: "A modern and visually striking portfolio website for Arcadia Design, a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
-    image: "/images/arcadia.png",
-    tags: ["HTML", "CSS", "JavaScript", "Tailwind CSS", "TypeScript"],
-    github: "#",
-    live: "https://www.arcadiadesignsinc.com/"
+    title: "Chat App",
+    description: "A real-time chat application built with Flutter and Firebase",
+    image: "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?auto=format&fit=crop&w=800&q=80",
+    tags: ["Flutter", "Firebase", "Dart"],
+    github: "https://github.com/ashmitkhurana/ChatApp-Flutter",
+    live: "#"
   }
 ];
 
@@ -110,7 +126,7 @@ const Projects = () => {
                     ))}
                   </div>
                   <div className="flex gap-4 mt-auto">
-                    {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design") ? (
+                    {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design" || project.title === "Sleepara" || project.title === "NerdWithABindi") ? (
                       <a
                         href={project.live}
                         className="text-gray-400 hover:text-white transition-colors"
