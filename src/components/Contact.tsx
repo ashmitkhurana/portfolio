@@ -103,7 +103,7 @@ const Contact = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.6 }}
-              href="/resume.pdf"
+              href="/Resume Ashmit Khurana.pdf"
               download="Ashmit_Khurana_Resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
