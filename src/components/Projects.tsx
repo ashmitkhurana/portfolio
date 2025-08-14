@@ -2,18 +2,21 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Github, ExternalLink } from 'lucide-react';
 import { lazy, Suspense } from 'react';
+import { Link } from 'react-router-dom';
 import SpotlightCard from './Card';
 
 const LazyImage = lazy(() => import('../components/LazyImage'));
 
-const projects = [
+// Local project data - will be replaced with data from the projects.ts file
+const projectsData = [
   {
     title: "NerdWithABindi",
     description: "A collaboration platform for influencers to connect, share resources, and coordinate campaigns. Streamlines partnership opportunities and content creation through an intuitive interface.",
     image: "/images/nerdwithabindi.png",
     tags: ["React", "Next.js", "Google Form", "HTML", "CSS"],
     github: "#",
-    live: "#"
+    live: "#",
+    slug: "nerdwithabindi"
   },
   {
     title: "Sleepara",
@@ -21,7 +24,8 @@ const projects = [
     image: "/images/sleepara.png",
     tags: ["Shopify", "Stripe", "Link", "React", "Next.js", "Custom AI"],
     github: "#",
-    live: "https://sleepara.com/"
+    live: "https://sleepara.com/",
+    slug: "sleepara"
   },
   {
     title: "Arcadia Design",
@@ -29,7 +33,8 @@ const projects = [
     image: "/images/arcadia.png",
     tags: ["HTML", "CSS", "JavaScript", "Tailwind CSS", "TypeScript"],
     github: "#",
-    live: "https://www.arcadiadesignsinc.com/"
+    live: "https://www.arcadiadesignsinc.com/",
+    slug: "arcadia-design"
   },
   {
     title: "Bellarisse",
@@ -37,7 +42,8 @@ const projects = [
     image: "/images/bellarisse.png",
     tags: ["Framer", "Shopify"],
     github: "#",
-    live: "https://www.bellarisse.com/"
+    live: "https://www.bellarisse.com/",
+    slug: "bellarisse"
   },
   {
     title: "EventSync (TechSprint48 Hackathon)",
@@ -45,7 +51,8 @@ const projects = [
     image: "/images/eventsync.png",
     tags: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
     github: "https://github.com/ashmitkhurana/EventSync",
-    live: "#"
+    live: "#",
+    slug: "eventsync"
   },
   {
     title: "Monktechnology.net",
@@ -53,7 +60,8 @@ const projects = [
     image: "/images/monk-tech.png",
     tags: ["WIX", "Web Development", "UI/UX", "3D Design"],
     github: "#",
-    live: "https://monktechnology.net"
+    live: "https://monktechnology.net",
+    slug: "monk-technology"
   },
   {
     title: "Portfolio Website",
@@ -61,7 +69,8 @@ const projects = [
     image: "/images/portfolio.png",
     tags: ["React", "Tailwind CSS", "TypeScript", "Spline"],
     github: "https://github.com/ashmitkhurana/portfolio",
-    live: "#"
+    live: "#",
+    slug: "portfolio-website"
   },
   {
     title: "Chat App",
@@ -69,7 +78,8 @@ const projects = [
     image: "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?auto=format&fit=crop&w=800&q=80",
     tags: ["Flutter", "Firebase", "Dart"],
     github: "https://github.com/ashmitkhurana/ChatApp-Flutter",
-    live: "#"
+    live: "#",
+    slug: "chat-app"
   }
 ];
 
@@ -95,60 +105,64 @@ const Projects = () => {
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {projects.map((project) => (
-            <SpotlightCard
-              key={project.title}
-              className="custom-spotlight-card group"
-              spotlightColor="rgba(0, 229, 255, 0.2)"
-            >
-              <div className="rounded-xl overflow-hidden transition-all duration-300 flex flex-col h-full bg-transparent" style={{ background: 'none', boxShadow: 'none' }}>
-                <div className="relative overflow-hidden">
-                  <Suspense fallback={<div className="w-full h-48 bg-blue-500/10 animate-pulse rounded-t-xl" />}>
-                    <LazyImage
-                      src={project.image}
-                      alt={project.title}
-                      className={"project-card-image w-full h-48 object-cover"}
-                    />
-                  </Suspense>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                </div>
-                <div className="p-6 flex flex-col flex-1">
-                  <h3 className="text-xl font-semibold mb-2">{project.title}</h3>
-                  <p className="text-gray-400 mb-4">{project.description}</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {project.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-sm"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+          {projectsData.map((project) => (
+            <Link to={`/projects/${project.slug}`} key={project.title} className="h-full">
+              <SpotlightCard
+                className="custom-spotlight-card group h-full"
+                spotlightColor="rgba(0, 229, 255, 0.2)"
+              >
+                <div className="rounded-xl overflow-hidden transition-all duration-300 flex flex-col h-full bg-transparent" style={{ background: 'none', boxShadow: 'none' }}>
+                  <div className="relative overflow-hidden h-48">
+                    <Suspense fallback={<div className="w-full h-48 bg-blue-500/10 animate-pulse rounded-t-xl" />}>
+                      <LazyImage
+                        src={project.image}
+                        alt={project.title}
+                        className={"project-card-image w-full h-48 object-cover"}
+                      />
+                    </Suspense>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   </div>
-                  <div className="flex gap-4 mt-auto">
-                    {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design" || project.title === "Sleepara" || project.title === "NerdWithABindi") ? (
-                      <a
-                        href={project.live}
-                        className="text-gray-400 hover:text-white transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="w-6 h-6" />
-                      </a>
-                    ) : (
-                      <a
-                        href={project.github}
-                        className="text-gray-400 hover:text-white transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Github className="w-6 h-6" />
-                      </a>
-                    )}
+                  <div className="p-6 flex flex-col flex-1">
+                    <h3 className="text-xl font-semibold mb-2 line-clamp-1">{project.title}</h3>
+                    <p className="text-gray-400 mb-4 line-clamp-3 h-18">{project.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-4 min-h-[40px]">
+                      {project.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-4 mt-auto pt-2">
+                      {(project.title === "Monktechnology.net" || project.title === "Bellarisse" || project.title === "Arcadia Design" || project.title === "Sleepara" || project.title === "NerdWithABindi") ? (
+                        <a
+                          href={project.live}
+                          className="text-gray-400 hover:text-white transition-colors"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-6 h-6" />
+                        </a>
+                      ) : (
+                        <a
+                          href={project.github}
+                          className="text-gray-400 hover:text-white transition-colors"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Github className="w-6 h-6" />
+                        </a>
+                      )}
+                      <span className="text-blue-400 ml-auto">View Case Study →</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </SpotlightCard>
+              </SpotlightCard>
+            </Link>
           ))}
         </div>
       </div>
