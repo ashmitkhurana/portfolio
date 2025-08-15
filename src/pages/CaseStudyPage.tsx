@@ -6,6 +6,7 @@ import 'aos/dist/aos.css';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import Navbar from '../components/Navbar';
+import CaseStudyHero from '../components/CaseStudyHero';
 import ProcessTimeline from '../components/ProcessTimeline';
 
 // Register Chart.js components
@@ -105,25 +106,64 @@ const CaseStudyPage = () => {
     );
   }
 
-  // Chart data
-  const chartData = {
-    labels: project.metrics.map(m => m.label),
-    datasets: [
-      {
-        label: 'Project Metrics',
-        data: project.metrics.map(m => m.value),
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
-        borderColor: 'rgba(53, 162, 235, 1)',
-        borderWidth: 1,
-      },
-    ],
+  // Chart data (multi-axis by unit)
+  const labels = project.metrics.map(m => m.label);
+  const units = Array.from(new Set(project.metrics.map(m => m.unit)));
+
+  // Colors for datasets
+  const palette = [
+    'rgba(53, 162, 235, 0.7)', // blue
+    'rgba(168, 85, 247, 0.7)', // purple
+    'rgba(236, 72, 153, 0.7)', // pink
+    'rgba(16, 185, 129, 0.7)', // emerald
+  ];
+
+  const datasets = units.map((unit, i) => ({
+    label: unit,
+    data: project.metrics.map(m => (m.unit === unit ? m.value : null)),
+    backgroundColor: palette[i % palette.length],
+    borderColor: palette[i % palette.length].replace('0.7', '1'),
+    borderWidth: 1,
+    yAxisID: `y_${i}`,
+    borderRadius: 8,
+    categoryPercentage: 0.7,
+    barPercentage: 0.7,
+  }));
+
+  const chartData = { labels, datasets } as const;
+
+  type YScale = {
+    type: 'linear';
+    position: 'left' | 'right';
+    ticks: { color: string };
+    grid: { color?: string; drawOnChartArea?: boolean };
+    title: { display: boolean; text: string; color: string };
+    beginAtZero: boolean;
   };
+
+  const scales = units.reduce<Record<string, YScale>>((acc, unit, i) => {
+    const isLeft = i % 2 === 0;
+    acc[`y_${i}`] = {
+      type: 'linear',
+      position: isLeft ? 'left' : 'right',
+      ticks: { color: 'white' },
+      grid: {
+        color: isLeft ? 'rgba(255, 255, 255, 0.1)' : undefined,
+        drawOnChartArea: isLeft,
+      },
+      title: { display: true, text: unit, color: 'white' },
+      beginAtZero: true,
+    } as const;
+    return acc;
+  }, {});
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
+        labels: { color: 'white' },
       },
       title: {
         display: true,
@@ -134,21 +174,19 @@ const CaseStudyPage = () => {
         callbacks: {
           // @ts-expect-error - Chart.js typings are complex for tooltips
           label: function(tooltipItem) {
-            const index = tooltipItem.dataIndex;
-            return `${tooltipItem.dataset.label}: ${tooltipItem.parsed.y} ${project.metrics[index].unit}`;
+            const metric = project.metrics[tooltipItem.dataIndex];
+            return `${metric.label}: ${tooltipItem.parsed.y} ${metric.unit}`;
           }
         }
       }
     },
+    layout: { padding: 10 },
     scales: {
-      y: {
-        ticks: { color: 'white' },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-      },
       x: {
         ticks: { color: 'white' },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-      }
+        grid: { color: 'rgba(255, 255, 255, 0.06)' }
+      },
+      ...scales,
     }
   };
 
@@ -159,24 +197,8 @@ const CaseStudyPage = () => {
   return (
     <div className="bg-[#0a0a0a] text-white">
       <Navbar />
-      {/* Hero Section */}
-      <section className="pt-32 pb-16">
-        <div className="max-w-6xl mx-auto px-4" data-aos="fade-up">
-          <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">
-            {project.title}
-          </h1>
-          <p className="text-xl text-blue-400 text-center mb-12">
-            {project.tagline}
-          </p>
-          <div className="rounded-xl overflow-hidden">
-            <img 
-              src={heroImage.src} 
-              alt={heroImage.alt} 
-              className="w-full h-auto max-h-[600px] object-cover"
-            />
-          </div>
-        </div>
-      </section>
+      {/* Animated Case Study Hero */}
+      <CaseStudyHero title={project.title} tagline={project.tagline} image={heroImage} />
 
       {/* Client & Problem */}
       <section className="py-16 bg-[#111]">
@@ -258,7 +280,7 @@ const CaseStudyPage = () => {
           </div>
           
           <div className="bg-[#1a1a1a] p-6 rounded-xl">
-            <div className="h-[400px]">
+            <div className="h-[420px]">
               <Bar data={chartData} options={chartOptions} />
             </div>
           </div>

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,19 +20,25 @@ const Navbar = () => {
 
   const navItems = [
     { name: 'About', href: '#about' },
-    { name: 'Skills', href: '#skills' },
     { name: 'Projects', href: '#projects' },
+  { name: 'Skills', href: '#skills' },
     { name: 'Experience', href: '#experience' },
     { name: 'Education', href: '#education' },
     { name: 'Terminal', href: '#terminal' },
     { name: 'Contact', href: '#contact' },
   ];
 
-  const scrollToSection = (href: string) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      history.pushState(null, '', href);
+  const scrollOrNavigate = (href: string) => {
+    const onHome = location.pathname === '/';
+    if (onHome) {
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        window.history.pushState(null, '', href);
+      }
+      setIsOpen(false);
+    } else {
+      navigate('/' + href);
       setIsOpen(false);
     }
   };
@@ -46,7 +55,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0">
             <button
-              onClick={() => scrollToSection('#home')}
+              onClick={() => (location.pathname === '/' ? scrollOrNavigate('#home') : navigate('/'))}
               className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity duration-200"
             >
               AK
@@ -56,10 +65,10 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              {navItems.map((item) => (
+        {navItems.map((item) => (
                 <button
                   key={item.name}
-                  onClick={() => scrollToSection(item.href)}
+          onClick={() => scrollOrNavigate(item.href)}
                   className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
                 >
                   {item.name}
@@ -87,10 +96,10 @@ const Navbar = () => {
         className="md:hidden bg-[#0a0a0a]/95 backdrop-blur-md"
       >
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-          {navItems.map((item) => (
+      {navItems.map((item) => (
             <button
               key={item.name}
-              onClick={() => scrollToSection(item.href)}
+        onClick={() => scrollOrNavigate(item.href)}
               className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left transition-colors duration-200"
             >
               {item.name}
