@@ -184,31 +184,46 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  /* Move the central line to the left and create space */
+  .central-timeline {
+    left: 20px;
+    transform: none;
+    width: 3px;
+  }
+
+  .process-timeline {
+    padding: 2rem 0 2rem 48px; /* room for the line + numbers */
+  }
+
+  /* Stack steps as a simple 2-column grid: number | content */
   .process-step {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: start;
+    gap: 12px;
     height: auto;
-    margin-bottom: 4rem;
+    margin-bottom: 2.5rem;
   }
-  
-  .step-branch {
-    width: 150px;
-  }
-  
+
+  /* Hide decorative branches on small screens to avoid overlap */
+  .step-branch { display: none; }
+
   .step-left .step-number,
   .step-right .step-number {
-    position: relative;
-    left: auto;
-    right: auto;
-    top: auto;
-    margin: 1rem 0;
+    position: static;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    margin: 0;
   }
-  
+
   .step-left .step-content,
   .step-right .step-content {
-    position: relative;
-    left: auto;
-    right: auto;
-    top: auto;
+    position: static;
     max-width: 100%;
-    margin: 1rem 0;
+    margin: 0;
   }
+
+  .step-stage { font-size: 1.125rem; min-height: 0; }
+  .step-description { font-size: 0.95rem; min-height: 0; }
 }

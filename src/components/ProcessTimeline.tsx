@@ -18,7 +18,7 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
 
     if (sectionRef.current && timelineRef.current && centralLineRef.current) {
       // Cache step elements and init states once
-      const stepEls = Array.from(timelineRef.current.querySelectorAll('.process-step')) as HTMLElement[];
+  const stepEls = Array.from(timelineRef.current.querySelectorAll('.process-step')) as HTMLElement[];
       type StepData = {
         el: HTMLElement;
         centerY: number; // relative to timeline container
@@ -36,11 +36,10 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
         const stageEl = el.querySelector('.step-stage') as HTMLElement;
         const descEl = el.querySelector('.step-description') as HTMLElement;
         // Initial states
-        gsap.set(branch, { scaleX: 0 });
+  // If branch exists and is visible, prep; otherwise skip safely
+  if (branch) gsap.set(branch, { scaleX: 0, transformOrigin: 'left center' });
         gsap.set(number, { opacity: 0, scale: 0.6 });
-        gsap.set([stageEl, descEl], { opacity: 0, y: 6, filter: 'blur(3px)' });
-        stageEl.textContent = '';
-        descEl.textContent = '';
+  gsap.set([stageEl, descEl], { opacity: 0, y: 6, filter: 'blur(3px)' });
         return {
           el,
           centerY: el.offsetTop + el.offsetHeight / 2,
@@ -52,6 +51,16 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
         };
       });
 
+      // Recalculate centers on resize/orientation change
+      const recalcCenters = () => {
+        stepsData.forEach((s) => {
+          s.centerY = s.el.offsetTop + s.el.offsetHeight / 2;
+        });
+        ScrollTrigger.refresh();
+      };
+      window.addEventListener('resize', recalcCenters);
+      window.addEventListener('orientationchange', recalcCenters);
+
       // Central timeline growth animation + step activation based on its progress
       gsap.fromTo(centralLineRef.current,
         { height: '0%' },
@@ -62,21 +71,21 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
             trigger: timelineRef.current,
             start: 'top center',
             end: 'bottom center',
-            scrub: 1,
+            scrub: 0.6,
             onUpdate: (self) => {
-              const containerHeight = (timelineRef.current?.scrollHeight || timelineRef.current?.offsetHeight || 0);
+              const tl = timelineRef.current!;
+              const containerHeight = tl.scrollHeight || tl.offsetHeight || 0;
               const progressY = self.progress * containerHeight;
               // Activate/deactivate steps based on central line height
-              stepsData.forEach((s, i) => {
+              stepsData.forEach((s) => {
                 const reached = progressY >= s.centerY;
                 if (reached && !s.active) {
                   // Activate
                   s.active = true;
-                  gsap.to(s.branch, { scaleX: 1, duration: 0.4, ease: 'power2.out' });
+                  if (s.branch && getComputedStyle(s.branch).display !== 'none') {
+                    gsap.to(s.branch, { scaleX: 1, duration: 0.4, ease: 'power2.out' });
+                  }
                   gsap.to(s.number, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.6)' });
-                  // Fill text
-                  s.stageEl.textContent = steps[i].stage;
-                  s.descEl.textContent = steps[i].description;
                   gsap.to([s.stageEl, s.descEl], {
                     opacity: 1,
                     y: 0,
@@ -88,7 +97,9 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
                 } else if (!reached && s.active) {
                   // Deactivate when scrolling back up
                   s.active = false;
-                  gsap.to(s.branch, { scaleX: 0, duration: 0.3, ease: 'power2.in' });
+                  if (s.branch && getComputedStyle(s.branch).display !== 'none') {
+                    gsap.to(s.branch, { scaleX: 0, duration: 0.3, ease: 'power2.in' });
+                  }
                   gsap.to(s.number, { opacity: 0, scale: 0.6, duration: 0.2, ease: 'power1.in' });
                   gsap.to([s.stageEl, s.descEl], {
                     opacity: 0,
@@ -96,10 +107,6 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
                     filter: 'blur(3px)',
                     duration: 0.2,
                     ease: 'power1.in',
-                    onComplete: () => {
-                      s.stageEl.textContent = '';
-                      s.descEl.textContent = '';
-                    }
                   });
                 }
               });
@@ -136,6 +143,8 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
 
       return () => {
         clearInterval(particleInterval);
+        window.removeEventListener('resize', recalcCenters);
+        window.removeEventListener('orientationchange', recalcCenters);
         ScrollTrigger.getAll().forEach(trigger => trigger.kill());
       };
     }
@@ -155,15 +164,15 @@ const ProcessTimeline: React.FC<ProcessTimelineProps> = ({ steps }) => {
         <div ref={timelineRef} className="process-timeline">
           <div ref={centralLineRef} className="central-timeline"></div>
           
-          {steps.map((_, index) => {
+    {steps.map((step, index) => {
             const isLeft = index % 2 === 0;
             return (
               <div key={index} className={`process-step ${isLeft ? 'step-left' : 'step-right'}`} data-step={index}>
                 <div className="step-branch"></div>
                 <div className="step-number">{index + 1}</div>
                 <div className="step-content">
-                  <h3 className="step-stage"></h3>
-                  <p className="step-description"></p>
+      <h3 className="step-stage">{step.stage}</h3>
+      <p className="step-description">{step.description}</p>
                 </div>
               </div>
             );
