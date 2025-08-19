@@ -138,20 +138,26 @@ const CaseStudyPage = () => {
     ticks: { color: string };
     grid: { color?: string; drawOnChartArea?: boolean };
     title: { display: boolean; text: string; color: string };
+    border?: { color?: string };
     beginAtZero: boolean;
   };
 
   const scales = units.reduce<Record<string, YScale>>((acc, unit, i) => {
     const isLeft = i % 2 === 0;
+    const base = palette[i % palette.length];
+    // derive opaque color for axis text/border
+    const axisColor = base.includes('rgba') ? base.replace(/0\.7\)/, '1)') : base;
+    const gridColor = base.includes('rgba') ? base.replace(/0\.7\)/, '0.18)') : 'rgba(255,255,255,0.08)';
     acc[`y_${i}`] = {
       type: 'linear',
       position: isLeft ? 'left' : 'right',
-      ticks: { color: 'white' },
+      ticks: { color: axisColor },
       grid: {
-        color: isLeft ? 'rgba(255, 255, 255, 0.1)' : undefined,
+        color: isLeft ? gridColor : undefined,
         drawOnChartArea: isLeft,
       },
-      title: { display: true, text: unit, color: 'white' },
+      title: { display: true, text: unit, color: axisColor },
+      border: { color: axisColor },
       beginAtZero: true,
     } as const;
     return acc;
