@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Prevent automatic scrolling to hash on page load
 if (window.location.hash) {
@@ -32,8 +33,19 @@ if (!rootElement) {
 
 const root = createRoot(rootElement);
 
+// Use the ErrorBoundary in development or when explicitly enabled via ?debug=1
+const search = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const debugFlag = search?.get('debug') === '1';
+const isDev = import.meta.env.MODE !== 'production';
+
 root.render(
   <StrictMode>
-    <App />
+    {isDev || debugFlag ? (
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    ) : (
+      <App />
+    )}
   </StrictMode>
 );

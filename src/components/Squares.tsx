@@ -9,6 +9,9 @@ const Squares = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
+  const visibleRef = useRef<boolean>(true);
+  const runningRef = useRef<boolean>(true);
+  const lastTsRef = useRef<number>(0);
   const numSquaresX = useRef(0);
   const numSquaresY = useRef(0);
   const gridOffset = useRef({ x: 0, y: 0 });
@@ -27,7 +30,17 @@ const Squares = ({
       numSquaresY.current = Math.ceil(canvas.height / squareSize) + 1;
     };
 
+    const onVisibility = () => {
+      runningRef.current = document.visibilityState === 'visible';
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      visibleRef.current = entries[0]?.isIntersecting ?? true;
+    }, { threshold: 0.01 });
+
     window.addEventListener("resize", resizeCanvas);
+    document.addEventListener('visibilitychange', onVisibility);
+    if (canvas) io.observe(canvas);
     resizeCanvas();
 
     const drawGrid = () => {
@@ -73,8 +86,17 @@ const Squares = ({
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
-    const updateAnimation = () => {
-      const effectiveSpeed = Math.max(speed, 0.1);
+    const updateAnimation = (ts?: number) => {
+      // Skip updates when not visible to save CPU
+      if (!runningRef.current || !visibleRef.current) {
+        requestRef.current = requestAnimationFrame(updateAnimation);
+        return;
+      }
+
+      const dt = ts && lastTsRef.current ? Math.min(1 / 30, (ts - lastTsRef.current) / 1000) : 1 / 60; // cap to ~30fps
+      lastTsRef.current = ts || performance.now();
+
+      const effectiveSpeed = Math.max(speed, 0.1) * (dt * 60);
       switch (direction) {
         case "right":
           gridOffset.current.x =
@@ -103,7 +125,7 @@ const Squares = ({
       }
 
       drawGrid();
-      requestRef.current = requestAnimationFrame(updateAnimation);
+  requestRef.current = requestAnimationFrame(updateAnimation);
     };
 
     const handleMouseMove = (event: MouseEvent) => {
@@ -141,6 +163,8 @@ const Squares = ({
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
+      document.removeEventListener('visibilitychange', onVisibility);
+      io.disconnect();
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       canvas.removeEventListener("mousemove", handleMouseMove);
       canvas.removeEventListener("mouseleave", handleMouseLeave);

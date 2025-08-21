@@ -12,7 +12,7 @@ const Hero = () => {
 
   return (
     <div ref={containerRef} className="relative min-h-screen flex items-center justify-center bg-[#0a0a0a]">
-      {/* Animated Squares Background as true background */}
+      {/* Animated Squares Background restored with performance guards */}
       <div className="absolute inset-0 z-0 pointer-events-auto w-full h-full">
         <Squares speed={0.5} squareSize={40} direction="diagonal" borderColor="#fff" hoverFillColor="#5a1fa2" />
       </div>

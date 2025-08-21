@@ -28,19 +28,27 @@ const Navbar = () => {
     { name: 'Contact', href: '#contact' },
   ];
 
-  const scrollOrNavigate = (href: string) => {
+  const scrollOrNavigate = async (href: string) => {
     const onHome = location.pathname === '/';
-    if (onHome) {
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-        window.history.pushState(null, '', href);
-      }
+    if (!onHome) {
+      // Navigate to home first
+      navigate('/');
+      // Give router a tick to render
+      requestAnimationFrame(() => {
+        const element = document.querySelector(href);
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
+        window.history.replaceState(null, '', href);
+      });
       setIsOpen(false);
-    } else {
-      navigate('/' + href);
-      setIsOpen(false);
+      return;
     }
+
+    const element = document.querySelector(href);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      window.history.replaceState(null, '', href);
+    }
+    setIsOpen(false);
   };
 
   return (
@@ -111,4 +119,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@types/aos": "^3.0.7",
-    "@types/react-router-dom": "^5.3.3",
     "aos": "^2.3.4",
     "chart.js": "^4.5.0",
     "clsx": "^2.1.1",

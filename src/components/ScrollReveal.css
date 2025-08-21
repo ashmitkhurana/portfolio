@@ -1,0 +1,15 @@
+.scroll-reveal {
+  margin: 20px 0;
+  min-height: 1.5em; /* ensure space is reserved so it's not clipped */
+}
+
+.scroll-reveal-text {
+  font-size: clamp(1.6rem, 4vw, 3rem);
+  line-height: 1.5;
+  font-weight: 600;
+  color: #d1d5db; /* tailwind gray-300 equivalent for visibility on dark bg */
+}
+
+.word {
+  display: inline-block;
+}

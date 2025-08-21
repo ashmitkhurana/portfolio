@@ -1,0 +1,47 @@
+.scroll-float {
+  overflow: visible;
+  position: relative;
+  z-index: 50;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  pointer-events: none; /* Ensure animations work even when elements are under it */
+}
+
+.scroll-float-text {
+  display: inline-block;
+  font-size: clamp(1.6rem, 8vw, 10rem);
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.5;
+  min-height: 1.5em;
+  opacity: 1;
+  isolation: isolate; /* Creates a new stacking context */
+}
+
+.char {
+  display: inline-block !important;
+  visibility: visible !important;
+  position: relative;
+  transform-origin: 50% 0%;
+  opacity: 1;
+  will-change: transform, opacity, filter; /* Optimize for animation */
+}
+
+/* Gradient text helper for ScrollFloat when used with containerClassName="gradient-text" */
+.gradient-text .char {
+  /* Original blue → purple gradient */
+  background-image: linear-gradient(to right, #3b82f6, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Add debug outlines when needed */
+.debug .scroll-float {
+  outline: 2px solid red;
+}
+
+.debug .char {
+  outline: 1px solid blue;
+}
