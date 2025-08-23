@@ -1,4 +1,5 @@
 import React from "react"
+import "./text-flipper.css"
 import { motion } from "framer-motion"
 
 const DURATION = 0.25
