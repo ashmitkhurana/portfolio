@@ -8,6 +8,7 @@ import { Bar } from 'react-chartjs-2';
 import Navbar from '../components/Navbar';
 import CaseStudyHero from '../components/CaseStudyHero';
 import ProcessTimeline from '../components/ProcessTimeline';
+import MockDataBanner from '../components/MockDataBanner';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -203,6 +204,9 @@ const CaseStudyPage = () => {
   return (
     <div className="bg-[#0a0a0a] text-white">
       <Navbar />
+      {/* Spacer to offset fixed Navbar height */}
+      <div aria-hidden className="h-16" />
+  <MockDataBanner key={slug} />
       {/* Animated Case Study Hero */}
       <CaseStudyHero title={project.title} tagline={project.tagline} image={heroImage} />
 

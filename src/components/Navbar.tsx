@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [overHero, setOverHero] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,6 +17,27 @@ const Navbar = () => {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Detect when the hero section is in view to make navbar opaque
+  useEffect(() => {
+    const hero = document.getElementById('home');
+    if (!hero) return; // no hero on this route
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setOverHero(entry.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0.2, // consider hero in view when ~20% visible
+        rootMargin: '0px 0px -10% 0px',
+      }
+    );
+
+    obs.observe(hero);
+    return () => obs.disconnect();
   }, []);
 
   const navItems = [
@@ -51,16 +73,37 @@ const Navbar = () => {
     setIsOpen(false);
   };
 
+  const navClass = overHero
+    ? 'bg-[#0a0a0a] border-white/10 shadow-[0_2px_24px_rgba(0,0,0,0.35)]'
+    : scrolled
+    ? 'bg-[#0a0a0a]/45 backdrop-blur-2xl border-white/10 shadow-[0_2px_24px_rgba(0,0,0,0.35)]'
+    : 'bg-[#0a0a0a]/25 backdrop-blur-2xl border-transparent';
+
+  const blurStyle = overHero
+    ? undefined
+    : { WebkitBackdropFilter: 'saturate(160%) blur(20px)', backdropFilter: 'saturate(160%) blur(20px)' } as React.CSSProperties;
+
   return (
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className={`fixed w-full z-50 transition-all duration-300 ${
-        scrolled ? 'bg-[#0a0a0a]/80 backdrop-blur-md shadow-lg' : 'bg-transparent'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b isolate overflow-hidden ${navClass}`}
+      style={blurStyle}
     >
+      {/* Liquid glass sheen overlays */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* soft radial highlight */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -top-1/2 h-[200%] w-[140%] opacity-[0.06]"
+          style={{
+            background: 'radial-gradient(60% 30% at 50% 0%, rgba(255,255,255,0.8), rgba(255,255,255,0))'
+          }}
+        />
+        {/* subtle top sheen line */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-white/30 via-white/60 to-white/30 opacity-20" />
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+  <div className="flex items-center justify-between h-16">
           <div className="flex-shrink-0">
             <button
               onClick={() => (location.pathname === '/' ? scrollOrNavigate('#home') : navigate('/'))}
@@ -101,7 +144,9 @@ const Navbar = () => {
       <motion.div
         initial={false}
         animate={isOpen ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
-        className="md:hidden bg-[#0a0a0a]/95 backdrop-blur-md"
+        className={`md:hidden border-t border-white/10 ${
+          overHero ? 'bg-[#0a0a0a]' : 'bg-[#0a0a0a]/60 backdrop-blur-2xl'
+        }`}
       >
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
       {navItems.map((item) => (
