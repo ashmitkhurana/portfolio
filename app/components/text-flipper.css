@@ -1,0 +1,36 @@
+.flip-link-container .flip-link-icon {
+  background: var(--icon-bg);
+  color: var(--icon-color);
+  transition: background 0.2s, color 0.2s;
+  border-radius: 0.5em;
+  padding: 0.25em 0.4em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2em;
+}
+.flip-link-container:hover .flip-link-icon {
+  background: var(--icon-hover-bg);
+  color: var(--icon-hover-color);
+}
+
+
+.flip-link-container a {
+  /* Force gradient text regardless of browser dark mode */
+  background-image: linear-gradient(90deg, #3b82f6, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  transition: color 0.2s;
+}
+
+.flip-link-container a:hover,
+.flip-link-container a:focus,
+.flip-link-container a:active {
+  color: #fff;
+  background-image: linear-gradient(90deg, #3b82f6, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: none;
+}
