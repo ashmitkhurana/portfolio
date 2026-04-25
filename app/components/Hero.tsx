@@ -57,8 +57,11 @@ function ParticleField() {
     let camera: import("three").PerspectiveCamera;
     let particles: import("three").Points;
     let animId: number;
-    let mouseX = 0;
-    let mouseY = 0;
+
+    // Movement state
+    let targetX = 0, targetY = 0;
+    let currentX = 0, currentY = 0;
+    const lerpAmount = 0.06; // Smoothing factor
 
     import("three").then((mod) => {
       THREE = mod;
@@ -94,12 +97,53 @@ function ParticleField() {
       particles = new THREE.Points(geo, mat);
       scene.add(particles);
 
-      // Mouse influence
+      // ── Input Handlers ───────────────────────────────────────────
+
       const onMouseMove = (e: MouseEvent) => {
-        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+        targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+        targetY = (e.clientY / window.innerHeight - 0.5) * 2;
       };
       window.addEventListener("mousemove", onMouseMove);
+
+      // ── STEP 2: ORIENTATION HANDLER ──────────────────────────────────
+      function handleOrientation(event: DeviceOrientationEvent) {
+        const gamma = event.gamma || 0; // left-right tilt
+        const beta  = event.beta || 0;  // front-back tilt
+
+        // Normalize + reduce sensitivity
+        targetX = (gamma / 45) * 0.5;
+        targetY = (beta / 45) * 0.5;
+      }
+
+      // ── STEP 1: GYRO PERMISSION (MANDATORY FOR iOS) ──────────────────
+      async function enableGyro() {
+        const DOE = (window as any).DeviceOrientationEvent;
+        if (typeof DOE !== "undefined" && typeof DOE.requestPermission === "function") {
+          try {
+            const permission = await DOE.requestPermission();
+            if (permission === "granted") {
+              window.addEventListener("deviceorientation", handleOrientation);
+              console.log("Gyro ON");
+            } else {
+              console.log("Gyro denied");
+            }
+          } catch (err) {
+            console.error("Gyro error:", err);
+          }
+        } else {
+          // Android (no permission needed)
+          window.addEventListener("deviceorientation", handleOrientation);
+        }
+      }
+
+      // Trigger it ONLY on user interaction
+      window.addEventListener("click", enableGyro, { once: true });
+      window.addEventListener("touchstart", enableGyro, { once: true });
+
+      // ── STEP 4: DEBUG CHECK ──────────────────────────────────────────
+      window.addEventListener("deviceorientation", (e) => {
+        console.log(e.gamma, e.beta);
+      });
 
       const onResize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -108,21 +152,30 @@ function ParticleField() {
       };
       window.addEventListener("resize", onResize);
 
+      // ── Render Loop ──────────────────────────────────────────────
+
       let t = 0;
       const animate = () => {
         animId = requestAnimationFrame(animate);
         t += 0.0003;
 
-        particles.rotation.y = t + mouseX * 0.08;
-        particles.rotation.x = mouseY * 0.04;
+        // ── STEP 3: SMOOTHING (CRITICAL) ───────────────────────────────
+        currentX += (targetX - currentX) * 0.08;
+        currentY += (targetY - currentY) * 0.08;
+
+        particles.rotation.y = t + currentX * 0.15;
+        particles.rotation.x = currentY * 0.1;
 
         renderer.render(scene, camera);
       };
       animate();
 
-      // cleanup
+      // Cleanup
       (canvasRef.current as any).__cleanup = () => {
         window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("deviceorientation", handleOrientation);
+        window.removeEventListener("touchstart", enableGyro);
+        window.removeEventListener("click", enableGyro);
         window.removeEventListener("resize", onResize);
         cancelAnimationFrame(animId);
         renderer.dispose();
@@ -142,6 +195,7 @@ function ParticleField() {
     />
   );
 }
+
 
 // ── Magnetic button ───────────────────────────────────────────────
 function MagneticBtn({
@@ -174,15 +228,15 @@ function MagneticBtn({
 
   const cls =
     variant === "solid"
-      ? "px-8 py-3.5 rounded-full bg-white text-black font-semibold text-sm tracking-wide hover:bg-white/90 transition-colors"
-      : "px-8 py-3.5 rounded-full border border-white/25 text-white font-semibold text-sm tracking-wide hover:border-white/60 hover:bg-white/5 transition-all";
+      ? "flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white text-black font-semibold text-sm tracking-wide hover:bg-white/90 transition-colors whitespace-nowrap w-full md:w-auto"
+      : "flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-white/25 text-white font-semibold text-sm tracking-wide hover:border-white/60 hover:bg-white/5 transition-all whitespace-nowrap w-full md:w-auto";
 
   const inner = (
     <div
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="magnetic"
+      className="magnetic w-full md:w-auto"
     >
       {href ? (
         download ? (
@@ -252,7 +306,7 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-background text-center px-4"
+      className="relative min-h-[100dvh] flex flex-col items-center justify-center overflow-hidden bg-background text-center px-4"
     >
       {/* Particle field */}
       <ParticleField />
@@ -267,7 +321,7 @@ export default function Hero() {
       />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center gap-8 max-w-5xl w-full">
+      <div className="relative z-10 flex flex-col items-center gap-6 md:gap-8 max-w-5xl w-full">
         {/* Name */}
         <h1
           ref={headingRef}
@@ -293,7 +347,7 @@ export default function Hero() {
         </div>
 
         {/* CTAs */}
-        <div ref={ctaRef} className="flex items-center gap-4 opacity-0">
+        <div ref={ctaRef} className="flex flex-col md:flex-row items-center gap-4 opacity-0 w-full md:w-auto px-6 md:px-0">
           <MagneticBtn href="#work" variant="solid">
             View My Work ↗
           </MagneticBtn>
@@ -306,11 +360,11 @@ export default function Hero() {
       {/* Scroll arrow */}
       <div
         ref={arrowRef}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 opacity-0 animate-float"
+        className="absolute bottom-12 md:bottom-10 left-0 right-0 mx-auto w-fit opacity-0 animate-float flex flex-col items-center justify-center"
       >
         <div className="flex flex-col items-center gap-2 text-white/30">
-          <span className="text-xs tracking-widest uppercase font-mono">scroll</span>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <span className="text-xs tracking-widest uppercase font-mono pl-[0.1em]">scroll</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="block mx-auto">
             <path
               d="M12 5v14M5 12l7 7 7-7"
               stroke="currentColor"

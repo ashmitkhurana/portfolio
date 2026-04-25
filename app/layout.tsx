@@ -44,7 +44,7 @@ export default function RootLayout({
             <div className="section-container h-16 flex items-center justify-between">
               <Link
                 href="/"
-                className="font-display font-bold text-lg text-white tracking-tight hover:opacity-70 transition-opacity"
+                className="font-display font-bold text-lg text-white tracking-tight hover:opacity-70 transition-opacity hidden md:block"
               >
                 AK
               </Link>

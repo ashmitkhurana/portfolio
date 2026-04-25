@@ -81,6 +81,29 @@ function ProjectRow({
         zIndex: index + 10, // Ascending z-index so next covering previous works naturally
       }}
     >
+      {/* Mobile Header (Visible on Mobile only, above image) */}
+      <div className="flex md:hidden flex-col mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-mono text-white/30 tracking-widest">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <span className="text-blue-400 text-sm font-semibold">View Project →</span>
+        </div>
+        <span className="font-display font-bold text-3xl text-white mb-4 leading-tight">
+          {project.title.split("—")[0].trim()}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {project.stack.slice(0, 4).map((tech) => (
+            <span
+              key={tech}
+              className="font-mono text-[10px] uppercase tracking-widest text-black bg-white px-2.5 py-1 rounded-sm font-bold"
+            >
+              {tech}
+            </span>
+          ))}
+        </div>
+      </div>
+
       {/* Left — cover image */}
       <div className="overflow-hidden rounded-lg bg-card relative w-full flex-1 md:flex-none md:aspect-[16/9]">
         <div
@@ -144,28 +167,7 @@ function ProjectRow({
         </div>
       </div>
 
-      {/* Mobile fallback — footer text block */}
-      <div className="flex md:hidden flex-col justify-end mt-auto pt-4 pb-2">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-mono text-white/30 tracking-widest">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span className="text-blue-400 text-sm font-semibold">View Project →</span>
-        </div>
-        <span className="font-display font-bold text-3xl text-white mb-4 leading-tight">
-          {project.title.split("—")[0].trim()}
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {project.stack.slice(0, 4).map((tech) => (
-            <span
-              key={tech}
-              className="font-mono text-[10px] uppercase tracking-widest text-black bg-white px-2.5 py-1 rounded-sm font-bold"
-            >
-              {tech}
-            </span>
-          ))}
-        </div>
-      </div>
+      {/* No longer used here, moved above image for mobile */}
     </Link>
   );
 }
