@@ -1,240 +1,232 @@
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Tokens ─────────────────────────────── */
+:root {
+  --font-display: 'Clash Display', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Core palette */
+  --background: #080808;
+  --foreground: #f5f5f5;
+
+  /* Gradients */
+  --grad-primary: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  --grad-text: linear-gradient(90deg, #818cf8, #c084fc, #f472b6);
+
+  /* shadcn tokens */
+  --primary: #6366F1;
+  --primary-foreground: #ffffff;
+  --muted: #141414;
+  --muted-foreground: #737373;
+  --accent: #6366F1;
+  --accent-foreground: #ffffff;
+  --card: #0f0f0f;
+  --card-foreground: #f5f5f5;
+  --border: #1f1f1f;
+  --input: #1f1f1f;
+  --ring: #6366F1;
+  --radius: 0.75rem;
+
+  /* Glow */
+  --glow-indigo: rgba(99, 102, 241, 0.4);
+  --glow-purple: rgba(168, 85, 247, 0.4);
+  --glow-pink: rgba(236, 72, 153, 0.4);
+}
+
+/* ─── Base ───────────────────────────────────────── */
 @layer base {
-  html {
-    height: 100%;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
-  }
-  
-  body {
-    @apply bg-[#0a0a0a] text-white;
+  *, *::before, *::after {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    height: 100%;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Lenis handles scroll — disable default smooth */
+    scroll-behavior: auto;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    line-height: 1.6;
     min-height: 100vh;
   }
-  
-  #root {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
+
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.3);
+    color: var(--foreground);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }
 }
 
+/* ─── Components ─────────────────────────────────── */
+@layer components {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Gradient text utility */
+  .text-gradient {
+    background: var(--grad-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% auto;
+    animation: gradient-x 5s linear infinite;
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Noise texture overlay */
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Glow effects */
+  .glow-indigo { box-shadow: 0 0 30px var(--glow-indigo); }
+  .glow-purple  { box-shadow: 0 0 30px var(--glow-purple); }
+  .glow-sm      { box-shadow: 0 0 12px var(--glow-indigo); }
+
+  /* Magnetic button base */
+  .magnetic {
+    position: relative;
+    display: inline-flex;
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* Section layout helper */
+  .section-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* Divider line */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: var(--border);
+  }
+}
+
+/* ─── Utilities ──────────────────────────────────── */
 @layer utilities {
-  .glow {
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  /* Animate gradient-x (hero title, subtitle) */
+  .animate-gradient-x {
+    background-size: 300% auto;
+    animation: gradient-x 8s linear infinite;
+  }
+
+  .animate-gradient-x-fast {
+    background-size: 200% auto;
+    animation: gradient-x 4s linear infinite;
+  }
+
+  /* Pulse dot (availability) */
+  .animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  /* Float (scroll arrow) */
+  .animate-float {
+    animation: float 2s ease-in-out infinite;
+  }
+
+  /* Scramble text cursor blink */
+  .animate-blink {
+    animation: blink 1s step-end infinite;
   }
 }
 
-.bg-glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
+/* ─── Keyframes ──────────────────────────────────── */
+@keyframes gradient-x {
+  0%   { background-position: 0% center; }
+  50%  { background-position: 100% center; }
+  100% { background-position: 0% center; }
 }
 
-.bg-glass:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
 }
 
-::-webkit-scrollbar-track {
-  background: #0a0a0a;
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #3b82f6, #9333ea);
-  border-radius: 4px;
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #2563eb, #7e22ce);
+@keyframes marquee-reverse {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
 }
 
-/* Gradient Text Animation */
-.animate-gradient {
-  background-size: 300% 300%;
-  animation: gradient 8s linear infinite;
+.animate-marquee         { animation: marquee 25s linear infinite; }
+.animate-marquee-reverse { animation: marquee-reverse 25s linear infinite; }
+
+/* ─── Lenis ──────────────────────────────────────── */
+html.lenis, html.lenis body {
+  height: auto;
 }
 
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
 }
 
-/* Glow Effect */
-.glow-effect {
-  position: relative;
-  transition: transform 0.3s ease;
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
 }
 
-.glow-effect::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  background: linear-gradient(45deg, #3b82f6, #9333ea);
-  filter: blur(15px);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
-  border-radius: inherit;
-}
-
-.glow-effect:hover {
-  transform: translateY(-2px);
-}
-
-.glow-effect:hover::before {
-  opacity: 0.5;
-}
-
-/* Terminal shake animation for nuke command */
-@keyframes shake {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  10% { transform: translate(-5px, -5px) rotate(-1deg); }
-  20% { transform: translate(5px, -5px) rotate(1deg); }
-  30% { transform: translate(-5px, 5px) rotate(0deg); }
-  40% { transform: translate(5px, 5px) rotate(1deg); }
-  50% { transform: translate(-5px, -5px) rotate(-1deg); }
-  60% { transform: translate(5px, -5px) rotate(0deg); }
-  70% { transform: translate(-5px, 5px) rotate(-1deg); }
-  80% { transform: translate(-5px, -5px) rotate(1deg); }
-  90% { transform: translate(5px, 5px) rotate(0deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
-}
-
-.shake {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-}
-
-/* Matrix animation for hack command */
-@keyframes matrixFall {
-  0% {
-    top: -100%;
-  }
-  100% {
-    top: 100%;
-  }
-}
-
-.matrix-char {
-  animation: matrixFall linear forwards;
-}
-
-/* Nuclear explosion animation for nuke command */
-@keyframes nuclearFlash {
-  0% { 
-    opacity: 0; 
-    background-color: white;
-  }
-  10% { 
-    opacity: 1; 
-    background-color: white;
-  }
-  30% { 
-    opacity: 0.8; 
-    background-color: rgba(255, 220, 150, 0.9);
-  }
-  100% { 
-    opacity: 0; 
-    background-color: rgba(255, 100, 50, 0.5);
-  }
-}
-
-@keyframes fadeToBlack {
-  0% { 
-    opacity: 0; 
-  }
-  50% { 
-    opacity: 0.5; 
-  }
-  100% { 
-    opacity: 1; 
-  }
-}
-
-@keyframes fallDown {
-  0% { 
-    transform: translateY(0) rotate(0deg); 
-    opacity: 1;
-  }
-  100% { 
-    transform: translateY(1000px) rotate(20deg); 
-    opacity: 0;
-  }
-}
-
-@keyframes shockwave {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-    border: 50px solid rgba(255, 200, 50, 0.5);
-  }
-  100% {
-    transform: scale(3);
-    opacity: 0;
-    border: 0px solid rgba(255, 100, 50, 0);
-  }
-}
-
-.nuke-flash {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10000;
-  pointer-events: none;
-  animation: nuclearFlash 2s ease-out forwards;
-}
-
-.nuke-aftermath {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #000;
-  z-index: 9999;
-  animation: fadeToBlack 3s ease-in forwards;
-}
-
-.nuke-shockwave {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10001;
-  animation: shockwave 2s cubic-bezier(0.1, 0.5, 0.1, 1) forwards;
-}
-
-.element-falling {
-  animation: fallDown 3s cubic-bezier(0.3, 0.1, 0.3, 1) forwards !important;
-  position: relative !important;
-  z-index: 9998 !important;
-}
-
-.hidden-after-nuke {
-  visibility: hidden !important;
-  opacity: 0 !important;
-  transition: visibility 0s 2s, opacity 2s linear !important;
+.lenis.lenis-stopped {
+  overflow: hidden;
 }

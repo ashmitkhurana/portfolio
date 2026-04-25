@@ -1,6 +1,6 @@
 # Portfolio Overhaul - Complete Reference Guide
 
-> Last Updated: April 2026
+> Last Updated: April 2026 — synced with AshmitKhuranaResume.pdf
 
 ---
 
@@ -12,8 +12,10 @@
 |-------|-------|
 | Full Name | Ashmit Khurana |
 | Email | ashmit.khu@gmail.com |
-| Location | India |
-| Current Role | B.Tech undergraduate in Computer Science & Engineering |
+| Phone | +91-9582881122 |
+| Location | Greater Noida, Uttar Pradesh, India |
+| Current Role | Frontend Engineer — B.Tech CSE (AIML), graduating Jul 2026 |
+| Headline | Frontend Engineer specializing in real-time systems & Web3 products |
 
 ### Professional Taglines (from Hero section)
 
@@ -26,23 +28,55 @@
 
 ### Academic Background
 
-**Bachelor of Technology (B.Tech) in Computer Science & Engineering**
+**Bachelor of Technology (B.Tech) in Computer Science & Engineering (AI & Machine Learning)**
 
-- **Duration**: 2022 - 2026 (expected)
-- **Status**: Undergraduate student
+- **Institution**: Dronacharya Group of Institutions, Greater Noida
+- **Duration**: Nov 2022 – Jul 2026 (expected)
+- **Status**: Final year undergraduate
+
+**Senior Secondary — Science (Non-Medical), CBSE**
+
+- **Institution**: VVDAV Public School, New Delhi
+- **Score**: 84%
+- **Duration**: Apr 2021 – Mar 2022
 
 ---
 
 ## Experience
 
-### Work History (Chronological)
+### Work History (Reverse Chronological — from resume)
 
-| Period | Organization | Role | Type | Description |
-|--------|-------------|------|------|------|------------|
-| Jan 2023 - Mar 2023 | Google Developer Student Clubs | Technical Coordinator | Volunteer | Leading technical initiatives and coordinating developer activities |
-| May 2023 - Oct 2023 | ProjectDegree | Content Creation Intern | Internship | Created and edited video content for social media platforms, focusing on educational content and student engagement |
-| Jan 2023 - Dec 2023 | MonkT | Flutter Developer | Internship | Developed cross-platform mobile applications using Flutter, focusing on creating responsive and user-friendly interfaces |
-| Dec 2023 - Jan 2024 | MonkT | Web Developer | Internship | Developed & deployed monktechnology.net using WIX Website Builder |
+#### Front End Lead — Alpha Block *(Remote, Oct 2025 – Dec 2025)*
+
+- Engineered a real-time crypto intelligence platform analyzing whale & KOL wallet activity across multichain ecosystems
+- Processed **100+ on-chain transactions daily** for actionable trade signals
+- Built low-latency alerting with **sub-second Telegram notification delivery**
+- Integrated Web3 wallet authentication (Phantom) for non-custodial wallet connect
+- Designed dynamic dashboards visualizing thousands of live blockchain data points
+- Supported **1,000+ token holders and active users** in production
+- **Live**: https://app.alpha-block.ai/
+
+#### React-Next Intern — Bruxford Digital *(Remote, Jul 2025 – Sept 2025)*
+
+- Built & shipped responsive web apps (React + Next.js) with a focus on performance and UX
+- Translated Figma wireframes into production-ready interfaces; integrated REST APIs
+- **Reduced page load times by 25%** through optimized rendering & asset handling
+- **Increased conversion rate by 7%**
+- **Live**: https://sleepara.com/
+
+#### Frontend Developer — Arcadia Designs Inc. *(Remote, Aug 2024 – Sept 2024)*
+
+- Designed & developed a high-conversion portfolio website for a Canadian architecture firm
+- Implemented modern UI/UX with fluid animations and responsive layouts
+- **Increased form submission rate by 12%**
+- **Live**: https://www.arcadiadesignsinc.com/
+
+#### Web Development Intern — MonkT *(Remote, Dec 2023 – Jan 2024)*
+
+- Designed & launched a fully responsive business website end-to-end
+- Focused on UX optimization and cross-device compatibility
+- Conducted user testing; managed version control with Git
+- **Live**: https://monktechnology.net/
 
 ---
 
@@ -50,33 +84,30 @@
 
 ### Core Skills
 
-#### Mobile Development
+#### Frontend & Languages
 | Skill | Proficiency | Notes |
 |-------|-------------|-------|
-| Flutter | Expert | Cross-platform app development, state management with Provider/Bloc |
-| Swift | Expert | Native iOS development |
-| SwiftUI | Advanced | Modern declarative UI for iOS |
-| Kotlin | Intermediate | Native Android development |
+| React | Expert | Hooks, Context API, performance optimization |
+| Next.js | Expert | App Router, SSR, ISR, server components |
+| TypeScript | Expert | Full type safety across all projects |
+| JavaScript | Expert | ES6+, async/await, real-time data patterns |
+| HTML & CSS | Expert | Semantic HTML, responsive layouts |
+| Tailwind CSS | Expert | Utility-first, custom design systems |
 
-#### Web Development
+#### Specialized
 | Skill | Proficiency | Notes |
 |-------|-------------|-------|
-| React | Expert | Modern React with Hooks and Functional Components |
-| TypeScript | Expert | Full TypeScript integration |
-| JavaScript | Expert | ES6+ features |
-| Tailwind CSS | Expert | Utility-first CSS framework |
-
-#### Backend & Databases
-| Skill | Proficiency | Notes |
-|-------|-------------|-------|
-| Firebase | Expert | Authentication, Firestore, Cloud Functions, Storage |
-| RESTful APIs | Advanced | API integration |
+| Web3 / Wallet Integration | Advanced | Phantom wallet, non-custodial auth, on-chain data |
+| Real-Time Data Systems | Advanced | Live dashboards, sub-second alerting, multichain |
+| Performance Optimization | Advanced | 25% load time reduction, Core Web Vitals |
+| API Integration | Expert | REST APIs, async data fetching, error handling |
 
 #### Tools & Platforms
 | Skill | Proficiency | Notes |
 |-------|-------------|-------|
-| Git | Expert | Version control, GitHub |
+| Git / GitHub | Expert | Version control, collaboration |
 | Figma | Advanced | UI/UX design and prototyping |
+| Firebase | Advanced | Auth, Firestore, Storage |
 | Webflow | Advanced | No-code web development |
 | Wix | Advanced | Website building |
 | Shopify | Intermediate | E-commerce solutions |
@@ -109,7 +140,7 @@
 | Platform | URL | Icon Source |
 |----------|-----|-----------|
 | GitHub | https://github.com/ashmitkhurana | GitHub icon |
-| LinkedIn | https://linkedin.com/in/ashmitkhurana | LinkedIn icon |
+| LinkedIn | https://linkedin.com/in/ashmit-khurana | LinkedIn icon |
 | Instagram | https://www.instagram.com/ashmitkhurana_/ | Instagram icon |
 | Email | ashmit.khu@gmail.com | — |
 
@@ -164,7 +195,7 @@ nuke                  💥 DESTRUCTIVE - destroys site until reload
 
 | Command | Response Type | Content |
 |---------|---------------|---------|
-| `about` | text | "I'm a B.Tech undergrad student in Computer Science and Engineering, passionate about creating innovative mobile and web solutions. I specialize in Flutter, iOS, and front-end web development." |
+| `about` | text | "I'm a frontend engineer specializing in real-time systems and Web3 products. I'm currently finishing my B.Tech in CSE (AIML) while building production-grade interfaces used by 1,000+ real users. I specialize in React, Next.js, and TypeScript — with a focus on performance and live data." |
 | `contact` | text | Email, GitHub, LinkedIn links |
 | `download resume` | action | Triggers PDF download from `/resume.pdf` |
 | `hack` | warning + animation | Matrix rain effect (3-5 seconds) |
@@ -282,13 +313,17 @@ npm run lint    # Run ESLint
 
 ---
 
-## Known TODOs (from README)
+## Known TODOs
 
-> TODO: Remove MockDataBanner component after case studies are complete
-
-- Component: `src/components/MockDataBanner.tsx`
-- Location: `src/pages/CaseStudyPage.tsx`
-- Behavior: Dismissible per tab using `sessionStorage`
+- [ ] Wire `Terminal.tsx` into `page.tsx` (currently built but not rendered)
+- [ ] Add `About` section to home page
+- [ ] Add `Education` section to home page
+- [ ] Replace placeholder stats with real metrics (100+ txns, 1,000+ users, 25% load time)
+- [ ] Add all case studies to `data/projects.ts` (currently only 3 of 8)
+- [ ] Generate / add cover images for all projects to `/public/images/`
+- [ ] Fix `animate-gradient-x` (keyframe not defined in Tailwind config)
+- [ ] Fix nuke easter egg: `getElementById('root')` → `getElementById('__next')`
+- [ ] Update `cat flutter.md` / `cat swift.md` terminal commands (no longer primary stack)
 
 ---
 
@@ -338,21 +373,37 @@ Using **Lucide React** for all icons:
 - ✅ Terminal component (macOS style, full commands, easter eggs)
 - ✅ Dark theme (`#0a0a0a`)
 - ✅ Gradient animations on hero text
-- ✅ Animated Squares background
 - ✅ Framer Motion scroll animations
-- ✅ All 8 case studies
+- ✅ All case studies
 - ✅ ErrorBoundary for dev/debug
+
+### Identity Shift (resume-driven)
+
+The portfolio should now position Ashmit as a **Frontend Engineer for real-time & Web3 products**, not generically as a Flutter/iOS dev. The hero taglines (Pixel Playmaker / Code Conjurer) can stay as personality flourish, but the supporting copy should lead with:
+- React / Next.js / TypeScript
+- Real-time data systems
+- Web3 / Phantom wallet integration
+- Measurable impact (100+ txns/day, 1,000+ users, 25% faster, 7% conversion)
+
+### Verified Key Stats (use these exactly)
+
+| Metric | Value |
+|--------|-------|
+| On-chain transactions/day | 100+ |
+| Active users supported | 1,000+ |
+| Alert delivery latency | Sub-second |
+| Load time improvement | 25% |
+| Conversion rate increase | 7% |
+| Form submission increase | 12% |
 
 ### Potential Improvements
 
-- [ ] Update case study data with new projects
-- [ ] Add more social links (Twitter, Threads, etc.)
 - [ ] Improve mobile responsiveness
 - [ ] Add more interactive elements
-- [ ] Update resume with latest experience
-- [ ] Consider adding blog section
-- [ ] Add accessibility improvements
+- [ ] Consider adding blog / writing section
+- [ ] Add accessibility improvements (ARIA, alt text)
 - [ ] Lighthouse score target: 100
+- [ ] Add OpenGraph & Twitter meta tags
 
 ---
 
@@ -361,6 +412,7 @@ Using **Lucide React** for all icons:
 | Channel | Handle/URL |
 |---------|------------|
 | Email | ashmit.khu@gmail.com |
+| Phone | +91-9582881122 |
 | GitHub | github.com/ashmitkhurana |
-| LinkedIn | linkedin.com/in/ashmitkhurana |
+| LinkedIn | linkedin.com/in/ashmit-khurana |
 | Instagram | @ashmitkhurana_ |

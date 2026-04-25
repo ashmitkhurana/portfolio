@@ -172,10 +172,10 @@ const Terminal = () => {
         document.body.appendChild(message);
 
         // Hide all original content
-        const appRoot = document.getElementById('root');
-        if (appRoot) {
-          appRoot.classList.add('hidden-after-nuke');
-        }
+        const mainEl = document.querySelector('main');
+        const navEl = document.querySelector('nav');
+        if (mainEl) mainEl.style.display = 'none';
+        if (navEl) navEl.style.display = 'none';
       }, 3000);
     }, 1000);
 
@@ -330,25 +330,18 @@ For more details, visit the Experience section of my portfolio.
       return {
         type: 'text',
         content: `
-# Flutter Development
+# Legacy: Flutter & Mobile Development
+
+[ ARCHIVED FOLDER ]
+While my primary focus is now on modern web infrastructure (React/Next.js/Web3), I have extensive past experience shipping cross-platform mobile applications.
 
 ## Expertise
-- Cross-platform mobile app development
-- State management with Provider, Bloc, GetX
-- Custom UI components and animations
-- Integration with Firebase and RESTful APIs
-- Platform-specific implementations
+- Native modules & platform channels
+- State management (Provider, Bloc)
+- Complex animated UI interactions
+- Mobile-first architecture
 
-## Projects
-- Created a feature-rich social media app with real-time updates
-- Developed an e-commerce application with payment integration
-- Built a health tracking app with custom charts and animations
-
-## Tools
-- Flutter SDK, Dart
-- VS Code, Android Studio
-- Firebase, RESTful APIs
-- Git, GitHub Actions
+Type 'cat react.md' for my current tech stack focus.
 `
       };
     } else if (lowerCmd === 'cat react.md' || lowerCmd === 'cat react') {
@@ -482,7 +475,7 @@ Created a unique and engaging way to present my professional experience and tech
     } else if (lowerCmd === 'about') {
       return {
         type: 'text',
-        content: "I'm a B.Tech undergrad student in Computer Science and Engineering, passionate about creating innovative mobile and web solutions. I specialize in Flutter, iOS, and front-end web development."
+        content: "I'm a Frontend Engineer specializing in real-time systems and Web3 products. I build production-grade interfaces with React, Next.js, and TypeScript, focusing on performance and user experience."
       };
     } else if (lowerCmd === 'contact') {
       return {
@@ -549,7 +542,7 @@ Created a unique and engaging way to present my professional experience and tech
     } else if (lowerCmd === 'download resume') {
       // Create an anchor element and trigger download
       const link = document.createElement('a');
-      link.href = '/resume.pdf'; // Path to the resume PDF
+      link.href = '/AshmitKhuranaResume.pdf'; // Path to the resume PDF
       link.download = 'Ashmit_Khurana_Resume.pdf';
       link.target = '_blank';
       document.body.appendChild(link);
@@ -592,23 +585,14 @@ Created a unique and engaging way to present my professional experience and tech
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-4 py-6">
+    <div className="w-full">
       <motion.div
         ref={ref}
         initial={{ opacity: 0, y: 50 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.8 }}
-        className="w-full max-w-6xl"
+        className="w-full mx-auto"
       >
-        <div className="text-center mb-6">
-          <h2 className="text-4xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
-            Terminal
-          </h2>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Interact with my portfolio through this terminal interface. Type 'help' to see available commands.
-          </p>
-        </div>
-
         <div 
           id="terminal-container"
           className="bg-[#0a0a0a] border border-gray-700 rounded-lg shadow-lg overflow-hidden transition-all duration-300"

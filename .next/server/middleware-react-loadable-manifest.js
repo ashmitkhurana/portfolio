@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST='{"app/components/Projects.tsx -> ./LazyImage":{"id":8931,"files":["static/chunks/931.724c42c8ea39b1f2.js"]}}';
+self.__REACT_LOADABLE_MANIFEST='{"app/components/Hero.tsx -> three":{"id":7548,"files":["static/chunks/b536a0f1.171f5a420d0144e4.js","static/chunks/bd904a5c.9c0670f6b114bcd8.js"]}}';
