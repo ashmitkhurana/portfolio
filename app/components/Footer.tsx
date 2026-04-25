@@ -96,7 +96,7 @@ function MagneticEmail() {
         className="group relative flex items-center gap-4 border border-white/20 rounded-full px-8 py-4 md:px-12 md:py-6 hover:border-white/50 transition-colors duration-300 overflow-hidden"
       >
         {/* Background fill on hover */}
-        <span className="absolute inset-0 bg-white scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] rounded-full" />
+        <span className="absolute inset-0 bg-white scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-500 ease-out rounded-full" />
 
         <span className="relative z-10 font-mono text-sm md:text-base tracking-widest text-white group-hover:text-black transition-colors duration-300">
           {copied ? "COPIED TO CLIPBOARD ✓" : "ashmit.khu@gmail.com"}
