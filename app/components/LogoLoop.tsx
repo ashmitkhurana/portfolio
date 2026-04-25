@@ -53,27 +53,27 @@ const LogoLoop = ({
       ref={containerRef}
       className={`relative flex overflow-hidden ${className}`}
       style={{
-        maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)",
-        WebkitMaskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)"
+        maskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
+        WebkitMaskImage: "linear-gradient(to right, transparent, black 10%, black 90%, transparent)"
       }}
     >
-      <div ref={trackRef} className="flex flex-nowrap gap-10 w-max items-center px-4 hover:pause">
+      <div ref={trackRef} className="flex flex-nowrap gap-24 w-max items-center px-4 hover:pause">
         {displayLogos.map((logo, index) => (
           <div
             key={index}
-            className="flex-shrink-0 relative flex items-center justify-center h-16 w-20 group/logo cursor-auto"
+            className="flex-shrink-0 relative flex items-center justify-center h-20 w-32 group/logo cursor-auto"
           >
             {/* Default monotone logo */}
             <img
               src={logo.default}
               alt={`Logo`}
-              className="absolute inset-0 w-12 h-12 m-auto object-contain brightness-0 invert opacity-40 group-hover/logo:opacity-0 transition-opacity duration-300"
+              className="absolute inset-0 w-16 h-16 m-auto object-contain brightness-0 invert opacity-40 group-hover/logo:opacity-0 transition-opacity duration-300"
             />
             {/* Full color hover logo */}
             <img
               src={logo.color}
               alt={`Logo Full`}
-              className="absolute inset-0 w-12 h-12 m-auto object-contain opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300 group-hover/logo:scale-110"
+              className="absolute inset-0 w-16 h-16 m-auto object-contain opacity-0 group-hover/logo:opacity-100 transition-opacity duration-300 group-hover/logo:scale-110"
             />
           </div>
         ))}

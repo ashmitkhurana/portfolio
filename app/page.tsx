@@ -69,7 +69,7 @@ export default function HomePage() {
       <Hero />
 
       {/* ── 2. Tech marquee strip ────────────────────── */}
-      <div className="py-8 overflow-hidden bg-background">
+      <div className="py-12 overflow-hidden bg-background">
         <LogoLoop logos={techLogos} speed={25} className="w-full" />
       </div>
 

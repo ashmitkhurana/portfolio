@@ -27,6 +27,7 @@ export const projects: Project[] = [
       "Phantom Web3 wallet authentication",
     ],
     stack: ["React", "Next.js", "TypeScript", "Web3", "Phantom", "Real-Time APIs"],
+    cover: "/images/alphablock.png",
     liveUrl: "https://app.alpha-block.ai/",
   },
   {
@@ -43,6 +44,7 @@ export const projects: Project[] = [
       "Fully responsive across all devices",
     ],
     stack: ["Shopify", "Stripe", "Link", "React", "Next.js", "Custom AI"],
+    cover: "/images/sleepara.png",
     liveUrl: "https://sleepara.com/",
   },
   {
@@ -59,6 +61,7 @@ export const projects: Project[] = [
       "Fully responsive across mobile and desktop",
     ],
     stack: ["HTML", "CSS", "JavaScript", "Tailwind CSS", "TypeScript"],
+    cover: "/images/arcadia.png",
     liveUrl: "https://www.arcadiadesignsinc.com/",
   },
   {
@@ -75,6 +78,7 @@ export const projects: Project[] = [
       "Interactive 3D and scroll animations",
     ],
     stack: ["Framer", "Shopify"],
+    cover: "/images/bellarisse.png",
   },
   {
     slug: "nerdwithabindi",
@@ -90,6 +94,7 @@ export const projects: Project[] = [
       "Responsive, accessible design",
     ],
     stack: ["React", "Next.js", "Google Form", "HTML", "CSS"],
+    cover: "/images/nerdwithabindi.png",
   },
   {
     slug: "eventsync",
@@ -105,6 +110,7 @@ export const projects: Project[] = [
       "Real-time event synchronization",
     ],
     stack: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
+    cover: "/images/eventsync.png",
   },
   {
     slug: "monk-technology",
@@ -120,6 +126,7 @@ export const projects: Project[] = [
       "Interactive 3D model integration",
     ],
     stack: ["WIX", "Web Development", "UI/UX", "3D Design"],
+    cover: "/images/monk-tech.png",
     liveUrl: "https://monktechnology.net/",
   },
 ];
