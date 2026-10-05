@@ -1,6 +1,6 @@
 /**
- * Back-layer dressing: opaque background (flat colour + vignette + warm bounce
- * glow + grain, one fullscreen quad), floor + wall shadow receivers. All of it
+ * Back-layer dressing: opaque background (flat colour + vignette + bounce
+ * glow (face-coloured) + grain, one fullscreen quad), floor + wall shadow receivers. All of it
  * lives on three.js layer 1 (the ribbon is on layer 0) so the backdrop pass can
  * render it with the shared shadow map without re-rendering the ribbon.
  * Everything is toggleable from settings.
@@ -68,7 +68,7 @@ export class Backdrop {
           float vig = smoothstep(0.30, 1.25, length(p));
           vec3 col = uBg * (1.0 - uVig * vig);
           col += uBg * uGrad * (1.0 - vUv.y);
-          // tight warm bounce under the ribbon (gaussian, elliptical: wider than tall)
+          // tight bounce under the ribbon (gaussian, elliptical: wider than tall)
           vec2 g = (vUv - uGlowPos) * vec2(uAspect, 1.0) / vec2(max(uGlowRadius, 1e-3) * 1.6, max(uGlowRadius, 1e-3));
           col += uGlowColor * uGlowK * exp(-dot(g, g));
           // dither (kills 8-bit banding) + film grain (background only, ~12 re-seeds/sec)
@@ -109,6 +109,8 @@ export class Backdrop {
     sh: RibbonSettings["shadows"],
     viewW: number,
     viewH: number,
+    /** face A colour: the glow colour when `sh.glowFollowFace` */
+    faceColor: string,
   ): void {
     const u = this.quadMat.uniforms;
     const c = new THREE.Color(bg.color); // linear
@@ -117,7 +119,7 @@ export class Backdrop {
     u.uVig.value = bg.vignette;
     u.uGrad.value = bg.gradient;
     u.uAspect.value = viewW / Math.max(viewH, 1);
-    new THREE.Color(sh.glowColor).getRGB(tmpRGB, THREE.SRGBColorSpace);
+    new THREE.Color(sh.glowFollowFace ? faceColor : sh.glowColor).getRGB(tmpRGB, THREE.SRGBColorSpace);
     u.uGlowColor.value.set(tmpRGB.r, tmpRGB.g, tmpRGB.b);
     u.uGlowK.value = sh.glow ? sh.glowIntensity : 0;
     u.uGlowRadius.value = sh.glowRadius;

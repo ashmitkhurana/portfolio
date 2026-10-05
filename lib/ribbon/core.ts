@@ -18,6 +18,7 @@
 import * as THREE from "three";
 import { Backdrop, BACKDROP_LAYER } from "./backdrop";
 import { EnvironmentBuilder } from "./environment";
+import { temperatureColor } from "./color";
 import { GpuTimer } from "./gpuTimer";
 import { RibbonGeometry } from "./geometry";
 import {
@@ -314,7 +315,13 @@ export class RibbonCore {
     this.resizeCatchers();
     for (const u of [this.compBackU, this.compFrontU]) u.uBuf.value.set(buf.x, buf.y);
     this.updateCamera();
-    this.backdrop.apply(this.settings.background, this.settings.shadows, this.width, this.height);
+    this.backdrop.apply(
+      this.settings.background,
+      this.settings.shadows,
+      this.width,
+      this.height,
+      this.settings.material.faceA.color,
+    );
     this.forceShadow = true;
     this.catcherDirty = true;
     this.syncSamples();
@@ -345,8 +352,11 @@ export class RibbonCore {
     this.updateCamera();
     this.syncGeometry(force);
 
+    // the effective environment colours (tint x temperature, face-coloured bounce) are part of the key
     const eKey = JSON.stringify({
       ...s.env,
+      temperature: s.light.temperature,
+      faceA: s.env.bounce.followFace ? s.material.faceA.color : "",
       intensity: 0,
       rotationX: 0,
       rotationY: 0,
@@ -382,7 +392,7 @@ export class RibbonCore {
     this.mesh.receiveShadow = s.shadows.self;
     this.mesh.castShadow = s.shadows.self || s.shadows.floor || s.shadows.wall;
     const L = this.light;
-    L.color.set(s.light.color);
+    L.color.set(s.light.color).multiply(temperatureColor(s.light.temperature));
     L.intensity = s.light.intensity * s.post.exposure;
     const sh = L.shadow;
     sh.radius = s.shadows.radius;
@@ -406,7 +416,7 @@ export class RibbonCore {
     }
     this.catcherU.uFalloff.value = Math.max(s.contact.falloff, 1);
     this.bloomSrcU.uThreshold.value = s.post.bloomThreshold;
-    this.backdrop.apply(s.background, s.shadows, this.width, this.height);
+    this.backdrop.apply(s.background, s.shadows, this.width, this.height, s.material.faceA.color);
   }
 
   /** Run a frame. `emit` is called right after each composite so the adapter can transfer it. */
@@ -698,7 +708,7 @@ export class RibbonCore {
 
   private rebuildEnv(): void {
     if (this.disposed) return;
-    this.scene.environment = this.env.build(this.settings.env);
+    this.scene.environment = this.env.build(this.settings);
   }
 
   private updateCamera(): void {

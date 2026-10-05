@@ -122,14 +122,19 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 * Per-face `color / roughness / clearcoat / clearcoatRoughness / specularColor`
   (`material.faceA`, `material.faceB`) plus `material.edge` (`faceA | faceB | custom`
   and a colour). Presets in `FACE_PRESETS`: Mockup (default), Duotone, Ember, Mono.
-* Warm look: highlights are graded towards amber and tone-mapped with a
-  warm-neutral curve (`RibWarmNeutral`: Khronos Neutral whose over-exposure
-  desaturates towards amber, near-white only in a tiny core); this avoids the pink
-  that white desaturation gives a red-orange base. `depthShade` is a subtle depth cue.
+* Colour comes from the MATERIAL only. The lighting is colour-neutral: white softboxes, a
+  white key light, a floor bounce that takes the face A colour, and the Khronos PBR
+  Neutral tone map (stock when highlightTint = 0; over-exposure desaturates towards white). White faces render white,
+  grey faces grey, #0066ff reads as clean blue (`scripts/color-accept.mjs`).
+  Optional, explicit warmth: `light.temperature` (Kelvin-ish, 6500 = neutral; also tints the
+  environment) and `env.tint` (colour of all env light, default white).
+  `material.highlightTint` (0..1) slides hot highlights / reflections towards the face's OWN
+  hue (derived from its base colour, so white and grey faces are never tinted); the Mockup
+  preset uses 1 to get its amber glints. `depthShade` is a subtle depth cue.
 * Environment (`environment.ts`): mostly dark procedural studio of HDR softboxes
   baked to a 512px PMREM. One directional light casts self-shadows (PCF).
-* Background colour, film grain (background only), dither and the warm bounce
-  glow are one fullscreen shader in `backdrop.ts` (display-referred).
+* Background colour, film grain (background only), dither and the bounce
+  glow (face A coloured unless `shadows.glowFollowFace` is off) are one fullscreen shader in `backdrop.ts` (display-referred).
 
 ## Geometry (GPU sweep)
 
