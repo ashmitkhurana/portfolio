@@ -24,17 +24,41 @@ export interface SimParams {
   idleCurl: number;
   /** radians */
   twistWobble: number;
+  /** 0..1 weight of the small, quicker detail layer relative to the large layer (0 = none: calm) */
+  idleDetail: number;
+  /** spatial frequency of the twist wobble along the ribbon (per control point) */
+  twistWobbleScale: number;
 }
+
+/** Idle presets (lab: `idle.calm`, `idle.lively`). Calm is the default. */
+export const IDLE_PRESETS: Record<string, Pick<SimParams, "idleAmplitude" | "idleSpeed" | "idleScale" | "idleCurl" | "twistWobble" | "idleDetail" | "twistWobbleScale">> = {
+  // a gentle breath / drift only: ~60% less travel, slower, no twist churn
+  "idle.calm": {
+    idleAmplitude: 10,
+    idleSpeed: 0.1,
+    idleScale: 0.0013,
+    idleCurl: 1,
+    twistWobble: 0.025,
+    idleDetail: 0.08,
+    twistWobbleScale: 0.04,
+  },
+  // the previous (Phase 1) idle
+  "idle.lively": {
+    idleAmplitude: 26,
+    idleSpeed: 0.22,
+    idleScale: 0.0016,
+    idleCurl: 1,
+    twistWobble: 0.18,
+    idleDetail: 0.25,
+    twistWobbleScale: 0.13,
+  },
+};
 
 export const DEFAULT_SIM_PARAMS: SimParams = {
   stiffness: 38,
   damping: 1,
   followLag: 0.45,
-  idleAmplitude: 26,
-  idleSpeed: 0.22,
-  idleScale: 0.0016,
-  idleCurl: 1,
-  twistWobble: 0.18,
+  ...IDLE_PRESETS["idle.calm"],
 };
 
 export interface PoseInput {
@@ -200,11 +224,11 @@ export class RibbonSim {
           a[1] += f * fbm3(x * q, y * q + t, z * q + 5.2);
           a[2] += f * fbm3(x * q, y * q + 9.1, z * q + t);
         }
-        // layer 2: small, quicker, quarter amplitude
+        // layer 2: small, quicker detail (idleDetail x the large layer; ~0 when calm)
         curl3(x * sc * 2.4 + 3.7, y * sc * 2.4, z * sc * 2.4 - t * 1.7, b, 0);
-        dx = a[0] + 0.25 * b[0];
-        dy = a[1] + 0.25 * b[1];
-        dz = a[2] + 0.25 * b[2];
+        dx = a[0] + p.idleDetail * b[0];
+        dy = a[1] + p.idleDetail * b[1];
+        dz = a[2] + p.idleDetail * b[2];
         const e = amp * env;
         dx *= e;
         dy *= e;
@@ -214,7 +238,7 @@ export class RibbonSim {
       this.outPos[o + 1] = y + dy;
       this.outPos[o + 2] = z + dz;
       this.outTwist[i] =
-        this.twist[i] + (wob > 1e-5 ? wob * snoise3(i * 0.13, t * 1.4, 3.3) : 0);
+        this.twist[i] + (wob > 1e-5 ? wob * snoise3(i * p.twistWobbleScale, t * 1.4, 3.3) : 0);
       this.outWidth[i] = this.width[i];
     }
   }

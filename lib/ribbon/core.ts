@@ -46,6 +46,7 @@ import {
   type RibbonSettings,
 } from "./settings";
 import { RibbonSim } from "./sim";
+import { createSweepDepthMaterials } from "./sweep";
 import { MAX_PROXIES, type ProxyData, type RibbonPose } from "./types";
 
 export type CoreCanvas = OffscreenCanvas | HTMLCanvasElement;
@@ -60,7 +61,7 @@ export interface CoreStats {
   /** CPU submit time per stage, ms (EMA) */
   cpu: { sim: number; geometry: number; scene: number; post: number };
   /** GPU time per stage, ms (EMA; 0 unless debug.gpuTimer) */
-  gpu: { scene: number; post: number };
+  gpu: { scene: number; post: number; stages: Record<string, number> };
 }
 
 const DEG = Math.PI / 180;
@@ -86,7 +87,7 @@ export class RibbonCore {
     vertices: 0,
     frontActive: false,
     cpu: { sim: 0, geometry: 0, scene: 0, post: 0 },
-    gpu: { scene: 0, post: 0 },
+    gpu: { scene: 0, post: 0, stages: {} },
   };
 
   /** CSS px size */
@@ -102,6 +103,8 @@ export class RibbonCore {
   private scene = new THREE.Scene();
   private light: THREE.DirectionalLight;
   private ribbonMat: RibbonMaterial;
+  private depthMat: THREE.MeshDepthMaterial;
+  private distanceMat: THREE.MeshDistanceMaterial;
   private mesh: THREE.Mesh;
   private env: EnvironmentBuilder;
   private backdrop = new Backdrop();
@@ -124,8 +127,7 @@ export class RibbonCore {
   private compBackU: CompositeUniforms;
   private compFront: FullscreenPass;
   private compFrontU: CompositeUniforms;
-  private timer: GpuTimer;
-  private timerPost: GpuTimer;
+  private stageTimers: Record<string, GpuTimer> = {};
 
   private groupDepth = [0, 0];
   private groupCount = 1;
@@ -136,6 +138,14 @@ export class RibbonCore {
   private lightRadius = 0;
   private frontWasActive = false;
   private forceShadow = true;
+  // motion-gated shadow map / catcher (see frame())
+  private shadowSig: Float32Array | null = null;
+  private shadowLight = new THREE.Vector4(NaN, 0, 0, 0);
+  private catcherSig: Float32Array | null = null;
+  private catcherDirty = true;
+  private catcherValid = false;
+  private catcherGroups = new THREE.Vector3(NaN, 0, 0);
+  private ribRectDev = new THREE.Vector4();
   private frameIndex = 0;
   private glowX = 0.6;
   private glowY = 0.2;
@@ -178,9 +188,15 @@ export class RibbonCore {
     r.setClearColor(0x000000, 0);
 
     // ---- scene: ribbon (layer 0) + backdrop (layer 1) + the light (both)
-    this.ribbonMat = createRibbonMaterial(this.shared);
+    this.ribbonMat = createRibbonMaterial(this.shared, this.ribbon.sweep);
     this.mesh = new THREE.Mesh(this.ribbon.geometry, this.ribbonMat.material);
     this.mesh.frustumCulled = false;
+    // shadow passes must reconstruct the ribbon with the same GPU sweep
+    const dm = createSweepDepthMaterials(this.ribbon.sweep);
+    this.depthMat = dm.depth;
+    this.distanceMat = dm.distance;
+    this.mesh.customDepthMaterial = dm.depth;
+    this.mesh.customDistanceMaterial = dm.distance;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
     this.mesh.layers.set(RIBBON_LAYER);
@@ -227,7 +243,7 @@ export class RibbonCore {
     this.rtCatchA.texture.wrapS = this.rtCatchA.texture.wrapT = THREE.ClampToEdgeWrapping;
 
     // ---- shadow catcher + blur + bloom passes
-    const cm = createCatcherMaterial();
+    const cm = createCatcherMaterial(this.ribbon.sweep);
     this.catcherU = cm.u;
     this.catcherMesh = new THREE.Mesh(this.ribbon.geometry, cm.material);
     this.catcherMesh.frustumCulled = false;
@@ -253,8 +269,6 @@ export class RibbonCore {
     }
     this.backdrop.setBackground(this.weave);
 
-    this.timer = new GpuTimer(r.getContext() as WebGL2RenderingContext);
-    this.timerPost = new GpuTimer(r.getContext() as WebGL2RenderingContext);
     this.sim.snapToTarget();
   }
 
@@ -299,6 +313,8 @@ export class RibbonCore {
     this.updateCamera();
     this.backdrop.apply(this.settings.background, this.settings.shadows, this.width, this.height);
     this.forceShadow = true;
+    this.catcherDirty = true;
+    this.syncSamples();
     this.syncGeometry(false);
   }
 
@@ -319,6 +335,8 @@ export class RibbonCore {
   /** Re-apply `settings` after mutating them (diffs expensive subsystems). */
   applySettings(force = false): void {
     const s = this.settings;
+    this.forceShadow = true;
+    this.catcherDirty = true;
     this.sim.params = { ...s.sim };
     this.camera.fov = s.camera.fov;
     this.updateCamera();
@@ -338,11 +356,7 @@ export class RibbonCore {
       else this.scheduleEnv();
     }
 
-    if (this.applied.samples !== s.post.samples) {
-      this.applied.samples = s.post.samples;
-      this.rtRibbon.samples = s.post.samples;
-      this.rtRibbon.dispose();
-    }
+    this.syncSamples();
     if (s.post.bloom && !this.rtBloomA) {
       const opts = {
         depthBuffer: false,
@@ -426,8 +440,25 @@ export class RibbonCore {
     this.backdrop.setTime(now / 1000);
     this.compBackU.uTime.value = now / 1000;
 
+    // shadow map: every N frames, but only once the ribbon moved a fraction of a
+    // shadow-map texel (or the light frustum / settings changed)
     const every = Math.max(1, Math.floor(s.shadows.updateEvery));
-    const shadowNow = this.forceShadow || this.frameIndex % every === 0;
+    let shadowNow = this.forceShadow;
+    if (!shadowNow && this.frameIndex % every === 0) {
+      const lc = this.lightCenter;
+      const sl = this.shadowLight;
+      const thr = s.shadows.moveThreshold;
+      if (thr <= 0 || sl.x !== lc.x || sl.y !== lc.y || sl.z !== lc.z || sl.w !== this.lightRadius) {
+        shadowNow = true;
+      } else {
+        const texel = (2 * this.lightRadius) / s.shadows.mapSize;
+        shadowNow = this.ribbon.signatureDelta(this.shadowSig) > thr * texel;
+      }
+    }
+    if (shadowNow) {
+      this.shadowSig = this.ribbon.snapshotSignature(this.shadowSig);
+      this.shadowLight.set(this.lightCenter.x, this.lightCenter.y, this.lightCenter.z, this.lightRadius);
+    }
     this.forceShadow = false;
     this.frameIndex++;
 
@@ -439,18 +470,65 @@ export class RibbonCore {
 
     // ---- 1+2: shadow map + ribbon colour/mask (full shading ONCE)
     t = performance.now();
-    if (measure) this.timer.begin();
+    // the ribbon target only needs clearing / drawing / resolving inside the ribbon's
+    // screen rect (composites treat everything outside as empty)
+    const dbg = VIEW_INDEX[s.debug.view] ?? 0;
+    const rr = dbg === 0 ? this.ribbonScreenRect(bloomOn ? s.post.bloomRadius * 3 : 0) : null;
+    const rect = this.ribRectDev;
+    const rt = this.rtRibbon;
+    if (rr && s.post.scissor && !bloomOn) {
+      const kx = this.bufW / this.width;
+      const ky = this.bufH / this.height;
+      const x0 = Math.max(0, Math.floor(rr[0] * kx) - 1);
+      const x1 = Math.min(this.bufW, Math.ceil((rr[0] + rr[2]) * kx) + 1);
+      const y0 = Math.max(0, Math.floor((this.height - rr[1] - rr[3]) * ky) - 1);
+      const y1 = Math.min(this.bufH, Math.ceil((this.height - rr[1]) * ky) + 1);
+      rt.scissor.set(x0, y0, Math.max(x1 - x0, 1), Math.max(y1 - y0, 1));
+      rt.scissorTest = true;
+      rect.set(x0, y0, x1, y1);
+    } else {
+      rt.scissorTest = false;
+      rect.set(-1e6, -1e6, 1e6, 1e6);
+    }
+    for (const u of [this.compBackU, this.compFrontU]) u.uRibRect.value.copy(rect);
+    this.stageBegin("ribbon", measure);
     r.setRenderTarget(this.rtRibbon);
     r.setClearColor(0x000000, 0);
     r.clear(true, true, false);
     this.camera.layers.set(RIBBON_LAYER);
     r.shadowMap.needsUpdate = shadowNow;
     r.render(this.scene, this.camera);
+    this.stageEnd("ribbon", measure);
 
     // ---- 3: shadow catcher (+ blur) and bloom
-    if (contactOn) this.renderCatcher();
-    if (bloomOn) this.renderBloom();
-    if (measure) this.timer.end();
+    if (contactOn) {
+      const g = this.catcherGroups;
+      if (g.x !== this.groupCount || g.y !== this.groupDepth[0] || g.z !== this.groupDepth[1]) {
+        g.set(this.groupCount, this.groupDepth[0], this.groupDepth[1]);
+        this.catcherDirty = true;
+      }
+      const thr = s.contact.moveThreshold;
+      if (
+        this.catcherDirty ||
+        !this.catcherValid ||
+        thr <= 0 ||
+        this.ribbon.signatureDelta(this.catcherSig) > thr
+      ) {
+        this.catcherDirty = false;
+        this.catcherValid = true;
+        this.catcherSig = this.ribbon.snapshotSignature(this.catcherSig);
+        this.stageBegin("catcher", measure);
+        this.renderCatcher();
+        this.stageEnd("catcher", measure);
+      }
+    } else {
+      this.catcherValid = false;
+    }
+    if (bloomOn) {
+      this.stageBegin("bloom", measure);
+      this.renderBloom();
+      this.stageEnd("bloom", measure);
+    }
     const t3 = performance.now();
     st.cpu.scene = ema(st.cpu.scene, t3 - t);
 
@@ -458,21 +536,22 @@ export class RibbonCore {
     this.compFrontU.uShadowOn.value = contactOn ? 1 : 0;
     this.compBackU.tCatch.value = this.rtCatchA.texture;
     this.compFrontU.tCatch.value = this.rtCatchA.texture;
-    const dbg = VIEW_INDEX[s.debug.view] ?? 0;
-    if (measure) this.timerPost.begin();
     r.setRenderTarget(null);
     if (this.weave) {
       this.camera.layers.set(BACKDROP_LAYER);
       r.shadowMap.needsUpdate = false;
+      this.stageBegin("backdrop", measure);
       r.render(this.scene, this.camera); // bg quad + floor / wall shadow receivers
+      this.stageEnd("backdrop", measure);
       // ribbon * back weight, premultiplied over the backdrop; only where the
       // ribbon can be (screen-space AABB of its bounds)
-      const rr = dbg === 0 ? this.ribbonScreenRect(bloomOn ? s.post.bloomRadius * 3 : 0) : null;
       if (rr) {
         r.setScissorTest(true);
         r.setScissor(rr[0], this.height - rr[1] - rr[3], rr[2], rr[3]);
       }
+      this.stageBegin("compBack", measure);
       this.compBack.render(r);
+      this.stageEnd("compBack", measure);
       if (rr) r.setScissorTest(false);
       emit("back");
     } else {
@@ -486,6 +565,7 @@ export class RibbonCore {
     // transparent after the transfer, so everything else stays empty for free)
     if (this.weave) {
       if (frontActive && dbg === 0) {
+        this.stageBegin("compFront", measure);
         r.setScissorTest(true);
         const margin = 2 + (bloomOn ? s.post.bloomRadius * 3 : 0);
         for (let i = 0; i < proxies.count; i++) {
@@ -498,6 +578,7 @@ export class RibbonCore {
           this.compFront.render(r);
         }
         r.setScissorTest(false);
+        this.stageEnd("compFront", measure);
         emit("front");
       } else if (this.frontWasActive || dbg !== 0) {
         r.clear(true, false, false);
@@ -508,11 +589,16 @@ export class RibbonCore {
       this.compFront.render(r); // single canvas: ribbon over the floor shadow, above the HTML
     }
     if (measure) {
-      this.timerPost.end();
-      this.timer.poll();
-      this.timerPost.poll();
-      st.gpu.scene = this.timer.ms;
-      st.gpu.post = this.timerPost.ms;
+      let scene = 0;
+      let post = 0;
+      for (const [k, tm] of Object.entries(this.stageTimers)) {
+        tm.poll();
+        st.gpu.stages[k] = tm.ms;
+        if (k === "ribbon" || k === "catcher" || k === "bloom") scene += tm.ms;
+        else post += tm.ms;
+      }
+      st.gpu.scene = scene;
+      st.gpu.post = post;
     }
     const t4 = performance.now();
     st.cpu.post = ema(st.cpu.post, t4 - t3);
@@ -523,6 +609,15 @@ export class RibbonCore {
     st.rings = this.ribbon.totalRings;
     st.vertices = this.ribbon.totalRings * this.ribbon.profileCount;
     st.frontActive = frontActive;
+  }
+
+  private stageBegin(name: string, on: boolean): void {
+    if (!on) return;
+    (this.stageTimers[name] ??= new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext)).begin();
+  }
+
+  private stageEnd(name: string, on: boolean): void {
+    if (on) this.stageTimers[name]?.end();
   }
 
   /** CPU+GL sync benchmark helper: finish all queued GL work. */
@@ -540,10 +635,12 @@ export class RibbonCore {
     this.disposed = true;
     if (this.envTimer) clearTimeout(this.envTimer);
     this.scene.remove(this.mesh);
-    this.timer.dispose();
-    this.timerPost.dispose();
+    for (const t of Object.values(this.stageTimers)) t.dispose();
     this.env.dispose();
     this.ribbonMat.material.dispose();
+    this.depthMat.dispose();
+    this.distanceMat.dispose();
+    this.ribbon.sweep.uRingTex.value.dispose();
     this.light.shadow.map?.dispose();
     for (const rt of [this.rtRibbon, this.rtCatchA, this.rtCatchB, this.rtBloomA, this.rtBloomB]) {
       rt?.dispose();
@@ -573,6 +670,21 @@ export class RibbonCore {
       this.mesh.geometry = this.ribbon.geometry;
       this.catcherMesh.geometry = this.ribbon.geometry;
     }
+  }
+
+  /** MSAA samples currently in use on the ribbon target */
+  get effectiveSamples(): number {
+    return this.applied.samples;
+  }
+
+  /** effective MSAA: retina density (pixel ratio >= 1.75) may use fewer samples */
+  private syncSamples(): void {
+    const p = this.settings.post;
+    const n = this.pixelRatio >= 1.75 && p.samplesRetina >= 0 ? p.samplesRetina : p.samples;
+    if (this.applied.samples === n) return;
+    this.applied.samples = n;
+    this.rtRibbon.samples = n;
+    this.rtRibbon.dispose();
   }
 
   private scheduleEnv(): void {

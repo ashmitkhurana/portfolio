@@ -131,14 +131,42 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 * Background colour, film grain (background only), dither and the warm bounce
   glow are one fullscreen shader in `backdrop.ts` (display-referred).
 
-## Geometry
+## Geometry (GPU sweep)
 
 `frames.ts`: centripetal Catmull-Rom, resampled by arc length; rotation
-minimising frames (double reflection) + twist. `geometry.ts`: band swept along
-the rings, analytic profile normals + true surface derivative along the length.
-Width is constant: a tight in-plane bend is relaxed by smoothing the centreline
-(`relaxPath`, weights follow `halfWidth * curvature`), never by narrowing.
-Semicircular plan caps with a domed section close both ends.
+minimising frames (double reflection, `transportFrames` + `twistFrames`).
+`geometry.ts` + `sweep.ts`: **the sweep runs in the vertex shader**.
+
+* CPU, per frame, per RING only (~0.4 ms): centreline, frame (B, N) after twist,
+  effective half width, cap scales, tangent, arc param, packed into a
+  `DataTexture` (RGBA32F, width = rings incl. caps, 4 rows: `[c, hw] [B, planScale]
+  [N, thickScale] [T, s]`). It also derives a conservative AABB and a motion
+  signature (two section corners per ring) used to gate the shadow map / catcher.
+* The mesh is static (rebuilt only on topology changes): interleaved
+  `position = (profile sx, sy, ring)`, `tangent = (cx, cy, face, 1)`; `normal`
+  aliases `(cx, cy, face)` (three turns a standard material into flat shading and
+  drops `USE_TANGENT` when `normal` is missing, so it must exist).
+* `SWEEP_GLSL` (sweep.ts) reconstructs position, outward normal (dP/ds x dP/du,
+  dP/ds = central difference of the neighbouring rings' swept positions, exactly
+  the old CPU maths) and tangent. The SAME chunk is used by the colour/mask
+  material (`onBeforeCompile`), the shadow depth/distance materials
+  (`customDepthMaterial` / `customDistanceMaterial`) and the contact-shadow catcher.
+* Caps are just extra rings with their own plan / thickness scale.
+* Width is constant: a tight in-plane bend is relaxed by smoothing the centreline
+  (`relaxPath`, sparse + prefix sums, frames resumed from the first edited ring).
+
+## Perf notes (Step 1b)
+
+* Ribbon target is cleared / drawn / MSAA-resolved only inside the ribbon's screen
+  rect (`post.scissor`, off with bloom); composites read nothing outside it
+  (`uRibRect`).
+* Shadow map re-rendered only after the ribbon moved `shadows.moveThreshold` of a
+  shadow texel (or the light frustum / settings changed); the contact-shadow
+  catcher + blur only after it moved `contact.moveThreshold` px.
+* `post.samplesRetina`: MSAA used when the pixel ratio is >= 1.75.
+* Adaptive resolution has hysteresis and exponential probe back-off (engine.ts).
+* Idle is calm by default (`idle.calm` in `sim.ts`, lab preset `idle.lively` = the
+  Phase 1 idle): gentle breathing/drift, no twist churn; scrolling will add energy.
 
 ## Files
 
@@ -147,7 +175,7 @@ Semicircular plan caps with a domed section close both ends.
 `passes.ts` catcher/blur/bloom/composite shaders - `material.ts` ribbon shader patch -
 `sim.ts` springs + idle - `noise.ts` - `frames.ts` curve + frames - `geometry.ts` sweep -
 `environment.ts` PMREM studio - `backdrop.ts` bg/floor/wall - `proxies.ts` DOM proxies -
-`gpuTimer.ts` HUD timing - `testPoses.ts` lab poses (`sweep`, `twists` with clean half-twists, `knot`).
+`sweep.ts` GPU sweep GLSL + shadow depth materials - `gpuTimer.ts` HUD timing - `testPoses.ts` lab poses (`sweep`, `twists` with clean half-twists, `knot`).
 
 Debug (lab panel, Debug folder): `view` = mask (red behind / blue in front, proxy
 outlines) | ribbon RT only | shadow catcher; `proxyOutlines`, `hud`, `gpuTimer`

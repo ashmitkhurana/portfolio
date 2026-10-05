@@ -95,6 +95,9 @@ export class RibbonEngine {
   private adaptFrames = 0;
   private refDt = 16.7;
   private okSeconds = 0;
+  private clock = 0;
+  private lastProbeAt = -1e9;
+  private probeWait = 20;
   private postKey = "";
 
   private raf = 0;
@@ -299,34 +302,47 @@ export class RibbonEngine {
   }
 
   /**
-   * Adaptive resolution: if frames stay clearly longer than the best interval
-   * the display has delivered, step the pixel ratio down by 0.25 (floor 1).
-   * After ~20 s of smooth frames it probes one step back up.
+   * Adaptive resolution with hysteresis. The reference interval is the best the
+   * display has delivered (a 120 Hz panel keeps 8.3 ms, so we only trade pixels
+   * when frames are clearly longer than that). Steps the pixel ratio down by
+   * 0.25 (floor 1) after ~0.7 s of slow frames, and probes one step back up
+   * only after a quiet period. Probes that fail (we have to drop again soon
+   * after) back the wait off exponentially (20 s -> 40 s -> ... 10 min), so a
+   * panel/GPU that cannot hold the higher ratio settles instead of oscillating.
    */
   private adapt(dtMs: number): void {
     if (!this.settings.post.adaptive) return;
     this.adaptFrames++;
     if (this.adaptFrames < 90) return; // ignore shader-compile / warm-up hitches
     this.refDt = Math.min(this.refDt * 1.0004, this.emaMs);
-    const slow = this.emaMs > Math.max(this.refDt * 1.6, 10);
+    const slow = this.emaMs > Math.max(this.refDt * 1.5, 10);
+    // clearly healthy: within 20 % of the reference (the probe-up gate)
+    const healthy = this.emaMs < this.refDt * 1.2;
+    this.clock += dtMs / 1000;
     if (slow) {
       this.slowFrames++;
       this.okSeconds = 0;
     } else {
       this.slowFrames = 0;
-      this.okSeconds += dtMs / 1000;
+      this.okSeconds = healthy ? this.okSeconds + dtMs / 1000 : 0;
     }
     const cur = this.pixelRatio;
     if (this.slowFrames > 40 && cur > 1) {
+      // a drop soon after a probe means the higher ratio does not fit: back off
+      if (this.clock - this.lastProbeAt < 15) this.probeWait = Math.min(this.probeWait * 2, 600);
       this.prCeil = Math.max(1, cur - 0.25);
       this.slowFrames = 0;
+      this.okSeconds = 0;
       this.resize();
-    } else if (this.okSeconds > 20 && this.prCeil !== Infinity) {
+      this.emaMs = this.refDt;
+    } else if (this.okSeconds > this.probeWait && this.prCeil !== Infinity) {
       const up = cur + 0.25;
       if (up <= Math.min(window.devicePixelRatio || 1, this.settings.post.pixelRatioCap)) {
         this.prCeil = up;
         this.okSeconds = 0;
+        this.lastProbeAt = this.clock;
         this.resize();
+        this.emaMs = this.refDt;
       }
     }
   }

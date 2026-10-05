@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import { MAX_PROXIES } from "./types";
 import type { RibbonSettings, ToneMapName } from "./settings";
+import { patchSweepVertexFull, type SweepUniforms } from "./sweep";
 
 export interface RibbonSharedUniforms {
   uProxyRects: { value: Float32Array };
@@ -59,7 +60,6 @@ export function createSharedUniforms(): RibbonSharedUniforms {
 }
 
 const VERT_DECL = /* glsl */ `
-attribute float aFace;
 varying float vFace;
 varying float vRibbonZ;
 `;
@@ -173,7 +173,10 @@ export interface RibbonMaterial {
   setToneMapping(t: ToneMapName): void;
 }
 
-export function createRibbonMaterial(shared: RibbonSharedUniforms): RibbonMaterial {
+export function createRibbonMaterial(
+  shared: RibbonSharedUniforms,
+  sweep: SweepUniforms,
+): RibbonMaterial {
   const mat = new THREE.MeshPhysicalMaterial({
     side: THREE.FrontSide,
     clearcoat: 1, // enables the clearcoat program; per-face value comes from uFaceMat
@@ -182,15 +185,16 @@ export function createRibbonMaterial(shared: RibbonSharedUniforms): RibbonMateri
   const exposure = { value: 1 };
 
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, shared, { toneMappingExposure: exposure });
+    Object.assign(shader.uniforms, shared, sweep, { toneMappingExposure: exposure });
 
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${VERT_DECL}`)
-      .replace("#include <begin_vertex>", `#include <begin_vertex>\n  vFace = aFace;`)
-      .replace(
-        "#include <project_vertex>",
-        `#include <project_vertex>\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
-      );
+    // geometry comes from the GPU sweep (sweep.ts): position, normal and tangent
+    // are rebuilt from the per-ring texture; the face id rides in tangent.z
+    shader.vertexShader = patchSweepVertexFull(
+      shader.vertexShader.replace("#include <common>", `#include <common>\n${VERT_DECL}`),
+    ).replace(
+      "#include <project_vertex>",
+      `#include <project_vertex>\n  vFace = tangent.z;\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
+    );
 
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -221,7 +225,7 @@ export function createRibbonMaterial(shared: RibbonSharedUniforms): RibbonMateri
   gMask = vec4(ribFrontMask());`,
       );
   };
-  mat.customProgramCacheKey = () => `ribbon-v2-${tone}`;
+  mat.customProgramCacheKey = () => `ribbon-v3-${tone}`;
   return {
     material: mat,
     setToneMapping(t) {

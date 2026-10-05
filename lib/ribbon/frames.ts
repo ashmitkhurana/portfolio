@@ -13,6 +13,11 @@
  * Everything is preallocated; nothing allocates per call.
  */
 
+/** Euclidean length (Math.hypot is an order of magnitude slower in V8 and runs per ring per iteration) */
+export function hyp3(x: number, y: number, z: number): number {
+  return Math.sqrt(x * x + y * y + z * z);
+}
+
 const DENSE = 24; // dense arc-length table samples per segment
 const EPS = 1e-4;
 
@@ -80,9 +85,9 @@ export class RibbonCurve {
       const dy23 = this.px(s + 2, 1) - this.px(s + 1, 1);
       const dz23 = this.px(s + 2, 2) - this.px(s + 1, 2);
       // centripetal knot intervals
-      const dt0 = Math.max(Math.sqrt(Math.hypot(dx01, dy01, dz01)), EPS);
-      const dt1 = Math.max(Math.sqrt(Math.hypot(dx12, dy12, dz12)), EPS);
-      const dt2 = Math.max(Math.sqrt(Math.hypot(dx23, dy23, dz23)), EPS);
+      const dt0 = Math.max(Math.sqrt(hyp3(dx01, dy01, dz01)), EPS);
+      const dt1 = Math.max(Math.sqrt(hyp3(dx12, dy12, dz12)), EPS);
+      const dt2 = Math.max(Math.sqrt(hyp3(dx23, dy23, dz23)), EPS);
 
       for (let a = 0; a < 3; a++) {
         const x0 = this.px(s - 1, a);
@@ -126,7 +131,7 @@ export class RibbonCurve {
         const x = this.evalPos(s, t, 0);
         const y = this.evalPos(s, t, 1);
         const z = this.evalPos(s, t, 2);
-        cum[idx + 1] = cum[idx] + Math.hypot(x - px, y - py, z - pz);
+        cum[idx + 1] = cum[idx] + hyp3(x - px, y - py, z - pz);
         px = x;
         py = y;
         pz = z;
@@ -200,7 +205,7 @@ export class RibbonCurve {
         else if (a === 1) ty = dv;
         else tz = dv;
       }
-      const len = Math.hypot(tx, ty, tz) || 1;
+      const len = hyp3(tx, ty, tz) || 1;
       outTan[o] = tx / len;
       outTan[o + 1] = ty / len;
       outTan[o + 2] = tz / len;
@@ -212,46 +217,57 @@ export class RibbonCurve {
 
 /**
  * Double-reflection rotation-minimising frames along `count` rings starting at
- * `offset`, then twist about the tangent. Writes the face normal N and the
- * width direction B (= T x N) into outN / outB.
+ * `offset` (Wang et al. 2008): writes the untwisted transported normal into
+ * `outN0`. `seed` is the initial normal hint (e.g. towards the camera).
  *
- * `seed` is the initial normal hint (e.g. towards the camera).
+ * `from` > 0 resumes the propagation at ring `from`, assuming `outN0` is valid
+ * for ring `from - 1` and positions / tangents before `from` did not change
+ * (used by the path relaxation, which only edits a window of rings).
  */
-export function computeFrames(
+export function transportFrames(
   count: number,
   offset: number,
   pos: Float32Array,
   tan: Float32Array,
-  twist: Float32Array,
-  outN: Float32Array,
-  outB: Float32Array,
+  outN0: Float32Array,
   seedX: number,
   seedY: number,
   seedZ: number,
+  from = 0,
 ): void {
-  // initial normal: seed projected perpendicular to T0
   let o = offset * 3;
   let tx = tan[o];
   let ty = tan[o + 1];
   let tz = tan[o + 2];
-  let d = seedX * tx + seedY * ty + seedZ * tz;
-  let nx = seedX - tx * d;
-  let ny = seedY - ty * d;
-  let nz = seedZ - tz * d;
-  let nl = Math.hypot(nx, ny, nz);
-  if (nl < 1e-3) {
-    // seed parallel to tangent: pick another axis
-    d = ty;
-    nx = -tx * d;
-    ny = 1 - ty * d;
-    nz = -tz * d;
-    nl = Math.hypot(nx, ny, nz);
+  let nx: number;
+  let ny: number;
+  let nz: number;
+  if (from > 0) {
+    const po = (offset + from - 1) * 3;
+    nx = outN0[po];
+    ny = outN0[po + 1];
+    nz = outN0[po + 2];
+  } else {
+    // initial normal: seed projected perpendicular to T0
+    let d = seedX * tx + seedY * ty + seedZ * tz;
+    nx = seedX - tx * d;
+    ny = seedY - ty * d;
+    nz = seedZ - tz * d;
+    let nl = hyp3(nx, ny, nz);
+    if (nl < 1e-3) {
+      // seed parallel to tangent: pick another axis
+      d = ty;
+      nx = -tx * d;
+      ny = 1 - ty * d;
+      nz = -tz * d;
+      nl = hyp3(nx, ny, nz);
+    }
+    nx /= nl;
+    ny /= nl;
+    nz /= nl;
   }
-  nx /= nl;
-  ny /= nl;
-  nz /= nl;
 
-  for (let i = 0; i < count; i++) {
+  for (let i = from; i < count; i++) {
     o = (offset + i) * 3;
     tx = tan[o];
     ty = tan[o + 1];
@@ -295,21 +311,48 @@ export function computeFrames(
         nx -= tx * dd;
         ny -= ty * dd;
         nz -= tz * dd;
-        const l = Math.hypot(nx, ny, nz) || 1;
+        const l = hyp3(nx, ny, nz) || 1;
         nx /= l;
         ny /= l;
         nz /= l;
       }
     }
+    outN0[o] = nx;
+    outN0[o + 1] = ny;
+    outN0[o + 2] = nz;
+  }
+}
 
-    // B = T x N
+/**
+ * Apply the twist about the tangent to the transported normals: writes the face
+ * normal N and the width direction B (= T x N) for rings `from..count-1`.
+ * `cosT` / `sinT` are the per-ring twist cos / sin (indexed like the rings).
+ */
+export function twistFrames(
+  from: number,
+  count: number,
+  offset: number,
+  tan: Float32Array,
+  n0: Float32Array,
+  cosT: Float32Array,
+  sinT: Float32Array,
+  outN: Float32Array,
+  outB: Float32Array,
+): void {
+  for (let i = from; i < count; i++) {
+    const o = (offset + i) * 3;
+    const tx = tan[o];
+    const ty = tan[o + 1];
+    const tz = tan[o + 2];
+    const nx = n0[o];
+    const ny = n0[o + 1];
+    const nz = n0[o + 2];
+    // B0 = T x N0
     const bx = ty * nz - tz * ny;
     const by = tz * nx - tx * nz;
     const bz = tx * ny - ty * nx;
-
-    const th = twist[offset + i];
-    const cs = Math.cos(th);
-    const sn = Math.sin(th);
+    const cs = cosT[offset + i];
+    const sn = sinT[offset + i];
     outN[o] = nx * cs + bx * sn;
     outN[o + 1] = ny * cs + by * sn;
     outN[o + 2] = nz * cs + bz * sn;

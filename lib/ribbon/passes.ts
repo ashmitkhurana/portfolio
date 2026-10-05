@@ -11,6 +11,7 @@
 import * as THREE from "three";
 import { MAX_PROXIES } from "./types";
 import type { RibbonSharedUniforms } from "./material";
+import { SWEEP_GLSL, type SweepUniforms } from "./sweep";
 
 const FS_VERT = /* glsl */ `
 void main() {
@@ -53,7 +54,7 @@ export interface CatcherUniforms {
   uFalloff: { value: number };
 }
 
-export function createCatcherMaterial(): {
+export function createCatcherMaterial(sweep: SweepUniforms): {
   material: THREE.ShaderMaterial;
   u: CatcherUniforms;
 } {
@@ -65,7 +66,7 @@ export function createCatcherMaterial(): {
     uFalloff: { value: 80 },
   };
   const material = new THREE.ShaderMaterial({
-    uniforms: u as unknown as Record<string, THREE.IUniform>,
+    uniforms: { ...(u as unknown as Record<string, THREE.IUniform>), ...sweep },
     side: THREE.DoubleSide,
     depthTest: false,
     depthWrite: false,
@@ -78,12 +79,13 @@ export function createCatcherMaterial(): {
     blendSrcAlpha: THREE.OneFactor,
     blendDstAlpha: THREE.OneFactor,
     vertexShader: /* glsl */ `
+      ${SWEEP_GLSL}
       uniform float uRef;
       uniform vec2 uOff;   // css px of shadow shift per px of height (x right, y DOWN)
       uniform vec2 uView;  // css viewport size
       varying float vH;
       void main() {
-        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vec4 wp = modelMatrix * vec4(ribSweepPosition(), 1.0);
         float h = wp.z - uRef;
         vH = h;
         vec4 clip = projectionMatrix * viewMatrix * wp;
@@ -228,6 +230,8 @@ export interface CompositeUniforms {
   tCatch: { value: THREE.Texture | null };
   tBloom: { value: THREE.Texture | null };
   uBuf: { value: THREE.Vector2 };
+  /** device-px rect (gl_FragCoord space, y up) outside which the ribbon target holds no data */
+  uRibRect: { value: THREE.Vector4 };
   uProxyGroup: { value: Float32Array };
   uShadowStrength: { value: number };
   uShadowPad: { value: number };
@@ -248,6 +252,7 @@ export function createCompositeMaterial(
     tCatch: { value: null },
     tBloom: { value: null },
     uBuf: { value: new THREE.Vector2(1, 1) },
+    uRibRect: { value: new THREE.Vector4(-1e6, -1e6, 1e6, 1e6) },
     uProxyGroup: { value: new Float32Array(MAX_PROXIES) },
     uShadowStrength: { value: 0.28 },
     uShadowPad: { value: 8 },
@@ -287,6 +292,7 @@ export function createCompositeMaterial(
       uniform sampler2D tCatch;
       uniform sampler2D tBloom;
       uniform vec2 uBuf;
+      uniform vec4 uRibRect;
       uniform vec2 uScale;
       uniform float uViewH;
       uniform vec4 uProxyRects[RIB_MAX];
@@ -319,9 +325,11 @@ export function createCompositeMaterial(
       void main() {
         ivec2 ip = ivec2(gl_FragCoord.xy);
         vec2 uv = gl_FragCoord.xy / uBuf;
-        vec4 R = texelFetch(tRibbon, ip, 0);
+        // the ribbon target is only rendered / resolved inside uRibRect (elsewhere it is stale)
+        bool inRib = all(greaterThanEqual(gl_FragCoord.xy, uRibRect.xy)) && all(lessThan(gl_FragCoord.xy, uRibRect.zw));
+        vec4 R = inRib ? texelFetch(tRibbon, ip, 0) : vec4(0.0);
         float a = clamp(R.a, 0.0, 1.0);
-        float mres = texelFetch(tMask, ip, 0).r;
+        float mres = inRib ? texelFetch(tMask, ip, 0).r : 0.0;
         // the MSAA-resolved mask is coverage-weighted: divide it back out
         float m = a > 0.002 ? clamp(mres / a, 0.0, 1.0) : 0.0;
         // Front weight wf: a 1-px AA ramp where the strand pierces the content
@@ -331,6 +339,18 @@ export function createCompositeMaterial(
         // wb = 1: the back layer holds the whole ribbon (the front one only adds
         // identical colour on top), so even when the browser resamples the two
         // canvases independently (fractional DPR) no seam can appear.
+        // exact early-outs (nothing to draw here): no ribbon coverage, and in the
+        // front composite no contact shadow either
+        if (uView < 0.5 && uBloomI <= 0.0 && a <= 0.002) {
+          #if RIB_MODE == 1
+            if (uShadowOn < 0.5) { gl_FragColor = vec4(0.0); return; }
+            vec4 C0 = texture(tCatch, uv);
+            if (max(max(C0.r, C0.g), max(C0.b, C0.a)) <= 0.0) { gl_FragColor = vec4(0.0); return; }
+          #elif RIB_MODE == 0
+            gl_FragColor = vec4(0.0);
+            return;
+          #endif
+        }
         float wf = clamp((m - 0.08) / 0.84, 0.0, 1.0);
         float wb = a >= 0.999 ? 1.0 : (1.0 - wf) / (1.0 - a * wf);
         #if RIB_MODE == 2

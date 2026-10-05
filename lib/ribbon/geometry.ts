@@ -2,21 +2,29 @@
  * RibbonGeometry: sweeps a FLAT rectangular band profile (tiny corner bevels)
  * along the sampled centreline using rotation-minimising frames.
  *
+ * THE SWEEP RUNS ON THE GPU (see sweep.ts). The mesh is static (built once, only
+ * on topology changes); each frame the CPU computes just the per-ring data
+ * (centre, frame B/N after twist, effective half width, cap scales, tangent) and
+ * uploads it as a small float texture. The vertex shader reconstructs position,
+ * normal and tangent from it; every pass shares the same GLSL.
+ *
  * - The profile is four strips with split vertices at the creases: face A
  *   (flat, +N), the left rim (bevel, flat side, bevel), face B (flat, -N) and
  *   the right rim. Normals are analytic (exact arc normals on the bevels, the
  *   flat normal on the faces) so the faces and the edge never share normals;
  *   along the length the true surface derivative is used (central difference
  *   of the swept positions), so twist/torsion is exact.
- * - Round caps (semicircular plan, domed section) close both ends.
- * - `aFace` is a HARD per-vertex value: +1 face A, -1 face B, 0 rim strip.
+ * - Round caps (semicircular plan, domed section) close both ends: they are just
+ *   extra rings (their own plan / thickness scale in the ring texture).
+ * - The face id is a HARD per-vertex value: +1 face A, -1 face B, 0 rim strip.
  * - Width is constant; a tight in-plane bend is relaxed by smoothing the
  *   centreline (never by narrowing the band).
  * - All buffers are preallocated; `update()` rewrites them in place.
  */
 import * as THREE from "three";
-import { RibbonCurve, computeFrames } from "./frames";
+import { RibbonCurve, hyp3, transportFrames, twistFrames } from "./frames";
 import type { RibbonSettings } from "./settings";
+import type { SweepUniforms } from "./sweep";
 
 export type GeometryParams = RibbonSettings["geometry"];
 
@@ -121,10 +129,15 @@ export class RibbonGeometry {
   private profile!: Profile;
   private caps = 0;
 
-  private pos!: Float32Array;
-  private nrm!: Float32Array;
-  private tng!: Float32Array;
-  private face!: Float32Array;
+  /** packed per-ring data (4 rows x totalRings x RGBA), uploaded as `sweep.uRingTex` */
+  private ringData!: Float32Array;
+  /** per-ring signature (two section corners) for cheap motion detection */
+  private sig!: Float32Array;
+  /** shared uniforms of the GPU sweep; objects are stable, `.value`s are updated in place */
+  readonly sweep: SweepUniforms = {
+    uRingTex: { value: new THREE.DataTexture(new Float32Array(16), 1, 1) },
+    uRingProf: { value: new THREE.Vector4(1, 1, 1, 0) },
+  };
 
   // per-ring scratch (length totalRings)
   private rPos!: Float32Array;
@@ -132,6 +145,9 @@ export class RibbonGeometry {
   private rN!: Float32Array;
   private rB!: Float32Array;
   private rTwist!: Float32Array;
+  private rTwC!: Float32Array; // cos / sin of the per-ring twist
+  private rTwS!: Float32Array;
+  private rN0!: Float32Array; // untwisted transported normals
   private rWidth!: Float32Array;
   private rScale!: Float32Array; // cap plan scale (1 on the body)
   private rScaleT!: Float32Array; // cap thickness scale
@@ -139,6 +155,8 @@ export class RibbonGeometry {
   private rSm!: Float32Array; // smoothing weights scratch
   private rSm2!: Float32Array;
   private rPosTmp!: Float32Array;
+  private rPre!: Float64Array; // prefix sums (relaxPath)
+  private rPre3!: Float64Array;
 
   /** seed for the initial frame normal (towards camera by default) */
   seed = new THREE.Vector3(0, 0, 1);
@@ -171,7 +189,10 @@ export class RibbonGeometry {
       prev.dispose();
       return true;
     }
-    if (topo) this.profile = buildProfile(this.params);
+    if (topo) {
+      this.profile = buildProfile(this.params);
+      this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, this.totalRings, 0);
+    }
     return false;
   }
 
@@ -188,15 +209,16 @@ export class RibbonGeometry {
     this.profileCount = K;
 
     const V = R * K;
-    this.pos = new Float32Array(V * 3);
-    this.nrm = new Float32Array(V * 3);
-    this.tng = new Float32Array(V * 4);
-    this.face = new Float32Array(V);
+    this.ringData = new Float32Array(R * 4 * 4);
+    this.sig = new Float32Array(R * 6);
     this.rPos = new Float32Array(R * 3);
     this.rTan = new Float32Array(R * 3);
     this.rN = new Float32Array(R * 3);
     this.rB = new Float32Array(R * 3);
     this.rTwist = new Float32Array(R);
+    this.rTwC = new Float32Array(R);
+    this.rTwS = new Float32Array(R);
+    this.rN0 = new Float32Array(R * 3);
     this.rWidth = new Float32Array(R);
     this.rScale = new Float32Array(R).fill(1);
     this.rScaleT = new Float32Array(R).fill(1);
@@ -204,12 +226,38 @@ export class RibbonGeometry {
     this.rSm = new Float32Array(M);
     this.rSm2 = new Float32Array(M);
     this.rPosTmp = new Float32Array(M * 3);
+    this.rPre = new Float64Array(M + 1);
+    this.rPre3 = new Float64Array((M + 1) * 3);
 
-    // aFace is static: a hard +1 / 0 / -1 per vertex (see buildProfile)
+    // ring texture: (re)created whenever the ring count changes
+    const old = this.sweep.uRingTex.value;
+    const tex = new THREE.DataTexture(this.ringData, R, 4, THREE.RGBAFormat, THREE.FloatType);
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.flipY = false;
+    tex.needsUpdate = true;
+    this.sweep.uRingTex.value = tex;
+    old.dispose();
+    this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, R, 0);
+
+    // static per-vertex data, one interleaved buffer (stride 7):
+    //   position = (profile sx, sy, ring)   tangent = (cx, cy, face, 1)
+    // `normal` aliases (cx, cy, face): three switches to flat shading (and drops
+    // USE_TANGENT) when a standard material has no `normal` attribute, so the
+    // attribute must exist even though the shader never reads it.
+    const ib = new THREE.InterleavedBuffer(new Float32Array(V * 7), 7);
+    const ab = ib.array as Float32Array;
     for (let i = 0; i < R; i++) {
       for (let k = 0; k < K; k++) {
-        this.face[i * K + k] = this.profile.face[k];
-        this.tng[(i * K + k) * 4 + 3] = 1;
+        const o = (i * K + k) * 7;
+        ab[o] = this.profile.sx[k];
+        ab[o + 1] = this.profile.sy[k];
+        ab[o + 2] = i;
+        ab[o + 3] = this.profile.cx[k];
+        ab[o + 4] = this.profile.cy[k];
+        ab[o + 5] = this.profile.face[k];
+        ab[o + 6] = 1;
       }
     }
 
@@ -238,20 +286,9 @@ export class RibbonGeometry {
     this.triangleCount = quads * 2;
 
     const g = new THREE.BufferGeometry();
-    const posA = new THREE.BufferAttribute(this.pos, 3).setUsage(
-      THREE.DynamicDrawUsage,
-    );
-    const nrmA = new THREE.BufferAttribute(this.nrm, 3).setUsage(
-      THREE.DynamicDrawUsage,
-    );
-    const tngA = new THREE.BufferAttribute(this.tng, 4).setUsage(
-      THREE.DynamicDrawUsage,
-    );
-    const faceA = new THREE.BufferAttribute(this.face, 1);
-    g.setAttribute("position", posA);
-    g.setAttribute("normal", nrmA);
-    g.setAttribute("tangent", tngA);
-    g.setAttribute("aFace", faceA);
+    g.setAttribute("position", new THREE.InterleavedBufferAttribute(ib, 3, 0));
+    g.setAttribute("tangent", new THREE.InterleavedBufferAttribute(ib, 4, 3));
+    g.setAttribute("normal", new THREE.InterleavedBufferAttribute(ib, 3, 3));
     g.setIndex(new THREE.BufferAttribute(index, 1));
     // we manage bounds ourselves and disable frustum culling on the meshes
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
@@ -276,7 +313,6 @@ export class RibbonGeometry {
     const M = this.bodyRings;
     const E = this.caps;
     const R = this.totalRings;
-    const K = this.profileCount;
     const prof = this.profile;
     const rPos = this.rPos;
     const rTan = this.rTan;
@@ -290,7 +326,12 @@ export class RibbonGeometry {
 
     this.curve.setControl(ctrlPos, ctrlTwist, ctrlWidth, n);
     this.curve.sampleRings(M, E, rPos, rTan, rTwist, rWidth);
-    computeFrames(M, E, rPos, rTan, rTwist, rN, rB, this.seed.x, this.seed.y, this.seed.z);
+    for (let i = E; i < E + M; i++) {
+      this.rTwC[i] = Math.cos(rTwist[i]);
+      this.rTwS[i] = Math.sin(rTwist[i]);
+    }
+    transportFrames(M, E, rPos, rTan, this.rN0, this.seed.x, this.seed.y, this.seed.z);
+    twistFrames(0, M, E, rTan, this.rN0, this.rTwC, this.rTwS, rN, rB);
 
     // taper (along body arc length)
     const tl = Math.max(P.taperLength, 1e-3);
@@ -341,8 +382,9 @@ export class RibbonGeometry {
       rScaleT[it] = dome;
     }
 
-    // positions
-    const pos = this.pos;
+    // pack the per-ring data for the GPU sweep + a conservative AABB / signature
+    const rd = this.ringData;
+    const sig = this.sig;
     const r = prof.r;
     const ht = prof.ht;
     let minX = Infinity,
@@ -351,102 +393,84 @@ export class RibbonGeometry {
       maxX = -Infinity,
       maxY = -Infinity,
       maxZ = -Infinity;
+    const row = R * 4;
+    const invM = M > 1 ? 1 / (M - 1) : 0;
     for (let i = 0; i < R; i++) {
       const o3 = i * 3;
       const cxp = rPos[o3];
       const cyp = rPos[o3 + 1];
       const czp = rPos[o3 + 2];
-      const nx = rN[o3];
-      const ny = rN[o3 + 1];
-      const nz = rN[o3 + 2];
       const bx = rB[o3];
       const by = rB[o3 + 1];
       const bz = rB[o3 + 2];
+      const nx = rN[o3];
+      const ny = rN[o3 + 1];
+      const nz = rN[o3 + 2];
       const sc = rScale[i];
       const sT = rScaleT[i];
       const hw = Math.max(0.5 * P.width * rWidth[i], r + 1e-3);
-      const base = i * K;
-      for (let k = 0; k < K; k++) {
-        const x = (prof.sx[k] * (hw - r) + prof.cx[k] * r) * sc;
-        const y = (prof.sy[k] * (ht - r) + prof.cy[k] * r) * sT;
-        const px = cxp + bx * x + nx * y;
-        const py = cyp + by * x + ny * y;
-        const pz = czp + bz * x + nz * y;
-        const v = (base + k) * 3;
-        pos[v] = px;
-        pos[v + 1] = py;
-        pos[v + 2] = pz;
-        if (px < minX) minX = px;
-        if (px > maxX) maxX = px;
-        if (py < minY) minY = py;
-        if (py > maxY) maxY = py;
-        if (pz < minZ) minZ = pz;
-        if (pz > maxZ) maxZ = pz;
-      }
+      const o = i * 4;
+      rd[o] = cxp;
+      rd[o + 1] = cyp;
+      rd[o + 2] = czp;
+      rd[o + 3] = hw;
+      rd[row + o] = bx;
+      rd[row + o + 1] = by;
+      rd[row + o + 2] = bz;
+      rd[row + o + 3] = sc;
+      rd[2 * row + o] = nx;
+      rd[2 * row + o + 1] = ny;
+      rd[2 * row + o + 2] = nz;
+      rd[2 * row + o + 3] = sT;
+      rd[3 * row + o] = rTan[o3];
+      rd[3 * row + o + 1] = rTan[o3 + 1];
+      rd[3 * row + o + 2] = rTan[o3 + 2];
+      rd[3 * row + o + 3] = (i - E) * invM;
+      // the section is the rectangle [-hw*sc, hw*sc] x [-ht*sT, ht*sT] in (B, N):
+      // its AABB is exact (bevels stay inside it)
+      const wx = hw * sc;
+      const wy = ht * sT;
+      const ex = Math.abs(bx) * wx + Math.abs(nx) * wy;
+      const ey = Math.abs(by) * wx + Math.abs(ny) * wy;
+      const ez = Math.abs(bz) * wx + Math.abs(nz) * wy;
+      if (cxp - ex < minX) minX = cxp - ex;
+      if (cxp + ex > maxX) maxX = cxp + ex;
+      if (cyp - ey < minY) minY = cyp - ey;
+      if (cyp + ey > maxY) maxY = cyp + ey;
+      if (czp - ez < minZ) minZ = czp - ez;
+      if (czp + ez > maxZ) maxZ = czp + ez;
+      // two opposite section corners
+      const s6 = i * 6;
+      sig[s6] = cxp + bx * wx + nx * wy;
+      sig[s6 + 1] = cyp + by * wx + ny * wy;
+      sig[s6 + 2] = czp + bz * wx + nz * wy;
+      sig[s6 + 3] = cxp - bx * wx - nx * wy;
+      sig[s6 + 4] = cyp - by * wx - ny * wy;
+      sig[s6 + 5] = czp - bz * wx - nz * wy;
     }
     this.bounds.min.set(minX, minY, minZ);
     this.bounds.max.set(maxX, maxY, maxZ);
-
-    // normals + tangents
-    const nrm = this.nrm;
-    const tng = this.tng;
-    for (let i = 0; i < R; i++) {
-      const o3 = i * 3;
-      const bx = rB[o3];
-      const by = rB[o3 + 1];
-      const bz = rB[o3 + 2];
-      const nx = rN[o3];
-      const ny = rN[o3 + 1];
-      const nz = rN[o3 + 2];
-      const iPrev = i > 0 ? i - 1 : i;
-      const iNext = i < R - 1 ? i + 1 : i;
-      const base = i * K;
-      const bPrev = iPrev * K;
-      const bNext = iNext * K;
-      for (let k = 0; k < K; k++) {
-        const v = (base + k) * 3;
-        let sx = pos[(bNext + k) * 3] - pos[(bPrev + k) * 3];
-        let sy = pos[(bNext + k) * 3 + 1] - pos[(bPrev + k) * 3 + 1];
-        let sz = pos[(bNext + k) * 3 + 2] - pos[(bPrev + k) * 3 + 2];
-        let sl = Math.hypot(sx, sy, sz);
-        if (sl < 1e-9) {
-          // degenerate (cap tip): use the ring axis
-          sx = rTan[o3];
-          sy = rTan[o3 + 1];
-          sz = rTan[o3 + 2];
-          sl = 1;
-        }
-        sx /= sl;
-        sy /= sl;
-        sz /= sl;
-        // profile tangent in 3D
-        const ux = bx * prof.tx[k] + nx * prof.ty[k];
-        const uy = by * prof.tx[k] + ny * prof.ty[k];
-        const uz = bz * prof.tx[k] + nz * prof.ty[k];
-        // outward normal = dP/ds x dP/du
-        let ox = sy * uz - sz * uy;
-        let oy = sz * ux - sx * uz;
-        let oz = sx * uy - sy * ux;
-        const ol = Math.hypot(ox, oy, oz) || 1;
-        ox /= ol;
-        oy /= ol;
-        oz /= ol;
-        nrm[v] = ox;
-        nrm[v + 1] = oy;
-        nrm[v + 2] = oz;
-        const t4 = (base + k) * 4;
-        tng[t4] = sx;
-        tng[t4 + 1] = sy;
-        tng[t4 + 2] = sz;
-      }
-    }
-
-    const g = this.geometry;
-    g.attributes.position.needsUpdate = true;
-    g.attributes.normal.needsUpdate = true;
-    g.attributes.tangent.needsUpdate = true;
+    this.sweep.uRingTex.value.needsUpdate = true;
   }
 
+  /** copy the current motion signature into `out` (allocates on first use) */
+  snapshotSignature(out: Float32Array | null): Float32Array {
+    if (!out || out.length !== this.sig.length) return this.sig.slice();
+    out.set(this.sig);
+    return out;
+  }
+
+  /** largest displacement (world px, per axis) of the ribbon since `ref` was taken */
+  signatureDelta(ref: Float32Array | null): number {
+    if (!ref || ref.length !== this.sig.length) return Infinity;
+    const s = this.sig;
+    let m = 0;
+    for (let i = 0; i < s.length; i++) {
+      const d = Math.abs(s[i] - ref[i]);
+      if (d > m) m = d;
+    }
+    return m;
+  }
 
   /**
    * Path relaxation. A band of half-width h bent edge-wise with curvature k
@@ -468,6 +492,7 @@ export class RibbonGeometry {
     const SAFE = 0.5;
     let moved = false;
     let worst = 0;
+    this.relaxIters = 0;
     for (let iter = 0; iter < 8; iter++) {
       let any = false;
       worst = 0;
@@ -476,14 +501,14 @@ export class RibbonGeometry {
         const b = (E + Math.min(i + 1, M - 1)) * 3;
         const o = (E + i) * 3;
         const ds =
-          Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]) || 1;
+          hyp3(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]) || 1;
         const kx = (tan[b] - tan[a]) / ds;
         const ky = (tan[b + 1] - tan[a + 1]) / ds;
         const kz = (tan[b + 2] - tan[a + 2]) / ds;
         kb[i] = Math.abs(kx * B[o] + ky * B[o + 1] + kz * B[o + 2]);
         const hw = 0.5 * P.width * rWidth[E + i];
         if (hw * kb[i] > worst) worst = hw * kb[i];
-        const e = (hw * kb[i]) / SAFE - 1; // > 0 where the band would pinch
+        const e = (hw * kb[i]) / SAFE - 1 - RibbonGeometry.relaxTol; // > 0 where the band would pinch
         const v = e <= 0 ? 0 : Math.min(e * 2, 1);
         w[i] = v;
         if (v > 0) any = true;
@@ -491,49 +516,56 @@ export class RibbonGeometry {
       this.pinch = worst;
       if (!any) break;
       moved = true;
-      // dilate then blur the weights so the relaxed region has soft shoulders
+      this.relaxIters = iter + 1;
+      // dilate then blur the weights so the relaxed region has soft shoulders.
+      // (sparse scatter-max + prefix-sum box blur: same result as the plain
+      // windowed loops, O(M) instead of O(M * R))
       const R = 8;
+      tmp.fill(0);
+      let lo0 = M;
+      let hi0 = -1;
       for (let i = 0; i < M; i++) {
-        let m = 0;
+        const v = w[i];
+        if (v <= 0) continue;
+        if (i < lo0) lo0 = i;
+        hi0 = i;
         const lo = Math.max(0, i - R);
         const hi = Math.min(M - 1, i + R);
-        for (let j = lo; j <= hi; j++) if (w[j] > m) m = w[j];
-        tmp[i] = m;
+        for (let j = lo; j <= hi; j++) if (v > tmp[j]) tmp[j] = v;
       }
+      const ps = this.rPre;
+      ps[0] = 0;
+      for (let i = 0; i < M; i++) ps[i + 1] = ps[i] + tmp[i];
       for (let i = 0; i < M; i++) {
-        let sum = 0;
-        let cnt = 0;
         const lo = Math.max(0, i - R);
         const hi = Math.min(M - 1, i + R);
-        for (let j = lo; j <= hi; j++) {
-          sum += tmp[j];
-          cnt++;
-        }
-        w[i] = sum / cnt;
+        w[i] = (ps[hi + 1] - ps[lo]) / (hi - lo + 1);
       }
-      // move positions towards the local mean (box of +-W rings)
+      // move positions towards the local mean (box of +-W rings), only where the
+      // weight is non-zero (the blurred weights are zero beyond R from the dilated set)
       const W = 6;
       const out = this.rPosTmp;
+      const pp = this.rPre3;
+      pp[0] = pp[1] = pp[2] = 0;
       for (let i = 0; i < M; i++) {
+        const q = (E + i) * 3;
+        pp[(i + 1) * 3] = pp[i * 3] + pos[q];
+        pp[(i + 1) * 3 + 1] = pp[i * 3 + 1] + pos[q + 1];
+        pp[(i + 1) * 3 + 2] = pp[i * 3 + 2] + pos[q + 2];
+      }
+      const iLo = Math.max(0, lo0 - 2 * R);
+      const iHi = Math.min(M - 1, hi0 + 2 * R);
+      for (let i = iLo; i <= iHi; i++) {
         const lo = Math.max(0, i - W);
         const hi = Math.min(M - 1, i + W);
-        let mx = 0;
-        let my = 0;
-        let mz = 0;
-        for (let j = lo; j <= hi; j++) {
-          const q = (E + j) * 3;
-          mx += pos[q];
-          my += pos[q + 1];
-          mz += pos[q + 2];
-        }
         const c = hi - lo + 1;
         const q = (E + i) * 3;
         const t = w[i];
-        out[i * 3] = pos[q] + (mx / c - pos[q]) * t;
-        out[i * 3 + 1] = pos[q + 1] + (my / c - pos[q + 1]) * t;
-        out[i * 3 + 2] = pos[q + 2] + (mz / c - pos[q + 2]) * t;
+        out[i * 3] = pos[q] + ((pp[(hi + 1) * 3] - pp[lo * 3]) / c - pos[q]) * t;
+        out[i * 3 + 1] = pos[q + 1] + ((pp[(hi + 1) * 3 + 1] - pp[lo * 3 + 1]) / c - pos[q + 1]) * t;
+        out[i * 3 + 2] = pos[q + 2] + ((pp[(hi + 1) * 3 + 2] - pp[lo * 3 + 2]) / c - pos[q + 2]) * t;
       }
-      for (let i = 0; i < M; i++) {
+      for (let i = iLo; i <= iHi; i++) {
         const q = (E + i) * 3;
         pos[q] = out[i * 3];
         pos[q + 1] = out[i * 3 + 1];
@@ -548,7 +580,7 @@ export class RibbonGeometry {
         let dx = pos[b] - pos[a];
         let dy = pos[b + 1] - pos[a + 1];
         let dz = pos[b + 2] - pos[a + 2];
-        const l = Math.hypot(dx, dy, dz) || 1;
+        const l = hyp3(dx, dy, dz) || 1;
         dx /= l;
         dy /= l;
         dz /= l;
@@ -556,7 +588,7 @@ export class RibbonGeometry {
         let tx = tan[o] + (dx - tan[o]) * t;
         let ty = tan[o + 1] + (dy - tan[o + 1]) * t;
         let tz = tan[o + 2] + (dz - tan[o + 2]) * t;
-        const tl = Math.hypot(tx, ty, tz) || 1;
+        const tl = hyp3(tx, ty, tz) || 1;
         tx /= tl;
         ty /= tl;
         tz /= tl;
@@ -565,13 +597,20 @@ export class RibbonGeometry {
         tan[o + 2] = tz;
       }
       // re-frame so the next iteration measures against the new B
-      computeFrames(M, E, pos, tan, this.rTwist, this.rN, this.rB, this.seed.x, this.seed.y, this.seed.z);
+      // (only rings from the first edited one onwards can change)
+      const from = Math.max(0, iLo - 1);
+      transportFrames(M, E, pos, tan, this.rN0, this.seed.x, this.seed.y, this.seed.z, from);
+      twistFrames(from, M, E, tan, this.rN0, this.rTwC, this.rTwS, this.rN, this.rB);
     }
     return moved;
   }
 
   /** worst half-width * edge-wise curvature after relaxation (1 = inner edge reaches the centre of curvature) */
   pinch = 0;
+  /** relative curvature slack before the path relaxation engages / keeps iterating */
+  static relaxTol = 0;
+  /** relaxation iterations used by the last update (diagnostic) */
+  relaxIters = 0;
 
   /** ring centre z range, handy for layering decisions */
   get maxZ(): number {

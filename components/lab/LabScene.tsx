@@ -36,7 +36,12 @@ export function LabScene() {
         const raw = localStorage.getItem(LAB_STORAGE_KEY);
         if (raw) {
           const saved = JSON.parse(raw) as { settings?: object; lab?: Partial<LabState> };
-          if (saved.settings) e.patchSettings(saved.settings);
+          if (saved.settings) {
+            // calm idle (Step 1b) replaced the old idle defaults: drop saved idle values once
+            const { sim, ...rest } = saved.settings as { sim?: object };
+            const keep = (saved as { idleV?: number }).idleV === 2 ? { sim, ...rest } : rest;
+            e.patchSettings(keep);
+          }
           if (saved.lab) initial = { ...DEFAULT_LAB, ...saved.lab };
         }
       } catch {

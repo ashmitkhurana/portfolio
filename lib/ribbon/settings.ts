@@ -3,6 +3,8 @@
  * edits it live; production uses DEFAULT_SETTINGS as-is.
  */
 
+import { IDLE_PRESETS } from "./sim";
+
 export type ToneMapName =
   | "AgX"
   | "ACES"
@@ -109,6 +111,10 @@ export interface RibbonSettings {
     exposure: number;
     /** MSAA samples of the ribbon render target (0 = off) */
     samples: number;
+    /** MSAA samples used instead when the pixel ratio is >= 1.75 (retina density hides edges; -1 = same as `samples`) */
+    samplesRetina: number;
+    /** render / clear / resolve the ribbon target only inside the ribbon's screen rect (off when bloom is on) */
+    scissor: boolean;
     pixelRatioCap: number;
     /** drop resolution automatically when frames run long */
     adaptive: boolean;
@@ -124,6 +130,8 @@ export interface RibbonSettings {
     mapSize: number;
     /** re-render the shadow map every N frames */
     updateEvery: number;
+    /** ...but only once the ribbon has moved this fraction of a shadow-map texel (0 = every time) */
+    moveThreshold: number;
     radius: number;
     bias: number;
     normalBias: number;
@@ -158,6 +166,8 @@ export interface RibbonSettings {
     pad: number;
     /** catcher resolution relative to the drawing buffer */
     resolution: number;
+    /** re-render the catcher + blur only after the ribbon moved this many px (0 = every frame) */
+    moveThreshold: number;
   };
   background: {
     color: string;
@@ -176,6 +186,8 @@ export interface RibbonSettings {
     idleScale: number;
     idleCurl: number;
     twistWobble: number;
+    idleDetail: number;
+    twistWobbleScale: number;
   };
   camera: {
     fov: number;
@@ -345,6 +357,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     toneMapping: "Neutral",
     exposure: 1,
     samples: 4,
+    samplesRetina: 2,
+    scissor: true,
     pixelRatioCap: 1.5,
     adaptive: true,
     bloom: false,
@@ -357,6 +371,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     self: true,
     mapSize: 1024,
     updateEvery: 1,
+    moveThreshold: 0.35,
     radius: 2.5,
     bias: -0.0004,
     normalBias: 1.4,
@@ -381,6 +396,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     blurHigh: 26,
     pad: 8,
     resolution: 0.25,
+    moveThreshold: 0.75,
   },
   background: {
     color: "#0d0c0b",
@@ -388,15 +404,12 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     gradient: 0,
     grain: 0.03,
   },
+  // calm idle (see IDLE_PRESETS in sim.ts): gentle breathing/drift, no twist churn
   sim: {
     stiffness: 38,
     damping: 1.0,
     followLag: 0.45,
-    idleAmplitude: 26,
-    idleSpeed: 0.22,
-    idleScale: 0.0016,
-    idleCurl: 1,
-    twistWobble: 0.18,
+    ...IDLE_PRESETS["idle.calm"],
   },
   camera: {
     fov: 28,

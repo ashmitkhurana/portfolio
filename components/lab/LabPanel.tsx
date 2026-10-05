@@ -10,6 +10,7 @@ import {
   assignSettings,
   type QualityTier,
 } from "@/lib/ribbon/settings";
+import { IDLE_PRESETS } from "@/lib/ribbon/sim";
 import { TEST_POSE_NAMES } from "@/lib/ribbon/testPoses";
 
 export const LAB_STORAGE_KEY = "ribbon-lab-settings-v2";
@@ -107,6 +108,8 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ],
       ["post.exposure", num(0.1, 4, 0.01)],
       ["post.samples", { options: { off: 0, "2x": 2, "4x": 4, "8x": 8 } }],
+      ["post.samplesRetina", { options: { "same as samples": -1, off: 0, "2x": 2, "4x": 4 } }],
+      ["post.scissor"],
       ["post.pixelRatioCap", num(1, 3, 0.25)],
       ["post.adaptive"],
       ["post.bloom"],
@@ -126,6 +129,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["shadows.self"],
       ["shadows.mapSize", { options: { "1024": 1024, "2048": 2048, "4096": 4096 } }],
       ["shadows.updateEvery", num(1, 6, 1)],
+      ["shadows.moveThreshold", num(0, 2, 0.05)],
       ["shadows.radius", num(0, 12, 0.1)],
       ["shadows.bias", num(-0.01, 0.01, 0.0001)],
       ["shadows.normalBias", num(0, 6, 0.05)],
@@ -154,6 +158,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["contact.blurHigh", num(1, 120, 0.5)],
       ["contact.pad", num(1, 60, 1)],
       ["contact.resolution", num(0.1, 1, 0.05)],
+      ["contact.moveThreshold", num(0, 4, 0.05)],
     ],
   },
   {
@@ -166,7 +171,9 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["sim.idleSpeed", num(0, 2, 0.01)],
       ["sim.idleScale", num(0.0002, 0.006, 0.0001)],
       ["sim.idleCurl", num(0, 1, 0.01)],
+      ["sim.idleDetail", num(0, 1, 0.01)],
       ["sim.twistWobble", num(0, 1.5, 0.01)],
+      ["sim.twistWobbleScale", num(0, 0.5, 0.005)],
     ],
   },
   { title: "Camera", rows: [["camera.fov", num(8, 60, 0.5)]] },
@@ -204,7 +211,7 @@ export function LabPanel({ engine, lab, onLabChange, onPose }: Props) {
       try {
         localStorage.setItem(
           LAB_STORAGE_KEY,
-          JSON.stringify({ settings: engine.settings, lab: labRef.current }),
+          JSON.stringify({ settings: engine.settings, lab: labRef.current, idleV: 2 }),
         );
       } catch {
         /* storage unavailable */
@@ -255,6 +262,25 @@ export function LabPanel({ engine, lab, onLabChange, onPose }: Props) {
           applyQualityTier(engine.settings, ev.value as QualityTier);
           engine.applySettings();
           p.refresh();
+          save();
+        });
+
+      // ---- idle presets (calm is the default; lively = the Phase 1 idle)
+      const idleObj = { preset: "idle.calm" };
+      labFolder
+        .addBinding(idleObj, "preset", {
+          label: "idle",
+          options: Object.fromEntries(Object.keys(IDLE_PRESETS).map((n) => [n, n])),
+        })
+        .on("change", (ev: { value: string }) => {
+          const preset = IDLE_PRESETS[ev.value];
+          if (!preset) return;
+          assignSettings(
+            engine.settings.sim as unknown as Record<string, unknown>,
+            { ...preset } as Record<string, unknown>,
+          );
+          engine.applySettings();
+          (p as unknown as { refresh(): void }).refresh();
           save();
         });
 
