@@ -2,6 +2,7 @@
  * Editor state: the pose file being edited, which frame (screen class) is shown,
  * the selection, and undo / redo. A tiny external store (useSyncExternalStore).
  */
+import { DEFAULT_FOLD_ANGLE, DEFAULT_FOLD_RADIUS } from "@/lib/ribbon/fold";
 import { formatPoseJson } from "@/lib/ribbon/poses/io";
 import { screenClassFor, variantFor, MAX_POSE_POINTS } from "@/lib/ribbon/poses/resolve";
 import type { PoseFile, PosePoint, ScreenClass } from "@/lib/ribbon/poses/types";
@@ -196,6 +197,45 @@ export class PoseEditorStore {
     if (!sel.size || pts.length - sel.size < 4) return;
     const next = pts.filter((_, i) => !sel.has(i));
     this.setPoints(next, { selection: [] });
+  }
+
+  /**
+   * Toggle the selected points as soft FOLDS (the strip rolls over itself there). With a mixed selection every
+   * point becomes a fold; when all are folds they are cleared.
+   */
+  toggleFold() {
+    const sel = new Set(this.state.selection);
+    const pts = this.current().points;
+    if (!sel.size) return;
+    const allFold = [...sel].every((i) => pts[i]?.fold);
+    this.editSelected((p) => {
+      if (allFold) {
+        const rest = { ...p };
+        delete rest.fold;
+        return rest;
+      }
+      return { ...p, fold: p.fold ?? { angle: DEFAULT_FOLD_ANGLE, radius: DEFAULT_FOLD_RADIUS } };
+    }, "fold");
+  }
+
+  /** edit the fold parameters of the selected fold points */
+  setFold(patch: Partial<NonNullable<PosePoint["fold"]>>, key: string) {
+    this.editSelected(
+      (p) => (p.fold ? { ...p, fold: { ...p.fold, ...patch } } : p),
+      `fold-${key}`,
+    );
+  }
+
+  /** frame mode of the whole pose (twist is a roll relative to it) */
+  setOrientation(o: "curvature" | "rmf") {
+    if ((this.state.file.orientation ?? "curvature") === o) return;
+    this.pushHistory();
+    this.set({
+      file: { ...this.state.file, orientation: o },
+      version: this.state.version + 1,
+      canUndo: true,
+      canRedo: false,
+    });
   }
 
   /** copy the derived points into an explicit override for this class */

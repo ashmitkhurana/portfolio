@@ -179,6 +179,41 @@ export function Inspector({
               onChange={(e) => set("width", parseFloat(e.target.value), "width-s")}
             />
           </label>
+          <div className="pe-row pe-row--tight">
+            <button
+              className={`pe-btn pe-btn--small${selection.every((i) => points[i]?.fold) ? " is-on" : ""}`}
+              onClick={() => store.toggleFold()}
+              title="Soft fold: the strip rolls over itself here, face A before and face B after (F)"
+            >
+              Fold <kbd>F</kbd>
+            </button>
+            {selection.some((i) => points[i]?.fold) ? (
+              <span className="pe-dim">crease along the bisector of the turn, radius in widths</span>
+            ) : null}
+          </div>
+          {selection.some((i) => points[i]?.fold) ? (
+            <div className="pe-grid3">
+              <NumField
+                label="angle"
+                suffix="°"
+                step={5}
+                digits={0}
+                value={(() => {
+                  const t = agg(points, selection.filter((i) => points[i]?.fold), (p) => p.fold?.angle ?? Math.PI);
+                  return t === null ? null : Math.round(t * DEG);
+                })()}
+                onCommit={(v) => store.setFold({ angle: Math.min(Math.max(v, -180), 180) / DEG }, "angle")}
+              />
+              <NumField
+                label="radius"
+                suffix="×w"
+                step={0.05}
+                digits={2}
+                value={agg(points, selection.filter((i) => points[i]?.fold), (p) => p.fold?.radius ?? 0.75)}
+                onCommit={(v) => store.setFold({ radius: Math.max(0.1, v) }, "radius")}
+              />
+            </div>
+          ) : null}
           <div className="pe-row">
             <button className="pe-btn pe-btn--small" onClick={() => store.editSelected((p) => ({ ...p, twist: p.twist + Math.PI }))}>
               Flip face
@@ -237,7 +272,7 @@ export function IssueList({
               >
                 <i style={{ background: LEVEL_DOT[it.level] }} />
                 <span>
-                  <b>{it.kind === "crossing" ? "Glyph crossing" : it.kind === "close" ? "Strands close" : "Tight bend"}</b>
+                  <b>{it.kind === "crossing" ? "Glyph crossing" : it.kind === "close" ? "Strands close" : it.kind === "fold" ? "Fold" : it.kind === "wobble" ? "Crinkled strip" : "Tight bend"}</b>
                   {it.message}
                 </span>
                 <em>#{it.ctrl}</em>
@@ -254,10 +289,11 @@ const KEYS: [string, string][] = [
   ["Click / drag", "select / move in the screen plane"],
   ["Shift + drag", "depth (up = towards camera)"],
   ["Scroll wheel", "depth of the selection"],
-  ["Alt + drag", "twist (horizontal)"],
+  ["Yellow knob / Alt + drag", "roll the strip about the curve"],
   ["Drag empty space", "box select (Shift adds)"],
   ["Shift / ⌘ + click", "add / remove from selection"],
   ["Double-click path", "insert a point"],
+  ["F", "toggle the selected points as soft folds"],
   ["Backspace", "delete selected"],
   ["Arrows", "nudge 1 px (Shift = 10)"],
   ["[  ]", "nudge depth"],

@@ -4,6 +4,8 @@
  * `window.__poseStage`; the editor reads measurements from it and pushes
  * resolved poses into it. Types only, no runtime code.
  */
+import type { FoldReport } from "@/lib/ribbon/fold";
+import type { SmoothnessReport } from "@/lib/ribbon/smooth";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import type { RibbonPose } from "@/lib/ribbon/types";
 import type { AnchorRect, InkBox } from "@/lib/ribbon/poses/types";
@@ -39,6 +41,10 @@ export interface StageRings {
   T: Float32Array;
   /** half width per ring, world px */
   hw: Float32Array;
+  /** what the engine built for each marked fold (crease line, issues) */
+  folds: FoldReport[];
+  /** crinkle check of the strip as rendered */
+  smooth: SmoothnessReport | null;
 }
 
 export type StageQuality = "low" | "medium" | "high";

@@ -34,6 +34,7 @@ import {
   type FrameMode,
 } from "./frames";
 import { applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
+import { smoothness, type SmoothnessReport } from "./smooth";
 import type { RibbonSettings } from "./settings";
 import type { SweepUniforms } from "./sweep";
 
@@ -195,6 +196,27 @@ export class RibbonGeometry {
   private rFoldMask!: Uint8Array; // rings inside a fold zone (body index)
   private rOvW!: Float32Array; // curvature frames: fold zone weight (0..1) and wanted normal
   private rOvN!: Float32Array;
+
+  /** ring spacing of the last update (px) */
+  private lastDs = 1;
+
+  /** smoothness of the strip as built (crinkle check, see smooth.ts); fold zones are skipped */
+  smoothnessReport(): SmoothnessReport {
+    const M = this.bodyRings;
+    const E = this.caps;
+    const skip = new Uint8Array(M);
+    for (const r of this.foldReports) if (r.built) for (let i = r.ring0; i <= r.ring1 && i < M; i++) skip[i] = 1;
+    return smoothness({
+      M,
+      E,
+      ds: this.lastDs,
+      width: this.params.width,
+      pos: this.rPos,
+      tan: this.rTan,
+      N: this.rN,
+      skip,
+    });
+  }
 
   setFolds(list: readonly FoldSpec[] | undefined): void {
     this.folds = list ? [...list].sort((a, b) => a.at - b.at) : [];
@@ -393,6 +415,7 @@ export class RibbonGeometry {
     this.curve.sampleRings(M, E, rPos, rTan, rTwist, rWidth);
     this.rShear.fill(1);
     const ringDs = this.curve.totalLength / Math.max(M - 1, 1);
+    this.lastDs = ringDs;
     if (this.folds.length) {
       // keep the relaxation and the curvature frames out of the fold zones (the fold builds those rings)
       foldMask(this.rFoldMask, M, this.folds, P.width, ringDs);

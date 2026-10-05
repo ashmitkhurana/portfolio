@@ -14,6 +14,8 @@ export interface CurveView {
   widthDir: { x: number; y: number }[];
   /** projected half width at each control point, px */
   halfWidth: number[];
+  /** screen direction the tip of the width tick moves when the roll (twist) increases */
+  rollDir: { x: number; y: number }[];
 }
 
 /** Everything the overlay and depth views draw, derived from the rendered rings. */
@@ -79,6 +81,7 @@ export function buildCurveView(
   }
   const widthDir: CurveView["widthDir"] = [];
   const halfWidth: number[] = [];
+  const rollDir: CurveView["rollDir"] = [];
   for (let c = 0; c < n; c++) {
     const r = ctrlRing[c];
     const hw = rings.hw[r];
@@ -95,6 +98,20 @@ export function buildCurveView(
     const l = Math.hypot(dx, dy);
     widthDir.push(l > 1e-3 ? { x: dx / l, y: dy / l } : { x: 0, y: -1 });
     halfWidth.push(l);
+    // d(B)/d(twist) = -N (see twistFrames): where the tick tip goes when the roll grows
+    const q = projectWorld(
+      rings.pos[r * 3] + (rings.B[r * 3] - rings.N[r * 3] * 0.25) * hw,
+      rings.pos[r * 3 + 1] + (rings.B[r * 3 + 1] - rings.N[r * 3 + 1] * 0.25) * hw,
+      rings.pos[r * 3 + 2] + (rings.B[r * 3 + 2] - rings.N[r * 3 + 2] * 0.25) * hw,
+      viewW,
+      viewH,
+      fov,
+    );
+    const rx = q.x - p.x;
+    const ry = q.y - p.y;
+    const rl = Math.hypot(rx, ry);
+    // edge-on to the camera the tick barely moves: fall back to the perpendicular of the tick
+    rollDir.push(rl > 0.5 ? { x: rx / rl, y: ry / rl } : { x: -(dy / (l || 1)), y: dx / (l || 1) });
   }
-  return { screen, faceA, ctrlRing, runs, widthDir, halfWidth };
+  return { screen, faceA, ctrlRing, runs, widthDir, halfWidth, rollDir };
 }

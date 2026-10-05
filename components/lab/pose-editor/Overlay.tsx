@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_FOV, projectWorld } from "@/lib/ribbon/poses/camera";
 import {
   anchorToScreen,
   worldToPoint,
@@ -30,7 +31,7 @@ interface Props {
   onFocusIssue: (id: string | null) => void;
 }
 
-type Mode = "move" | "depth" | "twist";
+type Mode = "move" | "depth" | "twist" | "roll";
 
 interface Drag {
   mode: Mode;
@@ -39,6 +40,8 @@ interface Drag {
   start: PosePoint[];
   ids: number[];
   moved: boolean;
+  /** roll knob: the screen direction of increasing roll and the tick length (px) */
+  roll?: { x: number; y: number; len: number };
   /** shift-pressed on an unselected handle: a plain click toggles it instead */
   toggleOnClick: number | null;
 }
@@ -51,7 +54,7 @@ interface Box {
   additive: boolean;
 }
 
-const ISSUE_COLOR = { crossing: "#ff453a", close: "#ffb340", curvature: "#ffd60a" } as const;
+const ISSUE_COLOR = { crossing: "#ff453a", close: "#ffb340", curvature: "#ffd60a", fold: "#ff6bd6", wobble: "#7ad7ff" } as const;
 
 /**
  * The handle layer. Lives in frame CSS px (the frame is scaled as a whole), so
@@ -136,6 +139,31 @@ export function Overlay({
     store.beginGesture();
   };
 
+  const onRollDown = (ev: React.PointerEvent, i: number, len: number) => {
+    ev.stopPropagation();
+    if (ev.button !== 0) return;
+    (ev.currentTarget as Element).setPointerCapture?.(ev.pointerId);
+    const f = toFrame(ev);
+    const sel = new Set(live.current.selection);
+    if (!sel.has(i)) {
+      sel.clear();
+      sel.add(i);
+      store.select([i]);
+    }
+    const rd = curve?.rollDir[i] ?? { x: 1, y: 0 };
+    drag.current = {
+      mode: "roll",
+      startX: f.x,
+      startY: f.y,
+      start: live.current.points.map((p) => ({ ...p })),
+      ids: [...sel].sort((a, b) => a - b),
+      moved: false,
+      toggleOnClick: null,
+      roll: { x: rd.x, y: rd.y, len },
+    };
+    store.beginGesture();
+  };
+
   const onBgDown = (ev: React.PointerEvent) => {
     if (ev.button !== 0) return;
     (ev.currentTarget as Element).setPointerCapture?.(ev.pointerId);
@@ -165,6 +193,9 @@ export function Overlay({
       if (d.mode === "depth") {
         return { ...p, z: p.z - dyp / a.height };
       }
+      if (d.mode === "roll" && d.roll) {
+        return { ...p, twist: p.twist + (dxp * d.roll.x + dyp * d.roll.y) / Math.max(d.roll.len, 14) };
+      }
       return { ...p, twist: p.twist + dxp * 0.012 };
     });
     store.setPoints(next, { gesture: true });
@@ -174,7 +205,7 @@ export function Overlay({
         ? `x ${lead.x.toFixed(3)}   y ${lead.y.toFixed(3)}`
         : d.mode === "depth"
           ? `z ${fmtSigned(lead.z)}`
-          : `twist ${Math.round((lead.twist * 180) / Math.PI)}°`,
+          : `roll ${Math.round((lead.twist * 180) / Math.PI)}°`,
     );
   };
 
@@ -310,10 +341,31 @@ export function Overlay({
         </g>
       ) : null}
 
+      {/* soft folds: the crease axis the engine built (dashed) and the radius of the roll */}
+      {rings?.folds
+        ? rings.folds.map((f) => {
+            if (!f.built || !f.crease) return null;
+            const c = f.crease;
+            const a = projectWorld(c.cx - c.ax * c.half, c.cy - c.ay * c.half, c.cz - c.az * c.half, ctx.viewW, ctx.viewH, ctx.fov ?? DEFAULT_FOV);
+            const b = projectWorld(c.cx + c.ax * c.half, c.cy + c.ay * c.half, c.cz + c.az * c.half, ctx.viewW, ctx.viewH, ctx.fov ?? DEFAULT_FOV);
+            const bad = f.issues.some((it) => it.level === "error");
+            const col = bad ? "#ff453a" : f.issues.length ? "#ffb340" : "#ff6bd6";
+            return (
+              <g key={`fold${f.index}`} pointerEvents="none">
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={col} strokeWidth={2 * u} strokeDasharray={`${7 * u} ${5 * u}`} strokeLinecap="round" />
+                <circle cx={(a.x + b.x) / 2} cy={(a.y + b.y) / 2} r={Math.max(f.rho * 0.35, 5 * u)} fill="none" stroke={col} strokeWidth={1.2 * u} strokeOpacity={0.7} />
+                <text x={(a.x + b.x) / 2 + 10 * u} y={(a.y + b.y) / 2 - 8 * u} fill={col} fontSize={11 * u} fontFamily="ui-monospace, monospace">
+                  fold {f.index + 1} {Math.round((f.theta * 180) / Math.PI)}°
+                </text>
+              </g>
+            );
+          })
+        : null}
+
       {/* issue markers */}
       {showIssues
         ? issues.map((it) => {
-            const col = ISSUE_COLOR[it.kind];
+            const col = it.level === "error" ? "#ff453a" : ISSUE_COLOR[it.kind];
             const on = focusIssue === it.id;
             return (
               <g
@@ -382,6 +434,26 @@ export function Overlay({
           </g>
         );
       })}
+
+      {/* roll knobs: drag the tip of a selected point's width tick to roll the strip about the curve */}
+      {curve
+        ? selection.map((i) => {
+            const p = points[i];
+            const d = curve.widthDir[i];
+            if (!p || !d) return null;
+            const s = anchorToScreen(p, ctx.anchor);
+            const L = Math.min(curve.halfWidth[i] || 20, 40 * u);
+            const kx = s.x + d.x * L;
+            const ky = s.y + d.y * L;
+            return (
+              <g key={`roll${i}`} style={{ cursor: "ew-resize" }} onPointerDown={(e) => onRollDown(e, i, L)}>
+                <line x1={s.x} y1={s.y} x2={kx} y2={ky} stroke="#ffd60a" strokeWidth={2 * u} pointerEvents="none" />
+                <circle cx={kx} cy={ky} r={12 * u} fill="transparent" />
+                <circle cx={kx} cy={ky} r={5.5 * u} fill="#ffd60a" stroke="#1c1c1e" strokeWidth={1.5 * u} />
+              </g>
+            );
+          })
+        : null}
 
       {box ? (
         <rect

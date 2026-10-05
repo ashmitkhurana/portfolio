@@ -120,8 +120,8 @@ function Editor({
 
   useEffect(() => {
     if (!api || !ctx || points.length < 2) return;
-    api.setPose(resolvePose(points, ctx, api.count));
-  }, [api, ctx, points]);
+    api.setPose(resolvePose(points, ctx, api.count, file.orientation ?? "curvature"));
+  }, [api, ctx, points, file.orientation]);
 
   // ---- derived views ----------------------------------------------------------------
   const control = useMemo(() => {
@@ -143,13 +143,13 @@ function Editor({
     setComputing(true);
     const t = window.setTimeout(() => {
       try {
-        setIssues(runDiagnostics({ rings, layout, control }));
+        setIssues(runDiagnostics({ rings, layout, control, orientation: file.orientation ?? "curvature" }));
       } finally {
         setComputing(false);
       }
     }, 140);
     return () => window.clearTimeout(t);
-  }, [rings, layout, control, stage.idle]);
+  }, [rings, layout, control, stage.idle, file.orientation]);
 
   // ---- reference overlay --------------------------------------------------------------
   const refKind: "desktop" | "phone" =
@@ -391,6 +391,17 @@ function Editor({
               aria-label="Reference opacity"
             />
           ) : null}
+          <div className="pe-seg pe-seg--small" role="group" aria-label="Frame mode" title="Band orientation: curvature = the face follows the loop (bracelet), rmf = rotation-minimising">
+            {(["curvature", "rmf"] as const).map((m) => (
+              <button
+                key={m}
+                className={(file.orientation ?? "curvature") === m ? "is-on" : ""}
+                onClick={() => store.setOrientation(m)}
+              >
+                {m === "curvature" ? "Curvature" : "RMF"}
+              </button>
+            ))}
+          </div>
           <Toggle on={stage.idle} onClick={() => stage.setIdle(!stage.idle)} label="Idle" k="I" />
           <Toggle on={showIssues} onClick={() => setShowIssues(!showIssues)} label="Diagnostics" k="D" />
           <Toggle on={showLabels} onClick={() => setShowLabels(!showLabels)} label="Labels" k="L" />

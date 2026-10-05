@@ -9,13 +9,24 @@
  *    2 x thickness of each other (z-fighting / self-intersection).
  *  - curvature: the strip bends edge-wise tighter than its own half width (the inner
  *    edge would pinch; the engine relaxes it, which moves the path), or kinks.
+ *  - fold:     a soft fold the engine could not build (impossible turn, too gentle / too close to an end /
+ *    overlapping), or one whose radius is so tight it reads as a crease, or whose layers touch.
+ *  - wobble:   the strip is crinkled: its curvature or roll reverses again and again within a few widths
+ *    (too many / uneven control points). The mockup is made of long calm curves.
  */
-import { RibbonCurve, transportFrames, twistFrames } from "@/lib/ribbon/frames";
+import {
+  CurvatureFramer,
+  DEFAULT_CURVATURE_FRAME,
+  RibbonCurve,
+  transportFrames,
+  twistFrames,
+} from "@/lib/ribbon/frames";
+import { SMOOTH_LIMITS } from "@/lib/ribbon/smooth";
 import { projectWorld } from "@/lib/ribbon/poses/camera";
 import { onInk } from "@/lib/ribbon/poses/types";
 import type { StageLayout, StageRings } from "./stageApi";
 
-export type IssueKind = "crossing" | "close" | "curvature";
+export type IssueKind = "crossing" | "close" | "curvature" | "fold" | "wobble";
 
 export interface Issue {
   id: string;
@@ -37,6 +48,8 @@ export interface DiagnosticsInput {
   layout: StageLayout;
   /** authored control points: world xyz triples, twist, width multiplier */
   control: { pos: Float32Array; twist: Float32Array; width: Float32Array; n: number };
+  /** frame mode of the pose (default curvature) */
+  orientation?: "curvature" | "rmf";
 }
 
 export interface DiagnosticsOptions {
@@ -105,7 +118,7 @@ export function runDiagnostics(
   input: DiagnosticsInput,
   opts: DiagnosticsOptions = DEFAULT_DIAG,
 ): Issue[] {
-  const { rings, layout, control } = input;
+  const { rings, layout, control, orientation } = input;
   const issues: Issue[] = [];
   const M = rings.count;
   if (M < 4) return issues;
@@ -325,7 +338,13 @@ export function runDiagnostics(
       cs[i] = Math.cos(tw[i]);
       sn[i] = Math.sin(tw[i]);
     }
-    transportFrames(Mc, 0, pos, tan, n0, 0, 0, 1);
+    if (orientation === "rmf") transportFrames(Mc, 0, pos, tan, n0, 0, 0, 1);
+    else {
+      new CurvatureFramer().compute(Mc, 0, pos, tan, n0, [0, 0, 1], {
+        ...DEFAULT_CURVATURE_FRAME,
+        width: layout.ribbonWidth,
+      });
+    }
     twistFrames(0, Mc, 0, tan, n0, cs, sn, N, B);
     const baseHw = layout.ribbonWidth / 2;
     const rawCurv: (Raw & { note: string })[] = [];
@@ -364,6 +383,42 @@ export function runDiagnostics(
         message: h.note,
       });
     }
+  }
+
+  // ---- 4. folds and smoothness (what the engine built) ---------------------------------------
+  const ringIssue = (i: number, kind: IssueKind, level: Issue["level"], message: string) => {
+    const k = Math.min(Math.max(i, 0), M - 1) * 3;
+    const wx = rings.pos[k];
+    const wy = rings.pos[k + 1];
+    const wz = rings.pos[k + 2];
+    const p = proj(wx, wy, wz);
+    issues.push({
+      id: `${kind[0]}${issues.length}`,
+      kind,
+      level,
+      x: p.x,
+      y: p.y,
+      z: wz,
+      ctrl: nearestControl(control, wx, wy, wz),
+      message,
+    });
+  };
+  for (const f of rings.folds ?? []) {
+    const mid = Math.round((f.ring0 + f.ring1) / 2);
+    for (const it of f.issues) {
+      if (it.kind === "mismatch" && f.mismatch < 0.6 * layout.ribbonWidth) continue;
+      ringIssue(mid, "fold", it.level, `fold ${f.index + 1}: ${it.text}`);
+    }
+    if (!f.built && f.issues.length === 0) ringIssue(mid, "fold", "error", `fold ${f.index + 1} could not be built`);
+  }
+  const sm = rings.smooth;
+  if (sm && !sm.ok) {
+    const why: string[] = [];
+    if (sm.curvature > SMOOTH_LIMITS.curvature) why.push(`curvature reverses ${sm.curvature}x within 3 widths`);
+    if (sm.roll > SMOOTH_LIMITS.roll) why.push(`roll reverses ${sm.roll}x within 3 widths`);
+    if (sm.rollRate > SMOOTH_LIMITS.rollRate) why.push(`roll rate ${sm.rollRate.toFixed(1)} rad per width`);
+    const at = sm.curvature > SMOOTH_LIMITS.curvature ? sm.curvatureAt : sm.roll > SMOOTH_LIMITS.roll ? sm.rollAt : sm.rateAt;
+    ringIssue(at, "wobble", "warn", `crinkled strip: ${why.join(", ")}. Use fewer, evenly spaced points and smooth z / twist`);
   }
   return issues;
 }

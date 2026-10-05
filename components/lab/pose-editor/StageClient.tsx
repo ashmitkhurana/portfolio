@@ -88,7 +88,16 @@ export function StageClient() {
           }
           hw[i] = data[o + 3];
         }
-        return { count: M, pos, B, N, T, hw };
+        return {
+          count: M,
+          pos,
+          B,
+          N,
+          T,
+          hw,
+          folds: rb.foldReports.map((r) => ({ ...r, issues: [...r.issues] })),
+          smooth: rb.smoothnessReport(),
+        };
       },
       setPose(pose) {
         e.setPose(pose, true);
