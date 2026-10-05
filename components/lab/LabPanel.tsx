@@ -58,6 +58,10 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["material.sheenColor"],
       ["material.depthShade", num(0, 1, 0.01)],
       ["material.highlightTint", num(0, 1, 0.01)],
+      ["material.lightSpecular", num(0, 1, 0.01)],
+      ["material.envDiffuse", num(0, 3, 0.01)],
+      ["material.rim", num(0, 4, 0.01)],
+      ["material.rimPower", num(0.5, 8, 0.1)],
     ],
   },
   {
@@ -316,7 +320,7 @@ export function LabPanel({ engine, lab, onLabChange, onPose }: Props) {
       }
       const edgeF = faces.addFolder({ title: "Edge strip", expanded: true });
       addRows(edgeF, [
-        ["material.edge.mode", { options: { "face A": "faceA", "face B": "faceB", custom: "custom" } }],
+        ["material.edge.mode", { options: { gradient: "gradient", "face A": "faceA", "face B": "faceB", custom: "custom" } }],
         ["material.edge.color"],
       ]);
 

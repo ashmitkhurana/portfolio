@@ -32,7 +32,7 @@ export interface StripSettings {
 
 export type QualityTier = "low" | "medium" | "high";
 
-export type EdgeMode = "faceA" | "faceB" | "custom";
+export type EdgeMode = "faceA" | "faceB" | "custom" | "gradient";
 
 /** Fully independent surface parameters of one face of the ribbon. */
 export interface FaceSettings {
@@ -53,7 +53,11 @@ export interface RibbonSettings {
     /** the two faces are independent; the hard boundary sits on the rim */
     faceA: FaceSettings;
     faceB: FaceSettings;
-    /** the thin side strip (flat edge + bevels) */
+    /**
+     * the thin side strip (flat edge + bevels). `gradient`: across the thickness the colour (and
+     * the gloss parameters) blend face A -> face B along a soft S-curve, so the two faces look
+     * like they emerge from each other.
+     */
     edge: { mode: EdgeMode; color: string };
     metalness: number;
     anisotropy: number;
@@ -71,6 +75,13 @@ export interface RibbonSettings {
      * white / grey face never gets a tint). 0 = pure light colour (neutral).
      */
     highlightTint: number;
+    /** 0..1 how much of the direct light's specular is kept (the softboxes carry the highlights; a punctual light only makes hard dots) */
+    lightSpecular: number;
+    /** multiplier of the environment's diffuse light (the highlights come from reflections; this sets the base shading depth) */
+    envDiffuse: number;
+    /** Fresnel rim: environment / clearcoat reflections are boosted by 1 + rim * (1 - N.V)^rimPower */
+    rim: number;
+    rimPower: number;
   };
   env: {
     intensity: number;
@@ -229,20 +240,20 @@ export const FACE_PRESETS: Record<
 > = {
   Mockup: {
     faceA: {
-      color: "#ff4000",
-      roughness: 0.34,
-      clearcoat: 0.75,
+      color: "#ff5c0c",
+      roughness: 0.28,
+      clearcoat: 1,
       clearcoatRoughness: 0.08,
-      specularColor: "#ffa535",
+      specularColor: "#ffc860",
     },
     faceB: {
-      color: "#ba2b00",
+      color: "#6a2c14",
       roughness: 0.38,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.1,
-      specularColor: "#ff7a1a",
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.12,
+      specularColor: "#ff9a50",
     },
-    edge: { mode: "faceA", color: "#ffffff" },
+    edge: { mode: "gradient", color: "#ffffff" },
     highlightTint: 1,
   },
   Duotone: {
@@ -260,7 +271,7 @@ export const FACE_PRESETS: Record<
       clearcoatRoughness: 0.12,
       specularColor: "#ffffff",
     },
-    edge: { mode: "faceA", color: "#ffffff" },
+    edge: { mode: "gradient", color: "#ffffff" },
     highlightTint: 1,
   },
   Ember: {
@@ -278,7 +289,7 @@ export const FACE_PRESETS: Record<
       clearcoatRoughness: 0.06,
       specularColor: "#ff6a28",
     },
-    edge: { mode: "faceA", color: "#ffffff" },
+    edge: { mode: "gradient", color: "#ffffff" },
     highlightTint: 1,
   },
   Mono: {
@@ -296,7 +307,7 @@ export const FACE_PRESETS: Record<
       clearcoatRoughness: 0.08,
       specularColor: "#ffa535",
     },
-    edge: { mode: "faceA", color: "#ffffff" },
+    edge: { mode: "gradient", color: "#ffffff" },
     highlightTint: 1,
   },
 };
@@ -305,10 +316,14 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
   quality: "medium",
   material: {
     ...FACE_PRESETS.Mockup,
-    metalness: 0.3,
-    anisotropy: 0.3,
+    metalness: 0,
+    anisotropy: 0.1,
     anisotropyRotation: 0,
     specularIntensity: 1,
+    lightSpecular: 0.2,
+    envDiffuse: 0.9,
+    rim: 1.4,
+    rimPower: 3,
     ior: 1.5,
     sheen: 0,
     sheenRoughness: 0.5,
@@ -316,38 +331,38 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     depthShade: 0.1,
   },
   env: {
-    intensity: 0.9,
+    intensity: 1.1,
     key: strip({
-      intensity: 11,
-      azimuth: -32,
-      elevation: 38,
-      length: 24,
-      width: 8,
-      roll: 14,
+      intensity: 5,
+      azimuth: -30,
+      elevation: 26,
+      length: 40,
+      width: 10,
+      roll: 35,
       softness: 1,
       color: "#ffffff",
     }),
     fill: strip({
-      intensity: 1.4,
-      azimuth: 78,
-      elevation: 6,
-      length: 22,
-      width: 6,
+      intensity: 0.8,
+      azimuth: 75,
+      elevation: 4,
+      length: 28,
+      width: 10,
       roll: 0,
       softness: 1,
       color: "#ffffff",
     }),
     rim: strip({
-      intensity: 14,
-      azimuth: 152,
-      elevation: 16,
-      length: 22,
-      width: 2.6,
+      intensity: 7,
+      azimuth: 150,
+      elevation: 12,
+      length: 28,
+      width: 3,
       roll: -10,
       softness: 0.9,
       color: "#ffffff",
     }),
-    top: { intensity: 0.7, color: "#ffffff" },
+    top: { intensity: 1.2, color: "#ffffff" },
     bounce: { intensity: 0.22, color: "#ffffff", followFace: true },
     tint: "#ffffff",
     ambient: 0.006,
@@ -357,14 +372,14 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     autoRotateSpeed: 1.6,
   },
   light: {
-    intensity: 0.9,
+    intensity: 1.3,
     color: "#ffffff",
     temperature: 6500,
     azimuth: -38,
     elevation: 44,
   },
   geometry: {
-    width: 110,
+    width: 68,
     rings: 600,
     bevelSegments: 3,
     widthSegments: 10,

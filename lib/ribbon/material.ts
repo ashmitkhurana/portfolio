@@ -41,6 +41,14 @@ export interface RibbonSharedUniforms {
   /** 0..1 highlight tint towards the face's own hue (0 = neutral) */
   uTint: { value: number };
   uSpecI: { value: number };
+  /** share of the punctual light's specular that is kept */
+  uLightSpec: { value: number };
+  /** multiplier of the indirect (environment) diffuse */
+  uDiffuseK: { value: number };
+  /** x = Fresnel rim strength, y = power */
+  uRim: { value: THREE.Vector2 };
+  /** 1 = the rim strip blends face A -> face B across the thickness */
+  uEdgeGrad: { value: number };
 }
 
 export function createSharedUniforms(): RibbonSharedUniforms {
@@ -57,12 +65,17 @@ export function createSharedUniforms(): RibbonSharedUniforms {
     uDepthShade: { value: 0.1 },
     uTint: { value: 0 },
     uSpecI: { value: 1 },
+    uLightSpec: { value: 1 },
+    uDiffuseK: { value: 1 },
+    uRim: { value: new THREE.Vector2(0, 3) },
+    uEdgeGrad: { value: 0 },
   };
 }
 
 const VERT_DECL = /* glsl */ `
 varying float vFace;
 varying float vRibbonZ;
+varying float vEdgeT;
 `;
 
 const FRAG_DECL = /* glsl */ `
@@ -79,9 +92,30 @@ uniform vec3 uFaceSpec[3];
 uniform float uDepthShade;
 uniform float uTint;
 uniform float uSpecI;
+uniform float uLightSpec;
+uniform float uDiffuseK;
+uniform vec2 uRim;
+uniform float uEdgeGrad;
 varying float vFace;
 varying float vRibbonZ;
+varying float vEdgeT;
 layout(location = 1) out highp vec4 gMask;
+
+// Edge strip: across the thickness the surface blends face A (t = +1) -> face B (t = -1) along a
+// quintic S-curve, so the two faces look like they emerge from each other. Weight towards A:
+float ribEdgeW = 0.0;
+vec3 ribCol(int f) {
+  if (f < 2) return uFaceCol[f];
+  return uEdgeGrad > 0.5 ? mix(uFaceCol[1], uFaceCol[0], ribEdgeW) : uFaceCol[2];
+}
+vec4 ribMat(int f) {
+  if (f < 2) return uFaceMat[f];
+  return uEdgeGrad > 0.5 ? mix(uFaceMat[1], uFaceMat[0], ribEdgeW) : uFaceMat[2];
+}
+vec3 ribSpec(int f) {
+  if (f < 2) return uFaceSpec[f];
+  return uEdgeGrad > 0.5 ? mix(uFaceSpec[1], uFaceSpec[0], ribEdgeW) : uFaceSpec[2];
+}
 
 float ribRoundRectSDF(vec2 p, vec2 halfSize, float rad) {
   vec2 q = abs(p) - halfSize + rad;
@@ -137,11 +171,15 @@ vec3 RibNeutral(vec3 color) {
 `;
 
 const SPEC_TINT_APPLY = /* glsl */ `
-  reflectedLight.directSpecular *= ribHue;
-  reflectedLight.indirectSpecular *= ribHue;
+  // the softboxes carry the highlights: a punctual light only adds small hard dots
+  reflectedLight.indirectDiffuse *= uDiffuseK;
+  reflectedLight.directSpecular *= ribHue * uLightSpec;
+  // Fresnel rim: reflections strengthen towards grazing angles
+  float ribFres = 1.0 + uRim.x * pow(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), uRim.y);
+  reflectedLight.indirectSpecular *= ribHue * ribFres;
   #ifdef USE_CLEARCOAT
-    clearcoatSpecularDirect *= ribHue;
-    clearcoatSpecularIndirect *= ribHue;
+    clearcoatSpecularDirect *= ribHue * uLightSpec;
+    clearcoatSpecularIndirect *= ribHue * ribFres;
   #endif
 `;
 
@@ -161,12 +199,12 @@ const TONE_FN: Record<ToneMapName, string> = {
 /** lights_physical_fragment with the per-face lookups spliced in */
 function patchedPhysicalChunk(): string {
   return THREE.ShaderChunk.lights_physical_fragment
-    .replace(/vec3 specularColorFactor = [^;]+;/g, "vec3 specularColorFactor = uFaceSpec[ribFace];")
+    .replace(/vec3 specularColorFactor = [^;]+;/g, "vec3 specularColorFactor = ribSpec(ribFace);")
     .replace(/float specularIntensityFactor = [^;]+;/g, "float specularIntensityFactor = uSpecI;")
-    .replace("material.clearcoat = clearcoat;", "material.clearcoat = uFaceMat[ribFace].y;")
+    .replace("material.clearcoat = clearcoat;", "material.clearcoat = ribMat(ribFace).y;")
     .replace(
       "material.clearcoatRoughness = clearcoatRoughness;",
-      "material.clearcoatRoughness = uFaceMat[ribFace].z;",
+      "material.clearcoatRoughness = ribMat(ribFace).z;",
     );
 }
 
@@ -195,7 +233,7 @@ export function createRibbonMaterial(
       shader.vertexShader.replace("#include <common>", `#include <common>\n${VERT_DECL}`),
     ).replace(
       "#include <project_vertex>",
-      `#include <project_vertex>\n  vFace = tangent.z;\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
+      `#include <project_vertex>\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
     );
 
     shader.fragmentShader = shader.fragmentShader
@@ -210,12 +248,21 @@ export function createRibbonMaterial(
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-  diffuseColor.rgb = uFaceCol[ribFace];
-  ribHue = mix(vec3(1.0), mix(pow(diffuseColor.rgb / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 1e-4), vec3(0.2)), vec3(1.0), 0.14), uTint);`,
+  {
+    float te = clamp(0.5 + 0.5 * vEdgeT, 0.0, 1.0);
+    ribEdgeW = te * te * te * (te * (te * 6.0 - 15.0) + 10.0);
+  }
+  diffuseColor.rgb = ribCol(ribFace);
+  {
+    // the colour hot highlights (and over-exposed areas) go to: the face's specular tint, softened.
+    // Neutral for white / grey specular tints.
+    vec3 sp = ribSpec(ribFace);
+    ribHue = mix(vec3(1.0), pow(sp / max(max(sp.r, max(sp.g, sp.b)), 1e-4), vec3(0.45)), uTint);
+  }`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
-        `#include <roughnessmap_fragment>\n  roughnessFactor = uFaceMat[ribFace].x;`,
+        `#include <roughnessmap_fragment>\n  roughnessFactor = ribMat(ribFace).x;`,
       )
       .replace("#include <lights_physical_fragment>", patchedPhysicalChunk())
       .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${SPEC_TINT_APPLY}`)
@@ -228,7 +275,7 @@ export function createRibbonMaterial(
   gMask = vec4(ribFrontMask());`,
       );
   };
-  mat.customProgramCacheKey = () => `ribbon-v4-${tone}`;
+  mat.customProgramCacheKey = () => `ribbon-v5-${tone}`;
   return {
     material: mat,
     setToneMapping(t) {
@@ -263,7 +310,8 @@ export function applyMaterialSettings(
     shared.uFaceMat.value[o + 1] = f.clearcoat;
     shared.uFaceMat.value[o + 2] = f.clearcoatRoughness;
   }
-  // rim strip: follows a face, optionally with its own colour
+  // rim strip: follows a face, optionally with its own colour, or blends A -> B (`gradient`)
+  shared.uEdgeGrad.value = s.edge.mode === "gradient" ? 1 : 0;
   const src = s.edge.mode === "faceB" ? 1 : 0;
   for (let c = 0; c < 4; c++) shared.uFaceMat.value[8 + c] = shared.uFaceMat.value[src * 4 + c];
   for (let c = 0; c < 3; c++) {
@@ -277,6 +325,9 @@ export function applyMaterialSettings(
   shared.uDepthShade.value = s.depthShade;
   shared.uTint.value = s.highlightTint;
   shared.uSpecI.value = s.specularIntensity;
+  shared.uLightSpec.value = s.lightSpecular;
+  shared.uDiffuseK.value = s.envDiffuse;
+  shared.uRim.value.set(s.rim, s.rimPower);
   mat.color.set(s.faceA.color);
   mat.metalness = s.metalness;
   mat.anisotropy = s.anisotropy;
