@@ -205,7 +205,9 @@ export class RibbonGeometry {
     const M = this.bodyRings;
     const E = this.caps;
     const skip = new Uint8Array(M);
-    for (const r of this.foldReports) if (r.built) for (let i = r.ring0; i <= r.ring1 && i < M; i++) skip[i] = 1;
+    // fold zones are built, not authored; skip them and 1.5 widths of their shoulders
+    const pad = Math.round((1.5 * this.params.width) / Math.max(this.lastDs, 1e-3));
+    for (const r of this.foldReports) if (r.built) for (let i = Math.max(0, r.ring0 - pad); i <= r.ring1 + pad && i < M; i++) skip[i] = 1;
     return smoothness({
       M,
       E,

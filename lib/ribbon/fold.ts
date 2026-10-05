@@ -51,6 +51,12 @@ export const MIN_FOLD_RADIUS = 0.45;
 /** rings whose turn angle is outside [MIN_TURN, MAX_TURN] are not a fold */
 export const MIN_TURN = (50 * Math.PI) / 180;
 export const MAX_TURN = (172 * Math.PI) / 180;
+/**
+ * Above this the two legs are nearly parallel: a flat fold would have to put one layer on top of the other with a
+ * lateral offset it cannot honour (the tangent lines meet far away), so the turn is left to the curvature frames: a
+ * rolled, out-of-plane U-turn (a bracelet) whose far leg shows the other face. That is what a looped ribbon does anyway.
+ */
+export const HAIRPIN_TURN = (150 * Math.PI) / 180;
 
 export type FoldIssueKind =
   | "radius"
@@ -240,6 +246,8 @@ export function foldOverrides(
     if (iB - iA < 4) continue;
     const a = (E + iA) * 3;
     const b = (E + iB) * 3;
+    const dd = tan[a] * tan[b] + tan[a + 1] * tan[b + 1] + tan[a + 2] * tan[b + 2];
+    if (Math.acos(Math.min(Math.max(dd, -1), 1)) > HAIRPIN_TURN) continue; // a rolled U-turn: the curvature frames do it
     let nx = tan[a + 1] * tan[b + 2] - tan[a + 2] * tan[b + 1];
     let ny = tan[a + 2] * tan[b] - tan[a] * tan[b + 2];
     let nz = tan[a] * tan[b + 1] - tan[a + 1] * tan[b];
@@ -357,12 +365,15 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
       });
       continue;
     }
-    if (theta > MAX_TURN) {
+    if (theta > HAIRPIN_TURN) {
+      rep.built = true;
       rep.issues.push({
         kind: "turn-hairpin",
         level: "warn",
-        text: "the path doubles back almost exactly: the two legs are parallel, so the fold falls back to a symmetric corner",
+        text: `the legs double back (${((theta * 180) / Math.PI).toFixed(0)} degrees): rendered as a rolled, out-of-plane U-turn (the far leg shows the other face) instead of a flat fold`,
       });
+      lastEnd = iB;
+      continue;
     }
 
     // ---- 1b. the band plane is the plane of the turn ---------------------------------------------
@@ -531,7 +542,6 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     const cosPsi = Math.cos(psi);
     const sinPsi = Math.sin(psi);
     let sideZ = side;
-    let rhoE = rho;
     let b0 = 0;
     let rollLen = 0;
     let x0 = 0;
@@ -540,11 +550,33 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     let xr1 = 0;
     let LsIn = 0;
     let LsOut = 0;
+    // The roll turns by beta(t) = psi * S(t), t = (b - b0) / L across its length L = psi * radius, with S the
+    // quintic smootherstep: the curvature starts and ends at ZERO (no step in the normal's rate of change, so no
+    // visible ridge where the roll begins), peaks at 1.9 / radius in the middle. The in-plane and lift
+    // profiles are the integrals of cos / sin(beta), tabulated.
+    const TK = 48;
+    const ccT = new Float64Array(TK + 1);
+    const ssT = new Float64Array(TK + 1);
+    const S5 = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * t * (t * (t * 6 - 15) + 10));
+    for (let k = 1; k <= TK; k++) {
+      const t0 = (k - 1) / TK;
+      const t1 = k / TK;
+      const tm = (t0 + t1) / 2;
+      const bm = psi * S5(tm);
+      ccT[k] = ccT[k - 1] + Math.cos(bm) / TK;
+      ssT[k] = ssT[k - 1] + Math.sin(bm) / TK;
+    }
+    const lerpT = (tab: Float64Array, t: number): number => {
+      const x = Math.min(Math.max(t, 0), 1) * TK;
+      const i = Math.min(Math.floor(x), TK - 1);
+      return tab[i] + (tab[i + 1] - tab[i]) * (x - i);
+    };
+    const c1 = ccT[TK];
+    const s1 = ssT[TK];
     const setup = (r: number): void => {
-      rhoE = r;
-      // b0: where the roll starts so that the leaving leg sits where a sharp fold would put it
-      b0 = psi > 0.02 ? (-r * (Math.sin(psi) - psi * Math.cos(psi))) / Math.max(1 - Math.cos(psi), 1e-4) : 0;
       rollLen = psi * r;
+      // b0: where the roll starts so that the leaving leg sits where a sharp fold would put it
+      b0 = psi > 0.02 ? (rollLen * cosPsi - rollLen * c1) / Math.max(1 - cosPsi, 1e-4) : 0;
       x0 = b0 / sphi; // roll start / end along the centreline, relative to the crease (x = u - a)
       x1 = (b0 + rollLen) / sphi;
       xr0 = x0 - reach; // ruling is the crease axis from here ...
@@ -554,13 +586,13 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     };
     const mAt = (bb: number): number => {
       if (bb <= b0) return bb;
-      if (bb <= b0 + rollLen) return b0 + rhoE * Math.sin((bb - b0) / rhoE);
-      return b0 + rhoE * sinPsi + (bb - b0 - rollLen) * cosPsi;
+      if (bb <= b0 + rollLen) return b0 + rollLen * lerpT(ccT, (bb - b0) / rollLen);
+      return b0 + rollLen * c1 + (bb - b0 - rollLen) * cosPsi;
     };
     const zAt = (bb: number): number => {
       if (bb <= b0) return 0;
-      if (bb <= b0 + rollLen) return rhoE * (1 - Math.cos((bb - b0) / rhoE));
-      return rhoE * (1 - cosPsi) + (bb - b0 - rollLen) * sinPsi;
+      if (bb <= b0 + rollLen) return rollLen * lerpT(ssT, (bb - b0) / rollLen);
+      return rollLen * s1 + (bb - b0 - rollLen) * sinPsi;
     };
 
     // ---- 4. rings ------------------------------------------------------------------------------
@@ -604,12 +636,11 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     const oF = (E + Math.min(Math.max(Math.round(fc), 0), M - 1)) * 3;
     let xMid = 0;
     const bumpVec = (): void => {
-      const betaM = Math.min(psi, Math.PI) / 2;
-      const bbM = b0 + betaM * rhoE;
+      const bbM = b0 + 0.5 * rollLen; // t = 1/2: beta = psi / 2, the outermost point of the turn
       xMid = bbM / sphi;
       const acM = xMid * cphi;
-      const mM = b0 + rhoE * Math.sin(betaM);
-      const zM = rhoE * (1 - Math.cos(betaM)) * sideZ;
+      const mM = mAt(bbM);
+      const zM = zAt(bbM) * sideZ;
       V.x1[0] = pos[oF] - (Xx + acM * V.c[0] + mM * V.md[0] + zM * V.n1[0]);
       V.x1[1] = pos[oF + 1] - (Xy + acM * V.c[1] + mM * V.md[1] + zM * V.n1[1]);
       V.x1[2] = pos[oF + 2] - (Xz + acM * V.c[2] + mM * V.md[2] + zM * V.n1[2]);
@@ -667,7 +698,7 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
         dm = 1;
         dz = 0;
       } else if (bb <= b0 + rollLen) {
-        beta = (bb - b0) / rho;
+        beta = psi * S5((bb - b0) / rollLen);
         dm = Math.cos(beta);
         dz = Math.sin(beta);
       } else {

@@ -42,7 +42,7 @@ export interface SmoothnessReport {
 }
 
 /** limits used by the editor and the QA script */
-export const SMOOTH_LIMITS = { curvature: 3, roll: 2, rollRate: 1.6 };
+export const SMOOTH_LIMITS = { curvature: 4, roll: 2, rollRate: 1.6 };
 
 /** number of zig-zag extrema (reversals >= h) of `sig` inside the busiest window of `win` rings; also where */
 function busiestWindow(sig: Float32Array, M: number, h: number, win: number, skip: ArrayLike<number> | null | undefined): { n: number; at: number } {

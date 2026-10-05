@@ -100,9 +100,9 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 
 ## Quality tiers and perf (`settings.ts`)
 
-* `low` (T2): DPR cap 1.25, MSAA 2x, 360 rings, 512 shadow map, no contact shadows.
-* `medium` (default): DPR cap 1.5, MSAA 4x, 600 rings, 1024 shadow map, contact shadows.
-* `high`: DPR cap 2, 900 rings, 2048 shadow map, bloom.
+* `low` (T2): DPR cap 1.25, MSAA 2x, 560 rings, 512 shadow map, no contact shadows.
+* `medium` (default): DPR cap 1.5, MSAA 4x, 1000 rings, 1024 shadow map, contact shadows.
+* `high`: DPR cap 2, 1500 rings, 2048 shadow map, bloom.
 * Adaptive resolution drops the pixel ratio by 0.25 steps (floor 1) when frames
   stay long and probes back up every ~20 s.
 * The PMREM environment is built once (debounced on edits), never per frame.
@@ -120,8 +120,14 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
   (+1 / -1 / 0), so no normal or colour bleeds across the edge. Each flat face is
   subdivided (`widthSegments`) so twisted faces stay smooth.
 * Per-face `color / roughness / clearcoat / clearcoatRoughness / specularColor`
-  (`material.faceA`, `material.faceB`) plus `material.edge` (`faceA | faceB | custom`
-  and a colour). Presets in `FACE_PRESETS`: Mockup (default), Duotone, Ember, Mono.
+  (`material.faceA`, `material.faceB`) plus `material.edge` (`gradient | faceA | faceB | custom`).
+  **`gradient` (default)**: across the edge thickness the colour and gloss parameters blend face A -> face B along a
+  quintic S-curve (`vEdgeT`, the normalised thickness coordinate of each rim vertex), so the two surfaces emerge from each
+  other. Presets in `FACE_PRESETS`: Mockup (default: lacquered satin, `metalness 0`, `#ff6414` / `#5a2410`), Duotone, Ember, Mono.
+* Lookdev knobs: `lightSpecular` (share of the punctual light's specular kept: the softboxes carry the highlights),
+  `envDiffuse` (depth of the base shading), `rim` / `rimPower` (Fresnel boost of the reflections), `highlightTint`
+  (hot highlights go to the face's own SPECULAR tint, so white faces stay white). Tall, soft, long softboxes
+  (`env.key` 46 x 8) give the long highlight sweeps along the band; there are no small bright sources.
 * Colour comes from the MATERIAL only. The lighting is colour-neutral: white softboxes, a
   white key light, a floor bounce that takes the face A colour, and the Khronos PBR
   Neutral tone map (stock when highlightTint = 0; over-exposure desaturates towards white). White faces render white,
@@ -159,6 +165,41 @@ minimising frames (double reflection, `transportFrames` + `twistFrames`).
 * Caps are just extra rings with their own plan / thickness scale.
 * Width is constant: a tight in-plane bend is relaxed by smoothing the centreline
   (`relaxPath`, sparse + prefix sums, frames resumed from the first edited ring).
+
+## Soft folds (`fold.ts`)
+
+A pose point marked `fold: { angle, radius }` makes the strip ROLL over itself there (face A before, face B after),
+like a satin ribbon looped over and laid flat. Never a crease: `radius` is in ribbon widths (default 0.75; the editor and
+`fold.ts` warn below 0.45).
+
+* Turn plane: the plane of the two legs (arriving tangent t1, leaving tangent t2). The strip lies IN it at the fold
+  (the curvature frames are steered to that normal on the way in and out: `foldOverrides` -> `CurvatureFramer`), whereas an
+  ordinary tight bend stands ACROSS its plane (bracelet).
+* Crease axis `c = normalize(t1 + t2)` (the bisector: reflecting t1 across c gives t2), crease normal `m = normalize(t1 - t2)`.
+  The straight (unfolded) strip travels along t1; its distance to the virtual crease is `b = x sin(phi)` (`phi` = half the turn).
+  It is wrapped around a cylinder of radius `radius` whose axis is c: the sheet turns by `beta = psi * smootherstep(t)` across
+  the roll length `psi * radius` (curvature starts and ends at zero: no ridge where the roll begins), the normal rolls
+  `N1 cos(beta) - s sin(beta) m`, the centre follows the integrals of cos / sin(beta), then continues in the reflected direction.
+* Sheared rulings: rings in the zone get a ruling that swings smoothly from B1 (perpendicular to t1) to the crease axis across the
+  roll and on to the reflected perpendicular of t2, half length `hw / cos(omega)` (constant perpendicular width), ramps long enough
+  that the section edges never cross. Everything rides in the existing ring texture: row 1 holds the ruling instead of the plain
+  width direction, row 0 `w` the sheared half width, row 2 the normal (perpendicular to ruling and tangent), so all passes (colour /
+  mask, shadow depth, contact catcher) agree.
+* The roll's mid point sits exactly on the authored fold point; the legs keep the tangent-intersection geometry; entry / exit offsets
+  to the authored path are smooth displacements; the layers sit `2 x radius` apart (the layer lift waits until the roll is over), so the
+  folded layers never interpenetrate. The side the strip rolls to follows the authored exit; `radius` widens up to 1.7 x to meet a
+  further-apart exit.
+* Hairpins (turn > 150 degrees, legs nearly parallel) cannot be a flat fold; they are left to the curvature frames: a rolled,
+  out-of-plane U-turn that shows the other face by itself (the K tips of the AK).
+* `FoldReport` (per fold: zone, turn, roll, mismatch, lift error, crease axis, issues) is what the editor draws (dashed crease line) and
+  flags. `inferFolds` finds sharp in-plane turns that want to be folds.
+
+## Smoothness (`smooth.ts`)
+
+The mockup is long calm curves. `smoothness()` counts reversals of the centreline's curvature and of the strip's roll inside any 3-width
+window (zig-zag filtered; fold zones and their shoulders skipped) plus the roll rate. A clean strip has <= 4 curvature reversals (a sharp apex arch gives 3, a rolled hairpin 4, a crumpled strip 5+), <= 2 roll
+reversals and a roll rate <= 1.6 rad per width. The editor shows a "Crinkled strip" diagnostic; `node scripts/pose-check.mjs` loads the hero
+at several viewport sizes in headless Chromium and fails on any violation (and on a wrong number of folds).
 
 ## Perf notes (Step 1b)
 
