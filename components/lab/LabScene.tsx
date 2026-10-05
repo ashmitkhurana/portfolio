@@ -74,7 +74,7 @@ export function LabScene() {
   const refSrc = narrow ? "/lab/ref/hero-mobile.webp" : "/lab/ref/hero-desktop.webp";
 
   return (
-    <RibbonStage onEngine={onEngine}>
+    <RibbonStage lab onEngine={onEngine}>
       <main className="lab-hero">
         <header className="lab-nav">
           <span className="lab-logo">AK</span>

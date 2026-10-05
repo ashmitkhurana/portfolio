@@ -34,6 +34,13 @@ export const scrollState: ScrollState = {
   limit: 0,
 };
 
+declare global {
+  interface Window {
+    /** the live store, for QA / debugging */
+    __scrollState?: ScrollState;
+  }
+}
+
 type Listener = (state: ScrollState) => void;
 const listeners = new Set<Listener>();
 
@@ -97,6 +104,8 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       emit();
     };
 
+    window.__scrollState = scrollState;
+
     const setup = () => {
       teardown();
       if (reduce.matches) {
@@ -111,9 +120,13 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Smoothing is for wheels only. Touch scrolling stays native (momentum,
+      // rubber-banding, URL-bar collapse all belong to the OS); Lenis then just
+      // mirrors the native offset into the store.
       instance = new Lenis({
         anchors: true,
         smoothWheel: true,
+        syncTouch: false,
         lerp: 0.1,
       });
       lenis = instance;

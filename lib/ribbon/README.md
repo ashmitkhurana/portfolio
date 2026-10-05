@@ -100,7 +100,7 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 
 ## Quality tiers and perf (`settings.ts`)
 
-* `low`: DPR 1, MSAA 2x, 400 rings, no contact shadows.
+* `low` (T2): DPR cap 1.25, MSAA 2x, 360 rings, 512 shadow map, no contact shadows.
 * `medium` (default): DPR cap 1.5, MSAA 4x, 600 rings, 1024 shadow map, contact shadows.
 * `high`: DPR cap 2, 900 rings, 2048 shadow map, bloom.
 * Adaptive resolution drops the pixel ratio by 0.25 steps (floor 1) when frames
@@ -168,9 +168,63 @@ minimising frames (double reflection, `transportFrames` + `twistFrames`).
 * Idle is calm by default (`idle.calm` in `sim.ts`, lab preset `idle.lively` = the
   Phase 1 idle): gentle breathing/drift, no twist churn; scrolling will add energy.
 
+## Resilience (capability tiers, posters, fallbacks)
+
+No visitor may ever see a broken, blank, janky or stuck site. The HTML always
+SSRs and paints first; nothing 3D is in the initial bundle.
+
+| Tier | Who | Gets |
+|---|---|---|
+| T0 | no JS | SSR site + `<noscript>` poster layers |
+| T1 poster | no WebGL2, software renderer (SwiftShader / llvmpipe / "Software" / Basic Render / Mesa Offscreen / performance caveat), context failure, missing MRT/MSAA/float RTs, no OffscreenCanvas-WebGL2 or bitmaprenderer (poster weave beats the single-canvas fallback, which draws the ribbon over the text), `saveData`, 2g, `forced-colors` (no ribbon at all) | posters, three.js never downloaded |
+| T2 low | `deviceMemory <= 2`, `cores <= 2`, touch + `deviceMemory <= 3`, or runtime-detected | `low` settings, DPR <= 1.25, 30 fps when idle |
+| T3 medium | default | `medium` |
+| T4 high | desktop, `cores >= 8`, memory >= 8 (or unknown) | `high` |
+
+`capability.ts` (no three import) decides before the engine chunk is loaded.
+`RibbonStage` runs it after first paint in an idle callback, then `import()`s the
+engine. `?tier=0..4` overrides (no cache, no probe, no downgrade). The result is
+cached in localStorage (`ribbon:tier`, version key, 14 d TTL; 1 d for T1).
+
+* **Static CPU benchmark** (`cpuScoreMs`, min of <= 6 runs of a fixed float workload,
+  ~3 ms on an M2, ~12 ms under Chrome's 4x CPU throttle): > 8.5 ms caps at T2,
+  > 5.5 ms caps at T3. It can only lower the ceiling.
+* **Probe** (`TierGovernor`): after 14 warm-up frames, 1.5 s of full-rate frames: p75
+  frame interval > 24 ms or median per-frame sim+geometry CPU > 3.5 ms (backstop)
+  steps one tier down and re-probes; then the tier LOCKS (never upgraded mid-session).
+* **Downgrade**: after the lock, EMA frame time > 30 ms for 5 s (recover below 25 ms)
+  steps one tier down (8 s cooldown); at T2, > 48 ms for 7 s gives up live rendering
+  (posters, cached for a day). Adaptive DPR (`engine.adapt`) still acts first.
+* **Loop policy** (engine): idle cap 30 fps on T2 and on every touch device once
+  settled (no scroll / resize / pose change for 1.5 s); paused when hidden and on
+  `pagehide`, resumed on `pageshow` (a lost context after bfcache -> posters);
+  reduced motion = static pose (no idle) rendered only while something moves.
+* **Memory**: pixel budget per tier (T2 2.2 M, T3 4.5 M, T4 7.5 M drawing-buffer px
+  ~ 50 B/px of render targets) and the iOS 16.7 M px canvas limit lower the pixel ratio
+  (floor 0.6).
+* **Layers** are `100lvh` tall: URL bars never resize them; touch devices also ignore
+  height-only changes <= 160 px. A resize repaints in the same task (no blank frame).
+* **Failure -> posters** (crossfade, never restart): thrown error in the loop, three.js
+  shader error, `webglcontextlost` / `isContextLost()`, engine not rendering within 4 s
+  of import start, chunk load failure. One `console.warn`.
+
+### Posters
+
+`lib/ribbon/posters.json` lists `{ set, name, pose, route, time, idle, media, viewport }`.
+`node scripts/render-posters.mjs` (server running; Metal-ANGLE headless Chromium) loads
+`<route>?tier=4&capture=1`, freezes the pose (static pose by default) and writes
+`public/ribbon/posters/<name>-{back,front}.{avif,webp}`. The front layer is the transparent
+canvas; the opaque back layer is rendered over black and white and matted into a
+transparent layer, so it composites over the page background. `RibbonPoster` /
+`PosterPicture` render them in the same two fixed layers (AVIF > WebP, phone <= 767 px /
+desktop). Poses change later: edit the list or pose, re-run, commit the images.
+
+QA: `node scripts/qa-resilience.mjs` (see its header). Debug surface: `window.__ribbonState`
+(`tier`, `phase`, `engine`, `loseContext()`), `window.__scrollState`.
+
 ## Files
 
-`types.ts` plain shared data - `settings.ts` types/defaults/tiers/face presets -
+`capability.ts` tier detection + governor (no three) - `tiers.ts` per-tier loop/memory policy - `types.ts` plain shared data - `settings.ts` types/defaults/tiers/face presets -
 `core.ts` DOM-free pipeline - `engine.ts` DOM adapter (canvases, loop, adaptive DPR) -
 `passes.ts` catcher/blur/bloom/composite shaders - `material.ts` ribbon shader patch -
 `sim.ts` springs + idle - `noise.ts` - `frames.ts` curve + frames - `geometry.ts` sweep -

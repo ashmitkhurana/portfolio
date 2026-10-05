@@ -471,10 +471,12 @@ export const QUALITY_TIERS: Record<
     contact: Partial<RibbonSettings["contact"]>;
   }
 > = {
+  // T2 (weak devices): DPR <= 1.25, ~360 rings, no contact shadows, 512 shadow map
+  // (the engine also caps the idle frame rate to 30 fps on this tier)
   low: {
-    post: { samples: 2, pixelRatioCap: 1, bloom: false },
-    geometry: { rings: 400, bevelSegments: 2, widthSegments: 6, capRings: 10 },
-    shadows: { mapSize: 1024, updateEvery: 1 },
+    post: { samples: 2, samplesRetina: -1, pixelRatioCap: 1.25, bloom: false },
+    geometry: { rings: 360, bevelSegments: 2, widthSegments: 6, capRings: 10 },
+    shadows: { mapSize: 512, updateEvery: 1 },
     contact: { enabled: false },
   },
   medium: {

@@ -58,6 +58,8 @@ export interface CoreStats {
   rings: number;
   vertices: number;
   frontActive: boolean;
+  /** sim + geometry CPU ms of the LAST frame (pure JS, no GL sync: the device-speed probe) */
+  logicMs: number;
   /** CPU submit time per stage, ms (EMA) */
   cpu: { sim: number; geometry: number; scene: number; post: number };
   /** GPU time per stage, ms (EMA; 0 unless debug.gpuTimer) */
@@ -86,6 +88,7 @@ export class RibbonCore {
     rings: 0,
     vertices: 0,
     frontActive: false,
+    logicMs: 0,
     cpu: { sim: 0, geometry: 0, scene: 0, post: 0 },
     gpu: { scene: 0, post: 0, stages: {} },
   };
@@ -279,7 +282,7 @@ export class RibbonCore {
   }
 
   setReducedMotion(reduce: boolean): void {
-    this.sim.idleScale01 = reduce ? 0.04 : 1;
+    this.sim.idleScale01 = reduce ? 0 : 1; // reduced motion: static pose, no idle
   }
 
   patchSettings(patch: DeepPartial<RibbonSettings>): void {
@@ -425,6 +428,7 @@ export class RibbonCore {
     this.ribbon.update(this.sim.outPos, this.sim.outTwist, this.sim.outWidth, this.sim.count);
     const t2 = performance.now();
     st.cpu.geometry = ema(st.cpu.geometry, t2 - t1);
+    st.logicMs = t2 - t;
 
     this.shared.uProxyRects.value = proxies.rects;
     this.shared.uProxyDepth.value = proxies.depth;

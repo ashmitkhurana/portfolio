@@ -15,9 +15,17 @@
  * canvas ABOVE the HTML (no weaving, ribbon over everything).
  */
 import * as THREE from "three";
+import { TierGovernor, type GovernorEvent, type Tier } from "./capability";
 import { RibbonCore, type CoreStats, type OutputKind } from "./core";
 import { ProxyRegistry } from "./proxies";
-import type { DeepPartial, RibbonSettings } from "./settings";
+import {
+  applyQualityTier,
+  mergeSettings,
+  QUALITY_TIERS,
+  type DeepPartial,
+  type RibbonSettings,
+} from "./settings";
+import { MAX_CANVAS_PIXELS, profileFor, type TierProfile } from "./tiers";
 import type { RibbonPose } from "./types";
 
 export type { RibbonPose };
@@ -45,7 +53,28 @@ export interface RibbonEngineOptions {
   settings?: DeepPartial<RibbonSettings>;
   /** control points in the sim */
   controlPoints?: number;
+  /**
+   * Capability tier (2 low, 3 medium, 4 high). Applies that tier's render
+   * settings, pixel budget and idle frame cap, and enables the runtime probe /
+   * downgrade governor. Omit (the lab) for the plain settings with no governance.
+   */
+  tier?: 2 | 3 | 4 | null;
+  /** the tier is final (cached / `?tier=`): skip the probe, never downgrade */
+  tierLocked?: boolean;
+  /** an unrecoverable problem (thrown error, shader error, WebGL context loss) */
+  onFatal?: (err: unknown, kind: "error" | "context-lost") => void;
+  /** first back composite handed to the visible canvas */
+  onFirstFrame?: () => void;
+  /** the probe locked a tier, or sustained slowness stepped it down */
+  onTier?: (e: GovernorEvent) => void;
 }
+
+/** idle cap: how long after the last scroll / resize / pose change the ribbon counts as "moving" */
+const ACTIVE_MS = 1500;
+/** the probe window (1.5 s + warm-up) always runs at full rate */
+const STARTUP_ACTIVE_MS = 3200;
+/** a touch device keeps the URL bar showing/hiding without any resize: ignore height-only changes this small */
+const TOUCH_RESIZE_SLOP = 160;
 
 let weaveSupport: boolean | null = null;
 let infoLogged = false;
@@ -100,6 +129,18 @@ export class RibbonEngine {
   private probeWait = 20;
   private postKey = "";
 
+  /** current capability tier (null: lab / ungoverned) */
+  tier: Tier | null = null;
+  private profile: TierProfile | null = null;
+  private governor: TierGovernor | null = null;
+  private coarse = false;
+  private staticMode = false;
+  private activeUntil = 0;
+  private lastRenderAt = 0;
+  private resumeSkip = 0;
+  private firstFrame = false;
+  private fatalFired = false;
+
   private raf = 0;
   private running = false;
   private lastT = 0;
@@ -114,7 +155,22 @@ export class RibbonEngine {
     if (document.hidden) this.stop();
     else this.start();
   };
+  // back/forward cache: the page is frozen, then resumed without a reload
+  private readonly onPageHide = () => this.stop();
+  private readonly onPageShow = (e: PageTransitionEvent) => {
+    if (this.disposed) return;
+    if (e.persisted && this.contextLost()) {
+      this.fatal(new Error("WebGL context lost while the page was in the back/forward cache"), "context-lost");
+      return;
+    }
+    this.proxies.invalidate();
+    if (!document.hidden) this.start();
+  };
+  private readonly onActivity = () => this.markActive();
   private readonly onReduce = () => this.applyReducedMotion();
+  private readonly onContextLost = () => {
+    this.fatal(new Error("WebGL context lost"), "context-lost");
+  };
   private readonly emit = (which: OutputKind) => {
     if (which === "single") return;
     const bmp = this.core.transfer();
@@ -122,6 +178,10 @@ export class RibbonEngine {
     const ctx = which === "back" ? this.backCtx : this.frontCtx;
     if (ctx) ctx.transferFromImageBitmap(bmp);
     else bmp.close();
+    if (!this.firstFrame && which === "back") {
+      this.firstFrame = true;
+      this.opts.onFirstFrame?.();
+    }
   };
 
   constructor(private opts: RibbonEngineOptions) {
@@ -140,20 +200,39 @@ export class RibbonEngine {
       );
     }
     this.mode = weave ? "weave" : "single";
-    if (weave) {
-      this.offscreen = new OffscreenCanvas(1, 1);
-      this.core = new RibbonCore(this.offscreen, {
-        settings: opts.settings,
-        controlPoints: opts.controlPoints,
-        weave: true,
-      });
-    } else {
-      this.core = new RibbonCore(opts.front, {
-        settings: opts.settings,
-        controlPoints: opts.controlPoints,
-        weave: false,
-      });
+    this.tier = opts.tier ?? null;
+    this.profile = this.tier ? profileFor(this.tier) : null;
+    // tier render settings first, explicit overrides on top
+    let initial: DeepPartial<RibbonSettings> | undefined = opts.settings;
+    if (this.profile) {
+      const base = mergeSettings(opts.settings);
+      applyQualityTier(base, this.profile.quality);
+      initial = base;
     }
+    try {
+      if (weave) {
+        this.offscreen = new OffscreenCanvas(1, 1);
+        this.core = new RibbonCore(this.offscreen, {
+          settings: initial,
+          controlPoints: opts.controlPoints,
+          weave: true,
+        });
+      } else {
+        this.core = new RibbonCore(opts.front, {
+          settings: initial,
+          controlPoints: opts.controlPoints,
+          weave: false,
+        });
+      }
+    } catch (err) {
+      RibbonEngine.live--;
+      throw err;
+    }
+    // a shader that fails to compile does not throw in three.js: it logs and draws nothing
+    this.core.renderer.debug.onShaderError = () => {
+      this.fatal(new Error("shader compile / link error"), "error");
+    };
+    (this.offscreen ?? opts.front).addEventListener("webglcontextlost", this.onContextLost);
     this.settings = this.core.settings;
     this.camera = this.core.camera;
     this.sim = this.core.sim;
@@ -172,15 +251,28 @@ export class RibbonEngine {
       mode: this.mode,
     };
 
-    this.ro = new ResizeObserver(() => this.resize());
+    this.coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (this.tier !== null) {
+      this.governor = new TierGovernor(this.tier, opts.tierLocked === true);
+    }
+
+    this.ro = new ResizeObserver(() => {
+      // resizing a canvas clears it: repaint in the same task so there is no blank frame
+      if (this.resize()) this.renderNow();
+    });
     this.ro.observe(opts.front);
     document.addEventListener("visibilitychange", this.onVisibility);
+    window.addEventListener("pagehide", this.onPageHide);
+    window.addEventListener("pageshow", this.onPageShow);
+    window.addEventListener("scroll", this.onActivity, { passive: true });
+    window.addEventListener("touchmove", this.onActivity, { passive: true });
     this.mqReduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     this.mqReduce.addEventListener("change", this.onReduce);
     this.applyReducedMotion();
 
-    this.resize();
+    this.resize(true);
     this.applySettings(true);
+    this.markActive(STARTUP_ACTIVE_MS);
     this.start();
   }
 
@@ -193,6 +285,90 @@ export class RibbonEngine {
 
   setPose(pose: RibbonPose, snap = false): void {
     this.core.setPose(pose, snap);
+    if (!snap) this.markActive(2500);
+  }
+
+  /** Keep rendering at full rate for a while (scroll, resize, pose change ...). */
+  markActive(ms = ACTIVE_MS): void {
+    this.activeUntil = Math.max(this.activeUntil, performance.now() + ms);
+  }
+
+  /** the idle cap policy of the current tier (null = never capped) */
+  get idleFps(): number {
+    if (this.profile) return this.coarse ? 30 : this.profile.idleFps;
+    return 0;
+  }
+
+  /** WebGL context lost? (also a backup for browsers that never fire the event) */
+  contextLost(): boolean {
+    try {
+      return (this.core.renderer.getContext() as WebGL2RenderingContext).isContextLost();
+    } catch {
+      return true;
+    }
+  }
+
+  /**
+   * Re-apply a (lower) tier at runtime: render settings + pixel budget. Never
+   * called with a higher tier than the current one.
+   */
+  setTier(tier: 2 | 3 | 4): void {
+    const profile = profileFor(tier);
+    if (!profile) return;
+    this.tier = tier;
+    this.profile = profile;
+    const t = QUALITY_TIERS[profile.quality];
+    this.core.patchSettings({
+      quality: profile.quality,
+      post: t.post,
+      geometry: t.geometry,
+      shadows: t.shadows,
+      contact: t.contact,
+    });
+    this.applySettings();
+    this.prCeil = Infinity;
+    this.resize(true);
+    this.markActive(STARTUP_ACTIVE_MS);
+  }
+
+  /** Test hook: lose the GL context like a GPU reset would. */
+  debugLoseContext(): void {
+    this.core.renderer.getContext().getExtension("WEBGL_lose_context")?.loseContext();
+  }
+
+  /**
+   * Poster capture (scripts/render-posters.mjs): render the CURRENT pose at a
+   * frozen time (+ optional idle amount) and return both layers as PNG data
+   * URLs. `matte` renders the opaque back layer over a pure black / white
+   * background with no vignette, grain, dither or glow so the script can
+   * recover a transparent layer by difference matting.
+   */
+  captureLayers(opts: { time?: number; idle?: number; matte?: "black" | "white" | null }): {
+    back: string;
+    front: string;
+  } {
+    this.stop();
+    // full device resolution, no adaptive drop (posters are rendered once, offline)
+    this.patchSettings({ post: { pixelRatioCap: 4, adaptive: false, samples: 4, samplesRetina: 4 } });
+    if (opts.matte) {
+      const c = opts.matte === "white" ? "#ffffff" : "#000000";
+      this.patchSettings({
+        background: { color: c, vignette: 0, gradient: 0, grain: 0 },
+        post: { dither: false },
+        shadows: { glow: false },
+      });
+    }
+    this.core.setReducedMotion(false);
+    this.core.sim.idleScale01 = opts.idle ?? 0;
+    this.core.sim.time = opts.time ?? 0;
+    this.core.sim.snapToTarget();
+    this.proxies.invalidate();
+    for (let i = 0; i < 3; i++) {
+      this.core.frame(0, opts.time ?? 0, this.proxies.update(), this.emit);
+    }
+    const back = this.opts.back?.toDataURL("image/png") ?? "";
+    const front = this.opts.front.toDataURL("image/png");
+    return { back, front };
   }
 
   applySettings(force = false): void {
@@ -220,9 +396,13 @@ export class RibbonEngine {
   }
 
   start(): void {
-    if (this.running || this.disposed) return;
+    if (this.running || this.disposed || this.fatalFired) return;
     this.running = true;
     this.lastT = performance.now();
+    this.lastRenderAt = this.lastT;
+    this.resumeSkip = 3;
+    this.governor?.resetWindow();
+    this.markActive(ACTIVE_MS);
     this.raf = requestAnimationFrame(this.tick);
   }
 
@@ -258,6 +438,11 @@ export class RibbonEngine {
     this.stop();
     this.ro.disconnect();
     document.removeEventListener("visibilitychange", this.onVisibility);
+    window.removeEventListener("pagehide", this.onPageHide);
+    window.removeEventListener("pageshow", this.onPageShow);
+    window.removeEventListener("scroll", this.onActivity);
+    window.removeEventListener("touchmove", this.onActivity);
+    (this.offscreen ?? this.opts.front).removeEventListener("webglcontextlost", this.onContextLost);
     this.mqReduce?.removeEventListener("change", this.onReduce);
     document.documentElement.removeAttribute("data-ribbon-debug");
     this.proxies.dispose();
@@ -267,16 +452,53 @@ export class RibbonEngine {
   // ---- internals --------------------------------------------------------
 
   private applyReducedMotion(): void {
-    this.core.setReducedMotion(this.mqReduce?.matches ?? false);
+    // reduced motion: static pose (no idle, no flying), re-rendered only when something moves
+    this.staticMode = this.mqReduce?.matches ?? false;
+    this.core.setReducedMotion(this.staticMode);
+    this.markActive(ACTIVE_MS);
   }
 
-  private resize(): void {
+  /** Report an unrecoverable problem once; the owner swaps in the posters. */
+  private fatal(err: unknown, kind: "error" | "context-lost"): void {
+    if (this.fatalFired || this.disposed) return;
+    this.fatalFired = true;
+    this.stop();
+    if (this.opts.onFatal) this.opts.onFatal(err, kind);
+    else console.warn("[ribbon] stopped:", err);
+  }
+
+  /** Render one frame right now (after a canvas resize cleared the canvases). */
+  private renderNow(): void {
+    if (!this.running || this.disposed || this.fatalFired) return;
+    try {
+      const now = performance.now();
+      this.core.frame(0.0001, now, this.proxies.update(), this.emit);
+      this.lastRenderAt = now;
+    } catch (err) {
+      this.fatal(err, "error");
+    }
+  }
+
+  /** @returns whether the drawing buffers were resized */
+  private resize(force = false): boolean {
     const w = Math.max(this.opts.front.clientWidth, 1);
     const h = Math.max(this.opts.front.clientHeight, 1);
-    const pr = this.targetPixelRatio();
+    // Layers are 100lvh tall, so mobile URL bars never resize them. As a second
+    // line of defence a touch device ignores small height-only changes.
+    if (
+      !force &&
+      this.coarse &&
+      w === this.width &&
+      Math.abs(h - this.height) <= TOUCH_RESIZE_SLOP
+    ) {
+      return false;
+    }
+    const pr = this.targetPixelRatio(w, h);
+    if (!force && w === this.width && h === this.height && pr === this.pixelRatio) return false;
     this.width = w;
     this.height = h;
     this.pixelRatio = pr;
+    this.markActive(ACTIVE_MS);
     this.core.setSize(w, h, pr);
     if (this.mode === "weave") {
       // both visible canvases get exactly the offscreen drawing-buffer size
@@ -288,10 +510,15 @@ export class RibbonEngine {
       }
     }
     this.proxies.invalidate();
+    return true;
   }
 
-  private targetPixelRatio(): number {
-    return Math.max(
+  /**
+   * Pixel ratio: device ratio, capped by the tier, the adaptive ceiling and the
+   * pixel budget (iOS canvas limit + GPU memory), never below 0.6.
+   */
+  private targetPixelRatio(w = this.width, h = this.height): number {
+    let pr = Math.max(
       1,
       Math.min(
         window.devicePixelRatio || 1,
@@ -299,6 +526,10 @@ export class RibbonEngine {
         this.prCeil,
       ),
     );
+    const budget = Math.min(this.profile?.maxPixels ?? MAX_CANVAS_PIXELS, MAX_CANVAS_PIXELS);
+    const px = Math.max(w * h, 1);
+    if (px * pr * pr > budget) pr = Math.max(0.6, Math.sqrt(budget / px));
+    return pr;
   }
 
   /**
@@ -350,13 +581,44 @@ export class RibbonEngine {
   private tick = (now: number) => {
     if (!this.running) return;
     this.raf = requestAnimationFrame(this.tick);
+    try {
+      this.step(now);
+    } catch (err) {
+      this.fatal(err, "error");
+    }
+  };
+
+  private step(now: number): void {
+    if (this.contextLost()) {
+      this.fatal(new Error("WebGL context lost"), "context-lost");
+      return;
+    }
+    const active = now < this.activeUntil;
+    const since = now - this.lastRenderAt;
+    if (!active) {
+      // reduced motion: a static pose only needs a frame when something moved
+      if (this.staticMode) {
+        this.lastT = now;
+        return;
+      }
+      // settled and idle: cap the frame rate (T2, and any touch device: battery)
+      const fps = this.idleFps;
+      if (fps > 0 && since < 1000 / fps - 4) return;
+    }
     const dtMs = Math.min(now - this.lastT, 100);
     this.lastT = now;
+    this.lastRenderAt = now;
+    // the first frames after a (re)start or a capped stretch are not measurements
+    const measure = active && this.resumeSkip === 0;
+    if (this.resumeSkip > 0) this.resumeSkip--;
+    if (measure) this.adapt(dtMs);
     const t0 = performance.now();
     this.core.frame(dtMs / 1000, now, this.proxies.update(), this.emit);
-    this.adapt(dtMs);
     const cpu = performance.now() - t0;
-    this.emaMs += (dtMs - this.emaMs) * 0.08;
+    if (measure) {
+      this.emaMs += (dtMs - this.emaMs) * 0.08;
+      this.govern(dtMs, this.core.stats.logicMs);
+    }
     const st = this.stats;
     const cs = this.core.stats;
     st.fps = 1000 / Math.max(this.emaMs, 0.001);
@@ -366,5 +628,18 @@ export class RibbonEngine {
     st.rings = cs.rings;
     st.vertices = cs.vertices;
     st.frontActive = cs.frontActive;
-  };
+  }
+
+  /** Feed the capability governor; apply a step down immediately. */
+  private govern(dtMs: number, logic: number): void {
+    const g = this.governor;
+    if (!g || document.hidden) return;
+    const ev = g.push({ dt: dtMs, work: logic });
+    if (!ev) return;
+    this.opts.onTier?.(ev);
+    if (ev.type === "down") {
+      if (ev.tier >= 2) this.setTier(ev.tier as 2 | 3 | 4);
+      else this.fatal(new Error(ev.reason), "error");
+    }
+  }
 }
