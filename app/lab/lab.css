@@ -1,0 +1,148 @@
+.lab-hero {
+  position: relative;
+  min-height: 100svh;
+  padding: 0 4vw;
+  overflow: hidden;
+}
+
+.lab-nav {
+  position: absolute;
+  top: 3.2vh;
+  left: 4vw;
+  right: 4vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.lab-nav nav {
+  display: flex;
+  gap: 2.4rem;
+}
+
+.lab-logo {
+  font-family: var(--font-sans), sans-serif;
+  font-weight: 900;
+  font-size: 1.6rem;
+  letter-spacing: -0.06em;
+  font-style: italic;
+}
+
+.lab-headline {
+  position: absolute;
+  top: 19vh;
+  left: 4vw;
+  margin: 0;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.82;
+  font-size: clamp(3rem, 13.5vw, 15rem);
+  color: var(--fg);
+  text-transform: uppercase;
+}
+
+.lab-line {
+  display: block;
+  width: fit-content;
+}
+
+.lab-sub {
+  position: absolute;
+  left: 4vw;
+  top: calc(19vh + 0.82 * 2 * clamp(3rem, 13.5vw, 15rem) + 2.2rem);
+  max-width: 28rem;
+}
+
+.lab-role {
+  font-size: clamp(1.1rem, 1.6vw, 1.7rem);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.lab-tagline {
+  font-size: clamp(1rem, 1.4vw, 1.5rem);
+  color: var(--fg-muted);
+}
+
+.lab-card {
+  position: absolute;
+  right: 7vw;
+  top: 54vh;
+  width: 360px;
+  height: 240px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, #26231f, #151413);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lab-card small {
+  color: var(--fg-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 4px;
+}
+
+.lab-hud {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #9dffb0;
+  font: 11px/1.45 ui-monospace, Menlo, monospace;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.lab-pane {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  width: 300px;
+  max-height: calc(100svh - 16px);
+  overflow-y: auto;
+}
+
+.lab-ref {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 90;
+  pointer-events: none;
+  max-width: none;
+}
+
+@media (max-width: 700px) {
+  .lab-headline {
+    top: 17vh;
+  }
+  .lab-card {
+    width: 220px;
+    height: 150px;
+    right: 5vw;
+    top: 63vh;
+  }
+  .lab-nav nav {
+    gap: 1rem;
+  }
+}
