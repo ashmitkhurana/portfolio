@@ -44,3 +44,4 @@ next-env.d.ts
 .next-dev/
 .next-1a/
 .next-*/
+scripts/mockup/.venv/
