@@ -10,7 +10,7 @@ export function UnravelSection() {
       className="section unravel"
       aria-label="Introduction"
     >
-      <div className="unravel__inner">
+      <div className="container unravel__inner">
         <p className="unravel__line label">{unravel.line}</p>
       </div>
     </section>

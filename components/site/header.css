@@ -7,6 +7,7 @@
   pointer-events: none; /* only the controls catch events, content scrolls under */
 }
 
+/* same column as .container so the logo shares the content's left edge */
 .site-header__bar {
   position: relative;
   z-index: 2;
@@ -14,6 +15,8 @@
   align-items: center;
   justify-content: space-between;
   height: var(--header-h);
+  max-width: calc(var(--page-max) + var(--gutter) * 2);
+  margin-inline: auto;
   padding-inline: var(--gutter);
 }
 
@@ -24,44 +27,51 @@
 .site-header__logo {
   display: inline-flex;
   align-items: center;
-  height: 2.75rem;
+  height: 44px;
   color: var(--fg);
+  opacity: 1;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.site-header__logo:hover {
+  opacity: 0.72;
 }
 
 .site-header__mark {
-  height: clamp(1.25rem, 1.1rem + 0.5vw, 1.6rem);
+  height: 24px;
   width: auto;
 }
 
 .site-header__actions {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-2xs);
 }
 
 /* desktop nav sits in the same row as the terminal button, right-aligned */
 .site-header__nav {
   display: none;
   margin-left: auto;
-  margin-right: clamp(1.5rem, 1rem + 1.6vw, 2.75rem);
+  margin-right: var(--space-m);
 }
 
 .site-header__nav ul {
   display: flex;
   align-items: center;
-  gap: clamp(1.5rem, 1rem + 1.8vw, 3rem);
+  gap: var(--space-m);
 }
 
 .site-header__nav a {
-  display: inline-block;
-  padding: var(--space-2xs) 0;
-  font-size: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--fg);
-  opacity: 0.86;
-  transition: opacity var(--dur-fast) linear;
+  opacity: 0.78;
+  transition: opacity var(--dur-fast) ease;
 }
 
 .site-header__nav a:hover,
@@ -69,32 +79,31 @@
   opacity: 1;
 }
 
+/* current page: a quiet accent underline that does not shift the layout */
 .site-header__nav a[aria-current="page"] {
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.5em;
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 calc(50% + 0.95em) / 100% 2px;
 }
 
 .site-header__terminal,
 .site-header__burger {
   display: inline-grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 44px;
+  height: 44px;
   padding: 0;
   background: transparent;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   color: var(--fg);
   transition:
-    border-color var(--dur-fast) linear,
-    background-color var(--dur-fast) linear;
+    border-color var(--dur-fast) ease,
+    background-color var(--dur-fast) ease;
 }
 
 .site-header__terminal {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.9375rem;
+  line-height: 1;
   letter-spacing: 0;
 }
 
@@ -106,7 +115,7 @@
 
 .site-header__burger {
   border-color: transparent;
-  width: 2.75rem;
+  margin-right: -9px; /* the two lines (26px) sit flush with the gutter, not the 44px hit area */
 }
 
 .site-header__burger:hover {
@@ -166,7 +175,7 @@
   flex-direction: column;
   justify-content: space-between;
   gap: var(--space-l);
-  padding: calc(var(--header-h) + var(--space-m)) var(--gutter) max(var(--gutter), env(safe-area-inset-bottom));
+  padding: calc(var(--header-h) + var(--space-s)) var(--gutter) max(var(--space-m), env(safe-area-inset-bottom));
   background: var(--bg);
   overflow-y: auto;
   pointer-events: auto;
@@ -183,12 +192,23 @@
 .mobile-menu__link {
   display: block;
   padding-block: var(--space-2xs);
-  font-size: clamp(3rem, 16.5vw, 7rem);
+  /* longest link (CONTACT) fills the width between the gutters */
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-size: min((100vw - 2 * var(--gutter)) / 3.75, 7rem);
+  font-variation-settings: "wdth" var(--display-wdth);
   font-weight: var(--display-weight);
   letter-spacing: var(--display-tracking);
   line-height: var(--display-leading);
   text-transform: uppercase;
   color: var(--fg);
+}
+
+.mobile-menu__link {
+  transition: opacity var(--dur-fast) ease;
+}
+
+.mobile-menu__link:hover {
+  opacity: 0.72;
 }
 
 .mobile-menu__link[aria-current="page"] {
@@ -201,7 +221,7 @@
 }
 
 .mobile-menu__email {
-  font-size: var(--text-l);
+  font-size: clamp(1.125rem, 5.6vw, 1.5rem);
   font-weight: 500;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
@@ -210,7 +230,13 @@
 .mobile-menu__socials {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-m);
+  gap: 0 var(--space-m);
+}
+
+.mobile-menu__socials a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 @media (min-width: 768px) {

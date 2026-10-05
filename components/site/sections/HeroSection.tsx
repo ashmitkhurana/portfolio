@@ -11,7 +11,7 @@ export function HeroSection() {
       className="section hero"
       aria-labelledby="hero-title"
     >
-      <div className="hero__inner">
+      <div className="container hero__inner">
         <DisplayHeading
           as="h1"
           id="hero-title"
@@ -25,7 +25,7 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="hero__foot">
+      <div className="container hero__foot">
         <a className="hero__scroll label" href="#unravel">
           <span>{hero.scrollLabel}</span>
           <ArrowDown />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { RibbonStage } from "@/components/ribbon/RibbonStage";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { makeTestPose } from "@/lib/ribbon/testPoses";
@@ -16,7 +16,23 @@ import { makeTestPose } from "@/lib/ribbon/testPoses";
  */
 const POSE = "sweep";
 
+/** `?ribbon=0` skips the ribbon entirely (clean layout screenshots, QA). */
+const noop = () => () => {};
+function useRibbonEnabled() {
+  return useSyncExternalStore(
+    noop,
+    () => new URLSearchParams(window.location.search).get("ribbon") !== "0",
+    () => true,
+  );
+}
+
 export function SiteRibbon({ children }: { children: React.ReactNode }) {
+  const enabled = useRibbonEnabled();
+  if (!enabled) return <div className="ribbon-content">{children}</div>;
+  return <RibbonMount>{children}</RibbonMount>;
+}
+
+function RibbonMount({ children }: { children: React.ReactNode }) {
   const engineRef = useRef<RibbonEngine | null>(null);
 
   const applyPose = useCallback((snap: boolean) => {

@@ -65,7 +65,6 @@ export default async function CaseStudyPage({ params }: PageProps) {
             <DisplayHeading
               as="h1"
               size="l"
-              fit
               lines={project.name.split(" ")}
               depth={0}
             />

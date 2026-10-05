@@ -42,3 +42,4 @@ next-env.d.ts
 .history/*
 /public/lab/ref/
 .next-dev/
+.next-1a/

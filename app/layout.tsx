@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Mona_Sans } from "next/font/google";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/ui.css";
@@ -11,6 +11,15 @@ const sans = Inter({
   display: "swap",
   weight: "variable",
   axes: ["opsz"],
+});
+
+/** Display face: Mona Sans variable with the wdth axis (75-125). Weight 900 + per-screen width live in tokens.css. */
+const display = Mona_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: "variable",
+  axes: ["wdth"],
 });
 
 const mono = JetBrains_Mono({
@@ -62,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -135,11 +135,14 @@ main,
   border: 0;
 }
 
+/* the one content column: same left edge in the header, hero, every section and the footer.
+   It is also an inline-size container, so giant type can size itself against it (cqw). */
 .container {
   width: 100%;
   max-width: calc(var(--page-max) + var(--gutter) * 2);
   margin-inline: auto;
   padding-inline: var(--gutter);
+  container-type: inline-size;
 }
 
 /* small uppercase mono label */

@@ -4,50 +4,61 @@
   --bg-raised: #151311;
   --bg-raised-2: #1b1816;
   --fg: #f4efe7;
-  --fg-muted: rgba(244, 239, 231, 0.62);
-  --fg-faint: rgba(244, 239, 231, 0.38);
+  --fg-muted: rgba(244, 239, 231, 0.7);
+  --fg-faint: rgba(244, 239, 231, 0.55);
   --line: rgba(244, 239, 231, 0.12);
   --line-strong: rgba(244, 239, 231, 0.24);
   --accent: #ff6a00;
 
-  /* spacing scale (fluid) */
-  --space-3xs: clamp(0.25rem, 0.23rem + 0.1vw, 0.3125rem);
-  --space-2xs: clamp(0.5rem, 0.46rem + 0.2vw, 0.625rem);
-  --space-xs: clamp(0.75rem, 0.69rem + 0.3vw, 0.9375rem);
-  --space-s: clamp(1rem, 0.92rem + 0.4vw, 1.25rem);
-  --space-m: clamp(1.5rem, 1.38rem + 0.6vw, 1.875rem);
-  --space-l: clamp(2rem, 1.84rem + 0.8vw, 2.5rem);
-  --space-xl: clamp(3rem, 2.76rem + 1.2vw, 3.75rem);
-  --space-2xl: clamp(4rem, 3.68rem + 1.6vw, 5rem);
-  --space-3xl: clamp(6rem, 5.52rem + 2.4vw, 7.5rem);
-  --space-4xl: clamp(8rem, 6rem + 6vw, 14rem);
-  --gutter: clamp(1.25rem, 0.5rem + 2.4vw, 4rem);
+  /* spacing: an 8px grid (4px for the smallest step). Stepped, not fluid, so every
+     value is a multiple of 8; the large steps grow at the breakpoints below. */
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 16px;
+  --space-s: 24px;
+  --space-m: 32px;
+  --space-l: 40px;
+  --space-xl: 56px;
+  --space-2xl: 72px;
+  --space-3xl: 96px; /* vertical padding of every page section (--section-y) */
+  --space-4xl: 128px;
 
-  /* layout */
-  --page-max: 100rem; /* reading/content width cap; giant type may exceed */
-  --header-h: clamp(4.5rem, 4rem + 1.4vw, 6rem);
+  /* one gutter + one container for the whole site (header, hero, sections, footer) */
+  --gutter: 20px;
+  --page-max: 120rem; /* content cap (1920px); giant type scales to the container, not the viewport */
+  --section-y: var(--space-3xl);
+  --header-h: 72px;
   --radius-card: 20px;
   --radius-ui: 12px;
 
-  /* type scale (fluid) */
+  /* type scale (fluid, body text) */
   --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
   --text-s: clamp(0.875rem, 0.84rem + 0.17vw, 0.9375rem);
   --text-m: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
   --text-l: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
   --text-xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
   --text-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
-  --text-3xl: clamp(2.5rem, 1.8rem + 3.5vw, 4.5rem);
-  --text-display: clamp(4rem, 14vw, 16rem);
+  --text-lede: clamp(1.125rem, 1rem + 0.55vw, 1.5rem);
+  --measure: 65ch; /* body line length */
 
-  /* giant display type: weight 900, tight, heavy */
+  /* giant display type: Mona Sans 900, tight. Width (wdth axis) per screen class. */
   --display-weight: 900;
-  --display-tracking: -0.035em;
+  --display-tracking: -0.04em;
   --display-leading: 0.82;
-  /* hero name: fills the width on phones, capped by height so two lines always fit */
-  --display-hero: min(19.2vw, 36svh);
-  --display-xl: clamp(3.5rem, 2rem + 9vw, 15rem); /* HOW I BUILD, LET'S BUILD */
-  --display-l: clamp(3rem, 1.5rem + 7.5vw, 12rem); /* page titles */
-  --display-m: clamp(2.75rem, 1.5rem + 5vw, 8rem); /* section headings */
+  --wdth-phone: 82;
+  --wdth-tablet: 90;
+  --wdth-desktop: 96;
+  --wdth-ultrawide: 100;
+  --display-wdth: var(--wdth-phone);
+
+  /* max font sizes; every heading also fits its longest line to the container width */
+  --display-xl: 15rem; /* HOW I BUILD, LET'S BUILD, page titles */
+  --display-l: 12rem; /* case study titles */
+  --display-m: 8rem; /* section headings */
+
+  /* hero name: share of the container width the longest line fills, and a height cap */
+  --hero-span: 1;
+  --hero-cap: 36svh;
 
   /* mono label */
   --label-size: clamp(0.6875rem, 0.66rem + 0.14vw, 0.8125rem);
@@ -69,12 +80,55 @@
 
   /* motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-fast: 160ms;
+  --dur-fast: 180ms;
 }
 
-/* landscape: the name sits left/centre-left at ~73% of the width (KHURANA) */
+/* ── screen classes ─────────────────────────────────────
+   phone < 768 · tablet 768-1099 · desktop 1100-2199 · ultrawide >= 2200 */
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 32px;
+    --header-h: 80px;
+    --display-wdth: var(--wdth-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 48px;
+    --header-h: 88px;
+    --space-l: 48px;
+    --space-xl: 64px;
+    --space-2xl: 96px;
+    --space-3xl: 128px;
+    --space-4xl: 192px;
+  }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --display-wdth: var(--wdth-desktop);
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --gutter: 64px;
+    --header-h: 96px;
+  }
+}
+
+@media (min-width: 2200px) {
+  :root {
+    --display-wdth: var(--wdth-ultrawide);
+  }
+}
+
+/* landscape: the name sits left at ~75% of the container (KHURANA), like the desktop mockup */
 @media (min-width: 768px) and (orientation: landscape) {
   :root {
-    --display-hero: min(15vw, 32svh);
+    --hero-span: 0.75;
+    --hero-cap: 27svh;
   }
 }

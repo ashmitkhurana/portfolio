@@ -1,18 +1,36 @@
 import type { CSSProperties } from "react";
 import "./display.css";
 
-/** Approximate Inter Black (900) advance widths in em, uppercase. Used only to size `fit` headings. */
-const ADV: Record<string, number> = {
-  A: 0.74, B: 0.74, C: 0.77, D: 0.79, E: 0.68, F: 0.64, G: 0.8, H: 0.82, I: 0.36,
-  J: 0.62, K: 0.77, L: 0.64, M: 0.96, N: 0.82, O: 0.82, P: 0.73, Q: 0.82, R: 0.75,
-  S: 0.72, T: 0.69, U: 0.8, V: 0.76, W: 1.1, X: 0.76, Y: 0.74, Z: 0.7,
-  " ": 0.27, ".": 0.33, "\u2019": 0.33, "'": 0.33,
+/**
+ * Mona Sans 900 advance widths in em (uppercase, no tracking), measured at the
+ * two ends of the range we use: wdth 75 and wdth 100. The font's advances are
+ * linear between those, so CSS interpolates at the current --display-wdth.
+ * Order: [wdth 75, wdth 100].
+ */
+const ADV: Record<string, [number, number]> = {
+  A: [0.497, 0.766], B: [0.466, 0.711], C: [0.481, 0.77], D: [0.49, 0.756],
+  E: [0.38, 0.646], F: [0.375, 0.631], G: [0.505, 0.82], H: [0.495, 0.802],
+  I: [0.245, 0.321], J: [0.294, 0.439], K: [0.499, 0.753], L: [0.359, 0.584],
+  M: [0.646, 0.929], N: [0.487, 0.79], O: [0.494, 0.801], P: [0.473, 0.679],
+  Q: [0.521, 0.848], R: [0.477, 0.738], S: [0.448, 0.678], T: [0.391, 0.651],
+  U: [0.48, 0.747], V: [0.467, 0.78], W: [0.75, 1.041], X: [0.489, 0.806],
+  Y: [0.497, 0.757], Z: [0.434, 0.642],
+  "0": [0.492, 0.62], "1": [0.358, 0.458], "2": [0.461, 0.591], "3": [0.473, 0.603],
+  "4": [0.516, 0.662], "5": [0.472, 0.614], "6": [0.489, 0.642], "7": [0.484, 0.604],
+  "8": [0.464, 0.614], "9": [0.489, 0.642],
+  " ": [0.15, 0.203], ".": [0.196, 0.232], "'": [0.179, 0.212], "\u2019": [0.207, 0.231],
+  "-": [0.352, 0.43], "&": [0.64, 0.758], "!": [0.227, 0.288], "?": [0.445, 0.578],
+  ",": [0.211, 0.241],
 };
-const TRACKING = 0.035; // keep in sync with --display-tracking
+const FALLBACK: [number, number] = [0.5, 0.78];
+/** keep in sync with --display-tracking (-0.04em) */
+const TRACKING = 0.04;
+/** last glyph's ink can sit slightly outside its tracked box */
+const INK_SLACK = 0.03;
 
-function widthEm(line: string): number {
-  let w = 0;
-  for (const ch of line.toUpperCase()) w += (ADV[ch] ?? 0.78) - TRACKING;
+function widthEm(line: string, i: 0 | 1): number {
+  let w = INK_SLACK;
+  for (const ch of line.toUpperCase()) w += (ADV[ch] ?? FALLBACK)[i] - TRACKING;
   return w;
 }
 
@@ -24,8 +42,6 @@ export interface DisplayHeadingProps {
   as?: "h1" | "h2" | "h3" | "p" | "div";
   id?: string;
   size?: DisplaySize;
-  /** shrink the type so the longest line always fits the viewport width (default on, except for the hero which is sized by its own token) */
-  fit?: boolean;
   /** mark each line as a ribbon depth proxy (default true) */
   proxy?: boolean;
   /** ribbon depth (world z) for every line; default 0 */
@@ -36,7 +52,9 @@ export interface DisplayHeadingProps {
 }
 
 /**
- * Giant display type. Each line is a block-level, shrink-wrapped span (so its
+ * Giant display type (Mona Sans 900, see display.css). Every heading is fitted
+ * to its container (`.container`, an inline-size container) so no line can ever
+ * exceed the viewport. Each line is a block-level, shrink-wrapped span (so its
  * box hugs the text) that can be a `data-ribbon-proxy`; every letter sits in
  * its own `.glyph` span so glyph boxes can be measured later. The glyph
  * container is aria-hidden and the heading carries the accessible name.
@@ -49,20 +67,24 @@ export function DisplayHeading({
   as: Tag = "h2",
   id,
   size = "l",
-  fit = size !== "hero",
   proxy = true,
   depth = 0,
   radius,
   className,
 }: DisplayHeadingProps) {
-  const widthInEm = Math.max(1, ...lines.map(widthEm)) * 1.03;
+  const em75 = Math.max(1, ...lines.map((l) => widthEm(l, 0)));
+  const em100 = Math.max(1, ...lines.map((l) => widthEm(l, 1)));
   return (
     <Tag
       id={id}
       className={["display", className].filter(Boolean).join(" ")}
       data-size={size}
-      data-fit={fit || undefined}
-      style={fit ? ({ "--em-w": widthInEm.toFixed(3) } as CSSProperties) : undefined}
+      style={
+        {
+          "--em-w75": em75.toFixed(3),
+          "--em-w100": em100.toFixed(3),
+        } as CSSProperties
+      }
       aria-label={lines.join(" ")}
     >
       {lines.map((line, i) => (

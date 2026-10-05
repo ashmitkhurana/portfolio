@@ -8,8 +8,8 @@
   background: var(--bg-raised);
   overflow: hidden;
   transition:
-    border-color 240ms var(--ease-out),
-    background-color 240ms var(--ease-out);
+    border-color var(--dur-fast) ease,
+    background-color var(--dur-fast) ease;
 }
 
 .project-card:hover,
@@ -41,11 +41,6 @@
 .project-card__image {
   object-fit: cover;
   object-position: top center;
-  transition: transform 700ms var(--ease-out);
-}
-
-.project-card:hover .project-card__image {
-  transform: scale(1.03);
 }
 
 .project-card__body {
@@ -53,7 +48,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-s);
-  padding: var(--space-m);
+  padding: var(--space-s);
   flex: 1;
 }
 
@@ -72,13 +67,14 @@
 
 .project-card__descriptor {
   color: var(--fg-faint);
+  text-wrap: balance;
 }
 
 .project-card__summary {
   margin-top: var(--space-2xs);
-  max-width: 34ch;
+  max-width: 40ch;
   font-size: var(--text-s);
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--fg-muted);
 }
 
@@ -86,14 +82,23 @@
   flex: none;
   display: inline-grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
   transition:
-    background-color 240ms var(--ease-out),
-    color 240ms var(--ease-out),
-    border-color 240ms var(--ease-out);
+    background-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+.project-card__arrow svg {
+  transition: transform var(--dur-fast) ease;
+}
+
+.project-card:hover .project-card__arrow svg,
+.project-card:focus-within .project-card__arrow svg {
+  transform: translate(2px, -2px);
 }
 
 .project-card:hover .project-card__arrow,
