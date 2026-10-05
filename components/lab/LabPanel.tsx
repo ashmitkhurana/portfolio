@@ -13,7 +13,7 @@ import {
 import { IDLE_PRESETS } from "@/lib/ribbon/sim";
 import { TEST_POSE_NAMES } from "@/lib/ribbon/testPoses";
 
-export const LAB_STORAGE_KEY = "ribbon-lab-settings-v2";
+export const LAB_STORAGE_KEY = "ribbon-lab-settings-v3";
 
 export interface LabState {
   pose: string;
@@ -57,7 +57,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["material.sheenRoughness", num(0, 1, 0.01)],
       ["material.sheenColor"],
       ["material.depthShade", num(0, 1, 0.01)],
-      ["material.highlightWarmth", num(0, 1, 0.01)],
+      ["material.highlightTint", num(0, 1, 0.01)],
     ],
   },
   {
@@ -72,9 +72,12 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["env.top.intensity", num(0, 10, 0.05)],
       ["env.top.color"],
       ["env.bounce.intensity", num(0, 4, 0.01)],
+      ["env.bounce.followFace"],
       ["env.bounce.color"],
+      ["env.tint"],
       ["light.intensity", num(0, 8, 0.05)],
       ["light.color"],
+      ["light.temperature", num(2000, 12000, 50)],
       ["light.azimuth", num(-180, 180, 1)],
       ["light.elevation", num(5, 89, 1)],
     ],
@@ -142,6 +145,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["shadows.glow"],
       ["shadows.glowIntensity", num(0, 1.5, 0.01)],
       ["shadows.glowRadius", num(0.02, 1.0, 0.01)],
+      ["shadows.glowFollowFace"],
       ["shadows.glowColor"],
       ["shadows.glowDrop", num(-200, 300, 1)],
     ],

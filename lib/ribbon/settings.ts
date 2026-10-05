@@ -66,8 +66,11 @@ export interface RibbonSettings {
     sheenColor: string;
     /** 0..1 subtle darkening of ribbon far behind the content plane (depth cue) */
     depthShade: number;
-    /** 0..1 pulls highlights towards warm amber so they never go pink/white */
-    highlightWarmth: number;
+    /**
+     * 0..1 tints the hot highlights towards the face's OWN hue (derived from its colour, so a
+     * white / grey face never gets a tint). 0 = pure light colour (neutral).
+     */
+    highlightTint: number;
   };
   env: {
     intensity: number;
@@ -75,7 +78,10 @@ export interface RibbonSettings {
     fill: StripSettings;
     rim: StripSettings;
     top: { intensity: number; color: string };
-    bounce: { intensity: number; color: string };
+    /** floor bounce; `followFace` derives its colour from the face A colour (else `color`) */
+    bounce: { intensity: number; color: string; followFace: boolean };
+    /** optional colour of ALL the environment light (white = neutral) */
+    tint: string;
     ambient: number;
     /** degrees */
     rotationY: number;
@@ -87,6 +93,8 @@ export interface RibbonSettings {
   light: {
     intensity: number;
     color: string;
+    /** optional warmth, Kelvin-ish; 6500 = neutral (applies to this light and the environment) */
+    temperature: number;
     azimuth: number;
     elevation: number;
   };
@@ -146,6 +154,8 @@ export interface RibbonSettings {
     glowIntensity: number;
     glowRadius: number;
     glowColor: string;
+    /** derive the glow colour from the face A colour (else `glowColor`) */
+    glowFollowFace: boolean;
     /** px below the ribbon's lowest visible point */
     glowDrop: number;
   };
@@ -205,78 +215,89 @@ export interface RibbonSettings {
 
 const strip = (s: StripSettings): StripSettings => s;
 
-/** Face presets (lab). Mockup = orange / burnt orange (default). */
+/**
+ * Face presets (lab). Mockup = orange / burnt orange (default).
+ *
+ * The lighting is colour-neutral, so ALL the colour lives here. The orange faces are the old
+ * #ff6200 / #b8420c pre-multiplied by the amber light they used to sit under (the base is a
+ * redder #ff4000 and the specular tints a warm amber); `highlightTint` slides the hot
+ * highlights towards each face's own hue, which reproduces the old amber glints.
+ */
 export const FACE_PRESETS: Record<
   string,
-  Pick<RibbonSettings["material"], "faceA" | "faceB" | "edge">
+  Pick<RibbonSettings["material"], "faceA" | "faceB" | "edge" | "highlightTint">
 > = {
   Mockup: {
     faceA: {
-      color: "#ff6200",
+      color: "#ff4000",
       roughness: 0.34,
       clearcoat: 0.75,
       clearcoatRoughness: 0.08,
-      specularColor: "#ffb26b",
+      specularColor: "#ffa535",
     },
     faceB: {
-      color: "#b8420c",
+      color: "#ba2b00",
       roughness: 0.38,
       clearcoat: 0.6,
       clearcoatRoughness: 0.1,
-      specularColor: "#ff9a55",
+      specularColor: "#ff7a1a",
     },
-    edge: { mode: "faceA", color: "#ffb26b" },
+    edge: { mode: "faceA", color: "#ffffff" },
+    highlightTint: 1,
   },
   Duotone: {
     faceA: {
-      color: "#ff6200",
+      color: "#ff4000",
       roughness: 0.34,
       clearcoat: 0.75,
       clearcoatRoughness: 0.08,
-      specularColor: "#ffb26b",
+      specularColor: "#ffa535",
     },
     faceB: {
       color: "#f3e6d3",
       roughness: 0.42,
       clearcoat: 0.5,
       clearcoatRoughness: 0.12,
-      specularColor: "#ffe9cc",
+      specularColor: "#ffffff",
     },
-    edge: { mode: "faceA", color: "#ffb26b" },
+    edge: { mode: "faceA", color: "#ffffff" },
+    highlightTint: 1,
   },
   Ember: {
     faceA: {
-      color: "#ff6200",
+      color: "#ff4000",
       roughness: 0.32,
       clearcoat: 0.8,
       clearcoatRoughness: 0.07,
-      specularColor: "#ffb26b",
+      specularColor: "#ffa535",
     },
     faceB: {
       color: "#4a0f0c",
       roughness: 0.3,
       clearcoat: 0.9,
       clearcoatRoughness: 0.06,
-      specularColor: "#ff7a3d",
+      specularColor: "#ff6a28",
     },
-    edge: { mode: "faceA", color: "#ffb26b" },
+    edge: { mode: "faceA", color: "#ffffff" },
+    highlightTint: 1,
   },
   Mono: {
     faceA: {
-      color: "#ff6200",
+      color: "#ff4000",
       roughness: 0.34,
       clearcoat: 0.75,
       clearcoatRoughness: 0.08,
-      specularColor: "#ffb26b",
+      specularColor: "#ffa535",
     },
     faceB: {
-      color: "#ff6200",
+      color: "#ff4000",
       roughness: 0.34,
       clearcoat: 0.75,
       clearcoatRoughness: 0.08,
-      specularColor: "#ffb26b",
+      specularColor: "#ffa535",
     },
-    edge: { mode: "faceA", color: "#ffb26b" },
+    edge: { mode: "faceA", color: "#ffffff" },
+    highlightTint: 1,
   },
 };
 
@@ -291,9 +312,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     ior: 1.5,
     sheen: 0,
     sheenRoughness: 0.5,
-    sheenColor: "#ffb070",
+    sheenColor: "#ffffff",
     depthShade: 0.1,
-    highlightWarmth: 0.75,
   },
   env: {
     intensity: 0.9,
@@ -305,7 +325,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
       width: 8,
       roll: 14,
       softness: 1,
-      color: "#ffae42",
+      color: "#ffffff",
     }),
     fill: strip({
       intensity: 1.4,
@@ -315,7 +335,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
       width: 6,
       roll: 0,
       softness: 1,
-      color: "#ffc99a",
+      color: "#ffffff",
     }),
     rim: strip({
       intensity: 14,
@@ -325,10 +345,11 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
       width: 2.6,
       roll: -10,
       softness: 0.9,
-      color: "#ff8a1f",
+      color: "#ffffff",
     }),
-    top: { intensity: 0.7, color: "#ffe6cc" },
-    bounce: { intensity: 0.22, color: "#ff5a10" },
+    top: { intensity: 0.7, color: "#ffffff" },
+    bounce: { intensity: 0.22, color: "#ffffff", followFace: true },
+    tint: "#ffffff",
     ambient: 0.006,
     rotationY: 0,
     rotationX: 0,
@@ -337,7 +358,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
   },
   light: {
     intensity: 0.9,
-    color: "#ffb36b",
+    color: "#ffffff",
+    temperature: 6500,
     azimuth: -38,
     elevation: 44,
   },
@@ -384,7 +406,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     glow: true,
     glowIntensity: 0.07,
     glowRadius: 0.16,
-    glowColor: "#ff5a10",
+    glowColor: "#ffffff",
+    glowFollowFace: true,
     glowDrop: 40,
   },
   contact: {
@@ -399,7 +422,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     moveThreshold: 0.75,
   },
   background: {
-    color: "#0d0c0b",
+    color: "#0c0c0c",
     vignette: 0,
     gradient: 0,
     grain: 0.03,

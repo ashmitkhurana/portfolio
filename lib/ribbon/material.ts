@@ -38,7 +38,8 @@ export interface RibbonSharedUniforms {
   /** [A, B, rim] linear specular tints */
   uFaceSpec: { value: Float32Array };
   uDepthShade: { value: number };
-  uWarm: { value: number };
+  /** 0..1 highlight tint towards the face's own hue (0 = neutral) */
+  uTint: { value: number };
   uSpecI: { value: number };
 }
 
@@ -54,7 +55,7 @@ export function createSharedUniforms(): RibbonSharedUniforms {
     uFaceMat: { value: new Float32Array(12) },
     uFaceSpec: { value: new Float32Array(9) },
     uDepthShade: { value: 0.1 },
-    uWarm: { value: 0.7 },
+    uTint: { value: 0 },
     uSpecI: { value: 1 },
   };
 }
@@ -76,7 +77,7 @@ uniform vec3 uFaceCol[3];
 uniform vec4 uFaceMat[3];
 uniform vec3 uFaceSpec[3];
 uniform float uDepthShade;
-uniform float uWarm;
+uniform float uTint;
 uniform float uSpecI;
 varying float vFace;
 varying float vRibbonZ;
@@ -109,13 +110,19 @@ float ribFrontMask() {
 }
 `;
 
-// Khronos PBR Neutral, but over-exposed saturated orange rolls off towards a warm
-// amber instead of white (white-desaturation turns a red-orange base pink), and
-// only the hottest core is allowed to reach near-white.
-const WARM_NEUTRAL = /* glsl */ `
-float ribSatG = 1.0; // saturation of the face colour: pale faces keep neutral highlights
-vec3 RibWarmNeutral(vec3 color) {
+// Tone mapping is Khronos PBR Neutral (hue-preserving; over-exposure desaturates towards WHITE).
+// Nothing warm is baked in: colour comes from the material only.
+//
+// Optional highlight tint (`material.highlightTint`, 0..1): `ribHue` is the face's OWN hue,
+// derived from its base colour (white / grey faces have no hue, so they are never tinted).
+// Every reflection (specular, environment reflection, clearcoat) is multiplied by it, and
+// over-exposed highlights desaturate towards it instead of towards white. With uTint = 0,
+// `ribHue` is (1,1,1) and RibNeutral is exactly the stock NeutralToneMapping.
+const SPEC_TINT = /* glsl */ `
+vec3 ribHue = vec3(1.0);
+vec3 RibNeutral(vec3 color) {
   const float startCompression = 0.8 - 0.04;
+  const float desaturation = 0.15;
   float x = min(color.r, min(color.g, color.b));
   float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
   color -= offset;
@@ -124,33 +131,28 @@ vec3 RibWarmNeutral(vec3 color) {
   float d = 1.0 - startCompression;
   float newPeak = 1.0 - d * d / (peak + d - startCompression);
   color *= newPeak / peak;
-  float g = 1.0 - 1.0 / (0.55 * (peak - newPeak) + 1.0);
-  vec3 amber = mix(vec3(1.0, 0.50, 0.05), vec3(1.0, 0.72, 0.40), smoothstep(1.4, 4.5, peak));
-  amber = mix(vec3(1.0), amber, ribSatG) * newPeak;
-  color = mix(color, amber, g);
-  float core = smoothstep(3.0, 9.0, peak);
-  return mix(color, vec3(newPeak), core * 0.85);
+  float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+  return mix(color, newPeak * ribHue, g);
 }
 `;
 
-const WARM_GRADE = /* glsl */ `
-  {
-    // warm highlight grade: highlights slide towards amber instead of white/pink;
-    // only the hottest core is allowed to reach near-white
-    float rl = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
-    float hl = smoothstep(0.30, 1.1, rl);
-    float core = smoothstep(2.6, 5.0, rl);
-    vec3 amber = vec3(1.0, 0.60, 0.26);
-    vec3 tinted = outgoingLight * amber / dot(amber, vec3(0.2126, 0.7152, 0.0722));
-    outgoingLight = mix(outgoingLight, tinted, uWarm * ribSatG * hl * (1.0 - core));
-  }
+const SPEC_TINT_APPLY = /* glsl */ `
+  reflectedLight.directSpecular *= ribHue;
+  reflectedLight.indirectSpecular *= ribHue;
+  #ifdef USE_CLEARCOAT
+    clearcoatSpecularDirect *= ribHue;
+    clearcoatSpecularIndirect *= ribHue;
+  #endif
+`;
+
+const DEPTH_SHADE = /* glsl */ `
   outgoingLight *= mix(1.0 - uDepthShade, 1.0, smoothstep(-340.0, 140.0, vRibbonZ));
 `;
 
 const TONE_FN: Record<ToneMapName, string> = {
   AgX: "AgXToneMapping",
   ACES: "ACESFilmicToneMapping",
-  Neutral: "RibWarmNeutral",
+  Neutral: "RibNeutral",
   Linear: "LinearToneMapping",
   Reinhard: "ReinhardToneMapping",
   Cineon: "CineonToneMapping",
@@ -199,7 +201,7 @@ export function createRibbonMaterial(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${THREE.ShaderChunk.tonemapping_pars_fragment}\n${WARM_NEUTRAL}\n${FRAG_DECL}`,
+        `#include <common>\n${THREE.ShaderChunk.tonemapping_pars_fragment}\n${FRAG_DECL}\n${SPEC_TINT}`,
       )
       .replace(
         "void main() {",
@@ -209,14 +211,15 @@ export function createRibbonMaterial(
         "#include <color_fragment>",
         `#include <color_fragment>
   diffuseColor.rgb = uFaceCol[ribFace];
-  ribSatG = smoothstep(0.15, 0.7, (max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)) - min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b))) / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 1e-3));`,
+  ribHue = mix(vec3(1.0), mix(pow(diffuseColor.rgb / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 1e-4), vec3(0.2)), vec3(1.0), 0.14), uTint);`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>\n  roughnessFactor = uFaceMat[ribFace].x;`,
       )
       .replace("#include <lights_physical_fragment>", patchedPhysicalChunk())
-      .replace("#include <opaque_fragment>", `${WARM_GRADE}\n  #include <opaque_fragment>`)
+      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${SPEC_TINT_APPLY}`)
+      .replace("#include <opaque_fragment>", `${DEPTH_SHADE}\n  #include <opaque_fragment>`)
       .replace(
         "#include <tonemapping_fragment>",
         `gl_FragColor.rgb = ${TONE_FN[tone]}( gl_FragColor.rgb );
@@ -225,7 +228,7 @@ export function createRibbonMaterial(
   gMask = vec4(ribFrontMask());`,
       );
   };
-  mat.customProgramCacheKey = () => `ribbon-v3-${tone}`;
+  mat.customProgramCacheKey = () => `ribbon-v4-${tone}`;
   return {
     material: mat,
     setToneMapping(t) {
@@ -272,7 +275,7 @@ export function applyMaterialSettings(
     setRGB(shared.uFaceSpec.value, 2, s.edge.color);
   }
   shared.uDepthShade.value = s.depthShade;
-  shared.uWarm.value = s.highlightWarmth;
+  shared.uTint.value = s.highlightTint;
   shared.uSpecI.value = s.specularIntensity;
   mat.color.set(s.faceA.color);
   mat.metalness = s.metalness;
