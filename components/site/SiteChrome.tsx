@@ -1,5 +1,6 @@
 import { SmoothScroll } from "@/components/scroll/SmoothScroll";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { SiteRibbon } from "@/components/site/SiteRibbon";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { TerminalPlaceholder } from "@/components/site/TerminalPlaceholder";
 
@@ -20,31 +21,17 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
             always sit above both ribbon canvases (z-index tokens in tokens.css). */}
         <SiteHeader />
 
-        {/*
-          ── RIBBON INTEGRATION SLOT ────────────────────────────────────────
-          <RibbonStage> (components/ribbon/RibbonStage.tsx) mounts exactly
-          here, wrapping the content. It renders: back canvas (opaque, paints
-          the page bg) < this content (transparent) < front canvas. Everything
-          the ribbon should weave through belongs INSIDE it:
-
-            import { RibbonStage } from "@/components/ribbon/RibbonStage";
-            <RibbonStage>
-              <main id="content" tabIndex={-1}>{children}</main>
-              <SiteFooter />
-            </RibbonStage>
-
-          Until then this is a plain fragment and <body> supplies the bg colour.
-          Proxies: elements carry data-ribbon-proxy / -depth / -radius.
-          Scroll: `scrollState` + `subscribe` in @/components/scroll/SmoothScroll
-          (module-level store, no React re-renders).
-          ─────────────────────────────────────────────────────────────────
-        */}
-        <>
+        {/* Interim ribbon (lab "sweep" pose, idle motion, viewport-fixed). The
+            stage wraps everything the ribbon weaves through: back canvas (opaque
+            page bg) < transparent content < front canvas. Proxies: elements with
+            data-ribbon-proxy / -depth / -radius. Scroll store for the real
+            choreography: `scrollState` + `subscribe` in SmoothScroll. */}
+        <SiteRibbon>
           <main id="content" tabIndex={-1}>
             {children}
           </main>
           <SiteFooter />
-        </>
+        </SiteRibbon>
 
         <TerminalPlaceholder />
       </SmoothScroll>

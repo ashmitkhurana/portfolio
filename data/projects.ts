@@ -89,28 +89,6 @@ export const projects: Project[] = [
     liveUrl: "https://www.arcadiadesignsinc.com/",
   },
   {
-    slug: "bellarisse",
-    title: "Bellarisse — Luxury E-commerce",
-    name: "Bellarisse",
-    kind: "Luxury e-commerce",
-    descriptor: "Luxury e-commerce · Shopify and Framer",
-    summary: "A premium storefront for an Indian luxury handbag brand.",
-    tagline:
-      "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury handbag startup. The website combines elegant design with smooth shopping experiences, showcasing premium collections and providing a seamless journey from browsing to checkout.",
-    problem:
-      "A luxury brand required a premium online storefront that reflects their high-end aesthetic while maintaining robust e-commerce capabilities.",
-    solution:
-      "Leveraged Shopify for robust e-commerce features paired with Framer for an ultra-premium, interactive frontend experience.",
-    impact: [
-      "High-converting premium storefront",
-      "Seamless checkout experience",
-      "Interactive 3D and scroll animations",
-    ],
-    stack: ["Framer", "Shopify"],
-    cover: "/images/bellarisse.png",
-    liveUrl: "https://www.bellarisse.com/",
-  },
-  {
     slug: "nerdwithabindi",
     title: "NerdWithABindi — Influencer Collaboration",
     name: "NerdWithABindi",

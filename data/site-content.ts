@@ -66,9 +66,7 @@ export const resume = {
 
 export const socials: SocialLink[] = [
   { label: "GitHub", href: "https://github.com/ashmitkhurana" },
-  // NOTE: `main` uses /in/ashmitkhurana, portfolio-overhaul-reference.md says
-  // /in/ashmit-khurana. Using the one on main. Verify before launch.
-  { label: "LinkedIn", href: "https://linkedin.com/in/ashmitkhurana" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/ashmitkhurana/" },
   { label: "Instagram", href: "https://www.instagram.com/ashmitkhurana_/" },
 ];
 
@@ -144,7 +142,7 @@ export const about = {
     "I build across the interface and the systems behind it, from the first interaction to the details that make a product dependable.",
     "I’m a full-stack developer with a B.Tech in Computer Science & Engineering (AI & Machine Learning). Alongside college I’ve shipped production products used by thousands of people, from a real-time crypto intelligence platform to high-conversion web apps.",
     "I’m drawn to two things most teams treat as afterthoughts: performance and real-time data. I’ve cut load times by 25%, shipped sub-second alerting, and helped clients lift conversion in ways you can measure.",
-    "These days I’m building with Alpha Block. I like thoughtful engineering, clear communication, and ideas with room to play.",
+    "Right now I’m Front End Lead at Alpha Block. I like thoughtful engineering, clear communication, and ideas with room to play.",
   ],
 } as const;
 
@@ -159,7 +157,7 @@ export const experience: ExperienceEntry[] = [
   {
     company: "Alpha Block",
     role: "Front End Lead",
-    period: "Oct 2025 — Dec 2025",
+    period: "Oct 2025 — Present",
     type: "Remote",
     url: "https://app.alpha-block.ai/",
     highlights: [
