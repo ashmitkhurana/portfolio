@@ -6,7 +6,7 @@
     {
       "set": "hero",
       "name": "hero-phone",
-      "pose": "sweep",
+      "pose": "ak-hero",
       "route": "/",
       "time": 0,
       "idle": 0,
@@ -16,7 +16,7 @@
     {
       "set": "hero",
       "name": "hero-desktop",
-      "pose": "sweep",
+      "pose": "ak-hero",
       "route": "/",
       "time": 0,
       "idle": 0,

@@ -227,6 +227,34 @@ desktop). Poses change later: edit the list or pose, re-run, commit the images.
 QA: `node scripts/qa-resilience.mjs` (see its header). Debug surface: `window.__ribbonState`
 (`tier`, `phase`, `engine`, `loseContext()`), `window.__scrollState`.
 
+## Poses and the pose editor (Step 2)
+
+Poses are authored in **anchor space** and stored as JSON in `lib/ribbon/poses/` (`ak-hero.json` is the AK).
+
+```jsonc
+{ "version": 1, "name": "ak-hero", "anchor": "hero-name",
+  "variants": { "phone": { "points": [ { "x", "y", "z", "twist", "width" } ] }, "desktop": { ... } } }
+```
+
+* `x, y`: where the point APPEARS on screen, as fractions of the anchor box (`data-ribbon-anchor="hero-name"`
+  = union of the h1's display lines). Depth never moves it: the resolver (`poses/resolve.ts`) unprojects with the
+  engine camera, so changing `z` only changes occlusion, parallax and ribbon scale.
+* `z`: in anchor HEIGHTS, + towards the camera, 0 = the text plane (proxy depth 0).
+* `twist`: radians about the tangent (cumulative; the face flips every pi). `width`: multiplier of the ribbon width.
+* Variants per screen class (`phone < 768 < tablet < 1100 <= desktop < 2200 <= ultrawide`). A missing `tablet`
+  is derived (portrait: phone, landscape: desktop); a missing `ultrawide` reuses desktop. Adding the key is the override.
+* `resolvePose(points, { viewW, viewH, anchor, fov }, sim.count)` runs the points through the geometry's own
+  centripetal spline and resamples by arc length to the sim's control points (the site uses 96, `RibbonStage controlPoints`).
+  `poses/site.ts` (`resolveNamedPose`, `poseNameForRoute`) is what `SiteRibbon` and the poster capture call; it re-resolves on
+  resize, font load and route change. Other routes keep the lab `sweep` pose.
+
+`/lab/editor` (dev, or `NEXT_PUBLIC_LAB=1`): the real `HeroSection` in a fixed-size iframe (true phone / tablet / desktop /
+ultrawide layout), ribbon live and frozen on the pose, SVG handles over the engine's own rings, side + top depth views,
+reference mockup aligned by the name's ink box, diagnostics (red: the front/back cut crosses a proxy plane inside a glyph;
+amber: strands closer than 2 x thickness, edge-wise bend tighter than the half width), undo/redo, local draft, save through
+`app/api/lab/poses/route.ts` (refuses outside dev / the lab flag). `Level` rolls the strip so its cut line runs along x
+(fits a line gap); `Face A / B / Keep` roll it to face the camera.
+
 ## Files
 
 `capability.ts` tier detection + governor (no three) - `tiers.ts` per-tier loop/memory policy - `types.ts` plain shared data - `settings.ts` types/defaults/tiers/face presets -

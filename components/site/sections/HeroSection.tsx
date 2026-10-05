@@ -18,6 +18,7 @@ export function HeroSection() {
           size="hero"
           lines={identity.nameLines}
           depth={0}
+          anchor="hero-name"
         />
         <div className="hero__intro">
           <p className="hero__role">{identity.role}</p>

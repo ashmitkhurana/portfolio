@@ -22,6 +22,8 @@ export interface RibbonStageProps {
   onEngine?: (engine: RibbonEngine | null) => void;
   /** awaited together with the engine chunk (e.g. a lazy pose module) */
   prepare?: () => Promise<unknown>;
+  /** sim control points (default 64); long, tightly bent poses (the AK) want more */
+  controlPoints?: number;
   /**
    * Lab: no capability tiers, no idle deferral, no poster fallback; the engine is
    * created as soon as the stage mounts, with the plain settings.
@@ -37,7 +39,7 @@ const FADE_MS = 700;
 type Phase = "pending" | "live" | "poster" | "off";
 
 type CaptureFn = (o: {
-  /** lab test pose to pose the ribbon with first (default: keep the current pose) */
+  /** pose to pose the ribbon with first: an authored pose name (lib/ribbon/poses) or a lab test pose (default: keep the current pose) */
   pose?: string;
   time?: number;
   idle?: number;
@@ -111,6 +113,7 @@ export function RibbonStage({
   settings,
   onEngine,
   prepare,
+  controlPoints,
   lab = false,
 }: RibbonStageProps) {
   const backHost = useRef<HTMLDivElement>(null);
@@ -120,6 +123,7 @@ export function RibbonStage({
   onEngineRef.current = onEngine;
   const prepareRef = useRef(prepare);
   prepareRef.current = prepare;
+  const controlPointsRef = useRef(controlPoints);
   const [phase, setPhase] = useState<Phase>("pending");
 
   useEffect(() => {
@@ -242,6 +246,7 @@ export function RibbonStage({
           back,
           front,
           settings: settingsRef.current,
+          controlPoints: controlPointsRef.current,
           tier,
           tierLocked: locked,
           onFirstFrame: () => {
@@ -264,8 +269,15 @@ export function RibbonStage({
           const e = engine;
           window.__ribbonCapture = async (o) => {
             if (o.pose) {
-              const m = await import("@/lib/ribbon/testPoses");
-              e.setPose(m.makeTestPose(o.pose, e.width, e.height, e.sim.count), true);
+              // an authored pose (lib/ribbon/poses) is resolved against the real layout
+              const site = await import("@/lib/ribbon/poses/site");
+              const authored = o.pose === "sweep" ? null : site.resolveNamedPose(o.pose, e);
+              if (authored) {
+                e.setPose(authored.pose, true);
+              } else {
+                const m = await import("@/lib/ribbon/testPoses");
+                e.setPose(m.makeTestPose(o.pose, e.width, e.height, e.sim.count), true);
+              }
             }
             return e.captureLayers(o);
           };

@@ -48,6 +48,11 @@ export interface DisplayHeadingProps {
   depth?: number;
   /** ribbon proxy corner radius in px */
   radius?: number;
+  /**
+   * Names this heading as a ribbon pose anchor (`data-ribbon-anchor`). Poses are
+   * authored as fractions of the anchor's box, which is the union of the lines.
+   */
+  anchor?: string;
   className?: string;
 }
 
@@ -70,6 +75,7 @@ export function DisplayHeading({
   proxy = true,
   depth = 0,
   radius,
+  anchor,
   className,
 }: DisplayHeadingProps) {
   const em75 = Math.max(1, ...lines.map((l) => widthEm(l, 0)));
@@ -79,6 +85,7 @@ export function DisplayHeading({
       id={id}
       className={["display", className].filter(Boolean).join(" ")}
       data-size={size}
+      data-ribbon-anchor={anchor}
       style={
         {
           "--em-w75": em75.toFixed(3),

@@ -1,25 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { RibbonStage } from "@/components/ribbon/RibbonStage";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 
 /**
- * INTERIM ribbon mount for the real site: the lab's `sweep` test pose, default
- * settings, idle motion only, fixed in the viewport (no scroll linkage, no route
- * choreography). Replaced once the AK / per-route choreography exists.
+ * Ribbon mount for the real site. The home route shows the authored AK pose
+ * (`lib/ribbon/poses/ak-hero.json`), resolved against the hero name's measured
+ * box (re-resolved on resize, font load and route change); every other route
+ * keeps the interim lab `sweep` pose. Idle motion only, fixed in the viewport
+ * (no scroll linkage, no route choreography yet).
  *
  * The ribbon only draws behind/in front of elements marked `data-ribbon-proxy`;
  * the proxy registry re-applies the scroll offset every frame, so the weave
  * follows the page while the ribbon itself stays put.
  *
- * Nothing 3D is imported here: the pose module is loaded together with the
+ * Nothing 3D is imported here: the pose modules are loaded together with the
  * engine chunk (RibbonStage `prepare`), after first paint and only when the
  * capability tier allows live rendering.
  */
-const POSE = "sweep";
+type PoseModules = {
+  test: typeof import("@/lib/ribbon/testPoses");
+  site: typeof import("@/lib/ribbon/poses/site");
+};
 
-type PoseModule = typeof import("@/lib/ribbon/testPoses");
+/** the AK is a long, tightly bent strip: give the sim more control points */
+const CONTROL_POINTS = 96;
 
 /** `?ribbon=0` skips the ribbon entirely (clean layout screenshots, QA). */
 const noop = () => () => {};
@@ -38,64 +45,80 @@ export function SiteRibbon({ children }: { children: React.ReactNode }) {
 }
 
 function RibbonMount({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
   const engineRef = useRef<RibbonEngine | null>(null);
-  const poses = useRef<PoseModule | null>(null);
-  /** viewport the current pose was authored for (CSS px) */
-  const posedFor = useRef({ w: 0, h: 0 });
+  const mods = useRef<PoseModules | null>(null);
+  /** what the current pose was resolved for */
+  const posed = useRef({ w: 0, h: 0, sig: "" });
 
-  const applyPose = useCallback((snap: boolean) => {
+  const applyPose = useCallback((snap: boolean, force = false) => {
     const e = engineRef.current;
-    const m = poses.current;
+    const m = mods.current;
     if (!e || !m) return;
-    const { w: pw, h: ph } = posedFor.current;
+    const name = m.site.poseNameForRoute(pathRef.current);
+    const authored = name === "sweep" ? null : m.site.resolveNamedPose(name, e);
+    const sig = authored ? `${name}|${authored.signature}` : `${name}|${e.width},${e.height}`;
+    if (!force && sig === posed.current.sig) return;
+    const { w: pw, h: ph } = posed.current;
     // an orientation flip is a new composition: jump instead of springing across
     const flipped = pw > 0 && pw > ph !== e.width > e.height;
-    posedFor.current = { w: e.width, h: e.height };
-    e.setPose(m.makeTestPose(POSE, e.width, e.height, e.sim.count), snap || flipped);
+    posed.current = { w: e.width, h: e.height, sig };
+    const pose = authored?.pose ?? m.test.makeTestPose("sweep", e.width, e.height, e.sim.count);
+    e.setPose(pose, snap || flipped);
   }, []);
 
   const prepare = useCallback(
     () =>
-      import("@/lib/ribbon/testPoses").then((m) => {
-        poses.current = m;
-      }),
+      Promise.all([import("@/lib/ribbon/testPoses"), import("@/lib/ribbon/poses/site")]).then(
+        ([test, site]) => {
+          mods.current = { test, site };
+        },
+      ),
     [],
   );
 
   const onEngine = useCallback(
     (e: RibbonEngine | null) => {
       engineRef.current = e;
-      posedFor.current = { w: 0, h: 0 };
-      applyPose(true);
+      posed.current = { w: 0, h: 0, sig: "" };
+      applyPose(true, true);
     },
     [applyPose],
   );
 
-  // re-aim the spring only when the engine's own size really changed (a width
-  // change or a rotation; mobile URL bars never change it) - not on every window resize event
+  // re-aim only when something that shapes the pose really changed (viewport size,
+  // the name's box after a font swap / reflow, the route): a window resize event
+  // alone (mobile URL bars) does nothing
   useEffect(() => {
     let t = 0;
-    const onResize = () => {
+    const later = (ms: number) => {
       window.clearTimeout(t);
-      t = window.setTimeout(() => {
-        const e = engineRef.current;
-        if (!e) return;
-        const { w, h } = posedFor.current;
-        if (e.width === w && e.height === h) return;
-        applyPose(false);
-      }, 120);
+      t = window.setTimeout(() => applyPose(false), ms);
     };
+    const onResize = () => later(120);
+    const onFonts = () => later(30);
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
+    document.fonts?.addEventListener?.("loadingdone", onFonts);
+    document.fonts?.ready.then(onFonts).catch(() => {});
     return () => {
       window.clearTimeout(t);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
+      document.fonts?.removeEventListener?.("loadingdone", onFonts);
     };
   }, [applyPose]);
 
+  // route change: the anchor appears / disappears with the page
+  useEffect(() => {
+    const t = window.setTimeout(() => applyPose(false), 60);
+    return () => window.clearTimeout(t);
+  }, [pathname, applyPose]);
+
   return (
-    <RibbonStage onEngine={onEngine} prepare={prepare}>
+    <RibbonStage onEngine={onEngine} prepare={prepare} controlPoints={CONTROL_POINTS}>
       {children}
     </RibbonStage>
   );
