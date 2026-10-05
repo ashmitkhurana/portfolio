@@ -5,13 +5,14 @@ import type { FolderApi } from "@tweakpane/core";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import {
   DEFAULT_SETTINGS,
+  FACE_PRESETS,
   applyQualityTier,
   assignSettings,
   type QualityTier,
 } from "@/lib/ribbon/settings";
 import { TEST_POSE_NAMES } from "@/lib/ribbon/testPoses";
 
-export const LAB_STORAGE_KEY = "ribbon-lab-settings-v1";
+export const LAB_STORAGE_KEY = "ribbon-lab-settings-v2";
 
 export interface LabState {
   pose: string;
@@ -44,16 +45,9 @@ const STRIP_ROWS = (p: string): Row[] => [
 
 const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{ title: string; rows: Row[] }> }> = [
   {
-    title: "Material",
-    open: true,
+    title: "Material (shared)",
     rows: [
-      ["material.colorA"],
-      ["material.colorB"],
-      ["material.faceBlend", num(0.01, 1, 0.01)],
-      ["material.roughness", num(0, 1, 0.01)],
       ["material.metalness", num(0, 1, 0.01)],
-      ["material.clearcoat", num(0, 1, 0.01)],
-      ["material.clearcoatRoughness", num(0, 1, 0.005)],
       ["material.anisotropy", num(0, 1, 0.01)],
       ["material.anisotropyRotation", num(0, 180, 1)],
       ["material.specularIntensity", num(0, 1, 0.01)],
@@ -62,6 +56,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["material.sheenRoughness", num(0, 1, 0.01)],
       ["material.sheenColor"],
       ["material.depthShade", num(0, 1, 0.01)],
+      ["material.highlightWarmth", num(0, 1, 0.01)],
     ],
   },
   {
@@ -93,11 +88,12 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
     rows: [
       ["geometry.width", num(20, 220, 1)],
       ["geometry.rings", num(200, 2000, 50)],
-      ["geometry.profileVerts", num(12, 64, 4)],
+      ["geometry.bevelSegments", num(1, 8, 1)],
+      ["geometry.widthSegments", num(1, 24, 1)],
       ["geometry.thicknessRatio", num(0.03, 0.4, 0.005)],
-      ["geometry.edgeRadiusRatio", num(0.05, 0.5, 0.01)],
+      ["geometry.edgeBevel", num(0, 8, 0.05)],
       ["geometry.capRings", num(4, 28, 1)],
-      ["geometry.capLengthRatio", num(0.05, 1.5, 0.01)],
+      ["geometry.capLengthRatio", num(0.2, 1, 0.01)],
       ["geometry.taperLength", num(0.01, 0.5, 0.01)],
       ["geometry.taperAmount", num(0, 0.95, 0.01)],
     ],
@@ -110,16 +106,13 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
         { options: { AgX: "AgX", ACES: "ACES", Neutral: "Neutral", Linear: "Linear", Reinhard: "Reinhard", Cineon: "Cineon" } },
       ],
       ["post.exposure", num(0.1, 4, 0.01)],
-      ["post.composer"],
-      ["post.multisampling", { options: { off: 0, "2x": 2, "4x": 4, "8x": 8 } }],
+      ["post.samples", { options: { off: 0, "2x": 2, "4x": 4, "8x": 8 } }],
       ["post.pixelRatioCap", num(1, 3, 0.25)],
       ["post.adaptive"],
       ["post.bloom"],
-      ["post.bloomFront"],
-      ["post.bloomThreshold", num(0, 4, 0.01)],
-      ["post.bloomSmoothing", num(0, 1, 0.01)],
+      ["post.bloomThreshold", num(0, 2, 0.01)],
       ["post.bloomIntensity", num(0, 2, 0.01)],
-      ["post.bloomRadius", num(0, 1, 0.01)],
+      ["post.bloomRadius", num(2, 60, 1)],
       ["post.dither"],
       ["background.color"],
       ["background.vignette", num(0, 1, 0.01)],
@@ -142,14 +135,25 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["shadows.wall"],
       ["shadows.wallOpacity", num(0, 1, 0.01)],
       ["shadows.wallDepth", num(50, 1500, 10)],
-      ["shadows.contact"],
-      ["shadows.contactOpacity", num(0, 1, 0.01)],
-      ["shadows.contactPad", num(1, 120, 1)],
       ["shadows.glow"],
       ["shadows.glowIntensity", num(0, 1.5, 0.01)],
       ["shadows.glowRadius", num(0.02, 1.0, 0.01)],
       ["shadows.glowColor"],
       ["shadows.glowDrop", num(-200, 300, 1)],
+    ],
+  },
+  {
+    title: "Contact shadows (on HTML)",
+    open: true,
+    rows: [
+      ["contact.enabled"],
+      ["contact.strength", num(0, 0.8, 0.01)],
+      ["contact.falloff", num(10, 300, 1)],
+      ["contact.offset", num(0, 1.5, 0.01)],
+      ["contact.blurContact", num(0.5, 40, 0.5)],
+      ["contact.blurHigh", num(1, 120, 0.5)],
+      ["contact.pad", num(1, 60, 1)],
+      ["contact.resolution", num(0.1, 1, 0.05)],
     ],
   },
   {
@@ -169,7 +173,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
   {
     title: "Debug",
     rows: [
-      ["debug.partition"],
+      ["debug.view", { options: { off: "off", "mask (front/back)": "mask", "ribbon RT only": "ribbon", "shadow catcher": "catcher" } }],
       ["debug.proxyOutlines"],
       ["debug.hud"],
       ["debug.gpuTimer"],
@@ -253,6 +257,38 @@ export function LabPanel({ engine, lab, onLabChange, onPose }: Props) {
           p.refresh();
           save();
         });
+
+      // ---- Faces: independent surfaces + presets
+      const faces = p.addFolder({ title: "Faces", expanded: true });
+      const presetObj = { preset: "Mockup" };
+      faces
+        .addBinding(presetObj, "preset", { options: Object.fromEntries(Object.keys(FACE_PRESETS).map((n) => [n, n])) })
+        .on("change", (ev: { value: string }) => {
+          const preset = FACE_PRESETS[ev.value];
+          if (!preset) return;
+          assignSettings(
+            engine.settings.material as unknown as Record<string, unknown>,
+            JSON.parse(JSON.stringify(preset)) as Record<string, unknown>,
+          );
+          engine.applySettings();
+          (p as unknown as { refresh(): void }).refresh();
+          save();
+        });
+      for (const [title, key] of [["Face A", "faceA"], ["Face B", "faceB"]] as const) {
+        const f = faces.addFolder({ title, expanded: key === "faceA" });
+        addRows(f, [
+          [`material.${key}.color`],
+          [`material.${key}.roughness`, num(0, 1, 0.01)],
+          [`material.${key}.clearcoat`, num(0, 1, 0.01)],
+          [`material.${key}.clearcoatRoughness`, num(0, 1, 0.005)],
+          [`material.${key}.specularColor`],
+        ]);
+      }
+      const edgeF = faces.addFolder({ title: "Edge strip", expanded: true });
+      addRows(edgeF, [
+        ["material.edge.mode", { options: { "face A": "faceA", "face B": "faceB", custom: "custom" } }],
+        ["material.edge.color"],
+      ]);
 
       for (const f of FOLDERS) {
         const folder = p.addFolder({ title: f.title, expanded: !!f.open });

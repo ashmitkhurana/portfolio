@@ -30,18 +30,30 @@ export interface StripSettings {
 
 export type QualityTier = "low" | "medium" | "high";
 
+export type EdgeMode = "faceA" | "faceB" | "custom";
+
+/** Fully independent surface parameters of one face of the ribbon. */
+export interface FaceSettings {
+  color: string;
+  roughness: number;
+  clearcoat: number;
+  clearcoatRoughness: number;
+  /** tint of the dielectric specular (and sheen-free highlight) */
+  specularColor: string;
+}
+
+export type DebugView = "off" | "mask" | "ribbon" | "catcher";
+
 export interface RibbonSettings {
   /** preset bundle, see QUALITY_TIERS / applyQualityTier */
   quality: QualityTier;
   material: {
-    colorA: string;
-    colorB: string;
-    /** 0..1 transition softness between faces across the rim */
-    faceBlend: number;
-    roughness: number;
+    /** the two faces are independent; the hard boundary sits on the rim */
+    faceA: FaceSettings;
+    faceB: FaceSettings;
+    /** the thin side strip (flat edge + bevels) */
+    edge: { mode: EdgeMode; color: string };
     metalness: number;
-    clearcoat: number;
-    clearcoatRoughness: number;
     anisotropy: number;
     /** degrees, relative to the ribbon tangent */
     anisotropyRotation: number;
@@ -50,8 +62,10 @@ export interface RibbonSettings {
     sheen: number;
     sheenRoughness: number;
     sheenColor: string;
-    /** 0..1 darkening of ribbon far behind the content plane (depth cue / pseudo-AO) */
+    /** 0..1 subtle darkening of ribbon far behind the content plane (depth cue) */
     depthShade: number;
+    /** 0..1 pulls highlights towards warm amber so they never go pink/white */
+    highlightWarmth: number;
   };
   env: {
     intensity: number;
@@ -78,9 +92,13 @@ export interface RibbonSettings {
     /** world px at a 1440-wide viewport; scales with viewport width */
     width: number;
     rings: number;
-    profileVerts: number;
+    /** segments per corner bevel (the profile is a flat rectangle + bevels) */
+    bevelSegments: number;
+    /** subdivisions across each flat face (keeps twisted faces smooth) */
+    widthSegments: number;
     thicknessRatio: number;
-    edgeRadiusRatio: number;
+    /** corner bevel radius, px at a 1440 viewport (0 .. T/2; max = fully rounded edge) */
+    edgeBevel: number;
     capRings: number;
     capLengthRatio: number;
     taperLength: number;
@@ -89,16 +107,14 @@ export interface RibbonSettings {
   post: {
     toneMapping: ToneMapName;
     exposure: number;
-    /** use the postprocessing composer (MSAA HalfFloat + bloom). Heavy: high tier only */
-    composer: boolean;
-    multisampling: number;
+    /** MSAA samples of the ribbon render target (0 = off) */
+    samples: number;
     pixelRatioCap: number;
     /** drop resolution automatically when frames run long */
     adaptive: boolean;
+    /** half-res bloom of the ribbon (high tier) */
     bloom: boolean;
-    bloomFront: boolean;
     bloomThreshold: number;
-    bloomSmoothing: number;
     bloomIntensity: number;
     bloomRadius: number;
     dither: boolean;
@@ -118,15 +134,30 @@ export interface RibbonSettings {
     wall: boolean;
     wallOpacity: number;
     wallDepth: number;
-    contact: boolean;
-    contactOpacity: number;
-    contactPad: number;
     glow: boolean;
     glowIntensity: number;
     glowRadius: number;
     glowColor: string;
     /** px below the ribbon's lowest visible point */
     glowDrop: number;
+  };
+  /** soft contact shadows of the ribbon on the HTML content (shadow catcher) */
+  contact: {
+    enabled: boolean;
+    /** maximum shadow alpha */
+    strength: number;
+    /** px of height above the content plane over which occlusion decays e^-1 */
+    falloff: number;
+    /** fraction of the physical light-direction offset (0 = straight below) */
+    offset: number;
+    /** gaussian sigma (css px) for ribbon close to the content */
+    blurContact: number;
+    /** gaussian sigma (css px) for ribbon far above the content */
+    blurHigh: number;
+    /** fade-out distance inside the proxy rect edge (css px) */
+    pad: number;
+    /** catcher resolution relative to the drawing buffer */
+    resolution: number;
   };
   background: {
     color: string;
@@ -150,7 +181,8 @@ export interface RibbonSettings {
     fov: number;
   };
   debug: {
-    partition: boolean;
+    /** inspect intermediate buffers (lab) */
+    view: DebugView;
     proxyOutlines: boolean;
     hud: boolean;
     /** EXT_disjoint_timer_query GPU timing (can force pass splits; off by default) */
@@ -161,27 +193,98 @@ export interface RibbonSettings {
 
 const strip = (s: StripSettings): StripSettings => s;
 
+/** Face presets (lab). Mockup = orange / burnt orange (default). */
+export const FACE_PRESETS: Record<
+  string,
+  Pick<RibbonSettings["material"], "faceA" | "faceB" | "edge">
+> = {
+  Mockup: {
+    faceA: {
+      color: "#ff6200",
+      roughness: 0.34,
+      clearcoat: 0.75,
+      clearcoatRoughness: 0.08,
+      specularColor: "#ffb26b",
+    },
+    faceB: {
+      color: "#b8420c",
+      roughness: 0.38,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.1,
+      specularColor: "#ff9a55",
+    },
+    edge: { mode: "faceA", color: "#ffb26b" },
+  },
+  Duotone: {
+    faceA: {
+      color: "#ff6200",
+      roughness: 0.34,
+      clearcoat: 0.75,
+      clearcoatRoughness: 0.08,
+      specularColor: "#ffb26b",
+    },
+    faceB: {
+      color: "#f3e6d3",
+      roughness: 0.42,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.12,
+      specularColor: "#ffe9cc",
+    },
+    edge: { mode: "faceA", color: "#ffb26b" },
+  },
+  Ember: {
+    faceA: {
+      color: "#ff6200",
+      roughness: 0.32,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.07,
+      specularColor: "#ffb26b",
+    },
+    faceB: {
+      color: "#4a0f0c",
+      roughness: 0.3,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.06,
+      specularColor: "#ff7a3d",
+    },
+    edge: { mode: "faceA", color: "#ffb26b" },
+  },
+  Mono: {
+    faceA: {
+      color: "#ff6200",
+      roughness: 0.34,
+      clearcoat: 0.75,
+      clearcoatRoughness: 0.08,
+      specularColor: "#ffb26b",
+    },
+    faceB: {
+      color: "#ff6200",
+      roughness: 0.34,
+      clearcoat: 0.75,
+      clearcoatRoughness: 0.08,
+      specularColor: "#ffb26b",
+    },
+    edge: { mode: "faceA", color: "#ffb26b" },
+  },
+};
+
 export const DEFAULT_SETTINGS: RibbonSettings = {
   quality: "medium",
   material: {
-    colorA: "#ff5800",
-    colorB: "#a63608",
-    faceBlend: 0.3,
-    roughness: 0.34,
-    metalness: 0.35,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
-    anisotropy: 0.35,
+    ...FACE_PRESETS.Mockup,
+    metalness: 0.3,
+    anisotropy: 0.3,
     anisotropyRotation: 0,
     specularIntensity: 1,
     ior: 1.5,
     sheen: 0,
     sheenRoughness: 0.5,
     sheenColor: "#ffb070",
-    depthShade: 0.45,
+    depthShade: 0.1,
+    highlightWarmth: 0.75,
   },
   env: {
-    intensity: 1,
+    intensity: 0.9,
     key: strip({
       intensity: 11,
       azimuth: -32,
@@ -229,10 +332,11 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
   geometry: {
     width: 110,
     rings: 600,
-    profileVerts: 28,
-    thicknessRatio: 1 / 9,
-    edgeRadiusRatio: 0.5,
-    capRings: 12,
+    bevelSegments: 3,
+    widthSegments: 10,
+    thicknessRatio: 1 / 11,
+    edgeBevel: 0.6,
+    capRings: 14,
     capLengthRatio: 0.55,
     taperLength: 0.08,
     taperAmount: 0,
@@ -240,16 +344,13 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
   post: {
     toneMapping: "Neutral",
     exposure: 1,
-    composer: false,
-    multisampling: 4,
+    samples: 4,
     pixelRatioCap: 1.5,
     adaptive: true,
-    bloom: true,
-    bloomFront: false,
-    bloomThreshold: 1.0,
-    bloomSmoothing: 0.25,
-    bloomIntensity: 0.22,
-    bloomRadius: 0.7,
+    bloom: false,
+    bloomThreshold: 0.8,
+    bloomIntensity: 0.25,
+    bloomRadius: 18,
     dither: true,
   },
   shadows: {
@@ -265,14 +366,21 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     wall: false,
     wallOpacity: 0.35,
     wallDepth: 420,
-    contact: true,
-    contactOpacity: 0.3,
-    contactPad: 16,
     glow: true,
     glowIntensity: 0.07,
     glowRadius: 0.16,
     glowColor: "#ff5a10",
     glowDrop: 40,
+  },
+  contact: {
+    enabled: true,
+    strength: 0.28,
+    falloff: 80,
+    offset: 0.28,
+    blurContact: 5,
+    blurHigh: 26,
+    pad: 8,
+    resolution: 0.25,
   },
   background: {
     color: "#0d0c0b",
@@ -294,7 +402,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     fov: 28,
   },
   debug: {
-    partition: false,
+    view: "off",
     proxyOutlines: false,
     hud: true,
     gpuTimer: false,
@@ -337,9 +445,9 @@ export type DeepPartial<T> = {
 
 
 /**
- * Quality tiers. `medium` is the production default: direct rendering with
- * native MSAA, tone mapping in the renderer, no bloom. `high` switches on the
- * postprocessing composer (HalfFloat MSAA + bloom) and is expensive.
+ * Quality tiers. All tiers render the ribbon once into an MSAA HalfFloat target
+ * and composite it twice (behind / in front of the HTML). They differ in
+ * resolution, MSAA, geometry density, shadow resolution and bloom.
  */
 export const QUALITY_TIERS: Record<
   QualityTier,
@@ -347,22 +455,26 @@ export const QUALITY_TIERS: Record<
     post: Partial<RibbonSettings["post"]>;
     geometry: Partial<RibbonSettings["geometry"]>;
     shadows: Partial<RibbonSettings["shadows"]>;
+    contact: Partial<RibbonSettings["contact"]>;
   }
 > = {
   low: {
-    post: { composer: false, pixelRatioCap: 1 },
-    geometry: { rings: 400, profileVerts: 20, capRings: 8 },
-    shadows: { mapSize: 1024, updateEvery: 1, contact: false },
+    post: { samples: 2, pixelRatioCap: 1, bloom: false },
+    geometry: { rings: 400, bevelSegments: 2, widthSegments: 6, capRings: 10 },
+    shadows: { mapSize: 1024, updateEvery: 1 },
+    contact: { enabled: false },
   },
   medium: {
-    post: { composer: false, pixelRatioCap: 1.5 },
-    geometry: { rings: 600, profileVerts: 28, capRings: 12 },
-    shadows: { mapSize: 1024, updateEvery: 1, contact: true },
+    post: { samples: 4, pixelRatioCap: 1.5, bloom: false },
+    geometry: { rings: 600, bevelSegments: 3, widthSegments: 10, capRings: 14 },
+    shadows: { mapSize: 1024, updateEvery: 1 },
+    contact: { enabled: true, resolution: 0.25 },
   },
   high: {
-    post: { composer: true, pixelRatioCap: 2, bloom: true },
-    geometry: { rings: 900, profileVerts: 32, capRings: 14 },
-    shadows: { mapSize: 2048, updateEvery: 1, contact: true },
+    post: { samples: 4, pixelRatioCap: 2, bloom: true },
+    geometry: { rings: 900, bevelSegments: 4, widthSegments: 14, capRings: 18 },
+    shadows: { mapSize: 2048, updateEvery: 1 },
+    contact: { enabled: true, resolution: 0.35 },
   },
 };
 
@@ -372,4 +484,5 @@ export function applyQualityTier(s: RibbonSettings, tier: QualityTier): void {
   Object.assign(s.post, t.post);
   Object.assign(s.geometry, t.geometry);
   Object.assign(s.shadows, t.shadows);
+  Object.assign(s.contact, t.contact);
 }

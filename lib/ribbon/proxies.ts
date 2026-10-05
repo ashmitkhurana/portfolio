@@ -2,14 +2,15 @@
  * Depth-proxy registry.
  *
  * DOM elements marked `data-ribbon-proxy` (+ optional `data-ribbon-depth`,
- * world z, default 0; `data-ribbon-radius`, px, default 0) tell the shader
+ * world z, default 0; `data-ribbon-radius`, px, default 0; `data-ribbon-pad`, px the
+ * rect is grown by on every side, default 0, for glyph overhang) tell the shader
  * which screen rectangles contain real HTML at which depth. Rects are measured
  * once (cached), re-measured on resize / font load / `invalidate()`, and the
  * scroll offset is applied per frame from window.scrollY.
  */
-import * as THREE from "three";
+import { MAX_PROXIES, type ProxyData } from "./types";
 
-export const MAX_PROXIES = 16;
+export { MAX_PROXIES };
 
 interface Entry {
   el: HTMLElement;
@@ -22,16 +23,14 @@ interface Entry {
 }
 
 export class ProxyRegistry {
-  /** uniform arrays: viewport-space CSS px rects (x, y, w, h; y down) */
-  readonly rects: THREE.Vector4[] = Array.from(
-    { length: MAX_PROXIES },
-    () => new THREE.Vector4(0, 0, 0, 0),
-  );
-  readonly depth: number[] = new Array(MAX_PROXIES).fill(0);
-  readonly radius: number[] = new Array(MAX_PROXIES).fill(0);
-  count = 0;
-  /** smallest proxy depth (Infinity when none) */
-  minDepth = Infinity;
+  /** plain data handed to the render core (viewport CSS px, y down) */
+  readonly data: ProxyData = {
+    count: 0,
+    rects: new Float32Array(MAX_PROXIES * 4),
+    depth: new Float32Array(MAX_PROXIES),
+    radius: new Float32Array(MAX_PROXIES),
+    minDepth: Infinity,
+  };
 
   private entries: Entry[] = [];
   private elements: HTMLElement[] = [];
@@ -58,6 +57,7 @@ export class ProxyRegistry {
         "data-ribbon-proxy",
         "data-ribbon-depth",
         "data-ribbon-radius",
+        "data-ribbon-pad",
       ],
     });
     if (document.fonts?.ready) {
@@ -103,12 +103,14 @@ export class ProxyRegistry {
       const r = el.getBoundingClientRect();
       const d = parseFloat(el.dataset.ribbonDepth ?? "0");
       const rad = parseFloat(el.dataset.ribbonRadius ?? "0");
+      const pd = parseFloat(el.dataset.ribbonPad ?? "0");
+      const pad = Number.isFinite(pd) ? pd : 0;
       return {
         el,
-        pageX: r.left + sx,
-        pageY: r.top + sy,
-        w: r.width,
-        h: r.height,
+        pageX: r.left + sx - pad,
+        pageY: r.top + sy - pad,
+        w: r.width + pad * 2,
+        h: r.height + pad * 2,
         depth: Number.isFinite(d) ? d : 0,
         radius: Number.isFinite(rad) ? rad : 0,
       };
@@ -117,21 +119,26 @@ export class ProxyRegistry {
   }
 
   /** Per-frame: apply scroll to cached rects and fill the uniform arrays. */
-  update(): void {
+  update(): ProxyData {
     if (this.dirty) this.measure();
     const sx = window.scrollX;
     const sy = window.scrollY;
     const n = this.entries.length;
-    this.count = n;
+    const d = this.data;
+    d.count = n;
     let minD = Infinity;
     for (let i = 0; i < n; i++) {
       const e = this.entries[i];
-      this.rects[i].set(e.pageX - sx, e.pageY - sy, e.w, e.h);
-      this.depth[i] = e.depth;
-      this.radius[i] = e.radius;
+      d.rects[i * 4] = e.pageX - sx;
+      d.rects[i * 4 + 1] = e.pageY - sy;
+      d.rects[i * 4 + 2] = e.w;
+      d.rects[i * 4 + 3] = e.h;
+      d.depth[i] = e.depth;
+      d.radius[i] = e.radius;
       if (e.depth < minD) minD = e.depth;
     }
-    this.minDepth = minD;
+    d.minDepth = minD;
+    return d;
   }
 
   dispose(): void {

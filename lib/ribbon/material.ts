@@ -1,51 +1,60 @@
 /**
- * Ribbon material: MeshPhysicalMaterial + a small onBeforeCompile patch that
- *  1. mixes face A / face B colour from the `aFace` attribute,
- *  2. implements the two-canvas PARTITION (see README):
- *       back  pass: discard fragments that are inside a proxy rect AND in front of it
- *       front pass: keep ONLY fragments inside a proxy rect AND in front of it
- *  3. optionally tints the result (red = drawn by back, blue = drawn by front).
+ * Ribbon colour-pass material: ONE MeshPhysicalMaterial patched with
+ * onBeforeCompile so the whole ribbon is a single draw call that outputs to a
+ * two-attachment (MRT) render target:
  *
- * Both passes share the same uniform objects (proxy arrays etc.); each pass has
- * its own material instance with a different `uRibPass`.
+ *   location 0  linear, tone-mapped, premultiplied colour (full physical shading)
+ *   location 1  FRONT MASK: 1 where the fragment lies inside a proxy rect AND in
+ *               front of that proxy's depth, else 0 (see README, "weaving")
+ *
+ * Both outputs are written by the same fragment that wins the depth test, so a
+ * strand hidden behind another strand can never leak into the mask.
+ *
+ * Per-face surface parameters (colour, roughness, clearcoat, clearcoat
+ * roughness, specular tint) are looked up from the hard per-vertex `aFace`
+ * (+1 face A, -1 face B, 0 rim) in the shader: no blending across the rim.
+ *
+ * Tone mapping happens here (not in the composite) so MSAA resolves LDR
+ * values: bright HDR rim samples would otherwise alias the silhouette.
  */
 import * as THREE from "three";
-import { MAX_PROXIES } from "./proxies";
-import type { RibbonSettings } from "./settings";
-
-export type RibbonPass = "back" | "front";
+import { MAX_PROXIES } from "./types";
+import type { RibbonSettings, ToneMapName } from "./settings";
 
 export interface RibbonSharedUniforms {
-  uProxyRects: { value: THREE.Vector4[] };
-  uProxyDepth: { value: number[] };
-  uProxyRadius: { value: number[] };
+  uProxyRects: { value: Float32Array };
+  uProxyDepth: { value: Float32Array };
+  uProxyRadius: { value: Float32Array };
   uProxyCount: { value: number };
   /** drawing-buffer px per CSS px (x, y) */
   uRibScale: { value: THREE.Vector2 };
   /** viewport height in CSS px */
   uRibViewH: { value: number };
-  uRibDebug: { value: number };
-  uColorB: { value: THREE.Color };
-  uFaceBlend: { value: number };
+  /** [A, B, rim] linear colours, 9 floats */
+  uFaceCol: { value: Float32Array };
+  /** [A, B, rim] x (roughness, clearcoat, clearcoatRoughness, 0) */
+  uFaceMat: { value: Float32Array };
+  /** [A, B, rim] linear specular tints */
+  uFaceSpec: { value: Float32Array };
   uDepthShade: { value: number };
+  uWarm: { value: number };
+  uSpecI: { value: number };
 }
 
-export function createSharedUniforms(
-  rects: THREE.Vector4[],
-  depth: number[],
-  radius: number[],
-): RibbonSharedUniforms {
+export function createSharedUniforms(): RibbonSharedUniforms {
   return {
-    uProxyRects: { value: rects },
-    uProxyDepth: { value: depth },
-    uProxyRadius: { value: radius },
+    uProxyRects: { value: new Float32Array(MAX_PROXIES * 4) },
+    uProxyDepth: { value: new Float32Array(MAX_PROXIES) },
+    uProxyRadius: { value: new Float32Array(MAX_PROXIES) },
     uProxyCount: { value: 0 },
     uRibScale: { value: new THREE.Vector2(1, 1) },
     uRibViewH: { value: 1 },
-    uRibDebug: { value: 0 },
-    uColorB: { value: new THREE.Color("#a8380a") },
-    uFaceBlend: { value: 0.35 },
-    uDepthShade: { value: 0.4 },
+    uFaceCol: { value: new Float32Array(9) },
+    uFaceMat: { value: new Float32Array(12) },
+    uFaceSpec: { value: new Float32Array(9) },
+    uDepthShade: { value: 0.1 },
+    uWarm: { value: 0.7 },
+    uSpecI: { value: 1 },
   };
 }
 
@@ -63,117 +72,173 @@ uniform float uProxyRadius[RIB_MAX];
 uniform int uProxyCount;
 uniform vec2 uRibScale;
 uniform float uRibViewH;
-uniform float uRibDebug;
-uniform float uRibPass; // 0 = back canvas, 1 = front canvas
-uniform vec3 uColorB;
-uniform float uFaceBlend;
+uniform vec3 uFaceCol[3];
+uniform vec4 uFaceMat[3];
+uniform vec3 uFaceSpec[3];
 uniform float uDepthShade;
+uniform float uWarm;
+uniform float uSpecI;
 varying float vFace;
 varying float vRibbonZ;
+layout(location = 1) out highp vec4 gMask;
 
-// signed distance to a rounded rect (negative inside)
 float ribRoundRectSDF(vec2 p, vec2 halfSize, float rad) {
   vec2 q = abs(p) - halfSize + rad;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rad;
 }
 
-// 0: outside every proxy rect, 1: inside one but only BEHIND it,
-// 2: in FRONT of one but within RIB_BAND px of its edge (drawn by BOTH canvases:
-//    the overlap hides the filtered/transparent seam when canvases are scaled),
-// 3: in FRONT of one and deep inside its rect (front canvas only)
-#define RIB_BAND 3.0
-int ribFragmentState() {
-  vec2 px = gl_FragCoord.xy / uRibScale;      // CSS px, y up
-  vec2 css = vec2(px.x, uRibViewH - px.y);     // CSS px, y down (DOM space)
-  int state = 0;
+// FRONT MASK for this fragment (0..1). Inside a proxy rect (1 device-px AA ramp
+// on the rect edge) AND in front of that proxy's depth (1 px ramp on the
+// intersection line, from the screen-space derivative of z).
+float ribFrontMask() {
+  vec2 px = gl_FragCoord.xy / uRibScale;
+  vec2 css = vec2(px.x, uRibViewH - px.y);
+  float dz = max(fwidth(vRibbonZ), 1e-3);
+  float m = 0.0;
   for (int i = 0; i < RIB_MAX; i++) {
     if (i >= uProxyCount) break;
     vec4 r = uProxyRects[i];
     vec2 hs = 0.5 * r.zw;
     float rad = min(uProxyRadius[i], min(hs.x, hs.y));
     float sd = ribRoundRectSDF(css - (r.xy + hs), hs, rad);
-    if (sd <= 0.0) {
-      if (vRibbonZ > uProxyDepth[i]) {
-        if (sd < -RIB_BAND) return 3;
-        state = 2;
-      } else if (state == 0) {
-        state = 1;
-      }
-    }
+    float inside = clamp(0.5 - sd * uRibScale.x, 0.0, 1.0);
+    float front = clamp((vRibbonZ - uProxyDepth[i]) / dz + 0.5, 0.0, 1.0);
+    m = max(m, inside * front);
   }
-  return state;
+  return m;
 }
 `;
 
-const FRAG_PARTITION = /* glsl */ `
-  int ribState = ribFragmentState();
-  if (uRibPass > 0.5) {
-    // front canvas: keep only fragments in front of a proxy. Fragments inside a
-    // proxy but BEHIND it stay (alpha 0, stencil-marked) so contact-shadow
-    // planes cannot veil ribbon that is behind them.
-    if (ribState == 0) discard;
-    // behind-inside fragments: skip all lighting (cheap early-out); depth + stencil
-    // are still written, colour/alpha are zero.
-    if (ribState == 1) {
-      gl_FragColor = vec4(0.0);
-      return;
-    }
-  } else {
-    if (ribState == 3) discard;
-  }
+// Khronos PBR Neutral, but over-exposed saturated orange rolls off towards a warm
+// amber instead of white (white-desaturation turns a red-orange base pink), and
+// only the hottest core is allowed to reach near-white.
+const WARM_NEUTRAL = /* glsl */ `
+float ribSatG = 1.0; // saturation of the face colour: pale faces keep neutral highlights
+vec3 RibWarmNeutral(vec3 color) {
+  const float startCompression = 0.8 - 0.04;
+  float x = min(color.r, min(color.g, color.b));
+  float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  color -= offset;
+  float peak = max(color.r, max(color.g, color.b));
+  if (peak < startCompression) return color;
+  float d = 1.0 - startCompression;
+  float newPeak = 1.0 - d * d / (peak + d - startCompression);
+  color *= newPeak / peak;
+  float g = 1.0 - 1.0 / (0.55 * (peak - newPeak) + 1.0);
+  vec3 amber = mix(vec3(1.0, 0.50, 0.05), vec3(1.0, 0.72, 0.40), smoothstep(1.4, 4.5, peak));
+  amber = mix(vec3(1.0), amber, ribSatG) * newPeak;
+  color = mix(color, amber, g);
+  float core = smoothstep(3.0, 9.0, peak);
+  return mix(color, vec3(newPeak), core * 0.85);
+}
 `;
 
-export function createRibbonMaterial(
-  pass: RibbonPass,
-  shared: RibbonSharedUniforms,
-): THREE.MeshPhysicalMaterial {
+const WARM_GRADE = /* glsl */ `
+  {
+    // warm highlight grade: highlights slide towards amber instead of white/pink;
+    // only the hottest core is allowed to reach near-white
+    float rl = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
+    float hl = smoothstep(0.30, 1.1, rl);
+    float core = smoothstep(2.6, 5.0, rl);
+    vec3 amber = vec3(1.0, 0.60, 0.26);
+    vec3 tinted = outgoingLight * amber / dot(amber, vec3(0.2126, 0.7152, 0.0722));
+    outgoingLight = mix(outgoingLight, tinted, uWarm * ribSatG * hl * (1.0 - core));
+  }
+  outgoingLight *= mix(1.0 - uDepthShade, 1.0, smoothstep(-340.0, 140.0, vRibbonZ));
+`;
+
+const TONE_FN: Record<ToneMapName, string> = {
+  AgX: "AgXToneMapping",
+  ACES: "ACESFilmicToneMapping",
+  Neutral: "RibWarmNeutral",
+  Linear: "LinearToneMapping",
+  Reinhard: "ReinhardToneMapping",
+  Cineon: "CineonToneMapping",
+};
+
+/** lights_physical_fragment with the per-face lookups spliced in */
+function patchedPhysicalChunk(): string {
+  return THREE.ShaderChunk.lights_physical_fragment
+    .replace(/vec3 specularColorFactor = [^;]+;/g, "vec3 specularColorFactor = uFaceSpec[ribFace];")
+    .replace(/float specularIntensityFactor = [^;]+;/g, "float specularIntensityFactor = uSpecI;")
+    .replace("material.clearcoat = clearcoat;", "material.clearcoat = uFaceMat[ribFace].y;")
+    .replace(
+      "material.clearcoatRoughness = clearcoatRoughness;",
+      "material.clearcoatRoughness = uFaceMat[ribFace].z;",
+    );
+}
+
+export interface RibbonMaterial {
+  material: THREE.MeshPhysicalMaterial;
+  setToneMapping(t: ToneMapName): void;
+}
+
+export function createRibbonMaterial(shared: RibbonSharedUniforms): RibbonMaterial {
   const mat = new THREE.MeshPhysicalMaterial({
     side: THREE.FrontSide,
-    clearcoat: 1,
+    clearcoat: 1, // enables the clearcoat program; per-face value comes from uFaceMat
   });
-  if (pass === "front") {
-    mat.transparent = true; // alpha 0 for "behind" fragments (see FRAG_PARTITION)
-    mat.stencilWrite = true;
-    mat.stencilRef = 1;
-    mat.stencilFunc = THREE.AlwaysStencilFunc;
-    mat.stencilZPass = THREE.ReplaceStencilOp;
-  }
-  const passUniform = { value: pass === "front" ? 1 : 0 };
+  let tone: ToneMapName = "Neutral";
+  const exposure = { value: 1 };
 
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, shared, { uRibPass: passUniform });
+    Object.assign(shader.uniforms, shared, { toneMappingExposure: exposure });
 
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${VERT_DECL}`)
-      .replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>\n  vFace = aFace;`,
-      )
+      .replace("#include <begin_vertex>", `#include <begin_vertex>\n  vFace = aFace;`)
       .replace(
         "#include <project_vertex>",
         `#include <project_vertex>\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
       );
 
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${FRAG_DECL}`)
+      .replace(
+        "#include <common>",
+        `#include <common>\n${THREE.ShaderChunk.tonemapping_pars_fragment}\n${WARM_NEUTRAL}\n${FRAG_DECL}`,
+      )
       .replace(
         "void main() {",
-        `void main() {\n${FRAG_PARTITION}`,
+        `void main() {\n  int ribFace = vFace > 0.5 ? 0 : (vFace < -0.5 ? 1 : 2);`,
       )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-  diffuseColor.rgb = mix(uColorB, diffuse, smoothstep(-uFaceBlend, uFaceBlend, vFace));`,
+  diffuseColor.rgb = uFaceCol[ribFace];
+  ribSatG = smoothstep(0.15, 0.7, (max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)) - min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b))) / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 1e-3));`,
       )
       .replace(
-        "#include <opaque_fragment>",
-        `outgoingLight *= mix(1.0 - uDepthShade, 1.0, smoothstep(-340.0, 140.0, vRibbonZ));
-  outgoingLight = mix(outgoingLight, uRibPass > 0.5 ? vec3(0.05, 0.45, 2.2) : vec3(2.2, 0.08, 0.05), 0.5 * uRibDebug);
-  #include <opaque_fragment>`,
-);
+        "#include <roughnessmap_fragment>",
+        `#include <roughnessmap_fragment>\n  roughnessFactor = uFaceMat[ribFace].x;`,
+      )
+      .replace("#include <lights_physical_fragment>", patchedPhysicalChunk())
+      .replace("#include <opaque_fragment>", `${WARM_GRADE}\n  #include <opaque_fragment>`)
+      .replace(
+        "#include <tonemapping_fragment>",
+        `gl_FragColor.rgb = ${TONE_FN[tone]}( gl_FragColor.rgb );
+  // premultiply: the render target stores coverage in alpha (MSAA resolves it)
+  gl_FragColor.rgb *= gl_FragColor.a;
+  gMask = vec4(ribFrontMask());`,
+      );
   };
-  mat.customProgramCacheKey = () => `ribbon-${pass}`;
-  return mat;
+  mat.customProgramCacheKey = () => `ribbon-v2-${tone}`;
+  return {
+    material: mat,
+    setToneMapping(t) {
+      if (t === tone) return;
+      tone = t;
+      mat.needsUpdate = true;
+    },
+  };
+}
+
+const tmpColor = new THREE.Color();
+
+function setRGB(arr: Float32Array, i: number, hex: string): void {
+  tmpColor.set(hex); // sRGB -> linear working space
+  arr[i * 3] = tmpColor.r;
+  arr[i * 3 + 1] = tmpColor.g;
+  arr[i * 3 + 2] = tmpColor.b;
 }
 
 export function applyMaterialSettings(
@@ -181,17 +246,34 @@ export function applyMaterialSettings(
   s: RibbonSettings["material"],
   shared: RibbonSharedUniforms,
 ): void {
-  mat.color.set(s.colorA);
-  shared.uColorB.value.set(s.colorB);
-  shared.uFaceBlend.value = Math.max(s.faceBlend, 1e-3);
+  const faces = [s.faceA, s.faceB];
+  for (let i = 0; i < 2; i++) {
+    const f = faces[i];
+    setRGB(shared.uFaceCol.value, i, f.color);
+    setRGB(shared.uFaceSpec.value, i, f.specularColor);
+    const o = i * 4;
+    shared.uFaceMat.value[o] = f.roughness;
+    shared.uFaceMat.value[o + 1] = f.clearcoat;
+    shared.uFaceMat.value[o + 2] = f.clearcoatRoughness;
+  }
+  // rim strip: follows a face, optionally with its own colour
+  const src = s.edge.mode === "faceB" ? 1 : 0;
+  for (let c = 0; c < 4; c++) shared.uFaceMat.value[8 + c] = shared.uFaceMat.value[src * 4 + c];
+  for (let c = 0; c < 3; c++) {
+    shared.uFaceCol.value[6 + c] = shared.uFaceCol.value[src * 3 + c];
+    shared.uFaceSpec.value[6 + c] = shared.uFaceSpec.value[src * 3 + c];
+  }
+  if (s.edge.mode === "custom") {
+    setRGB(shared.uFaceCol.value, 2, s.edge.color);
+    setRGB(shared.uFaceSpec.value, 2, s.edge.color);
+  }
   shared.uDepthShade.value = s.depthShade;
-  mat.roughness = s.roughness;
+  shared.uWarm.value = s.highlightWarmth;
+  shared.uSpecI.value = s.specularIntensity;
+  mat.color.set(s.faceA.color);
   mat.metalness = s.metalness;
-  mat.clearcoat = s.clearcoat;
-  mat.clearcoatRoughness = s.clearcoatRoughness;
   mat.anisotropy = s.anisotropy;
   mat.anisotropyRotation = THREE.MathUtils.degToRad(s.anisotropyRotation);
-  mat.specularIntensity = s.specularIntensity;
   mat.ior = s.ior;
   mat.sheen = s.sheen;
   mat.sheenRoughness = s.sheenRoughness;

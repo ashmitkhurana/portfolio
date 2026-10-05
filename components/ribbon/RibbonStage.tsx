@@ -15,7 +15,10 @@ export interface RibbonStageProps {
 
 /**
  * Mounts the two ribbon canvases around transparent HTML content:
- *   back canvas (opaque, z0) < children (z1) < front canvas (transparent, z2).
+ *   back canvas (opaque, z0) < children (z2) < front canvas (transparent, z3).
+ * Both are ImageBitmapRenderingContext targets fed from ONE offscreen WebGL
+ * renderer. Without OffscreenCanvas WebGL2 only the front canvas is created and
+ * used as a plain WebGL canvas above the HTML (no weaving).
  * Canvases are created inside the effect so React 19 StrictMode's
  * mount/unmount/mount never reuses a context-lost canvas.
  */
@@ -35,11 +38,12 @@ export function RibbonStage({
     const frontEl = frontHost.current;
     if (!backEl || !frontEl) return;
 
-    const back = document.createElement("canvas");
+    const weave = RibbonEngine.supportsWeave();
+    const back = weave ? document.createElement("canvas") : null;
     const front = document.createElement("canvas");
-    back.setAttribute("aria-hidden", "true");
+    back?.setAttribute("aria-hidden", "true");
     front.setAttribute("aria-hidden", "true");
-    backEl.appendChild(back);
+    if (back) backEl.appendChild(back);
     frontEl.appendChild(front);
 
     let engine: RibbonEngine | null = null;
@@ -59,7 +63,7 @@ export function RibbonStage({
     return () => {
       onEngineRef.current?.(null);
       engine?.dispose();
-      back.remove();
+      back?.remove();
       front.remove();
     };
   }, []);

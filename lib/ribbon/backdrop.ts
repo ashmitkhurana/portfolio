@@ -1,10 +1,14 @@
 /**
- * Back-canvas-only dressing: opaque background (flat colour + vignette +
- * warm bounce glow, drawn as one fullscreen quad), floor + wall shadow
- * receivers. Everything is toggleable from settings.
+ * Back-layer dressing: opaque background (flat colour + vignette + warm bounce
+ * glow + grain, one fullscreen quad), floor + wall shadow receivers. All of it
+ * lives on three.js layer 1 (the ribbon is on layer 0) so the backdrop pass can
+ * render it with the shared shadow map without re-rendering the ribbon.
+ * Everything is toggleable from settings.
  */
 import * as THREE from "three";
 import type { RibbonSettings } from "./settings";
+
+export const BACKDROP_LAYER = 1;
 
 const tmpRGB = { r: 0, g: 0, b: 0 };
 
@@ -32,7 +36,6 @@ export class Backdrop {
         uGlowColor: { value: new THREE.Vector3(1, 0.35, 0.06) },
         uGlowK: { value: 0.2 },
         uGlowRadius: { value: 0.5 },
-        uLinearOut: { value: 0 },
         uGrain: { value: 0.03 },
         uTime: { value: 0 },
       },
@@ -52,7 +55,6 @@ export class Backdrop {
         uniform vec3 uGlowColor;
         uniform float uGlowK;
         uniform float uGlowRadius;
-        uniform float uLinearOut;
         uniform float uGrain;
         uniform float uTime;
         varying vec2 vUv;
@@ -77,7 +79,6 @@ export class Backdrop {
           float g3 = bdHash(q, uint(f) + 977u);
           col += (g1 - 0.5) / 255.0 * 2.0;
           col += (g2 + g3 - 1.0) * uGrain;
-          if (uLinearOut > 0.5) col = pow(max(col, vec3(0.0)), vec3(2.2));
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -95,6 +96,12 @@ export class Backdrop {
     this.wall.frustumCulled = false;
 
     this.group.add(this.quad, this.floor, this.wall);
+    this.group.traverse((o) => o.layers.set(BACKDROP_LAYER));
+  }
+
+  /** single-canvas fallback: no background fill, only the floor shadow */
+  setBackground(on: boolean): void {
+    this.quad.visible = on;
   }
 
   apply(
@@ -129,11 +136,6 @@ export class Backdrop {
 
   setTime(t: number): void {
     this.quadMat.uniforms.uTime.value = t;
-  }
-
-  /** composer path renders linear and tone maps afterwards */
-  setLinearOutput(on: boolean): void {
-    this.quadMat.uniforms.uLinearOut.value = on ? 1 : 0;
   }
 
   /** glow centre in uv (0..1, y up) */

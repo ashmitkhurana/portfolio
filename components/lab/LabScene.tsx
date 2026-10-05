@@ -81,10 +81,10 @@ export function LabScene() {
         </header>
 
         <h1 className="lab-headline" aria-label="Ashmit Khurana">
-          <span className="lab-line" data-ribbon-proxy data-ribbon-depth="0">
+          <span className="lab-line" data-ribbon-proxy data-ribbon-depth="0" data-ribbon-pad="24">
             ASHMIT
           </span>
-          <span className="lab-line" data-ribbon-proxy data-ribbon-depth="0">
+          <span className="lab-line" data-ribbon-proxy data-ribbon-depth="0" data-ribbon-pad="24">
             KHURANA
           </span>
         </h1>

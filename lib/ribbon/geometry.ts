@@ -1,13 +1,17 @@
 /**
- * RibbonGeometry: sweeps a thin rounded-rectangle profile along the sampled
- * centreline using rotation-minimising frames.
+ * RibbonGeometry: sweeps a FLAT rectangular band profile (tiny corner bevels)
+ * along the sampled centreline using rotation-minimising frames.
  *
- * - Normals are analytic in the profile direction (exact rounded-rect arc
- *   normals) and use the true surface derivative along the length (central
- *   difference of the actual swept positions), so twist/torsion is handled
- *   exactly and there is zero faceting at any bend.
- * - Soft elliptical end caps close both ends (no open hole).
- * - `aFace` runs +1 on face A -> 0 at the rim -> -1 on face B.
+ * - The profile is four strips with split vertices at the creases: face A
+ *   (flat, +N), the left rim (bevel, flat side, bevel), face B (flat, -N) and
+ *   the right rim. Normals are analytic (exact arc normals on the bevels, the
+ *   flat normal on the faces) so the faces and the edge never share normals;
+ *   along the length the true surface derivative is used (central difference
+ *   of the swept positions), so twist/torsion is exact.
+ * - Round caps (semicircular plan, domed section) close both ends.
+ * - `aFace` is a HARD per-vertex value: +1 face A, -1 face B, 0 rim strip.
+ * - Width is constant; a tight in-plane bend is relaxed by smoothing the
+ *   centreline (never by narrowing the band).
  * - All buffers are preallocated; `update()` rewrites them in place.
  */
 import * as THREE from "three";
@@ -25,7 +29,11 @@ interface Profile {
   /** unit profile tangent (in the B,N plane) */
   tx: Float32Array;
   ty: Float32Array;
-  /** corner radius, thickness (px) */
+  /** +1 face A, -1 face B, 0 rim */
+  face: Float32Array;
+  /** vertex index pairs (k, k+1) that form quads along the length */
+  pairs: Uint32Array;
+  /** corner bevel radius, half thickness (px) */
   r: number;
   ht: number;
 }
@@ -33,32 +41,48 @@ interface Profile {
 function buildProfile(p: GeometryParams): Profile {
   const T = p.width * p.thicknessRatio;
   const ht = T / 2;
-  const r = Math.max(Math.min(p.edgeRadiusRatio * T, ht), 1e-3);
-  const n = Math.max(2, Math.round(p.profileVerts / 4) - 1);
+  const hw0 = p.width / 2;
+  const r = Math.max(Math.min(p.edgeBevel, ht, hw0), 1e-3);
+  const n = Math.max(1, Math.floor(p.bevelSegments));
 
-  const corners: Array<[number, number, number]> = [
-    [-1, 1, 90], // top-left: 90 -> 180
-    [-1, -1, 180], // bottom-left: 180 -> 270
-    [1, -1, 270], // bottom-right: 270 -> 360
-    [1, 1, 0], // top-right: 0 -> 90
-  ];
   const sx: number[] = [];
   const sy: number[] = [];
   const cx: number[] = [];
   const cy: number[] = [];
-  for (let c = 0; c < 4; c++) {
-    const [qx, qy, start] = corners[c];
-    for (let i = 0; i <= n; i++) {
-      // skip the duplicated point at the left/right seams when the straight
-      // vertical edge has zero length (full round edge)
-      if (i === 0 && (c === 1 || c === 3) && ht - r < 1e-4) continue;
-      const a = ((start + (i / n) * 90) * Math.PI) / 180;
-      sx.push(qx);
-      sy.push(qy);
-      cx.push(Math.cos(a));
-      cy.push(Math.sin(a));
-    }
-  }
+  const faceVal: number[] = [];
+  const pairs: number[] = [];
+
+  const ws = Math.max(1, Math.floor(p.widthSegments));
+  const push = (qx: number, qy: number, deg: number, f: number): number => {
+    const a = (deg * Math.PI) / 180;
+    sx.push(qx);
+    sy.push(qy);
+    cx.push(Math.cos(a));
+    cy.push(Math.sin(a));
+    faceVal.push(f);
+    return sx.length - 1;
+  };
+  const strip = (ids: number[]) => {
+    for (let i = 0; i < ids.length - 1; i++) pairs.push(ids[i], ids[i + 1]);
+  };
+  const arc = (qx: number, qy: number, start: number): number[] => {
+    const ids: number[] = [];
+    for (let i = 0; i <= n; i++) ids.push(push(qx, qy, start + (i / n) * 90, 0));
+    return ids;
+  };
+
+  // CCW around the section: top (face A) right->left, left rim, bottom
+  // (face B) left->right, right rim. Vertices are split at every crease.
+  const face = (qy: number, deg: number, f: number, from: number, to: number) => {
+    const ids: number[] = [];
+    for (let i = 0; i <= ws; i++) ids.push(push(from + ((to - from) * i) / ws, qy, deg, f));
+    return ids;
+  };
+  strip(face(1, 90, 1, 1, -1));
+  strip([...arc(-1, 1, 90), ...arc(-1, -1, 180)]);
+  strip(face(-1, 270, -1, -1, 1));
+  strip([...arc(1, -1, 270), ...arc(1, 1, 0)]);
+
   const count = sx.length;
   const prof: Profile = {
     count,
@@ -68,13 +92,15 @@ function buildProfile(p: GeometryParams): Profile {
     cy: Float32Array.from(cy),
     tx: new Float32Array(count),
     ty: new Float32Array(count),
+    face: Float32Array.from(faceVal),
+    pairs: Uint32Array.from(pairs),
     r,
     ht,
   };
   for (let k = 0; k < count; k++) {
     // CCW arc tangent
-    prof.tx[k] = -cy[k];
-    prof.ty[k] = cx[k];
+    prof.tx[k] = -prof.cy[k];
+    prof.ty[k] = prof.cx[k];
   }
   return prof;
 }
@@ -107,9 +133,12 @@ export class RibbonGeometry {
   private rB!: Float32Array;
   private rTwist!: Float32Array;
   private rWidth!: Float32Array;
-  private rScale!: Float32Array; // cap scale (1 on the body)
-  private rLim!: Float32Array; // curvature width limiter scratch
-  private rLim2!: Float32Array;
+  private rScale!: Float32Array; // cap plan scale (1 on the body)
+  private rScaleT!: Float32Array; // cap thickness scale
+  private rKb!: Float32Array; // in-plane curvature scratch (body rings)
+  private rSm!: Float32Array; // smoothing weights scratch
+  private rSm2!: Float32Array;
+  private rPosTmp!: Float32Array;
 
   /** seed for the initial frame normal (towards camera by default) */
   seed = new THREE.Vector3(0, 0, 1);
@@ -126,15 +155,15 @@ export class RibbonGeometry {
     const old = this.params;
     this.params = { ...params };
     const topo =
-      old.rings !== params.rings ||
-      old.profileVerts !== params.profileVerts ||
-      old.capRings !== params.capRings ||
-      old.edgeRadiusRatio !== params.edgeRadiusRatio ||
+      old.bevelSegments !== params.bevelSegments ||
+      old.widthSegments !== params.widthSegments ||
+      old.edgeBevel !== params.edgeBevel ||
       old.thicknessRatio !== params.thicknessRatio ||
       old.width !== params.width;
     if (
       old.rings !== params.rings ||
-      old.profileVerts !== params.profileVerts ||
+      old.bevelSegments !== params.bevelSegments ||
+      old.widthSegments !== params.widthSegments ||
       old.capRings !== params.capRings
     ) {
       const prev = this.geometry;
@@ -170,24 +199,30 @@ export class RibbonGeometry {
     this.rTwist = new Float32Array(R);
     this.rWidth = new Float32Array(R);
     this.rScale = new Float32Array(R).fill(1);
-    this.rLim = new Float32Array(M);
-    this.rLim2 = new Float32Array(M);
+    this.rScaleT = new Float32Array(R).fill(1);
+    this.rKb = new Float32Array(M);
+    this.rSm = new Float32Array(M);
+    this.rSm2 = new Float32Array(M);
+    this.rPosTmp = new Float32Array(M * 3);
 
-    // aFace is static: the profile normal's vertical component
+    // aFace is static: a hard +1 / 0 / -1 per vertex (see buildProfile)
     for (let i = 0; i < R; i++) {
       for (let k = 0; k < K; k++) {
-        this.face[i * K + k] = this.profile.cy[k];
+        this.face[i * K + k] = this.profile.face[k];
         this.tng[(i * K + k) * 4 + 3] = 1;
       }
     }
 
     // index buffer, built once. Outward winding (see README).
-    const quads = (R - 1) * K;
+    const pairs = this.profile.pairs;
+    const nPairs = pairs.length / 2;
+    const quads = (R - 1) * nPairs;
     const index = new Uint32Array(quads * 6);
     let w = 0;
     for (let i = 0; i < R - 1; i++) {
-      for (let k = 0; k < K; k++) {
-        const k1 = (k + 1) % K;
+      for (let q = 0; q < nPairs; q++) {
+        const k = pairs[q * 2];
+        const k1 = pairs[q * 2 + 1];
         const a = i * K + k;
         const b = i * K + k1;
         const c = (i + 1) * K + k;
@@ -251,20 +286,11 @@ export class RibbonGeometry {
     const rWidth = this.rWidth;
     const rScale = this.rScale;
 
+    const rScaleT = this.rScaleT;
+
     this.curve.setControl(ctrlPos, ctrlTwist, ctrlWidth, n);
     this.curve.sampleRings(M, E, rPos, rTan, rTwist, rWidth);
-    computeFrames(
-      M,
-      E,
-      rPos,
-      rTan,
-      rTwist,
-      rN,
-      rB,
-      this.seed.x,
-      this.seed.y,
-      this.seed.z,
-    );
+    computeFrames(M, E, rPos, rTan, rTwist, rN, rB, this.seed.x, this.seed.y, this.seed.z);
 
     // taper (along body arc length)
     const tl = Math.max(P.taperLength, 1e-3);
@@ -274,25 +300,30 @@ export class RibbonGeometry {
       const sm = f * f * (3 - 2 * f);
       rWidth[E + i] *= 1 - P.taperAmount * (1 - sm);
       rScale[E + i] = 1;
+      rScaleT[E + i] = 1;
     }
 
-    this.limitWidthByCurvature(M, E);
+    // keep the width constant; relax the PATH where a tight in-plane bend
+    // would make the inner edge pinch (needs the frames, so re-frame after)
+    this.relaxPath(M, E);
 
-    // caps: elliptical plan + elliptical section, built by extrapolating the
-    // end rings along their tangents with shrinking scale
-    const capLen = P.width * P.capLengthRatio;
+    // round caps: semicircular plan (radius = half width) and a domed section,
+    // built by extrapolating the end rings along their tangents
     const head = E; // first body ring
     const tail = E + M - 1; // last body ring
     for (let j = 1; j <= E; j++) {
       const q = j / E;
       const phi = q * Math.PI * 0.5;
-      const off = capLen * Math.sin(phi);
-      const sc = Math.cos(phi);
+      const sc = Math.max(Math.cos(phi), 0);
       const ih = E - j; // head cap ring index
       const it = tail + j; // tail cap ring index
+      const hwH = 0.5 * P.width * rWidth[head];
+      const hwT = 0.5 * P.width * rWidth[tail];
+      const offH = 2 * P.capLengthRatio * hwH * Math.sin(phi);
+      const offT = 2 * P.capLengthRatio * hwT * Math.sin(phi);
       for (let a = 0; a < 3; a++) {
-        rPos[ih * 3 + a] = rPos[head * 3 + a] - rTan[head * 3 + a] * off;
-        rPos[it * 3 + a] = rPos[tail * 3 + a] + rTan[tail * 3 + a] * off;
+        rPos[ih * 3 + a] = rPos[head * 3 + a] - rTan[head * 3 + a] * offH;
+        rPos[it * 3 + a] = rPos[tail * 3 + a] + rTan[tail * 3 + a] * offT;
         rTan[ih * 3 + a] = rTan[head * 3 + a];
         rTan[it * 3 + a] = rTan[tail * 3 + a];
         rN[ih * 3 + a] = rN[head * 3 + a];
@@ -302,8 +333,12 @@ export class RibbonGeometry {
       }
       rWidth[ih] = rWidth[head];
       rWidth[it] = rWidth[tail];
-      rScale[ih] = Math.max(sc, 0);
-      rScale[it] = Math.max(sc, 0);
+      rScale[ih] = sc;
+      rScale[it] = sc;
+      // the section stays thick until the tip, then closes like a dome
+      const dome = Math.sqrt(sc);
+      rScaleT[ih] = dome;
+      rScaleT[it] = dome;
     }
 
     // positions
@@ -328,11 +363,12 @@ export class RibbonGeometry {
       const by = rB[o3 + 1];
       const bz = rB[o3 + 2];
       const sc = rScale[i];
+      const sT = rScaleT[i];
       const hw = Math.max(0.5 * P.width * rWidth[i], r + 1e-3);
       const base = i * K;
       for (let k = 0; k < K; k++) {
         const x = (prof.sx[k] * (hw - r) + prof.cx[k] * r) * sc;
-        const y = (prof.sy[k] * (ht - r) + prof.cy[k] * r) * sc;
+        const y = (prof.sy[k] * (ht - r) + prof.cy[k] * r) * sT;
         const px = cxp + bx * x + nx * y;
         const py = cyp + by * x + ny * y;
         const pz = czp + bz * x + nz * y;
@@ -413,55 +449,129 @@ export class RibbonGeometry {
 
 
   /**
-   * Hairpin guard. A sheet of half-width h bent edge-wise with curvature k
-   * self-intersects once h*k >= 1 (the inner edge crosses the centre of
-   * curvature). Narrow the ribbon where that would happen, with a min-filter
-   * then box blur so the narrowing is smooth and never exceeds the limit.
+   * Path relaxation. A band of half-width h bent edge-wise with curvature k
+   * pinches once h*k approaches 1 (the inner edge reaches the centre of
+   * curvature). Instead of narrowing the band, smooth the centreline where
+   * that would happen: weights follow the excess curvature (dilated + blurred
+   * so they are continuous in time and space), positions move towards the
+   * local mean, tangents are recomputed. Returns true when anything moved.
    */
-  private limitWidthByCurvature(M: number, E: number): void {
+  private relaxPath(M: number, E: number): boolean {
     const P = this.params;
-    const lim = this.rLim;
-    const tmp = this.rLim2;
+    const kb = this.rKb;
+    const w = this.rSm;
+    const tmp = this.rSm2;
     const tan = this.rTan;
     const pos = this.rPos;
     const B = this.rB;
     const rWidth = this.rWidth;
-    const SAFE = 0.78;
-    for (let i = 0; i < M; i++) {
-      const a = (E + Math.max(i - 1, 0)) * 3;
-      const b = (E + Math.min(i + 1, M - 1)) * 3;
-      const o = (E + i) * 3;
-      const ds =
-        Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]) || 1;
-      const kx = (tan[b] - tan[a]) / ds;
-      const ky = (tan[b + 1] - tan[a + 1]) / ds;
-      const kz = (tan[b + 2] - tan[a + 2]) / ds;
-      const kB = Math.abs(kx * B[o] + ky * B[o + 1] + kz * B[o + 2]);
-      const hwMax = kB > 1e-6 ? SAFE / kB : 1e9;
-      const hw = 0.5 * P.width * rWidth[E + i];
-      lim[i] = hw > hwMax ? hwMax / hw : 1;
-    }
-    // min filter (dilate the narrowing), then box blur (smooth)
-    const R = 10;
-    for (let i = 0; i < M; i++) {
-      let m = 1;
-      const lo = Math.max(0, i - R);
-      const hi = Math.min(M - 1, i + R);
-      for (let j = lo; j < hi + 1; j++) if (lim[j] < m) m = lim[j];
-      tmp[i] = m;
-    }
-    for (let i = 0; i < M; i++) {
-      let sum = 0;
-      let cnt = 0;
-      const lo = Math.max(0, i - R);
-      const hi = Math.min(M - 1, i + R);
-      for (let j = lo; j < hi + 1; j++) {
-        sum += tmp[j];
-        cnt++;
+    const SAFE = 0.5;
+    let moved = false;
+    let worst = 0;
+    for (let iter = 0; iter < 8; iter++) {
+      let any = false;
+      worst = 0;
+      for (let i = 0; i < M; i++) {
+        const a = (E + Math.max(i - 1, 0)) * 3;
+        const b = (E + Math.min(i + 1, M - 1)) * 3;
+        const o = (E + i) * 3;
+        const ds =
+          Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]) || 1;
+        const kx = (tan[b] - tan[a]) / ds;
+        const ky = (tan[b + 1] - tan[a + 1]) / ds;
+        const kz = (tan[b + 2] - tan[a + 2]) / ds;
+        kb[i] = Math.abs(kx * B[o] + ky * B[o + 1] + kz * B[o + 2]);
+        const hw = 0.5 * P.width * rWidth[E + i];
+        if (hw * kb[i] > worst) worst = hw * kb[i];
+        const e = (hw * kb[i]) / SAFE - 1; // > 0 where the band would pinch
+        const v = e <= 0 ? 0 : Math.min(e * 2, 1);
+        w[i] = v;
+        if (v > 0) any = true;
       }
-      rWidth[E + i] *= Math.min(sum / cnt, 1);
+      this.pinch = worst;
+      if (!any) break;
+      moved = true;
+      // dilate then blur the weights so the relaxed region has soft shoulders
+      const R = 8;
+      for (let i = 0; i < M; i++) {
+        let m = 0;
+        const lo = Math.max(0, i - R);
+        const hi = Math.min(M - 1, i + R);
+        for (let j = lo; j <= hi; j++) if (w[j] > m) m = w[j];
+        tmp[i] = m;
+      }
+      for (let i = 0; i < M; i++) {
+        let sum = 0;
+        let cnt = 0;
+        const lo = Math.max(0, i - R);
+        const hi = Math.min(M - 1, i + R);
+        for (let j = lo; j <= hi; j++) {
+          sum += tmp[j];
+          cnt++;
+        }
+        w[i] = sum / cnt;
+      }
+      // move positions towards the local mean (box of +-W rings)
+      const W = 6;
+      const out = this.rPosTmp;
+      for (let i = 0; i < M; i++) {
+        const lo = Math.max(0, i - W);
+        const hi = Math.min(M - 1, i + W);
+        let mx = 0;
+        let my = 0;
+        let mz = 0;
+        for (let j = lo; j <= hi; j++) {
+          const q = (E + j) * 3;
+          mx += pos[q];
+          my += pos[q + 1];
+          mz += pos[q + 2];
+        }
+        const c = hi - lo + 1;
+        const q = (E + i) * 3;
+        const t = w[i];
+        out[i * 3] = pos[q] + (mx / c - pos[q]) * t;
+        out[i * 3 + 1] = pos[q + 1] + (my / c - pos[q + 1]) * t;
+        out[i * 3 + 2] = pos[q + 2] + (mz / c - pos[q + 2]) * t;
+      }
+      for (let i = 0; i < M; i++) {
+        const q = (E + i) * 3;
+        pos[q] = out[i * 3];
+        pos[q + 1] = out[i * 3 + 1];
+        pos[q + 2] = out[i * 3 + 2];
+      }
+      // tangents from the new positions where the path moved (blend elsewhere)
+      for (let i = 0; i < M; i++) {
+        const t = Math.min(w[i] * 4, 1);
+        if (t <= 0) continue;
+        const a = (E + Math.max(i - 1, 0)) * 3;
+        const b = (E + Math.min(i + 1, M - 1)) * 3;
+        let dx = pos[b] - pos[a];
+        let dy = pos[b + 1] - pos[a + 1];
+        let dz = pos[b + 2] - pos[a + 2];
+        const l = Math.hypot(dx, dy, dz) || 1;
+        dx /= l;
+        dy /= l;
+        dz /= l;
+        const o = (E + i) * 3;
+        let tx = tan[o] + (dx - tan[o]) * t;
+        let ty = tan[o + 1] + (dy - tan[o + 1]) * t;
+        let tz = tan[o + 2] + (dz - tan[o + 2]) * t;
+        const tl = Math.hypot(tx, ty, tz) || 1;
+        tx /= tl;
+        ty /= tl;
+        tz /= tl;
+        tan[o] = tx;
+        tan[o + 1] = ty;
+        tan[o + 2] = tz;
+      }
+      // re-frame so the next iteration measures against the new B
+      computeFrames(M, E, pos, tan, this.rTwist, this.rN, this.rB, this.seed.x, this.seed.y, this.seed.z);
     }
+    return moved;
   }
+
+  /** worst half-width * edge-wise curvature after relaxation (1 = inner edge reaches the centre of curvature) */
+  pinch = 0;
 
   /** ring centre z range, handy for layering decisions */
   get maxZ(): number {

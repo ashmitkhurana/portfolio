@@ -1,93 +1,154 @@
 # Ribbon engine
 
 One continuous, lacquered-orange 3D ribbon rendered with three.js that weaves in
-front of and behind real HTML. Framework-agnostic core in `lib/ribbon/`, React
-mount in `components/ribbon/RibbonStage.tsx`, lab page at `/lab` (dev only, or
-`NEXT_PUBLIC_LAB=1` for a local production build).
+front of and behind real HTML. DOM-free render core in `lib/ribbon/core.ts`, a
+thin DOM adapter in `engine.ts`, React mount in `components/ribbon/RibbonStage.tsx`,
+lab page at `/lab` (dev only, or `NEXT_PUBLIC_LAB=1` for a local production build).
 
-## Layers
+## Render once, composite twice
 
 ```
-z=3  front <canvas>  fixed, pointer-events none, TRANSPARENT (stencil + alpha)
+z=3  front <canvas>  fixed, pointer-events none, TRANSPARENT  (ImageBitmapRenderingContext)
 z=2  HTML content    transparent background
-z=0  back  <canvas>  fixed, OPAQUE: background (+ grain, tight bounce glow), floor shadow, ribbon
+z=0  back  <canvas>  fixed, OPAQUE                            (ImageBitmapRenderingContext)
 ```
 
-One CPU simulation, two `WebGLRenderer`s, each with its own scene/mesh sharing
-the SAME `BufferGeometry` (typed arrays are updated in place once per frame,
-both contexts upload them). Same camera on both.
+ONE `WebGLRenderer` lives on an `OffscreenCanvas` (WebGL2, `antialias:false`,
+premultiplied alpha; MSAA happens in render targets). Per frame, in the same rAF:
 
-## Partition rule (every ribbon pixel drawn once, except a 3px seam band)
+1. shadow map (once; light + ribbon on layer 0)
+2. **ribbon pass** -> `rtRibbon`, an MSAA MRT with two attachments and ONE shared
+   depth buffer: attachment 0 = tone-mapped premultiplied colour (RGBA8 sRGB),
+   attachment 1 = **front mask** (R8). Full physical shading happens once.
+3. shadow catcher + blur (contact shadows) and, on `high`, a half-res bloom
+4. **back composite** (default framebuffer): backdrop (bg, grain, bounce glow,
+   floor/wall shadow receivers on layer 1) then the ribbon with its back weight
+   -> `offscreen.transferToImageBitmap()` -> `back.transferFromImageBitmap()`
+5. **front composite**: ribbon * front weight + contact shadows
+   -> `transferToImageBitmap()` -> `front.transferFromImageBitmap()`
 
-Depth proxies are DOM elements with `data-ribbon-proxy`, optional
-`data-ribbon-depth` (world z, default 0) and `data-ribbon-radius` (px).
-`proxies.ts` measures them (cached; re-measured on resize / fonts / `invalidate()`;
-scroll applied per frame) and feeds `uProxyRects/Depth/Radius/Count` (max 16).
+Both composites read the SAME `rtRibbon` texels, so shading is identical on both
+canvases. Nothing in `core.ts` touches the DOM: the adapter passes plain data in
+(size, DPR, proxy rects as typed arrays, time) and moves the bitmaps out, so the
+core can move into a Worker unchanged (it is on the main thread for now).
 
-In the ribbon fragment shader (`material.ts`), per fragment:
+### Mask and depth: MRT with a shared depth buffer
 
-| state | meaning | back canvas | front canvas |
-|---|---|---|---|
-| 0 | outside every proxy rect | draws | discard |
-| 1 | inside a rect, ribbon BEHIND it | draws (HTML covers it, gaps show it) | alpha 0 + stencil mark |
-| 2 | in front, within 3px of the rect edge | draws | draws (overlap hides the filtered seam when canvases are scaled) |
-| 3 | in front, deep inside the rect | discard | draws |
+three r184 supports multisampled MRT (`WebGLRenderTarget({count: 2, samples: 4})`,
+per-attachment renderbuffers + per-attachment resolve blit; the attachments may
+have different formats). The mask is written by the same fragment that wins the
+depth test, so a strand hidden behind another strand can never leak into the mask
+and no second geometry pass is needed. A depth-texture share between two MSAA
+targets is not possible in WebGL2 (multisampled depth is a renderbuffer), and
+re-rendering the mask with `EQUAL` depth would double the geometry cost. The
+depth renderbuffer is not resolved (`resolveDepthBuffer = false`).
 
-The stencil mark keeps contact-shadow planes from veiling ribbon that is behind
-them. The front pass is scissored to each proxy rect (one render per rect), so
-its fill cost is the sum of the proxy areas. It is skipped entirely when no
-ribbon is in front of the nearest proxy.
+Mask value per fragment (`material.ts`, `ribFrontMask`): max over proxies of
+`inside(rect SDF, 1 device-px AA ramp) * front(z > proxyDepth, 1 px ramp from
+fwidth(z))`. After the MSAA resolve it is coverage-weighted, so the composites
+divide by the resolved alpha: `m = mask / a`.
 
-`debug.partition` tints back-drawn red / front-drawn blue; `debug.proxyOutlines`
-outlines proxies (`html[data-ribbon-debug]`).
+### Seams: why they cannot appear
+
+Front weight `wf = remap(m)`. Back weight `wb = (1 - wf) / (1 - a * wf)` (and
+`1` where `a = 1`): this is the exact complement under premultiplied "over"
+(front over HTML over back reproduces `c a + bg (1 - a)` for every `a`, `wf`).
+For opaque ribbon pixels the back canvas simply holds the whole ribbon, the
+front canvas adds identical colour on top, and the front weight only decides
+what covers the HTML. So even when the browser resamples the two canvases
+independently (fractional DPR, e.g. cap 1.5 on a 2x display) the proxy-rect
+boundaries show no seam. (An earlier "pure complement" `wb = 1 - wf` version
+showed a 25% dark line under resampling; that is why the formula is what it is.)
+There is no overlap band and no stencil.
+
+### Fallback
+
+If OffscreenCanvas WebGL2 / `ImageBitmapRenderingContext` is missing
+(`RibbonEngine.supportsWeave()`), `RibbonStage` mounts only the front canvas and
+the core renders into it directly in "single" mode: ribbon (+ floor shadow) over
+everything, no weaving, no backdrop (the page `--bg` shows). One `console.info`.
+
+## Proxies
+
+DOM elements with `data-ribbon-proxy`, optional `data-ribbon-depth` (world z,
+default 0), `data-ribbon-radius` (px) and `data-ribbon-pad` (px the rect is grown
+on every side, for glyph overhang with negative letter-spacing). `proxies.ts`
+measures them (cached; re-measured on resize / fonts / `invalidate()`; scroll is
+applied per frame) into typed arrays (`ProxyData`, max 16).
+
+## Contact shadows on HTML (`catcher`, `passes.ts`)
+
+* **Catcher**: the ribbon is rendered at `contact.resolution` (default 1/4) of the
+  drawing buffer, no depth test, MAX blending, fragments with `z > proxyDepth`
+  only, `occlusion = exp(-height / falloff)`. Proxies are grouped by depth (max 2
+  groups, one RG channel pair each).
+* **Offset**: each vertex is shifted in screen space along the (projected) light
+  direction, proportional to its height, scaled by `contact.offset`.
+* **Blur**: separable gaussian, two radii by height through channels: the
+  "contact" channel (weight `o * (1-k)`) is blurred with `blurContact`, the
+  "high" channel (`o * k`) with `blurHigh`; `k` grows with height.
+* **Composite**: black with alpha `shadow * strength` (default 0.28), only inside
+  the proxy rounded-rect SDF (fades over `contact.pad`), never over ribbon visible
+  on the back layer; the front ribbon is drawn over it. Dithered.
 
 ## Camera mapping
 
 1 world unit = 1 CSS px at z = 0. Perspective camera, fov 28 (tweakable) at
 `z = (viewH/2)/tan(fov/2)`, looking at the origin; origin = viewport centre,
-+y up. `engine.domToWorld(x, y)` converts viewport CSS px. The ribbon width
-scales with viewport width (0.5x..1.4x of `geometry.width` at 1440).
++y up. `engine.domToWorld(x, y)` converts viewport CSS px. The ribbon width and
+bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 
-## Rendering paths and quality tiers (`settings.ts`)
+## Quality tiers and perf (`settings.ts`)
 
-* `medium` (default): direct rendering to the canvas, native MSAA, renderer
-  tone mapping (Neutral keeps orange saturated; AgX turns it salmon), DPR cap
-  1.5, 600 rings, 1024 shadow map. ~60 fps at 2000x1250 on an M-series GPU.
-* `low`: DPR 1, 400 rings, no contact shadows.
-* `high`: `postprocessing` composer (HalfFloat MSAA + bloom), DPR 2, 900
-  rings. Heavy (~30 fps at 2000x1250).
-* Adaptive resolution drops the pixel ratio by 0.25 steps (floor 1) when
-  frames stay over 20 ms and probes back up every ~20 s.
-* The PMREM environment is built once per renderer (and debounced on edits),
-  never per frame.
+* `low`: DPR 1, MSAA 2x, 400 rings, no contact shadows.
+* `medium` (default): DPR cap 1.5, MSAA 4x, 600 rings, 1024 shadow map, contact shadows.
+* `high`: DPR cap 2, 900 rings, 2048 shadow map, bloom.
+* Adaptive resolution drops the pixel ratio by 0.25 steps (floor 1) when frames
+  stay long and probes back up every ~20 s.
+* The PMREM environment is built once (debounced on edits), never per frame.
+* The ribbon target is RGBA8 *sRGB* (tone mapping happens in the ribbon shader so
+  MSAA resolves LDR, no aliased HDR rims): half the MSAA bandwidth of HalfFloat.
+  MSAA is the dominant GPU cost (see numbers in the commit message / lab HUD).
 
-## Material and light
+## Material and look
 
-`MeshPhysicalMaterial` (lacquer: metalness 0.35, clearcoat 1) patched with
-`onBeforeCompile`: face A/B colour mix from `aFace`, partition, depth shade
-(darkens ribbon behind the content plane, a cheap AO substitute), debug tint.
-Environment (`environment.ts`) is a mostly dark procedural studio: a few large
-HDR panels with gaussian falloff (no hard edges, so no zebra bands), baked to a
-512px PMREM. One directional light casts self-shadows (PCF; three r184
-deprecated PCFSoftShadowMap) fitted to a quantised bounding sphere.
-Background colour, film grain (background only), dither and the warm bounce
-glow are one fullscreen shader in `backdrop.ts` that outputs display-referred
-colour, so the page background is exactly `--bg`.
+`MeshPhysicalMaterial` patched via `onBeforeCompile`, one draw call:
+
+* Flat band profile: face A (flat), left rim, face B (flat), right rim; tiny
+  corner bevels (`geometry.edgeBevel`, default 0.6 px, up to T/2 = fully round).
+  Vertices are split at the creases and `aFace` is a HARD per-vertex value
+  (+1 / -1 / 0), so no normal or colour bleeds across the edge. Each flat face is
+  subdivided (`widthSegments`) so twisted faces stay smooth.
+* Per-face `color / roughness / clearcoat / clearcoatRoughness / specularColor`
+  (`material.faceA`, `material.faceB`) plus `material.edge` (`faceA | faceB | custom`
+  and a colour). Presets in `FACE_PRESETS`: Mockup (default), Duotone, Ember, Mono.
+* Warm look: highlights are graded towards amber and tone-mapped with a
+  warm-neutral curve (`RibWarmNeutral`: Khronos Neutral whose over-exposure
+  desaturates towards amber, near-white only in a tiny core); this avoids the pink
+  that white desaturation gives a red-orange base. `depthShade` is a subtle depth cue.
+* Environment (`environment.ts`): mostly dark procedural studio of HDR softboxes
+  baked to a 512px PMREM. One directional light casts self-shadows (PCF).
+* Background colour, film grain (background only), dither and the warm bounce
+  glow are one fullscreen shader in `backdrop.ts` (display-referred).
 
 ## Geometry
 
 `frames.ts`: centripetal Catmull-Rom, resampled by arc length; rotation
-minimising frames (double reflection) + twist. `geometry.ts`: rounded-rect
-profile swept along the rings, analytic profile normals + true surface
-derivative along the length, elliptical end caps, hairpin guard that narrows
-the ribbon where edge-wise curvature would self-intersect. Everything is
-preallocated and updated in place.
+minimising frames (double reflection) + twist. `geometry.ts`: band swept along
+the rings, analytic profile normals + true surface derivative along the length.
+Width is constant: a tight in-plane bend is relaxed by smoothing the centreline
+(`relaxPath`, weights follow `halfWidth * curvature`), never by narrowing.
+Semicircular plan caps with a domed section close both ends.
 
 ## Files
 
-`settings.ts` types/defaults/tiers - `engine.ts` loop/renderers/resize - `sim.ts`
-springs + idle - `noise.ts` simplex/curl - `frames.ts` curve + frames -
-`geometry.ts` sweep - `material.ts` shader patch - `environment.ts` PMREM studio -
-`backdrop.ts` bg/floor/wall - `contact.ts` contact shadows on content -
-`proxies.ts` depth proxies - `post.ts` optional composer - `gpuTimer.ts` HUD
-timing - `testPoses.ts` lab poses.
+`types.ts` plain shared data - `settings.ts` types/defaults/tiers/face presets -
+`core.ts` DOM-free pipeline - `engine.ts` DOM adapter (canvases, loop, adaptive DPR) -
+`passes.ts` catcher/blur/bloom/composite shaders - `material.ts` ribbon shader patch -
+`sim.ts` springs + idle - `noise.ts` - `frames.ts` curve + frames - `geometry.ts` sweep -
+`environment.ts` PMREM studio - `backdrop.ts` bg/floor/wall - `proxies.ts` DOM proxies -
+`gpuTimer.ts` HUD timing - `testPoses.ts` lab poses (`sweep`, `twists` with clean half-twists, `knot`).
+
+Debug (lab panel, Debug folder): `view` = mask (red behind / blue in front, proxy
+outlines) | ribbon RT only | shadow catcher; `proxyOutlines`, `hud`, `gpuTimer`
+(GPU queries, off by default), `wireframe`.
