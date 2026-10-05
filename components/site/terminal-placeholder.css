@@ -1,0 +1,90 @@
+/* Terminal window chrome, shared by the placeholder dialog and the static home-section terminal */
+
+.terminal-dots {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.terminal-dots i {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.terminal-dots i:nth-child(2) {
+  background: #febc2e;
+}
+
+.terminal-dots i:nth-child(3) {
+  background: #28c840;
+}
+
+.terminal-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  width: min(34rem, calc(100vw - 2 * var(--gutter)));
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  overflow: visible;
+}
+
+.terminal-dialog::backdrop {
+  background: rgba(13, 12, 11, 0.78);
+}
+
+.terminal-dialog__window {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--bg-raised);
+  overflow: hidden;
+  box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.6);
+}
+
+.terminal-dialog__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-xs) var(--space-s);
+  border-bottom: 1px solid var(--line);
+}
+
+.terminal-dialog__close {
+  margin-left: auto;
+  padding: var(--space-3xs) var(--space-xs);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+}
+
+.terminal-dialog__close:hover {
+  border-color: var(--fg-muted);
+}
+
+.terminal-dialog__body {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-l) var(--space-m) var(--space-xl);
+}
+
+.terminal-dialog__prompt {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--text-m);
+  color: var(--accent);
+}
+
+.terminal-dialog__title {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}

@@ -1,0 +1,149 @@
+/* Shared UI primitives used across routes (loaded once from the root layout). */
+
+/* every section's scroll room comes from --section-h (set per section from the --h-* tokens) */
+.section {
+  position: relative;
+  min-height: var(--section-h, 100svh);
+  background: transparent;
+}
+
+/* email link + copy button (used here and on /about) */
+.copy-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-s);
+}
+
+.copy-email__link {
+  font-size: clamp(1.375rem, 0.2rem + 5.2vw, 4rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-fast) linear;
+}
+
+.copy-email__link:hover {
+  color: var(--accent);
+}
+
+.copy-email__button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  transition:
+    border-color var(--dur-fast) linear,
+    background-color var(--dur-fast) linear;
+}
+
+.copy-email__button:hover {
+  border-color: var(--fg-muted);
+  background: rgba(244, 239, 231, 0.05);
+}
+
+.copy-email__button svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.copy-email__status {
+  min-width: 7ch;
+  color: var(--accent);
+}
+
+.contact__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-l);
+  margin-top: var(--space-xs);
+}
+
+/* ── chips ─────────────────────────────────────────────── */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.chip {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: var(--text-s);
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+/* ── inline arrow link (mono label) ────────────────────── */
+
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  color: var(--fg);
+  transition: color var(--dur-fast) linear;
+}
+
+.link-arrow:hover {
+  color: var(--accent);
+}
+
+.link-arrow svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  transition: transform 240ms var(--ease-out);
+}
+
+.link-arrow:hover svg {
+  transform: translateX(0.2em);
+}
+
+/* buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.85rem 1.4rem;
+  border: 1px solid var(--fg);
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: var(--text-s);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    background-color var(--dur-fast) linear,
+    color var(--dur-fast) linear,
+    border-color var(--dur-fast) linear;
+}
+
+.button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.button--ghost:hover {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.button svg {
+  width: 1.1em;
+  height: 1.1em;
+}

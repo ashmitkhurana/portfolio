@@ -1,0 +1,49 @@
+/* Giant, heavy, tight grotesk display type */
+
+.display {
+  --_size: var(--display-l);
+  margin: 0;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: var(--display-weight);
+  font-size: var(--_size);
+  letter-spacing: var(--display-tracking);
+  line-height: var(--display-leading);
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.display[data-size="hero"] {
+  --_size: var(--display-hero);
+}
+
+.display[data-size="xl"] {
+  --_size: var(--display-xl);
+}
+
+.display[data-size="l"] {
+  --_size: var(--display-l);
+}
+
+.display[data-size="m"] {
+  --_size: var(--display-m);
+}
+
+/* variable-length titles: never wider than the viewport (--em-w = estimated line width in em) */
+.display[data-fit] {
+  font-size: min(
+    var(--_size),
+    calc((100vw - 2 * var(--gutter)) / var(--em-w))
+  );
+}
+
+.display__line {
+  display: block;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.glyph {
+  display: inline;
+}
