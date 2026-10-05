@@ -1,78 +1,60 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import SmoothScrollProvider from "@/app/components/SmoothScrollProvider";
-import "./globals.css";
+import type { Metadata, Viewport } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import "./styles/tokens.css";
+import "./styles/base.css";
+
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: "variable",
+  axes: ["opsz"],
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+const title = "Ashmit Khurana — Full-Stack Developer";
+const description =
+  "Full-stack developer building across interfaces, systems, and AI.";
 
 export const metadata: Metadata = {
-  title: "Ashmit Khurana — Frontend Engineer",
-  description:
-    "Frontend Engineer specializing in real-time systems and Web3 products. Building fast, production-grade interfaces with React, Next.js, and TypeScript.",
+  metadataBase: new URL("https://ashmitkhurana.com"),
+  title,
+  description,
   openGraph: {
-    title: "Ashmit Khurana — Frontend Engineer",
-    description:
-      "Frontend Engineer specializing in real-time systems and Web3 products.",
+    title,
+    description,
     url: "https://ashmitkhurana.com",
     siteName: "Ashmit Khurana",
-    locale: "en_US",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ashmit Khurana — Frontend Engineer",
-    description:
-      "Frontend Engineer specializing in real-time systems and Web3 products.",
+    title,
+    description,
+  },
+  icons: {
+    icon: "/favicon.svg",
   },
 };
 
-const navLinks = [
-  { label: "Work",       href: "#work" },
-  { label: "About",      href: "#about" },
-  { label: "Experience", href: "#experience" },
-  { label: "Contact",    href: "#contact" },
-];
+export const viewport: Viewport = {
+  themeColor: "#0d0c0b",
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="bg-background text-foreground antialiased">
-        <SmoothScrollProvider>
-
-          {/* ── Nav ─────────────────────────────── */}
-          <nav className="fixed top-0 left-0 right-0 z-50 mix-blend-difference">
-            <div className="section-container h-16 flex items-center justify-between">
-              <Link
-                href="/"
-                className="font-display font-bold text-lg text-white tracking-tight hover:opacity-70 transition-opacity hidden md:block"
-              >
-                AK
-              </Link>
-
-              <div className="hidden md:flex items-center gap-8">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    className="text-sm text-white/60 hover:text-white transition-colors duration-200 tracking-wide"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-
-              <a
-                href="mailto:ashmit.khu@gmail.com"
-                className="text-sm text-white border border-white/20 px-4 py-1.5 rounded-full hover:bg-white hover:text-black transition-all duration-200 hidden md:block"
-              >
-                Hire Me
-              </a>
-            </div>
-          </nav>
-
-          {children}
-        </SmoothScrollProvider>
-      </body>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
