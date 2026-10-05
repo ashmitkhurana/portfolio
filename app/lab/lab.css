@@ -101,7 +101,7 @@
   position: fixed;
   top: 8px;
   left: 8px;
-  z-index: 100;
+  z-index: 2147483000;
   padding: 6px 9px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.72);
@@ -115,7 +115,7 @@
   position: fixed;
   top: 8px;
   right: 8px;
-  z-index: 100;
+  z-index: 2147483000;
   width: 300px;
   max-height: calc(100svh - 16px);
   overflow-y: auto;
