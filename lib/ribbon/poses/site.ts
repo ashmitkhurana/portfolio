@@ -45,6 +45,7 @@ export function resolveNamedPose(name: string, e: PoseTarget): ResolvedNamedPose
     variant.points,
     { viewW: e.width, viewH: e.height, anchor, fov: e.settings.camera.fov },
     e.sim.count,
+    file.orientation ?? "curvature",
   );
   const r = (v: number) => Math.round(v * 2) / 2;
   const signature = [e.width, e.height, r(anchor.left), r(anchor.top), r(anchor.width), r(anchor.height)].join(",");

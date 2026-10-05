@@ -1,4 +1,5 @@
 /** Typed (de)serialisation of pose files: tolerant loader, compact formatter. */
+import { DEFAULT_FOLD_ANGLE, DEFAULT_FOLD_RADIUS } from "../fold";
 import {
   SCREEN_CLASSES,
   type PoseFile,
@@ -12,12 +13,16 @@ const num = (v: unknown, d: number): number =>
 
 export function parsePoint(raw: unknown): PosePoint {
   const r = (raw ?? {}) as Record<string, unknown>;
+  const f = r.fold as Record<string, unknown> | undefined | null;
   return {
     x: num(r.x, 0),
     y: num(r.y, 0),
     z: num(r.z, 0),
     twist: num(r.twist, 0),
     width: num(r.width, 1),
+    ...(f && typeof f === "object"
+      ? { fold: { angle: num(f.angle, DEFAULT_FOLD_ANGLE), radius: num(f.radius, DEFAULT_FOLD_RADIUS) } }
+      : {}),
   };
 }
 
@@ -38,6 +43,7 @@ export function parsePoseFile(raw: unknown): PoseFile {
     name: typeof r.name === "string" && r.name ? r.name : "untitled",
     anchor: typeof r.anchor === "string" && r.anchor ? r.anchor : "hero-name",
     ...(typeof r.notes === "string" ? { notes: r.notes } : {}),
+    orientation: r.orientation === "rmf" ? "rmf" : "curvature",
     variants,
   };
 }
@@ -51,6 +57,7 @@ export function formatPoseJson(file: PoseFile): string {
   out.push(`  "name": ${JSON.stringify(file.name)},`);
   out.push(`  "anchor": ${JSON.stringify(file.anchor)},`);
   if (file.notes) out.push(`  "notes": ${JSON.stringify(file.notes)},`);
+  out.push(`  "orientation": ${JSON.stringify(file.orientation ?? "curvature")},`);
   out.push(`  "variants": {`);
   const classes = SCREEN_CLASSES.filter((c): c is ScreenClass => !!file.variants[c]);
   classes.forEach((cls, ci) => {
@@ -58,8 +65,9 @@ export function formatPoseJson(file: PoseFile): string {
     out.push(`    ${JSON.stringify(cls)}: {`);
     out.push(`      "points": [`);
     v.points.forEach((p, i) => {
+      const fold = p.fold ? `, "fold": { "angle": ${r4(p.fold.angle)}, "radius": ${r4(p.fold.radius)} }` : "";
       out.push(
-        `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)} }${i < v.points.length - 1 ? "," : ""}`,
+        `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)}${fold} }${i < v.points.length - 1 ? "," : ""}`,
       );
     });
     out.push(`      ]`);

@@ -22,7 +22,18 @@
  * - All buffers are preallocated; `update()` rewrites them in place.
  */
 import * as THREE from "three";
-import { RibbonCurve, hyp3, transportFrames, twistFrames } from "./frames";
+import {
+  CurvatureFramer,
+  DEFAULT_CURVATURE_FRAME,
+  limitTwistRate,
+  RibbonCurve,
+  hyp3,
+  transportFrames,
+  twistFrames,
+  type CurvatureFrameOptions,
+  type FrameMode,
+} from "./frames";
+import { applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
 import type { RibbonSettings } from "./settings";
 import type { SweepUniforms } from "./sweep";
 
@@ -160,6 +171,56 @@ export class RibbonGeometry {
 
   /** seed for the initial frame normal (towards camera by default) */
   seed = new THREE.Vector3(0, 0, 1);
+  /**
+   * How the band is oriented before the per-point twist: `rmf` (rotation-minimising,
+   * the lab poses) or `curvature` (the face normal follows the curve's principal
+   * normal: loops wrap like bracelets). Set by the pose (`RibbonPose.orientation`).
+   */
+  frameMode: FrameMode = "rmf";
+  /** tuning of the curvature frames (the width is filled in per update) */
+  frameOpts: Omit<CurvatureFrameOptions, "width"> = {
+    smooth: DEFAULT_CURVATURE_FRAME.smooth,
+    radiusFull: DEFAULT_CURVATURE_FRAME.radiusFull,
+    radiusNone: DEFAULT_CURVATURE_FRAME.radiusNone,
+    maxRate: DEFAULT_CURVATURE_FRAME.maxRate,
+    twistRate: DEFAULT_CURVATURE_FRAME.twistRate,
+  };
+  private readonly framer = new CurvatureFramer();
+
+  /** soft folds (see fold.ts), sorted by `at`; set from the pose */
+  folds: FoldSpec[] = [];
+  /** what the last update built (for the editor's diagnostics) */
+  readonly foldReports: FoldReport[] = [];
+  private rShear!: Float32Array; // per-ring half-width multiplier (folds shear the rulings)
+  private rFoldMask!: Uint8Array; // rings inside a fold zone (body index)
+  private rOvW!: Float32Array; // curvature frames: fold zone weight (0..1) and wanted normal
+  private rOvN!: Float32Array;
+
+  setFolds(list: readonly FoldSpec[] | undefined): void {
+    this.folds = list ? [...list].sort((a, b) => a.at - b.at) : [];
+  }
+  private readonly seedArr: [number, number, number] = [0, 0, 1];
+
+  /** untwisted frame normals of the body rings, from ring `from` (rmf can resume, curvature recomputes) */
+  private frameN0(M: number, E: number, from: number): void {
+    if (this.frameMode === "curvature") {
+      this.seedArr[0] = this.seed.x;
+      this.seedArr[1] = this.seed.y;
+      this.seedArr[2] = this.seed.z;
+      this.framer.compute(
+        M,
+        E,
+        this.rPos,
+        this.rTan,
+        this.rN0,
+        this.seedArr,
+        { ...this.frameOpts, width: this.params.width },
+        this.folds.length ? { w: this.rOvW, n: this.rOvN } : null,
+      );
+    } else {
+      transportFrames(M, E, this.rPos, this.rTan, this.rN0, this.seed.x, this.seed.y, this.seed.z, from);
+    }
+  }
 
   constructor(params: GeometryParams, maxControlPoints = 128) {
     this.params = { ...params };
@@ -228,6 +289,10 @@ export class RibbonGeometry {
     this.rPosTmp = new Float32Array(M * 3);
     this.rPre = new Float64Array(M + 1);
     this.rPre3 = new Float64Array((M + 1) * 3);
+    this.rShear = new Float32Array(R).fill(1);
+    this.rFoldMask = new Uint8Array(M);
+    this.rOvW = new Float32Array(M);
+    this.rOvN = new Float32Array(M * 3);
 
     // ring texture: (re)created whenever the ring count changes
     const old = this.sweep.uRingTex.value;
@@ -326,11 +391,25 @@ export class RibbonGeometry {
 
     this.curve.setControl(ctrlPos, ctrlTwist, ctrlWidth, n);
     this.curve.sampleRings(M, E, rPos, rTan, rTwist, rWidth);
+    this.rShear.fill(1);
+    const ringDs = this.curve.totalLength / Math.max(M - 1, 1);
+    if (this.folds.length) {
+      // keep the relaxation and the curvature frames out of the fold zones (the fold builds those rings)
+      foldMask(this.rFoldMask, M, this.folds, P.width, ringDs);
+      foldOverrides(this.rOvW, this.rOvN, { M, E, width: P.width, ds: ringDs, rWidth, pos: rPos, tan: rTan }, this.folds);
+    } else {
+      this.rFoldMask.fill(0);
+    }
+    if (this.frameMode === "curvature") {
+      // curvature frames: an authored roll may change over a short stretch; bound its rate
+      const ds = this.curve.totalLength / Math.max(M - 1, 1);
+      limitTwistRate(rTwist, M, E, ds, this.frameOpts.twistRate / Math.max(this.params.width, 1), this.rSm);
+    }
     for (let i = E; i < E + M; i++) {
       this.rTwC[i] = Math.cos(rTwist[i]);
       this.rTwS[i] = Math.sin(rTwist[i]);
     }
-    transportFrames(M, E, rPos, rTan, this.rN0, this.seed.x, this.seed.y, this.seed.z);
+    this.frameN0(M, E, 0);
     twistFrames(0, M, E, rTan, this.rN0, this.rTwC, this.rTwS, rN, rB);
 
     // taper (along body arc length)
@@ -347,6 +426,28 @@ export class RibbonGeometry {
     // keep the width constant; relax the PATH where a tight in-plane bend
     // would make the inner edge pinch (needs the frames, so re-frame after)
     this.relaxPath(M, E);
+
+    // soft folds: replace the rings of each fold zone and carry the face flip along the rest
+    this.foldReports.length = 0;
+    if (this.folds.length) {
+      applyFolds(
+        {
+          M,
+          E,
+          width: P.width,
+          ht: prof.ht,
+          ds: ringDs,
+          rWidth,
+          pos: rPos,
+          tan: rTan,
+          N: rN,
+          B: rB,
+          hwScale: this.rShear,
+        },
+        this.folds,
+        this.foldReports,
+      );
+    }
 
     // round caps: semicircular plan (radius = half width) and a domed section,
     // built by extrapolating the end rings along their tangents
@@ -408,7 +509,7 @@ export class RibbonGeometry {
       const nz = rN[o3 + 2];
       const sc = rScale[i];
       const sT = rScaleT[i];
-      const hw = Math.max(0.5 * P.width * rWidth[i], r + 1e-3);
+      const hw = Math.max(0.5 * P.width * rWidth[i] * this.rShear[i], r + 1e-3);
       const o = i * 4;
       rd[o] = cxp;
       rd[o + 1] = cyp;
@@ -509,7 +610,7 @@ export class RibbonGeometry {
         const hw = 0.5 * P.width * rWidth[E + i];
         if (hw * kb[i] > worst) worst = hw * kb[i];
         const e = (hw * kb[i]) / SAFE - 1 - RibbonGeometry.relaxTol; // > 0 where the band would pinch
-        const v = e <= 0 ? 0 : Math.min(e * 2, 1);
+        const v = e <= 0 || this.rFoldMask[i] ? 0 : Math.min(e * 2, 1);
         w[i] = v;
         if (v > 0) any = true;
       }
@@ -599,8 +700,8 @@ export class RibbonGeometry {
       // re-frame so the next iteration measures against the new B
       // (only rings from the first edited one onwards can change)
       const from = Math.max(0, iLo - 1);
-      transportFrames(M, E, pos, tan, this.rN0, this.seed.x, this.seed.y, this.seed.z, from);
-      twistFrames(from, M, E, tan, this.rN0, this.rTwC, this.rTwS, this.rN, this.rB);
+      this.frameN0(M, E, this.frameMode === "curvature" ? 0 : from);
+      twistFrames(this.frameMode === "curvature" ? 0 : from, M, E, tan, this.rN0, this.rTwC, this.rTwS, this.rN, this.rB);
     }
     return moved;
   }

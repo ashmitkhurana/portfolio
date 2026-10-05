@@ -57,6 +57,13 @@ export class RibbonCurve {
     this.buildTable();
   }
 
+  /** arc-length fraction (0..1) at control point `k` */
+  arcFractionAtControl(k: number): number {
+    const t = this.totalLength || 1;
+    const idx = Math.min(Math.max(k, 0), this.n - 1) * DENSE;
+    return this.cum[idx] / t;
+  }
+
   private px(i: number, a: number): number {
     const n = this.n;
     if (i < 0) {
@@ -359,5 +366,235 @@ export function twistFrames(
     outB[o] = -nx * sn + bx * cs;
     outB[o + 1] = -ny * sn + by * cs;
     outB[o + 2] = -nz * sn + bz * cs;
+  }
+}
+
+/** how the band is oriented along the curve before the per-point roll (`twist`) is applied */
+export type FrameMode = "rmf" | "curvature";
+
+export interface CurvatureFrameOptions {
+  /** ribbon width, world px (all the other lengths are relative to it) */
+  width: number;
+  /** arc length over which the curvature vector is smoothed, in widths */
+  smooth: number;
+  /** radius of curvature (in widths) below which the band follows the curvature fully ... */
+  radiusFull: number;
+  /** ... and above which it stops following (it then keeps its roll: a rotation-minimising frame) */
+  radiusNone: number;
+  /** fastest roll of the frame relative to the rotation-minimising one, radians per width of arc length */
+  maxRate: number;
+  /** fastest change of the authored per-point roll (`twist`), radians per width of arc length (see `limitTwistRate`) */
+  twistRate: number;
+}
+
+export const DEFAULT_CURVATURE_FRAME: CurvatureFrameOptions = {
+  width: 110,
+  smooth: 1.2,
+  radiusFull: 4,
+  radiusNone: 16,
+  maxRate: 0.8,
+  twistRate: 1.5,
+};
+
+const wrapHalfPi = (a: number): number => {
+  // reduce to (-pi/2, pi/2]: the band is the same with N or -N, we pick the branch nearest the previous ring
+  const r = a - Math.PI * Math.round(a / Math.PI);
+  return r;
+};
+
+/**
+ * Curvature-following frames. The face normal N points to the centre of curvature,
+ * so a loop wraps like a bracelet (the width runs along the loop's axis) and the
+ * dark inner face shows inside it.
+ *
+ * Built on top of the rotation-minimising frame (RMF): the result is the RMF rolled
+ * about the tangent by an angle theta(s). theta follows the angle of the (smoothed)
+ * principal normal where the curve is clearly bent, and is held where it is nearly
+ * straight (weight -> 0: a plain RMF, which is continuous by construction). The
+ * principal normal is only defined up to sign at inflections, so the branch (N or -N)
+ * nearest the previous ring is taken: the frame never flips. theta changes at most
+ * `maxRate` per width of arc length, so the band can never pinch or whip.
+ *
+ * Writes the UNTWISTED normals into `outN0` (same contract as `transportFrames`):
+ * `twistFrames` then applies the per-point roll as an offset on top of it.
+ */
+export class CurvatureFramer {
+  private cap = 0;
+  private kv = new Float32Array(0);
+  private tmp = new Float32Array(0);
+  private pre = new Float64Array(0);
+
+  private ensure(m: number): void {
+    if (this.cap >= m) return;
+    this.cap = m;
+    this.kv = new Float32Array(m * 3);
+    this.tmp = new Float32Array(m * 3);
+    this.pre = new Float64Array((m + 1) * 3);
+  }
+
+  /** box blur of a 3-vector per ring (clamped window +-h) */
+  private blur(src: Float32Array, dst: Float32Array, m: number, h: number): void {
+    const p = this.pre;
+    p[0] = p[1] = p[2] = 0;
+    for (let i = 0; i < m; i++) {
+      p[(i + 1) * 3] = p[i * 3] + src[i * 3];
+      p[(i + 1) * 3 + 1] = p[i * 3 + 1] + src[i * 3 + 1];
+      p[(i + 1) * 3 + 2] = p[i * 3 + 2] + src[i * 3 + 2];
+    }
+    for (let i = 0; i < m; i++) {
+      const lo = Math.max(0, i - h);
+      const hi = Math.min(m - 1, i + h);
+      const c = hi - lo + 1;
+      dst[i * 3] = (p[(hi + 1) * 3] - p[lo * 3]) / c;
+      dst[i * 3 + 1] = (p[(hi + 1) * 3 + 1] - p[lo * 3 + 1]) / c;
+      dst[i * 3 + 2] = (p[(hi + 1) * 3 + 2] - p[lo * 3 + 2]) / c;
+    }
+  }
+
+  compute(
+    count: number,
+    offset: number,
+    pos: Float32Array,
+    tan: Float32Array,
+    outN0: Float32Array,
+    seed: [number, number, number],
+    opts: CurvatureFrameOptions,
+    /**
+     * Where a fold takes over the frame: per body ring a 0..1 weight and the band normal wanted there
+     * (xyz triples; only its direction up to sign matters). The roll is steered to that normal instead of
+     * following the curvature (a fold lies IN the plane of its turn, a bracelet bend stands across it).
+     */
+    ov?: { w: ArrayLike<number>; n: ArrayLike<number> } | null,
+  ): void {
+    // 1. the rotation-minimising frame (also the fallback where the curve is straight)
+    transportFrames(count, offset, pos, tan, outN0, seed[0], seed[1], seed[2]);
+    if (count < 4) return;
+    this.ensure(count);
+    const kv = this.kv;
+    const tmp = this.tmp;
+
+    // 2. curvature vector dT/ds (central differences), mean ring spacing
+    let total = 0;
+    for (let i = 1; i < count; i++) {
+      const a = (offset + i - 1) * 3;
+      const b = (offset + i) * 3;
+      total += hyp3(pos[b] - pos[a], pos[b + 1] - pos[a + 1], pos[b + 2] - pos[a + 2]);
+    }
+    const ds = Math.max(total / (count - 1), 1e-6);
+    for (let i = 0; i < count; i++) {
+      const a = (offset + Math.max(i - 1, 0)) * 3;
+      const b = (offset + Math.min(i + 1, count - 1)) * 3;
+      const span = Math.max(Math.min(i + 1, count - 1) - Math.max(i - 1, 0), 1) * ds;
+      kv[i * 3] = (tan[b] - tan[a]) / span;
+      kv[i * 3 + 1] = (tan[b + 1] - tan[a + 1]) / span;
+      kv[i * 3 + 2] = (tan[b + 2] - tan[a + 2]) / span;
+    }
+    // 3. smooth the VECTOR (not the direction): through an inflection it passes
+    // through zero, which is exactly where the weight below drops out
+    const h = Math.max(1, Math.round((opts.smooth * opts.width) / (2 * ds)));
+    this.blur(kv, tmp, count, h);
+    this.blur(tmp, kv, count, h);
+
+    // 4. roll theta relative to the RMF
+    const W = opts.width;
+    const r0 = opts.radiusFull * W;
+    const r1 = Math.max(opts.radiusNone * W, r0 + 1);
+    const maxStep = (opts.maxRate * ds) / W;
+    let theta = 0;
+    for (let i = 0; i < count; i++) {
+      const o = (offset + i) * 3;
+      const tx = tan[o];
+      const ty = tan[o + 1];
+      const tz = tan[o + 2];
+      let kx = kv[i * 3];
+      let ky = kv[i * 3 + 1];
+      let kz = kv[i * 3 + 2];
+      const kd = kx * tx + ky * ty + kz * tz;
+      kx -= kd * tx;
+      ky -= kd * ty;
+      kz -= kd * tz;
+      const m = hyp3(kx, ky, kz);
+      const ow = ov ? ov.w[i] : 0;
+      let wC = 0;
+      let aC = 0;
+      const nrx = outN0[o];
+      const nry = outN0[o + 1];
+      const nrz = outN0[o + 2];
+      // B_r = T x N_r
+      const bx = ty * nrz - tz * nry;
+      const by = tz * nrx - tx * nrz;
+      const bz = tx * nry - ty * nrx;
+      if (m > 1e-9) {
+        const R = 1 / m;
+        const f = Math.min(Math.max((R - r0) / (r1 - r0), 0), 1);
+        wC = 1 - f * f * (3 - 2 * f);
+        aC = Math.atan2((kx * bx + ky * by + kz * bz) / m, (kx * nrx + ky * nry + kz * nrz) / m);
+      }
+      if (ow > 1e-3 && ov) {
+        const q = i * 3;
+        const a0 = Math.atan2(
+          ov.n[q] * bx + ov.n[q + 1] * by + ov.n[q + 2] * bz,
+          ov.n[q] * nrx + ov.n[q + 1] * nry + ov.n[q + 2] * nrz,
+        );
+        // blend the two target angles (shortest way, modulo pi)
+        const aT = wC > 1e-3 ? aC + ow * wrapHalfPi(a0 - aC) : a0;
+        const wE = wC * (1 - ow) + ow;
+        let d = wrapHalfPi(aT - theta) * wE;
+        if (d > maxStep) d = maxStep;
+        else if (d < -maxStep) d = -maxStep;
+        theta += d;
+      } else if (wC > 1e-3) {
+        let d = wrapHalfPi(aC - theta) * wC;
+        if (d > maxStep) d = maxStep;
+        else if (d < -maxStep) d = -maxStep;
+        theta += d;
+      }
+      if (theta !== 0) {
+        const nx = outN0[o];
+        const ny = outN0[o + 1];
+        const nz = outN0[o + 2];
+        const bx = ty * nz - tz * ny;
+        const by = tz * nx - tx * nz;
+        const bz = tx * ny - ty * nx;
+        const c = Math.cos(theta);
+        const s = Math.sin(theta);
+        outN0[o] = nx * c + bx * s;
+        outN0[o + 1] = ny * c + by * s;
+        outN0[o + 2] = nz * c + bz * s;
+      }
+    }
+  }
+}
+
+/**
+ * Bound the rate of change of the per-ring twist (radians per px of arc length) so a roll
+ * authored over a short stretch becomes a gentle half-twist instead of a pinch. A forward and
+ * a backward slew-limited pass are averaged (transitions are centred on where they were
+ * authored and never overshoot). `ds` is the ring spacing in px.
+ */
+export function limitTwistRate(
+  tw: Float32Array,
+  count: number,
+  offset: number,
+  ds: number,
+  maxPerPx: number,
+  scratch: Float32Array,
+): void {
+  const step = maxPerPx * ds;
+  if (!(step > 0) || count < 2) return;
+  // forward
+  let f = tw[offset];
+  scratch[0] = f;
+  for (let i = 1; i < count; i++) {
+    const t = tw[offset + i];
+    f = f + Math.min(Math.max(t - f, -step), step);
+    scratch[i] = f;
+  }
+  // backward
+  let b = tw[offset + count - 1];
+  for (let i = count - 2; i >= 0; i--) {
+    const t = tw[offset + i];
+    b = b + Math.min(Math.max(t - b, -step), step);
+    tw[offset + i] = 0.5 * (scratch[i] + b);
   }
 }

@@ -279,6 +279,8 @@ export class RibbonCore {
   // ---- public API -------------------------------------------------------
 
   setPose(pose: RibbonPose, snap = false): void {
+    this.ribbon.frameMode = pose.orientation ?? "rmf";
+    this.ribbon.setFolds(pose.folds);
     this.sim.setTargetPose(pose.points, pose.twists, pose.widths, snap);
   }
 

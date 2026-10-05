@@ -6,6 +6,7 @@
  * the site mount and the pose editor. Re-run it on resize and when fonts load.
  */
 import { RibbonCurve } from "../frames";
+import type { FoldSpec } from "../fold";
 import type { RibbonPose } from "../types";
 import { DEFAULT_FOV, cameraDistance } from "./camera";
 import type { AnchorRect, PoseFile, PosePoint, PoseVariant, ScreenClass } from "./types";
@@ -143,6 +144,7 @@ export function resolvePose(
   points: readonly PosePoint[],
   ctx: ResolveContext,
   count: number,
+  orientation: "curvature" | "rmf" = "curvature",
 ): RibbonPose {
   const src = resolveControlPoints(points.slice(0, MAX_POSE_POINTS), ctx);
   const n = Math.min(points.length, MAX_POSE_POINTS);
@@ -150,8 +152,14 @@ export function resolvePose(
   const outTan = new Float32Array(count * 3);
   const outTw = new Float32Array(count);
   const outWd = new Float32Array(count);
-  if (n < 2) return { points: outPos, twists: outTw, widths: outWd.fill(1) };
+  if (n < 2) return { points: outPos, twists: outTw, widths: outWd.fill(1), orientation };
   curve.setControl(src.pos, src.twist, src.width, n);
   curve.sampleRings(count, 0, outPos, outTan, outTw, outWd);
-  return { points: outPos, twists: outTw, widths: outWd };
+  // folds: arc fraction of each marked control point along the authored curve
+  const folds: FoldSpec[] = [];
+  for (let i = 0; i < n; i++) {
+    const f = points[i].fold;
+    if (f) folds.push({ at: curve.arcFractionAtControl(i), angle: f.angle, radius: f.radius });
+  }
+  return { points: outPos, twists: outTw, widths: outWd, orientation, ...(folds.length ? { folds } : {}) };
 }

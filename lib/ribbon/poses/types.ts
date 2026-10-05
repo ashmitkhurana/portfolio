@@ -24,8 +24,16 @@ export interface PosePoint {
   x: number;
   y: number;
   z: number;
+  /** roll about the tangent (radians), an offset relative to the frame mode; cumulative */
   twist: number;
   width: number;
+  /**
+   * Marks this point as a soft FOLD: the strip rolls over itself here (face A before, face B after)
+   * instead of bending in its own plane. `angle` is the dihedral angle in radians (pi = lies back
+   * over itself, the sign picks the side it rolls towards), `radius` the radius of the roll in
+   * ribbon widths (0.5 - 1 reads as satin; below ~0.45 it starts to look like a crease).
+   */
+  fold?: { angle: number; radius: number };
 }
 
 export interface PoseVariant {
@@ -38,6 +46,11 @@ export interface PoseFile {
   /** name of the anchor element the points are relative to */
   anchor: string;
   notes?: string;
+  /**
+   * How the band is oriented along the curve (`twist` is a roll relative to it). `curvature` (the default):
+   * the face normal follows the curve's principal normal, so loops wrap like bracelets. `rmf`: rotation-minimising.
+   */
+  orientation?: "curvature" | "rmf";
   /**
    * Per screen class. `tablet` and `ultrawide` may be omitted: a missing tablet
    * is derived (portrait: the phone variant, landscape: the desktop variant),

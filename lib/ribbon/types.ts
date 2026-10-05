@@ -18,9 +18,19 @@ export interface ProxyData {
   minDepth: number;
 }
 
+import type { FoldSpec } from "./fold";
+
 export interface RibbonPose {
   /** xyz triples, world px (1 unit = 1 css px at z = 0, +y up) */
   points: ArrayLike<number>;
+  /** roll about the tangent, radians; an OFFSET relative to the frame chosen by `orientation` */
   twists?: ArrayLike<number>;
   widths?: ArrayLike<number>;
+  /**
+   * `rmf`: rotation-minimising frame (default; the lab poses).
+   * `curvature`: the band's face normal follows the curve's principal normal (loops wrap like bracelets).
+   */
+  orientation?: "rmf" | "curvature";
+  /** soft folds (the strip rolls over itself), positions as arc fractions of the body */
+  folds?: FoldSpec[];
 }
