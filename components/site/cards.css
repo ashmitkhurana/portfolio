@@ -1,0 +1,105 @@
+/* ── Project card: rounded dark surface, hairline border ── */
+
+.project-card {
+  position: relative;
+  height: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--bg-raised);
+  overflow: hidden;
+  transition:
+    border-color 240ms var(--ease-out),
+    background-color 240ms var(--ease-out);
+}
+
+.project-card:hover,
+.project-card:focus-within {
+  border-color: var(--line-strong);
+  background: var(--bg-raised-2);
+}
+
+.project-card__link {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.project-card__link:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-card);
+}
+
+.project-card__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.project-card__image {
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 700ms var(--ease-out);
+}
+
+.project-card:hover .project-card__image {
+  transform: scale(1.03);
+}
+
+.project-card__body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding: var(--space-m);
+  flex: 1;
+}
+
+.project-card__text {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.project-card__title {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.project-card__descriptor {
+  color: var(--fg-faint);
+}
+
+.project-card__summary {
+  margin-top: var(--space-2xs);
+  max-width: 34ch;
+  font-size: var(--text-s);
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+.project-card__arrow {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  transition:
+    background-color 240ms var(--ease-out),
+    color 240ms var(--ease-out),
+    border-color 240ms var(--ease-out);
+}
+
+.project-card:hover .project-card__arrow,
+.project-card:focus-within .project-card__arrow {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+

@@ -1,6 +1,16 @@
 export type Project = {
   slug: string;
+  /** full original title, e.g. "Alpha Block — Crypto Intelligence Platform" */
   title: string;
+  /** short display name, e.g. "Alpha Block" */
+  name: string;
+  /** what it is, e.g. "Crypto intelligence platform" */
+  kind: string;
+  /** one-line card descriptor, e.g. "Crypto intelligence · Real-time data" */
+  descriptor: string;
+  /** one-sentence card summary */
+  summary: string;
+  /** full-length description shown under the case-study title */
   tagline: string;
   problem: string;
   solution: string;
@@ -15,6 +25,10 @@ export const projects: Project[] = [
   {
     slug: "alpha-block",
     title: "Alpha Block — Crypto Intelligence Platform",
+    name: "Alpha Block",
+    kind: "Crypto intelligence platform",
+    descriptor: "Crypto intelligence · Real-time data",
+    summary: "A multichain analytics platform for whale and KOL wallet activity.",
     tagline: "Real-time multichain analytics platform for whale & KOL wallet activity",
     problem:
       "Traders lacked real-time visibility into whale and KOL wallet activity across multiple blockchains, missing critical trade signals.",
@@ -33,7 +47,12 @@ export const projects: Project[] = [
   {
     slug: "sleepara",
     title: "Sleepara — Sleep Health Platform",
-    tagline: "A comprehensive sleep health platform that connects users with sleep apnea specialists,...",
+    name: "Sleepara",
+    kind: "Sleep health platform",
+    descriptor: "Sleep health · Digital product",
+    summary: "A sleep health platform connecting people with sleep apnea specialists.",
+    tagline:
+      "A comprehensive sleep health platform that connects users with sleep apnea specialists, provides AI-powered sleep advice, and locates nearby pharmacies for CPAP supplies. Designed to make sleep healthcare more accessible and personalized.",
     problem:
       "Users needed a scalable, fast platform for booking sleep specialist sessions with high conversion.",
     solution:
@@ -50,7 +69,12 @@ export const projects: Project[] = [
   {
     slug: "arcadia-design",
     title: "Arcadia Design — Architecture Portfolio",
-    tagline: "A modern and visually striking portfolio website for Arcadia Design, a Canadian architectur...",
+    name: "Arcadia Design",
+    kind: "Architecture portfolio",
+    descriptor: "Architecture · Portfolio",
+    summary: "A considered digital home for a Canadian architecture studio.",
+    tagline:
+      "A modern and visually striking portfolio website for Arcadia Design, a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
     problem:
       "Client needed a modern, conversion-focused website that reflected their premium architecture brand.",
     solution:
@@ -67,7 +91,12 @@ export const projects: Project[] = [
   {
     slug: "bellarisse",
     title: "Bellarisse — Luxury E-commerce",
-    tagline: "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury...",
+    name: "Bellarisse",
+    kind: "Luxury e-commerce",
+    descriptor: "Luxury e-commerce · Shopify and Framer",
+    summary: "A premium storefront for an Indian luxury handbag brand.",
+    tagline:
+      "A beautifully crafted e-commerce platform for Bellarisse, an Indian luxury handbag startup. The website combines elegant design with smooth shopping experiences, showcasing premium collections and providing a seamless journey from browsing to checkout.",
     problem:
       "A luxury brand required a premium online storefront that reflects their high-end aesthetic while maintaining robust e-commerce capabilities.",
     solution:
@@ -79,11 +108,17 @@ export const projects: Project[] = [
     ],
     stack: ["Framer", "Shopify"],
     cover: "/images/bellarisse.png",
+    liveUrl: "https://www.bellarisse.com/",
   },
   {
     slug: "nerdwithabindi",
     title: "NerdWithABindi — Influencer Collaboration",
-    tagline: "A collaboration platform for influencers to connect, share resources, and coordinate...",
+    name: "NerdWithABindi",
+    kind: "Influencer collaboration",
+    descriptor: "Creator platform · Collaboration",
+    summary: "A shared workspace for influencers to connect and coordinate campaigns.",
+    tagline:
+      "A collaboration platform for influencers to connect, share resources, and coordinate campaigns. Streamlines partnership opportunities and content creation through an intuitive interface.",
     problem:
       "Influencers needed a centralized platform to connect and manage collaborative projects seamlessly.",
     solution:
@@ -99,7 +134,12 @@ export const projects: Project[] = [
   {
     slug: "eventsync",
     title: "EventSync (TechSprint) — Event Management",
-    tagline: "A one-stop solution for seamless event creation and management, EventSync...",
+    name: "EventSync",
+    kind: "Event management",
+    descriptor: "Event management · Full-stack",
+    summary: "Event creation, RSVPs and analytics in one place, built for TechSprint48.",
+    tagline:
+      "A one-stop solution for seamless event creation and management, EventSync empowers users to organize events effortlessly, manage RSVPs, and gain actionable analytics for better engagement and planning.",
     problem:
       "Event organizers lacked a unified solution for creating, managing, and synchronizing large-scale events.",
     solution:
@@ -111,11 +151,17 @@ export const projects: Project[] = [
     ],
     stack: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "MongoDB", "Mongoose"],
     cover: "/images/eventsync.png",
+    githubUrl: "https://github.com/ashmitkhurana/EventSync",
   },
   {
     slug: "monk-technology",
     title: "Monktechnology.net — Business Website",
-    tagline: "A modern business website showcasing development and design excellence for creators,...",
+    name: "Monk Technology",
+    kind: "Business website",
+    descriptor: "Business website · 3D",
+    summary: "A business website for creators, with a dynamic 3D interface.",
+    tagline:
+      "A modern business website showcasing development and design excellence for creators, featuring a dynamic 3D interface and seamless user experience.",
     problem:
       "MonkT needed a professional web presence with cross-device compatibility.",
     solution:
@@ -130,3 +176,7 @@ export const projects: Project[] = [
     liveUrl: "https://monktechnology.net/",
   },
 ];
+
+export function getProject(slug: string): Project | undefined {
+  return projects.find((p) => p.slug === slug);
+}

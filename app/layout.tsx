@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./styles/tokens.css";
 import "./styles/base.css";
+import "./styles/ui.css";
+import { identity } from "@/data/site-content";
 
 const sans = Inter({
   subsets: ["latin"],
@@ -17,19 +19,21 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-const title = "Ashmit Khurana — Full-Stack Developer";
-const description =
-  "Full-stack developer building across interfaces, systems, and AI.";
+const title = `${identity.name} — ${identity.role}`;
+const description = `${identity.role} building across interfaces, systems, and AI.`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ashmitkhurana.com"),
-  title,
+  metadataBase: new URL(identity.url),
+  title: {
+    default: title,
+    template: "%s — Ashmit Khurana",
+  },
   description,
   openGraph: {
     title,
     description,
-    url: "https://ashmitkhurana.com",
-    siteName: "Ashmit Khurana",
+    url: identity.url,
+    siteName: identity.name,
     type: "website",
     locale: "en_US",
   },
@@ -47,6 +51,11 @@ export const viewport: Viewport = {
   themeColor: "#0d0c0b",
 };
 
+/**
+ * Root layout: fonts, tokens, metadata only. The site chrome (header, smooth
+ * scroll, main, footer, ribbon slot) lives in app/(site)/layout.tsx via
+ * components/site/SiteChrome.tsx, so /lab stays a clean full-screen tool.
+ */
 export default function RootLayout({
   children,
 }: {

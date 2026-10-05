@@ -1,8 +1,13 @@
 :root {
   /* color */
   --bg: #0d0c0b;
+  --bg-raised: #151311;
+  --bg-raised-2: #1b1816;
   --fg: #f4efe7;
   --fg-muted: rgba(244, 239, 231, 0.62);
+  --fg-faint: rgba(244, 239, 231, 0.38);
+  --line: rgba(244, 239, 231, 0.12);
+  --line-strong: rgba(244, 239, 231, 0.24);
   --accent: #ff6a00;
 
   /* spacing scale (fluid) */
@@ -15,7 +20,14 @@
   --space-xl: clamp(3rem, 2.76rem + 1.2vw, 3.75rem);
   --space-2xl: clamp(4rem, 3.68rem + 1.6vw, 5rem);
   --space-3xl: clamp(6rem, 5.52rem + 2.4vw, 7.5rem);
-  --gutter: clamp(1rem, 0.6rem + 2vw, 2.5rem);
+  --space-4xl: clamp(8rem, 6rem + 6vw, 14rem);
+  --gutter: clamp(1.25rem, 0.5rem + 2.4vw, 4rem);
+
+  /* layout */
+  --page-max: 100rem; /* reading/content width cap; giant type may exceed */
+  --header-h: clamp(4.5rem, 4rem + 1.4vw, 6rem);
+  --radius-card: 20px;
+  --radius-ui: 12px;
 
   /* type scale (fluid) */
   --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
@@ -26,4 +38,43 @@
   --text-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
   --text-3xl: clamp(2.5rem, 1.8rem + 3.5vw, 4.5rem);
   --text-display: clamp(4rem, 14vw, 16rem);
+
+  /* giant display type: weight 900, tight, heavy */
+  --display-weight: 900;
+  --display-tracking: -0.035em;
+  --display-leading: 0.82;
+  /* hero name: fills the width on phones, capped by height so two lines always fit */
+  --display-hero: min(19.2vw, 36svh);
+  --display-xl: clamp(3.5rem, 2rem + 9vw, 15rem); /* HOW I BUILD, LET'S BUILD */
+  --display-l: clamp(3rem, 1.5rem + 7.5vw, 12rem); /* page titles */
+  --display-m: clamp(2.75rem, 1.5rem + 5vw, 8rem); /* section headings */
+
+  /* mono label */
+  --label-size: clamp(0.6875rem, 0.66rem + 0.14vw, 0.8125rem);
+  --label-tracking: 0.12em;
+
+  /* section heights: the ribbon needs scroll room. Tune per section. */
+  --h-hero: 100svh;
+  --h-unravel: 120svh;
+  --h-work: 150svh;
+  --h-build: 140svh;
+  --h-terminal: 130svh;
+  --h-contact: 100svh;
+
+  /* z layers (the ribbon stage owns 0..3 internally) */
+  --z-header: 50;
+  --z-menu: 60;
+  --z-dialog: 80;
+  --z-skip: 100;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+}
+
+/* landscape: the name sits left/centre-left at ~73% of the width (KHURANA) */
+@media (min-width: 768px) and (orientation: landscape) {
+  :root {
+    --display-hero: min(15vw, 32svh);
+  }
 }
