@@ -37,7 +37,7 @@ def edge_map(rgb, alpha):
     ab = cv2.resize(alpha.astype(np.uint8), None, fx=UP, fy=UP, interpolation=cv2.INTER_NEAREST)
     ab = (ab - cv2.erode(ab, np.ones((3, 3), np.uint8))).astype(np.float32)
     ab = cv2.GaussianBlur(ab, (0, 0), 1.0); ab = np.clip(ab * 3, 0, 1)
-    strength = np.clip(0.45 * can + 0.35 * gmn + 0.6 * ab, 0, 1)
+    strength = np.clip(0.4 * can + 0.3 * gmn + 1.2 * ab, 0, 1.4)
     gdir = np.stack([gx, gy], -1) / np.maximum(gm, 1e-6)[..., None]
     return strength, gdir, can, gmn
 
@@ -117,7 +117,7 @@ def normals(P):
     return T, np.stack([-T[:, 1], T[:, 0]], 1)
 
 
-def snake(P, vis, strength, gdir, R=40, mu=0.05, lam=0.0035, thr=0.85, other=None, lmin=None, lmax=None):
+def snake(P, vis, strength, gdir, R=40, mu=0.05, lam=0.006, thr=0.85, other=None, lmin=None, lmax=None):
     N = len(P)
     T, Nn = normals(P)
     offs = np.arange(-R, R + 1, 1.0)
@@ -222,7 +222,7 @@ def main():
         if r_:
             HAND_WINDOWS.append(r_)
     info = {}
-    for it, R in enumerate((40, 25, 15)):
+    for it, R in enumerate((24, 14, 8)):
         v1, v2 = visibility(E1, E2, z)
         offs = []
         Wref = 112.0
