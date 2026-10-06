@@ -68,6 +68,55 @@ def solve_dz(pL, pR, zc, sign, W):
     return 0.5 * (lo + hi), False
 
 
+def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True):
+    """True width W = percentile `pct` of the projected ruling lengths (world px at the centre depth) over trusted samples outside the
+    turn windows; per ring the depth difference dz of the two ruling ends solves |R3 - L3| = W; the sign of dz is chosen by a DP
+    minimising the change of the 3D ruling direction, flips only inside the turn windows (tw).
+    Returns W, sign, flips, L3, R3, dz, grown (dz = 0: projected ruling already >= W), 3D ruling lengths."""
+    N = len(t)
+    ls = np.array([np.linalg.norm(lift(E2[i], zc[i]) - lift(E1[i], zc[i])) for i in range(N)])
+    Wt = float(np.percentile(ls[trusted & ~tw], pct)) if Wfix is None else float(Wfix)
+    if verbose:
+        print("true width W = %.2f world px (p%d of projected ruling lengths at centre depth; median %.2f)" % (Wt, pct, np.median(ls[trusted & ~tw])))
+    mag = np.zeros((N, 2))
+    grow = np.zeros((N, 2), bool)
+    B = np.zeros((N, 2, 3))
+    Ls = np.zeros((N, 2, 3))
+    Rs = np.zeros((N, 2, 3))
+    for i in range(N):
+        for j, sg_ in enumerate((+1, -1)):
+            m, gw = solve_dz(E1[i], E2[i], zc[i], sg_, Wt)
+            mag[i, j], grow[i, j] = m, gw
+            L, R, ln_ = ruling_len(E1[i], E2[i], zc[i], sg_ * m)
+            Ls[i, j], Rs[i, j] = L, R
+            B[i, j] = (R - L) / max(ln_, 1e-9)
+    cost = np.full((N, 2), np.inf)
+    arg = np.zeros((N, 2), int)
+    cost[0] = 0.0
+    for i in range(1, N):
+        for a_ in range(2):
+            for b_ in range(2):
+                if a_ != b_ and not tw[i]:
+                    continue
+                c = float(np.arccos(np.clip(B[i, a_] @ B[i - 1, b_], -1, 1)))
+                if a_ != b_:
+                    c += 1e-3
+                if cost[i - 1, b_] + c < cost[i, a_]:
+                    cost[i, a_] = cost[i - 1, b_] + c
+                    arg[i, a_] = b_
+    sg = np.zeros(N, int)
+    sg[-1] = int(np.argmin(cost[-1]))
+    for i in range(N - 1, 0, -1):
+        sg[i - 1] = arg[i, sg[i]]
+    flips = [int(i) for i in range(1, N) if sg[i] != sg[i - 1]]
+    Lw = np.array([Ls[i, sg[i]] for i in range(N)])
+    Rw = np.array([Rs[i, sg[i]] for i in range(N)])
+    dzs = np.array([(1 if sg[i] == 0 else -1) * mag[i, sg[i]] for i in range(N)])
+    gr = np.array([grow[i, sg[i]] for i in range(N)])
+    ln = np.linalg.norm(Rw - Lw, axis=1)
+    return Wt, sg, flips, Lw, Rw, dzs, gr, ln
+
+
 def main():
     E = json.load(open(OUTD + "/edges.json"))
     t = np.array(E["s"])
@@ -87,59 +136,12 @@ def main():
         assert xs[i] > xs[i - 1], (Z_ANCHORS[i - 1], xs[i - 1], xs[i])
     zc = PchipInterpolator(xs, zs)(np.clip(t, xs[0], xs[-1]))
 
-    # true width: 75th percentile of (projected ruling length in world px at the centre depth) over trusted samples
-    # outside the turn windows
     tw = np.zeros(N, bool)
     for w in E["turn_windows"]:
         if "i0" in w:
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
-    ls = np.array([np.linalg.norm(lift(E2[i], zc[i]) - lift(E1[i], zc[i])) for i in range(N)])
-    Wt = float(np.percentile(ls[trusted & ~tw], 95))
-    print("true width W = %.2f world px (p95 of projected ruling lengths at centre depth; median %.2f)" % (Wt, np.median(ls[trusted & ~tw])))
-
-    mag = np.zeros((N, 2))
-    grow = np.zeros((N, 2), bool)
-    B = np.zeros((N, 2, 3))
-    Ls = np.zeros((N, 2, 3))
-    Rs = np.zeros((N, 2, 3))
-    for i in range(N):
-        for j, sg in enumerate((+1, -1)):
-            m, gw = solve_dz(E1[i], E2[i], zc[i], sg, Wt)
-            mag[i, j], grow[i, j] = m, gw
-            L, R, ln = ruling_len(E1[i], E2[i], zc[i], sg * m)
-            Ls[i, j], Rs[i, j] = L, R
-            B[i, j] = (R - L) / max(ln, 1e-9)
-    # DP over the sign; flips only inside turn windows
-    cost = np.full((N, 2), np.inf)
-    arg = np.zeros((N, 2), int)
-    cost[0] = 0.0
-    for i in range(1, N):
-        for a in range(2):
-            for b in range(2):
-                if a != b and not tw[i]:
-                    continue
-                c = float(np.arccos(np.clip(B[i, a] @ B[i - 1, b], -1, 1)))
-                if a != b:
-                    c += 1e-3
-                if cost[i - 1, b] + c < cost[i, a]:
-                    cost[i, a] = cost[i - 1, b] + c
-                    arg[i, a] = b
-    sg = np.zeros(N, int)
-    sg[-1] = int(np.argmin(cost[-1]))
-    for i in range(N - 1, 0, -1):
-        sg[i - 1] = arg[i, sg[i]]
-    flips = [int(i) for i in range(1, N) if sg[i] != sg[i - 1]]
-    Lw = np.array([Ls[i, sg[i]] for i in range(N)])
-    Rw = np.array([Rs[i, sg[i]] for i in range(N)])
-    dzs = np.array([(1 if sg[i] == 0 else -1) * mag[i, sg[i]] for i in range(N)])
-    gr = np.array([grow[i, sg[i]] for i in range(N)])
-    ln = np.linalg.norm(Rw - Lw, axis=1)
-    print("sign flips at samples", flips, "(arc", [round(float(t[i])) for i in flips], ")")
-    print("|dz|: max %.1f, mean %.1f; grown (dz=0, ruling longer than W): %d of %d samples, max width %.2f W" % (
-        np.abs(dzs).max(), np.abs(dzs).mean(), gr.sum(), N, ln.max() / Wt))
-    runs = ed.spans(gr)
-    print("grown spans (arc):", [(round(float(t[a])), round(float(t[b]))) for a, b in runs][:30])
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = solve_rings(E1, E2, t, zc, tw, trusted, 95)
 
     # roll (angle of B about the centre tangent, unwrapped) range per turn window
     C = 0.5 * (Lw + Rw)
