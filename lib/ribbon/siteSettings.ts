@@ -18,7 +18,7 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // highlights along the band like brushed metal
   material: {
     faceA: { color: "#ff8418", roughness: 0.38, clearcoat: 0.35, clearcoatRoughness: 0.28 },
-    faceB: { color: "#c4560f", roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.3 },
+    faceB: { color: "#ff7a12", roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.3 },
     edge: { mode: "gradient" },
     anisotropy: 0.6,
     envDiffuse: 0.42,

@@ -23,8 +23,12 @@ from scipy.interpolate import PchipInterpolator, LSQUnivariateSpline
 
 SP = ("/private/tmp/claude-501/-Users-ashmitkhurana-Development-studio-portfolio/"
       "428f1961-b6ad-4758-ba30-ff5eb1800006/scratchpad")
-SRC = os.environ.get("ROTO_SRC", "mockup")      # "mockup" (old hero-desktop) | "sculpture" (ak-sculpture.webp, $SP/r2)
-if SRC == "sculpture":
+SRC = os.environ.get("ROTO_SRC", "mockup")
+SCUL = ("sculpture", "sig")      # "mockup" (old hero-desktop) | "sculpture" (ak-sculpture.webp, $SP/r2)
+if SRC == "sig":
+    FIT = SP + "/r3/sig"
+    OUTD = SP + "/r3"
+elif SRC in SCUL:
     FIT = SP + "/r2/sculpture"
     OUTD = SP + "/r2"
 else:
@@ -40,8 +44,10 @@ CROSS_ARC = 3.0     # (x W) arc separation that makes two trace parts "different
 CROSS_DIST = 1.0    # (x W) centreline distance below which strands overlap in projection
 TURN_DEG = 90.0
 TURN_ARC = 2.0      # (x W)
-RMIN_WIN = {} if SRC == "sculpture" else {}      # window id -> min radius (x W): the K lower tip's hole cusp needs a rounder edge
-DMAX_CURV = 30.0 if SRC == "sculpture" else None    # sculpture: edges may move this far (px) from the silhouette to reach the curvature rule
+RIDGE_LO, RIDGE_HI, RIDGE_THR = 0.18, 0.66, 0.45   # ridge search window (x rmax/1.4 = x W) and strength
+SIG_WINDOWS = [("S_turn", 1.1), ("fold_left", 1.0), ("A_apex", 1.0), ("K_bottom", 1.1), ("curl_left", 1.0), ("thin_tip", 0.9), ("K_top_tip", 1.0)]
+RMIN_WIN = {} if SRC in SCUL else {}      # window id -> min radius (x W): the K lower tip's hole cusp needs a rounder edge
+DMAX_CURV = 30.0 if SRC in SCUL else None    # sculpture: edges may move this far (px) from the silhouette to reach the curvature rule
 
 
 # ------------------------------------------------------------------ io
@@ -53,7 +59,11 @@ def load():
     M = gray(FIT + "/ribbon_mask.png")
     T = gray(FIT + "/text_mask.png")
     X = gray(FIT + "/exclusion_mask.png")
-    if SRC == "sculpture":
+    if SRC == "sig":
+        rgb = np.array(Image.open(SP + "/r3/cutout.png").convert("RGB"))
+        cl = json.load(open(FIT + "/trace.json"))
+        g = dict(nodes=[])
+    elif SRC in SCUL:
         rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB"))
         cl = json.load(open(FIT + "/trace.json"))
         g = dict(nodes=[])      # the skeleton graph of the sculpture is not used: crossings come from the trace self-intersections
@@ -112,7 +122,30 @@ class Boundaries:
             return 1
         return 0
 
+    ridge = None     # sculpture/sig: thin-rim ridge map (occlusion edges inside the silhouette), set by load()
+
     def cast(self, c, n, rmax, step=0.5):
+        t, cls = self.cast_mask(c, n, rmax, step)
+        if self.ridge is None:
+            return t, cls
+        ts = np.arange(0.0, rmax, step)
+        rv = ndi.map_coordinates(self.ridge, [c[1] + n[1] * ts, c[0] + n[0] * ts], order=1, mode="nearest")
+        lo, hi = int(RIDGE_LO * rmax / step / 1.4), int(RIDGE_HI * rmax / step / 1.4)
+        seg = rv[lo:hi]
+        if len(seg) < 3:
+            return t, cls
+        k = int(np.argmax(seg))
+        st = float(seg[k])
+        tr = ts[lo + k]
+        if st < RIDGE_THR:
+            return t, cls
+        if t is not None and cls == 0 and abs(tr - t) <= 5.0:
+            return t, cls
+        if t is None or tr < t - 5.0:
+            return float(tr), 0
+        return t, cls
+
+    def cast_mask(self, c, n, rmax, step=0.5):
         """March from c along unit n; return (distance, class) of the first boundary crossing
         that happens after the ray first is (or enters) the ribbon mask; (None, 3) if nothing."""
         ts = np.arange(0.0, rmax, step)
@@ -140,7 +173,7 @@ class Boundaries:
 def prep_trace(cl, ext_tail=200.0):
     P = np.array(cl["points"], float)
     vis = np.array(cl["visible"], bool)
-    if SRC == "sculpture":
+    if SRC in SCUL:
         # End 1 (the tail) is the START of the trace: extend straight past it (down and out of the frame) by ext_tail px
         tl = P[0] - P[min(40, len(P) - 1)]
         tl /= np.hypot(*tl)
@@ -263,8 +296,16 @@ def face_edge_inner(V, c, n, t_exit, W, lo=0.42, hi=0.5, tmin=0.3, step=0.5):
     return None
 
 
+def ridge_map(rgb):
+    V = rgb.max(2).astype(np.float32) / 255.0
+    r = np.clip(ndi.gaussian_filter(V, 1.2) - ndi.gaussian_filter(V, 5.0), 0, None)
+    return np.clip(r / np.percentile(r, 99.5), 0, 1)
+
+
 def build(M, T, X, rgb, cl, g, verbose=True):
     B = Boundaries(M, T, X)
+    if SRC == "sig":
+        B.ridge = ridge_map(rgb)
     Q, t, vis, P, s_orig = prep_trace(cl)
     d, n = tangent_normal(Q)
     N = len(Q)
@@ -274,8 +315,11 @@ def build(M, T, X, rgb, cl, g, verbose=True):
     tl, cls_l, tr, cls_r = pair_edges(B, Q, n, 1.4 * W0)
     ok0 = (cls_l == 0) & (cls_r == 0) & np.isfinite(tl) & np.isfinite(tr)
     W = float(np.median((tl + tr)[ok0]))
-    if SRC == "sculpture":      # the sculpture's apparent width ranges 55..115 (strongly foreshortened bands): scale on the p90
+    if SRC in SCUL:      # the sculpture's apparent width ranges 55..115 (strongly foreshortened bands): scale on the p90
         W = float(np.percentile((tl + tr)[ok0], 75))
+        if SRC == "sig":      # the tail is near the camera (wide): scale on the knot
+            kn = ok0 & (Q[:, 1] < 1250)
+            W = float(os.environ.get('SIG_W', 112))
     if verbose:
         print("W_est (median apparent width) = %.1f px" % W)
     rmax = 1.4 * W
@@ -283,14 +327,14 @@ def build(M, T, X, rgb, cl, g, verbose=True):
     # turn windows (>= 0.5 W of arc; shorter ones are kinks, not turns)
     wins, th, turn = turn_windows(Q, t, W)
     wins = [(a, b) for a, b in wins if (b - a) * STEP >= 0.5 * W]
-    if SRC == "sculpture":
+    if SRC in SCUL:
         # designer-named turns the 90 deg / 2 W detector under-reports (long rounded turns): the K lower tip and the
         # crossbar end curl are added as explicit windows (anchor +- half-length); the wrap hairpin sits next to a trace
         # self-crossing and is a turn, so there is no crossing filter here
         off = len(P) - len(cl["points"]) if False else None
         ext_n = 200
         sA = arclen(P)
-        for nm, half in (("lower_tip", 1.1 * W), ("crossbar_curl", 1.0 * W)):
+        for nm, half in ((("lower_tip", 1.1 * W), ("crossbar_curl", 1.0 * W)) if SRC == "sculpture" else tuple((n_, h_ * W) for n_, h_ in SIG_WINDOWS)):
             c = float(sA[ext_n + cl["anchors"][nm]])
             a = int(np.searchsorted(t, c - half)); b = int(np.searchsorted(t, c + half))
             wins = [w for w in wins if w[1] < a - 4 or w[0] > b + 4] + [(a, min(b, N - 1))]
@@ -452,7 +496,7 @@ def contour_windows(S, M, T, X, rgb):
         Qwin = Q[ia:ib + 1]
         res = {}
         CHk = CH
-        if SRC != "sculpture" and k + 1 == 2:
+        if SRC not in SCUL and k + 1 == 2:
             if CH_k2 is None:
                 CH_k2 = contour_chains(floor_fixed_boundaries(S, rgb, M, T, X, (1380, 600, 1672, 830)).M)
             CHk = CH_k2
@@ -553,6 +597,8 @@ def apex_stations():
 
 
 def apply_overrides(S, info):
+    if SRC != "sculpture":
+        return
     Q, ok = S["Q"], S["ok"]
     N = len(Q)
     S["flip_idx"] = []
@@ -764,7 +810,7 @@ def reconstruct(S, info):
             E_c[il:ir + 1] = cs_(np.arange(il, ir + 1))
     # cloth-like ripples: edge noise of the sculpture's mask (floor reflections near the bottoms, the dark S underside) is low-passed over
     # the named spans with a Gaussian of support >= 1.5 W (sigma 0.5 W), blended in/out with a smoothstep over 1 W
-    if SRC == "sculpture" and S.get("anchor_arcs"):
+    if SRC in SCUL and S.get("anchor_arcs"):
         arcs = S["anchor_arcs"]
         for (na, nb, pad_a, pad_b, sig_w) in LOCAL_SMOOTH:
             a_t, b_t = arcs[na] - pad_a, arcs[nb] + pad_b
@@ -868,7 +914,7 @@ if __name__ == "__main__":
     info = contour_windows(S, M, T, X, rgb)
     apply_overrides(S, info)
     S["info"] = info
-    if SRC == "sculpture":
+    if SRC in SCUL:
         _sA = arclen(prep_trace(cl)[3])
         S["anchor_arcs"] = {nm: float(_sA[200 + i]) for nm, i in cl["anchors"].items()}
     for w_ in info:

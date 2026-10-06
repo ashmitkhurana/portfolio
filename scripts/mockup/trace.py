@@ -44,6 +44,31 @@ WP = [
 ]
 
 
+# ---- R3: the signature knot (public/lab/ref/ak-signature-cutout.webp, 852 x 1846, = hero-mobile coordinates). Topology per the designer:
+# tail -> S bend (half twist) -> long band leftward -> far-left fold -> A left leg (behind the crossbar arch) -> apex fold -> A right leg
+# (frontmost; the K stem) -> bottom K loop (returns BEHIND the right leg) -> crossbar arch (in FRONT of the left leg) -> far-left wrap
+# (behind the leg, fold) -> thin band crossing BEHIND the right leg -> upper K loop (tip fold) -> back section behind -> End 2 hidden.
+WP_SIG = [
+    ("tail_a", 210, 1844, 0), (None, 283, 1800, 0), (None, 327, 1750, 0), (None, 380, 1700, 0), ("tail_b", 443, 1650, 0), (None, 520, 1600, 0),
+    (None, 595, 1550, 0), (None, 655, 1503, 0), (None, 697, 1455, 0), ("S_turn", 715, 1405, 0), (None, 700, 1360, 0), (None, 665, 1320, 0),
+    (None, 620, 1290, 0), (None, 570, 1262, 0), ("band_mid", 500, 1240, 0), (None, 430, 1218, 0), (None, 360, 1196, 0), (None, 290, 1175, 0),
+    (None, 220, 1157, 0), (None, 150, 1140, 0), (None, 95, 1122, 0), ("fold_left", 55, 1085, 0), (None, 90, 1040, 0), (None, 130, 1020, 0),
+    (None, 150, 990, 0), (None, 165, 950, 0), (None, 172, 920, 0), (None, 180, 890, 0), ("leg_behind_arch", 200, 830, 1), (None, 225, 790, 1),
+    (None, 244, 765, 0), (None, 252, 735, 0), (None, 263, 705, 0), (None, 274, 675, 0), (None, 286, 648, 0), (None, 302, 618, 0),
+    (None, 322, 592, 0), ("A_apex", 352, 578, 0), (None, 385, 592, 0), (None, 405, 622, 0), (None, 414, 650, 0), (None, 423, 680, 0),
+    (None, 431, 710, 0), (None, 440, 740, 0), (None, 447, 770, 0), (None, 460, 830, 0), ("rleg_mid", 472, 890, 0), (None, 485, 950, 0),
+    (None, 499, 1000, 0), (None, 515, 1050, 0), (None, 537, 1100, 0), (None, 560, 1150, 0), (None, 585, 1190, 0), (None, 625, 1220, 0),
+    ("K_bottom", 675, 1235, 0), (None, 725, 1232, 0), (None, 770, 1210, 0), (None, 810, 1170, 0), (None, 825, 1120, 0), (None, 815, 1070, 0),
+    (None, 790, 1020, 0), (None, 750, 985, 0), (None, 710, 955, 0), (None, 665, 925, 0), (None, 625, 905, 0), (None, 580, 895, 0),
+    ("ret_behind", 530, 888, 1), (None, 480, 886, 1), (None, 440, 884, 0), (None, 405, 870, 0), (None, 360, 845, 0), (None, 310, 818, 0),
+    ("arch_top", 260, 800, 0), (None, 215, 795, 0), (None, 170, 807, 0), (None, 130, 830, 0), (None, 105, 860, 0), ("curl_left", 95, 895, 0),
+    (None, 110, 930, 1), (None, 145, 985, 1), (None, 190, 1030, 1), ("thin_tip", 225, 1046, 0), (None, 260, 1042, 0), (None, 330, 1017, 0),
+    (None, 400, 977, 0), (None, 450, 937, 0), (None, 500, 905, 0), ("cross_behind", 530, 885, 1), (None, 565, 858, 1), (None, 600, 825, 0),
+    (None, 650, 783, 0), (None, 700, 742, 0), (None, 750, 710, 0), (None, 795, 700, 0), ("K_top_tip", 825, 728, 0), (None, 822, 765, 0),
+    (None, 800, 800, 0), (None, 760, 840, 0), (None, 720, 870, 0), (None, 685, 895, 1), ("end2", 645, 912, 1),
+]
+
+
 def spl(P, ns=4000, smooth=0.0):
     d = np.r_[0, np.cumsum(np.hypot(*np.diff(P, axis=0).T))]
     tck, u = splprep([P[:, 0], P[:, 1]], u=d / d[-1], s=smooth, k=3)
@@ -51,12 +76,18 @@ def spl(P, ns=4000, smooth=0.0):
 
 
 def main():
-    M = np.array(Image.open(OUT + "/sculpture/ribbon_mask.png").convert("L")) > 127
-    rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB"))
+    SIG = os.environ.get("DATASET") == "sig"
+    sub = "sig" if SIG else "sculpture"
+    M = np.array(Image.open(OUT + "/%s/ribbon_mask.png" % sub).convert("L")) > 127
+    if SIG:
+        rgb = np.array(Image.open(OUT + "/cutout.png").convert("RGB"))
+    else:
+        rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB"))
     W = 110.0
-    names = [w[0] for w in WP]
-    P = np.array([[w[1], w[2]] for w in WP], float)
-    hid = np.array([w[3] for w in WP], bool)
+    WPX = WP_SIG if SIG else WP
+    names = [w[0] for w in WPX]
+    P = np.array([[w[1], w[2]] for w in WPX], float)
+    hid = np.array([w[3] for w in WPX], bool)
     # smoothing spline through the waypoints (s = n * 3^2: a few px of slack)
     C, u = spl(P, 4000, smooth=len(P) * 3.0)
     # waypoint parameter positions on the dense curve
@@ -115,9 +146,9 @@ def main():
     for nm, p in zip(names, P):
         if nm:
             anchors[nm] = int(np.argmin(np.hypot(*(Q - p).T)))
-    out = dict(points=np.round(Q, 2).tolist(), visible=V.tolist(), anchors=anchors, W=W, image=dict(w=1672, h=941),
+    out = dict(points=np.round(Q, 2).tolist(), visible=V.tolist(), anchors=anchors, W=W, image=dict(w=rgb.shape[1], h=rgb.shape[0]),
                note="End 1 = tail (bottom edge) -> End 2 = crossbar tip; points every 2 px of arc; visible False = hidden behind another strand (bridged)")
-    json.dump(out, open(OUT + "/sculpture/trace.json", "w"))
+    json.dump(out, open(OUT + "/%s/trace.json" % sub, "w"))
     # review overlay
     S = 2
     img = cv2.resize(rgb, None, fx=S, fy=S, interpolation=cv2.INTER_CUBIC)[:, :, ::-1].copy()
