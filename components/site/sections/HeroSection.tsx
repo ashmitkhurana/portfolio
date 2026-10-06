@@ -17,7 +17,9 @@ export function HeroSection() {
           id="hero-title"
           size="hero"
           lines={identity.nameLines}
-          depth={0}
+          // the ribbon weaves BETWEEN the lines: ASHMIT sits behind the crossbar plane, KHURANA in front of it
+          // (depths in cap heights: ASHMIT -0.25 H, KHURANA +0.25 H)
+          depthCap={[-0.25, 0.25]}
           anchor="hero-name"
         />
         <div className="hero__intro">

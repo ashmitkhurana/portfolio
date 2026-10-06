@@ -44,8 +44,13 @@ export interface DisplayHeadingProps {
   size?: DisplaySize;
   /** mark each line as a ribbon depth proxy (default true) */
   proxy?: boolean;
-  /** ribbon depth (world z) for every line; default 0 */
+  /** ribbon depth (world z, px) for every line; default 0 */
   depth?: number;
+  /**
+   * Ribbon depth per line in CAP HEIGHTS (`data-ribbon-depth-cap`): the proxy measures the line's cap height and
+   * multiplies, so the plane depths scale with the type at every viewport. Wins over `depth` for the lines it covers.
+   */
+  depthCap?: readonly number[];
   /** ribbon proxy corner radius in px */
   radius?: number;
   /**
@@ -74,6 +79,7 @@ export function DisplayHeading({
   size = "l",
   proxy = true,
   depth = 0,
+  depthCap,
   radius,
   anchor,
   className,
@@ -103,6 +109,7 @@ export function DisplayHeading({
             ? {
                 "data-ribbon-proxy": "",
                 "data-ribbon-depth": depth,
+                ...(depthCap?.[i] !== undefined ? { "data-ribbon-depth-cap": depthCap[i] } : {}),
                 ...(radius !== undefined ? { "data-ribbon-radius": radius } : {}),
               }
             : {})}

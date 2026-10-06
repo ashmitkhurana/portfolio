@@ -101,6 +101,17 @@
   }
 }
 
+/* Desktop class: the hero name matches the desktop mockup (public/lab/ref/hero-desktop.webp, 1672 x 941:
+   KHURANA ink x 70 -> 1265, ASHMIT cap top y 208, KHURANA baseline y 589) so the AK ribbon pose lines up with the type.
+   Phone / tablet / ultrawide keep the generic hero. scripts/pose-check.mjs asserts the match at 1672 x 941. */
+@media (min-width: 1100px) and (max-width: 2199.98px) and (orientation: landscape) {
+  .hero .display[data-size="hero"] {
+    --display-wdth: 97;
+    --hero-span: 0.78;
+    margin-left: -0.03em;
+  }
+}
+
 /* ── 02 unravel ────────────────────────────────────────── */
 
 .unravel {

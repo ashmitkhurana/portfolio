@@ -2,7 +2,8 @@
  * Depth-proxy registry.
  *
  * DOM elements marked `data-ribbon-proxy` (+ optional `data-ribbon-depth`,
- * world z, default 0; `data-ribbon-radius`, px, default 0; `data-ribbon-pad`, px the
+ * world z, default 0; `data-ribbon-depth-cap`, the depth in cap heights of the element's font (wins over the px depth);
+ * `data-ribbon-radius`, px, default 0; `data-ribbon-pad`, px the
  * rect is grown by on every side, default 0, for glyph overhang) tell the shader
  * which screen rectangles contain real HTML at which depth. Rects are measured
  * once (cached), re-measured on resize / font load / document height change /
@@ -17,6 +18,8 @@ export { MAX_PROXIES };
 
 /** how many proxies are tracked in the DOM (only MAX_PROXIES reach the shader) */
 const MAX_TRACKED = 256;
+/** Mona Sans 900 cap height in em (poses/anchors.ts measures it per glyph; this is the same font constant) */
+export const CAP_EM = 0.7291;
 /** px beyond the viewport edges within which a proxy is still sent to the shader */
 const CULL_MARGIN = 200;
 
@@ -67,6 +70,7 @@ export class ProxyRegistry {
       attributeFilter: [
         "data-ribbon-proxy",
         "data-ribbon-depth",
+        "data-ribbon-depth-cap",
         "data-ribbon-radius",
         "data-ribbon-pad",
       ],
@@ -113,7 +117,9 @@ export class ProxyRegistry {
     const sy = window.scrollY;
     this.entries = this.elements.map((el) => {
       const r = el.getBoundingClientRect();
-      const d = parseFloat(el.dataset.ribbonDepth ?? "0");
+      let d = parseFloat(el.dataset.ribbonDepth ?? "0");
+      const dc = parseFloat(el.dataset.ribbonDepthCap ?? "");
+      if (Number.isFinite(dc)) d = dc * (parseFloat(getComputedStyle(el).fontSize) || 0) * CAP_EM;
       const rad = parseFloat(el.dataset.ribbonRadius ?? "0");
       const pd = parseFloat(el.dataset.ribbonPad ?? "0");
       const pad = Number.isFinite(pd) ? pd : 0;
