@@ -489,18 +489,17 @@ OVERRIDES = {
     # ruling IS the crease line, longer than W), then back into the right leg's rulings. E1 = left-leg outer edge -> crease left end -> right
     # leg's INNER edge (it crosses the left layer, the overlap triangle); E2 = left-leg inner edge (hidden under the right layer above the
     # triangle tip) -> crease right end -> right leg's outer edge. Read off the sculpture at 5x.
-    "apex": dict(even=True, flip=True, stations="apex"),
     # The wrap is a BELT around the A right leg (a half turn about the leg axis): rulings stay near-vertical, the physical edges keep their
     # sides (here E1 = BOTTOM edge, E2 = top edge: after the apex fold the physical E1 is the +normal-right edge), the +normal labels swap.
     "wrap": dict(even=False, flip=True, stations=[   # (trace centre, E1, E2)
-        ((905, 447), (910, 484), (898, 420)),
-        ((868, 452), (872, 490), (862, 420)),
-        ((835, 462), (840, 498), (828, 422)),
-        ((808, 470), (812, 497), (800, 416)),
-        ((792, 450), (798, 490), (789, 410)),
-        ((803, 425), (808, 470), (797, 402)),
-        ((835, 414), (836, 456), (832, 393)),
-        ((880, 408), (884, 434), (878, 383)),
+        ((905, 447), (898, 420), (910, 484)),
+        ((868, 452), (862, 420), (872, 490)),
+        ((835, 462), (828, 422), (840, 498)),
+        ((808, 470), (800, 416), (812, 497)),
+        ((792, 450), (789, 410), (798, 490)),
+        ((803, 425), (797, 402), (808, 470)),
+        ((835, 414), (832, 393), (836, 456)),
+        ((880, 408), (878, 383), (884, 434)),
     ]),
 }
 

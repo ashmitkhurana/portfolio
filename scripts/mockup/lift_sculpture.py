@@ -21,7 +21,12 @@ KHURANA = (56.609, 392.984, 1253.531, 593.344)
 PLANE_A, PLANE_K = -45.0, 45.0
 def FORCED_SIGN(N):
     j = os.environ.get("WRAPSIGN")
-    return None if j is None else {(662, N - 1): int(j)}
+    ap = os.environ.get("APEXSIGN", "0,0")
+    d = {} if j is None else {(662, N - 1): int(j)}
+    if ap:
+        a, b = ap.split(",")
+        d[(300, 389)] = int(a); d[(390, 470)] = int(b)
+    return d or None
 
 
 NOSOLVE = [None]
@@ -89,7 +94,7 @@ def main(write_pose=False):
     nos = np.zeros(N, bool)
     for w in E["turn_windows"]:
         if "i0" in w and "apex" in w.get("status", ""):
-            nos[min(oi[0] for oi in [[w["i0"]]]) - 12:w["i1"] + 13] = True
+            nos[w["i0"] - 12:w["i1"] + 13] = True
     NOSOLVE[0] = nos
     # observed visible face per ring from the sculpture's own shading along the ruling (dark inner face vs bright face)
     from PIL import Image
