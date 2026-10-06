@@ -95,8 +95,8 @@ def main():
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
     ls = np.array([np.linalg.norm(lift(E2[i], zc[i]) - lift(E1[i], zc[i])) for i in range(N)])
-    Wt = float(np.percentile(ls[trusted & ~tw], 90))
-    print("true width W = %.2f world px (p90 of projected ruling lengths at centre depth; median %.2f)" % (Wt, np.median(ls[trusted & ~tw])))
+    Wt = float(np.percentile(ls[trusted & ~tw], 95))
+    print("true width W = %.2f world px (p95 of projected ruling lengths at centre depth; median %.2f)" % (Wt, np.median(ls[trusted & ~tw])))
 
     mag = np.zeros((N, 2))
     grow = np.zeros((N, 2), bool)

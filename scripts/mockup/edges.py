@@ -406,8 +406,9 @@ def contour_windows(S, M, T, X, rgb):
         inner_L = bool(S["inner_pos"][a])
         pad = int(round(0.25 * W / STEP))
         a2, b2 = max(0, a - pad), min(N - 1, b + pad)
-        prev = np.nonzero(ok[:a2])[0]
-        nxt = np.nonzero(ok[b2 + 1:])[0]
+        lim = int(round(1.0 * W / STEP))
+        prev = np.nonzero(ok[max(0, a2 - lim):a2])[0] + max(0, a2 - lim)
+        nxt = np.nonzero(ok[b2 + 1:b2 + 1 + lim])[0]
         if len(prev) == 0 or len(nxt) == 0:
             log.append((k + 1, "no trusted sample on one side"))
             info.append(dict(id=k + 1, i0=a, i1=b, status="no entry/exit sample: interpolated"))
@@ -458,7 +459,7 @@ def curvature_radius(P, k=4):
     return rad
 
 
-def limit_curvature(P, t, rmin_of_t, max_iter=70):
+def limit_curvature(P, t, rmin_of_t, max_iter=70, dmax=12.0):
     """Locally smooth a polyline (keeping its t parametrisation) until its curvature radius is
     >= rmin(t) everywhere; smoothing sigma grows slowly and is capped at 28 samples (56 px)."""
     s_e = arclen(P)
@@ -467,6 +468,7 @@ def limit_curvature(P, t, rmin_of_t, max_iter=70):
     Pu = np.stack([np.interp(g, s_e, P[:, 0]), np.interp(g, s_e, P[:, 1])], 1)
     tu = np.interp(g, s_e, t)
     rmin = rmin_of_t(tu)
+    Pu0 = Pu.copy()
     rad0 = curvature_radius(Pu)
     rmin_before = float(np.min(rad0[8:-8]))
     for it in range(max_iter):
@@ -480,6 +482,10 @@ def limit_curvature(P, t, rmin_of_t, max_iter=70):
         sig = min(28.0, 2.5 + 0.6 * it)
         Ps = np.stack([ndi.gaussian_filter1d(Pu[:, i], sig, mode="nearest") for i in (0, 1)], 1)
         Pu = Pu * (1 - wmask[:, None]) + Ps * wmask[:, None]
+        # never move an edge point further than dmax px from where the silhouette put it
+        dv = Pu - Pu0
+        dn = np.hypot(dv[:, 0], dv[:, 1])
+        Pu = Pu0 + dv * np.minimum(1.0, dmax / np.maximum(dn, 1e-9))[:, None]
     rad = curvature_radius(Pu)
     out = np.stack([np.interp(t, tu, Pu[:, i]) for i in (0, 1)], 1)
     return out, rmin_before, float(np.min(rad[8:-8])), it
@@ -520,7 +526,7 @@ def reconstruct(S, info):
     wloc = np.hypot(*(E2 - E1).T)
     wmed = rolling_median(wloc, ok & ~S["in_turn"], int(round(3 * W / STEP)))
     wmed = np.where(np.isfinite(wmed), wmed, W)
-    cap = 1.15 * wmed
+    cap = 1.15 * np.minimum(wmed, 1.25 * W)
     scale = np.minimum(1.0, cap / np.maximum(wloc, 1e-6))
     ctr = 0.5 * (E1 + E2)
     E1 = ctr + (E1 - ctr) * scale[:, None]
