@@ -315,11 +315,6 @@ def build(M, T, X, rgb, cl, g, verbose=True):
 
 
 
-def smoothstep(x):
-    x = np.clip(x, 0.0, 1.0)
-    return x * x * (3 - 2 * x)
-
-
 def floor_fixed_boundaries(S, rgb, M, T, X, box):
     """Boundaries for a window whose bottom edge is cut by the floor-glow rule: colour mask with
     V >= 0.12 and no floor rule, accepted only within 14 px of the original mask (the glow itself
@@ -338,108 +333,114 @@ def floor_fixed_boundaries(S, rgb, M, T, X, box):
     return Boundaries(M2, T, X)
 
 
-def ruled_windows(S, M, T, X, rgb):
-    """Turn windows as a FOLD: rulings blend (smoothstep in arc fraction) from the entry ruling to
-    the crease direction c, hold c over the middle 40 %, then blend to the exit ruling. Edges are the
-    first mask exits of a line along the ruling through the centre, both ways."""
-    Q, n, d, ok, W, B, t = S["Q"], S["n"], S["d"], S["ok"], S["W"], S["B"], S["t"]
+def contour_chains(M):
+    cs, _ = cv2.findContours(M.astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    cs = [c[:, 0, :].astype(float) for c in cs if len(c) > 30]
+    allp = np.vstack(cs)
+    owner = np.concatenate([np.full(len(c), k) for k, c in enumerate(cs)])
+    pos = np.concatenate([np.arange(len(c)) for c in cs])
+    return cs, allp, owner, pos
+
+
+def chain_between(CH, p0, p1, Qwin, W, B, snap=6, max_len=None):
+    """Shorter closed-contour path between the contour pixels nearest p0 and p1 that stays within
+    1.8 W of the window trace; None if p0/p1 sit on different contours or the path is mostly text."""
+    from scipy.spatial import cKDTree
+    cs, allp, owner, pos = CH
+    tree = cKDTree(allp)
+    d0, i0 = tree.query(p0)
+    d1, i1 = tree.query(p1)
+    if d0 > snap or d1 > snap or owner[i0] != owner[i1]:
+        return None
+    c = cs[owner[i0]]
+    n_ = len(c)
+    j0, j1 = pos[i0], pos[i1]
+    fwd = [c[(j0 + k) % n_] for k in range((j1 - j0) % n_ + 1)]
+    bwd = [c[(j0 - k) % n_] for k in range((j0 - j1) % n_ + 1)]
+    best = None
+    for path in sorted((fwd, bwd), key=len):
+        P_ = np.array(path)
+        dd = np.hypot(P_[::3, None, 0] - Qwin[None, :, 0], P_[::3, None, 1] - Qwin[None, :, 1]).min(1)
+        if dd.max() > 2.5 * W:
+            continue
+        if max_len is not None and arclen(P_)[-1] > max_len:
+            continue
+        occ = np.mean([B.classify(x, y) != 0 for x, y in P_[::3]])
+        if occ > 0.35:
+            continue
+        best = P_
+        break
+    return best
+
+
+def chain_resample(P_, n_out):
+    P_ = smooth_poly(P_, 2.0) if len(P_) > 8 else P_
+    a_ = arclen(P_)
+    if a_[-1] < 1e-6:
+        return np.repeat(P_[:1], n_out, 0)
+    u = np.linspace(0, a_[-1], n_out)
+    return np.stack([np.interp(u, a_, P_[:, 0]), np.interp(u, a_, P_[:, 1])], 1)
+
+
+def contour_windows(S, M, T, X, rgb):
+    """Turn windows: replace the paired samples by the outer silhouette contour and the inner
+    (hole) contour between the trusted pairs on each side of the window, matched by fraction of
+    chain length."""
+    Q, n, ok, W, B = S["Q"], S["n"], S["ok"], S["W"], S["B"]
     N = len(Q)
     pL0 = Q + n * np.nan_to_num(S["tl"])[:, None]
     pR0 = Q - n * np.nan_to_num(S["tr"])[:, None]
-    rE1 = np.full((N, 2), np.nan)
-    rE2 = np.full((N, 2), np.nan)
-    in_ruled = np.zeros(N, bool)
-    flip = np.zeros(N, bool)
+    CH = contour_chains(M)
+    CH_k2 = None
+    # inner-face aware mask: the dark inner face (V channel) is cut out, so its boundary with the
+    # bright outer face becomes a contour too
+    dark = M & (S["V"] < 0.30)
+    dark = ndi.binary_opening(dark, np.ones((3, 3)))
+    lab, nl = ndi.label(dark)
+    sz = ndi.sum(dark, lab, range(1, nl + 1))
+    dark = np.isin(lab, [i + 1 for i, z in enumerate(sz) if z > 150])
+    CH2 = contour_chains(M & ~dark)
+    log = []
     info = []
-    pad = int(round(0.25 * W / STEP))
     for k, (a, b) in enumerate(S["wins"]):
-        a2, b2 = max(0, a - pad), min(N - 1, b + pad)
-        lim = int(round(1.5 * W / STEP))
-        raw = (S["cls_l"] == 0) & (S["cls_r"] == 0) & np.isfinite(S["tl"]) & np.isfinite(S["tr"])
-        def pick(rng, prefer_last):
-            rng = list(rng)
-            for pool in (ok, raw):
-                c_ = [j for j in rng if pool[j]]
-                if c_:
-                    return (c_[-1] if prefer_last else c_[0]), True
-            return (rng[-1] if prefer_last else rng[0]), False
-        ia, have_in = pick(range(max(0, a2 - lim), a2 + 1), True)
-        ib, have_out = pick(range(b2, min(N, b2 + lim + 1)), False)
-        prev = [ia] if have_in else []
-        nxt = [ib] if have_out else []
-        if ib <= ia + 3:
-            info.append(dict(id=k + 1, status="skipped (window too short)"))
-            continue
         inner_L = bool(S["inner_pos"][a])
-        # crease direction
-        t_in, t_out = d[a], d[b]
-        ssum = t_in + t_out
-        if k == 0:
-            c = np.array([1.0, 0.0])
-            how = "forced horizontal (A apex)"
-        elif np.hypot(*ssum) >= 0.3:
-            c = ssum / np.hypot(*ssum)
-            how = "bisector"
-        else:
-            nn = n[a] if not inner_L else -n[a]      # outer side
-            c = nn / np.hypot(*nn)
-            how = "perp(t_in) toward outer"
-        r_in = pR0[ia] - pL0[ia]
-        r_out = pR0[ib] - pL0[ib]
-        if not np.isfinite(S["tl"][ia]) or not np.isfinite(S["tr"][ia]):
-            r_in = -n[ia]
-        if not np.isfinite(S["tl"][ib]) or not np.isfinite(S["tr"][ib]):
-            r_out = -n[ib]
-        ph_in = np.arctan2(r_in[1], r_in[0])
-        ph_c = np.arctan2(c[1], c[0])
-        ph_c = ph_in + ((ph_c - ph_in + np.pi / 2) % np.pi - np.pi / 2)
-        ph_out_m = np.arctan2(r_out[1], r_out[0])
-        ph_out = ph_c + ((ph_out_m - ph_c + np.pi / 2) % np.pi - np.pi / 2)
-        sw = abs(round((ph_out - ph_out_m) / np.pi)) % 2 == 1
-        Bk = B
+        pad = int(round(0.25 * W / STEP))
+        a2, b2 = max(0, a - pad), min(N - 1, b + pad)
+        prev = np.nonzero(ok[:a2])[0]
+        nxt = np.nonzero(ok[b2 + 1:])[0]
+        if len(prev) == 0 or len(nxt) == 0:
+            log.append((k + 1, "no trusted sample on one side"))
+            info.append(dict(id=k + 1, i0=a, i1=b, status="no entry/exit sample: interpolated"))
+            continue
+        ia, ib = prev[-1], nxt[0] + b2 + 1
+        Qwin = Q[ia:ib + 1]
+        res = {}
+        CHk = CH
         if k + 1 == 2:
-            box = (1380, 600, 1672, 830)
-            Bk = floor_fixed_boundaries(S, rgb, M, T, X, box)
-        dl_in = 0.5 * (pL0[ia] + pR0[ia]) - Q[ia]
-        dl_out = 0.5 * (pL0[ib] + pR0[ib]) - Q[ib]
-        last = (0.5 * W, 0.5 * W)
-        maxlen = 0.0
-        for i in range(ia, ib + 1):
-            u = (i - ia) / float(ib - ia)
-            if u < 0.3:
-                ph = ph_in + (ph_c - ph_in) * smoothstep(u / 0.3)
-            elif u <= 0.7:
-                ph = ph_c
-            else:
-                ph = ph_c + (ph_out - ph_c) * smoothstep((u - 0.7) / 0.3)
-            r = np.array([np.cos(ph), np.sin(ph)])
-            m = Q[i] + dl_in + (dl_out - dl_in) * smoothstep(u)
-            tp, cp = Bk.cast(m, r, 1.6 * W)
-            tm, cm = Bk.cast(m, -r, 1.6 * W)
-            if tp is None or cp != 0:
-                tp = last[0]
-            if tm is None or cm != 0:
-                tm = last[1]
-            last = (tp, tm)
-            rE1[i] = m - r * tm
-            rE2[i] = m + r * tp
-            maxlen = max(maxlen, tp + tm)
-            in_ruled[i] = True
-        # anchor both ends on the measured pairs (in E labelling)
-        if len(prev):
-            rE1[ia], rE2[ia] = pL0[ia], pR0[ia]
-        if len(nxt):
-            if sw:
-                rE1[ib], rE2[ib] = pR0[ib], pL0[ib]
-            else:
-                rE1[ib], rE2[ib] = pL0[ib], pR0[ib]
+            if CH_k2 is None:
+                CH_k2 = contour_chains(floor_fixed_boundaries(S, rgb, M, T, X, (1380, 600, 1672, 830)).M)
+            CHk = CH_k2
+        span = arclen(Qwin)[-1]
+        for side, (P0, P1) in (("L", (pL0[ia], pL0[ib])), ("R", (pR0[ia], pR0[ib]))):
+            res[side] = chain_between(CHk, P0, P1, Qwin, W, B, max_len=3.0 * span)
+            if res[side] is None:
+                res[side] = chain_between(CH2, P0, P1, Qwin, W, B, snap=24, max_len=3.0 * span)
+        if res["L"] is None or res["R"] is None:
+            log.append((k + 1, "contour chain failed"))
+            info.append(dict(id=k + 1, i0=a, i1=b, status="contour chain failed: paired + interpolated"))
+            continue
+        ns = ib - ia + 1
+        cL = chain_resample(res["L"], ns)
+        cR = chain_resample(res["R"], ns)
+        # anchor ends on the paired samples, so the strip stays continuous
+        cL[0], cL[-1] = pL0[ia], pL0[ib]
+        cR[0], cR[-1] = pR0[ia], pR0[ib]
+        pL0[ia:ib + 1] = cL
+        pR0[ia:ib + 1] = cR
         ok[ia:ib + 1] = True
-        if sw:
-            flip[ib:] ^= True
-        info.append(dict(id=k + 1, i0=ia, i1=ib, s0=float(t[ia]), s1=float(t[ib]), crease=c.tolist(), crease_how=how,
-                         exit_label_swap=bool(sw), max_ruling_W=float(maxlen / W)))
+        S["contour"][ia:ib + 1] = True
+        info.append(dict(id=k + 1, i0=int(ia), i1=int(ib), status="contour edges (chain L %d px, R %d px)" % (len(res["L"]), len(res["R"]))))
     S["pL0"], S["pR0"] = pL0, pR0
-    S["rE1"], S["rE2"], S["in_ruled"], S["flip"] = rE1, rE2, in_ruled, flip
     return info
 
 
@@ -498,11 +499,33 @@ def reconstruct(S, info):
     """Physical edges E1/E2 (continuous labels; the +-normal labelling is E1/E2 swapped where `flip`)."""
     Q, t, n, ok, W = S["Q"], S["t"], S["n"], S["ok"], S["W"]
     N = len(Q)
-    flip, inr = S["flip"], S["in_ruled"]
-    E1 = np.where(flip[:, None], S["pR0"], S["pL0"])
-    E2 = np.where(flip[:, None], S["pL0"], S["pR0"])
-    E1 = np.where(inr[:, None], S["rE1"], E1)
-    E2 = np.where(inr[:, None], S["rE2"], E2)
+    flip = np.zeros(N, bool)       # contour chains keep the labels physically continuous: edge1 = pL, edge2 = pR
+    E1 = S["pL0"].copy()
+    E2 = S["pR0"].copy()
+    # slit-tip spikes (an edge reversing on itself): untrusted, interpolated through
+    ok = ok.copy()
+    nspike = 0
+    for P_ in (E1, E2):
+        for i in range(3, N - 3):
+            if not (ok[i] and ok[i - 3] and ok[i + 3]):
+                continue
+            a_, b_ = P_[i] - P_[i - 3], P_[i + 3] - P_[i]
+            la, lb = np.hypot(*a_), np.hypot(*b_)
+            if la > 1e-6 and lb > 1e-6 and (a_ @ b_) / (la * lb) < -0.5:
+                ok[max(0, i - 4):i + 5] = False
+                nspike += 1
+    S["nspike"] = nspike
+    S["ok_final"] = ok
+    # cap the projected ruling at 1.15 x the local trusted width: shrink symmetrically about the centre
+    wloc = np.hypot(*(E2 - E1).T)
+    wmed = rolling_median(wloc, ok & ~S["in_turn"], int(round(3 * W / STEP)))
+    wmed = np.where(np.isfinite(wmed), wmed, W)
+    cap = 1.15 * wmed
+    scale = np.minimum(1.0, cap / np.maximum(wloc, 1e-6))
+    ctr = 0.5 * (E1 + E2)
+    E1 = ctr + (E1 - ctr) * scale[:, None]
+    E2 = ctr + (E2 - ctr) * scale[:, None]
+    S["capped"] = int((scale < 0.999).sum())
     m = 0.5 * (E1 + E2)
     hw = 0.5 * np.hypot(*(E2 - E1).T)
     phi = np.arctan2(*(E2 - E1)[:, ::-1].T)
@@ -554,19 +577,15 @@ def reconstruct(S, info):
         return LSQUnivariateSpline(t, c, knots, w=w, k=3)(t)
     E1s = np.stack([fit(E1_f[:, 0]), fit(E1_f[:, 1])], 1)
     E2s = np.stack([fit(E2_f[:, 0]), fit(E2_f[:, 1])], 1)
-    # curvature rule: radius >= 0.25 W inside turn windows, >= 0.2 W elsewhere
+    # curvature rule: radius >= 0.12 W inside turn windows, >= 0.1 W elsewhere
     def rmin_of_t(tt):
-        r = np.full(len(tt), 0.2 * W)
+        r = np.full(len(tt), 0.1 * W)
         for lo, hi_ in wz:
-            r[(tt >= lo) & (tt <= hi_)] = 0.25 * W
+            r[(tt >= lo) & (tt <= hi_)] = 0.12 * W
         return r
     E1c, r1a, r1b, it1 = limit_curvature(E1s, t, rmin_of_t)
     E2c, r2a, r2b, it2 = limit_curvature(E2s, t, rmin_of_t)
-    # +-normal labelling: flip is set from the middle of each ruled window with an exit swap
-    flip_out = flip.copy()
-    for w_ in info:
-        if w_.get("exit_label_swap"):
-            flip_out[w_["i0"] + (w_["i1"] - w_["i0"]) // 2: w_["i1"]] = True
+    flip_out = flip
     return dict(E1=E1c, E2=E2c, E1_pre=E1s, E2_pre=E2s, E1_i=E1_f, E2_i=E2_f, flip=flip_out, knots=knots,
                 min_radius=dict(E1_before=r1a, E1_after=r1b, E2_before=r2a, E2_after=r2b, W=W), wz=wz)
 
@@ -617,12 +636,9 @@ def review(S, R, rgb, path, S_=2):
         x0, y0 = pts.min(0) - 14
         x1, y1 = pts.max(0) + 14
         cv2.rectangle(img, (int(x0), int(y0)), (int(x1), int(y1)), (0, 220, 255), 2, cv2.LINE_AA)
-        cv2.putText(img, "turn %d  max ruling %.2f W" % (w_["id"], w_["max_ruling_W"]), (int(x0) + 4, int(y0) - 6),
+        cv2.putText(img, "turn %d" % w_["id"], (int(x0) + 4, int(y0) - 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 220, 255), 2, cv2.LINE_AA)
-        cm = S["Q"][(a + b) // 2]
-        c = np.array(w_["crease"])
-        cv2.arrowedLine(img, pt(cm - c * 35), pt(cm + c * 35), (0, 220, 255), 3, cv2.LINE_AA, sh, 0.25)
-    cv2.putText(img, "edge1 green  edge2 magenta (physical labels)  rulings /40px  dashed = untrusted  box = turn window  arrow = crease c",
+    cv2.putText(img, "edge1 green  edge2 magenta (physical labels)  rulings /40px  dashed = untrusted  box = turn window  ",
                 (20, Hh - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imwrite(path, img)
     return img
@@ -654,11 +670,13 @@ def write_json(S, R, info, path):
 if __name__ == "__main__":
     M, T, X, rgb, cl, g = load()
     S = build(M, T, X, rgb, cl, g)
-    info = ruled_windows(S, M, T, X, rgb)
+    info = contour_windows(S, M, T, X, rgb)
     S["info"] = info
     for w_ in info:
         print("window", w_)
     R = reconstruct(S, info)
+    S["ok"] = S["ok_final"]
+    print("spikes removed:", S["nspike"], " rulings capped at 1.15 x local width:", S["capped"])
     print("min radius", R["min_radius"])
     print("trusted %d / %d" % (S["ok"].sum(), len(S["ok"])))
     write_json(S, R, info, OUTD + "/edges.json")

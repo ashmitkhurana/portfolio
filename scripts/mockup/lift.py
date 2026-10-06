@@ -95,8 +95,8 @@ def main():
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
     ls = np.array([np.linalg.norm(lift(E2[i], zc[i]) - lift(E1[i], zc[i])) for i in range(N)])
-    Wt = float(np.percentile(ls[trusted & ~tw], 75))
-    print("true width W = %.2f world px (p75 of projected ruling lengths at centre depth; median %.2f)" % (Wt, np.median(ls[trusted & ~tw])))
+    Wt = float(np.percentile(ls[trusted & ~tw], 90))
+    print("true width W = %.2f world px (p90 of projected ruling lengths at centre depth; median %.2f)" % (Wt, np.median(ls[trusted & ~tw])))
 
     mag = np.zeros((N, 2))
     grow = np.zeros((N, 2), bool)
@@ -141,6 +141,34 @@ def main():
     runs = ed.spans(gr)
     print("grown spans (arc):", [(round(float(t[a])), round(float(t[b]))) for a, b in runs][:30])
 
+    # roll (angle of B about the centre tangent, unwrapped) range per turn window
+    C = 0.5 * (Lw + Rw)
+    Tg = np.gradient(C, axis=0)
+    Tg /= np.maximum(np.linalg.norm(Tg, axis=1)[:, None], 1e-9)
+    Bn = (Rw - Lw) / np.maximum(ln[:, None], 1e-9)
+    roll = np.zeros(N)
+    ref = None
+    for i in range(N):
+        bp = Bn[i] - Tg[i] * (Bn[i] @ Tg[i])
+        bp /= max(np.linalg.norm(bp), 1e-9)
+        if ref is None:
+            ref = np.cross(Tg[i], bp)
+        roll[i] = math.atan2(np.cross(Tg[i], bp) @ Tg[i], 1.0)
+    # signed angle between consecutive perpendicular parts, accumulated
+    acc = np.zeros(N)
+    for i in range(1, N):
+        b0 = Bn[i - 1] - Tg[i - 1] * (Bn[i - 1] @ Tg[i - 1])
+        b1 = Bn[i] - Tg[i] * (Bn[i] @ Tg[i])
+        b0 /= max(np.linalg.norm(b0), 1e-9)
+        b1 /= max(np.linalg.norm(b1), 1e-9)
+        acc[i] = acc[i - 1] + math.atan2(np.cross(b0, b1) @ Tg[i], b0 @ b1)
+    rr = []
+    for w in E["turn_windows"]:
+        if "i0" in w:
+            seg = acc[w["i0"]:w["i1"] + 1]
+            rr.append((w["id"], round(math.degrees(seg.max() - seg.min()), 1), round(math.degrees(abs(seg[-1] - seg[0])), 1)))
+    print("roll range per turn (id, max-min deg, net deg):", rr)
+    print("grown (dz=0) share: %.1f %%" % (100.0 * gr.mean()))
     # to anchor space: x,y = screen position as a fraction of the anchor box, z in anchor heights
     def to_anchor(P3, scr):
         return [round((scr[0] - ANCHOR["left"]) / ANCHOR["width"], 5), round((scr[1] - ANCHOR["top"]) / ANCHOR["height"], 5),
