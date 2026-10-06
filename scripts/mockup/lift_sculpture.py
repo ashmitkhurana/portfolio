@@ -18,6 +18,8 @@ ANCHOR = L.ANCHOR
 ASHMIT = (56.609, 192.625, 977.047, 392.984)     # site-measured .display__line rects at 1672x941
 KHURANA = (56.609, 392.984, 1253.531, 593.344)
 PLANE_A, PLANE_K = -45.0, 45.0
+INSET = float(os.environ.get("INSET", "0"))
+SMOOTH_SIGMA = float(os.environ.get("SMOOTH_SIGMA", "6"))
 
 # centre depth anchors (world px), End 1 -> End 2. Edit here.
 Z = [
@@ -48,6 +50,10 @@ def main(write_pose=False):
     xf = lambda a: np.asarray(a, float) * s + np.array([tx, ty])
     t = np.array(E["s"])
     E1, E2, Qc = xf(E["edge1"]), xf(E["edge2"]), xf(E["centre"])
+    if INSET > 0:   # the engine's band has thickness and bevels: its silhouette is ~INSET px fatter per side than the ruling quads
+        u = E2 - E1
+        u = u / np.maximum(np.hypot(u[:, 0], u[:, 1]), 1e-6)[:, None]
+        E1, E2 = E1 + u * INSET, E2 - u * INSET
     N = len(t)
     Qs, tt, vis, P_, s_orig = ed.prep_trace(cl)
     ext = 200
@@ -70,6 +76,20 @@ def main(write_pose=False):
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
     Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90)
+    # 3D regularisation: the per-ring depth solve is noisy where the projected ruling is close to the true width (sqrt singularity);
+    # a Gaussian along the arc on the lifted ring ends removes the ripple the engine's curvature / roll metrics see
+    from scipy import ndimage as ndi
+    if SMOOTH_SIGMA > 0:
+        Lw = ndi.gaussian_filter1d(Lw, SMOOTH_SIGMA, axis=0, mode="nearest")
+        Rw = ndi.gaussian_filter1d(Rw, SMOOTH_SIGMA, axis=0, mode="nearest")
+        ln = np.linalg.norm(Rw - Lw, axis=1)
+        dev = []
+        for P3, E_ in ((Lw, E1), (Rw, E2)):
+            k = (L.D - P3[:, 2]) / L.D
+            sx = P3[:, 0] / k + L.VW / 2; sy = L.VH / 2 - P3[:, 1] / k
+            dev.append(np.hypot(sx - E_[:, 0], sy - E_[:, 1]))
+        dev = np.concatenate(dev)
+        print("3D smoothing sigma %g samples: projected deviation from the edges mean %.2f max %.2f px; ruling length %.3f..%.3f W" % (SMOOTH_SIGMA, dev.mean(), dev.max(), ln.min() / Wt, ln.max() / Wt))
     print("sign flips at samples", flips, "(arc", [round(float(t[i])) for i in flips], ")")
     print("dz = 0 (grown) samples: %d of %d (%.1f %%), max ruling %.2f W; |dz| max %.0f mean %.0f" % (gr.sum(), N, 100 * gr.mean(), ln.max() / Wt, np.abs(dzs).max(), np.abs(dzs).mean()))
     print("  grown spans (sample idx):", [(a, b) for a, b in ed.spans(gr)][:40])
@@ -139,6 +159,32 @@ def main(write_pose=False):
         print("  %-42s over z %s (miss %.1f px)  under z %s (miss %.1f px)  -> %s" % (nm, None if res[0][1] is None else "%.0f" % res[0][1], res[0][0],
               None if res[1][1] is None else "%.0f" % res[1][1], res[1][0], "OK" if good else "VIOLATED"))
     print("all four over/under constraints satisfied:", ok_all)
+
+    # ---------------------------------------------------------------- 3D self-intersection gate
+    THICK = (1672 * 0.0 + 79.0) / 11.0        # engine ribbon thickness (px): width param 79 at 1672 x thicknessRatio 1/11
+    fr7 = np.linspace(0, 1, 9)
+    pts3 = np.array([[Lw[i] * (1 - f) + Rw[i] * f for f in fr7] for i in range(N)]).reshape(-1, 3)
+    ring = np.repeat(np.arange(N), len(fr7))
+    arcw = np.repeat(np.r_[0, np.cumsum(np.linalg.norm(np.diff(0.5 * (Lw + Rw), axis=0), axis=1))], len(fr7))
+    from scipy.spatial import cKDTree
+    tree = cKDTree(pts3)
+    worst = (1e9, None, None)
+    bad_rings = set()
+    for a, b in tree.query_pairs(2.0 * THICK + 20.0):
+        if abs(arcw[a] - arcw[b]) < 1.5 * Wt:
+            continue
+        d = float(np.linalg.norm(pts3[a] - pts3[b]))
+        if d < 2.0 * THICK:
+            bad_rings.add(int(ring[a])); bad_rings.add(int(ring[b]))
+        if d < worst[0]:
+            worst = (d, int(ring[a]), int(ring[b]))
+    print("self-intersection gate: need >= %.1f px (2 x thickness %.1f); min distance between non-adjacent rings %.1f px at rings %s (screen %s / %s); %d rings below the limit" % (
+        2 * THICK, THICK, worst[0], worst[1:], None if worst[1] is None else np.round(0.5 * (E1[worst[1]] + E2[worst[1]])).tolist(),
+        None if worst[2] is None else np.round(0.5 * (E1[worst[2]] + E2[worst[2]])).tolist(), len(bad_rings)))
+    if bad_rings:
+        br = sorted(bad_rings)
+        runs = [(a, b) for a, b in ed.spans(np.isin(np.arange(N), br))]
+        print("  offending sample runs (sample idx -> screen centre):", [(a, b, np.round(0.5 * (E1[a] + E2[a])).tolist()) for a, b in runs][:20])
 
     def to_anchor(P3, scr):
         return [round((scr[0] - ANCHOR["left"]) / ANCHOR["width"], 5), round((scr[1] - ANCHOR["top"]) / ANCHOR["height"], 5), round(P3[2] / ANCHOR["height"], 5)]

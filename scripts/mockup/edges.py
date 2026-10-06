@@ -482,16 +482,18 @@ def contour_windows(S, M, T, X, rgb):
 # hand-read rulings (E1 = upper edge at entry = inner edge of the hairpin, E2 = outer) for windows whose edges are interior
 # colour edges, not silhouette (the wrap: a rolled hairpin around the front of the A right leg). Read off the sculpture at 4x.
 OVERRIDES = {
+    # The wrap is a BELT around the A right leg (a half turn about the leg axis): the rulings stay near-vertical (E1 = top edge, E2 =
+    # bottom edge throughout), the +normal labelling swaps sides when the heading reverses, hence "flip" after the window.
     "wrap": [   # (trace centre, E1, E2)
-        ((905, 447), (900, 420), (912, 482)),
-        ((868, 452), (866, 425), (874, 490)),
-        ((835, 462), (835, 435), (840, 500)),
-        ((808, 470), (815, 448), (804, 498)),
-        ((792, 450), (822, 447), (787, 450)),
-        ((803, 425), (825, 438), (795, 410)),
-        ((835, 414), (836, 456), (832, 395)),
-        ((880, 408), (884, 434), (876, 385)),
-        ((930, 390), (934, 414), (926, 352)),
+        ((905, 447), (898, 420), (910, 484)),
+        ((868, 452), (862, 420), (872, 490)),
+        ((835, 462), (828, 422), (840, 498)),
+        ((808, 470), (800, 416), (812, 497)),
+        ((792, 450), (789, 410), (798, 490)),
+        ((803, 425), (797, 402), (808, 470)),
+        ((835, 414), (832, 393), (836, 456)),
+        ((880, 408), (878, 383), (884, 434)),
+        ((930, 390), (928, 352), (934, 414)),
     ],
 }
 
@@ -520,6 +522,11 @@ def apply_overrides(S, info):
                 ok[k] = True
             # keep the entry / exit trusted pairs just outside the window
             w_["status"] = "hand rulings (%s, %d stations)" % (nm, len(used))
+            S.setdefault("override_idx", []).append(sorted(used))
+            if nm == "wrap":      # belt: physical edge labels swap against the +normal labels from here on
+                kk = max(used)
+                S["pL0"][kk + 1:], S["pR0"][kk + 1:] = S["pR0"][kk + 1:].copy(), S["pL0"][kk + 1:].copy()
+                S["flip_from"] = kk + 1
             print("override", nm, "window", w_["id"], sorted(used))
 
 
@@ -584,7 +591,10 @@ def reconstruct(S, info):
     """Physical edges E1/E2 (continuous labels; the +-normal labelling is E1/E2 swapped where `flip`)."""
     Q, t, n, ok, W = S["Q"], S["t"], S["n"], S["ok"], S["W"]
     N = len(Q)
-    flip = np.zeros(N, bool)       # contour chains keep the labels physically continuous: edge1 = pL, edge2 = pR
+    flip = np.zeros(N, bool)
+    if S.get("flip_from") is not None:
+        flip[S["flip_from"]:] = True
+    # (contour chains keep the labels physically continuous: edge1 = pL, edge2 = pR
     E1 = S["pL0"].copy()
     E2 = S["pR0"].copy()
     # slit-tip spikes (an edge reversing on itself): untrusted, interpolated through
@@ -670,6 +680,19 @@ def reconstruct(S, info):
         return r
     E1c, r1a, r1b, it1 = limit_curvature(E1s, t, rmin_of_t)
     E2c, r2a, r2b, it2 = limit_curvature(E2s, t, rmin_of_t)
+    # hand-ruled windows: the smoothing splines and the curvature limiter would pull a tight hairpin inwards; here the edges are
+    # a C2 cubic spline THROUGH the hand stations (clamped to the smoothed edges' end slopes 12 samples outside the stations)
+    from scipy.interpolate import CubicSpline
+    for ids in S.get("override_idx", []):
+        pad = 12
+        a_, b_ = ids[0] - pad, ids[-1] + pad
+        for E_c, E_src in ((E1c, S["pL0"]), (E2c, S["pR0"])):
+            k = np.array([a_] + list(ids) + [b_], float)
+            v = np.vstack([E_c[a_][None], E_src[ids], E_c[b_][None]])
+            d0 = (E_c[a_ + 1] - E_c[a_ - 1]) / 2.0
+            d1 = (E_c[b_ + 1] - E_c[b_ - 1]) / 2.0
+            cs_ = CubicSpline(k, v, bc_type=((1, d0), (1, d1)))
+            E_c[a_:b_ + 1] = cs_(np.arange(a_, b_ + 1))
     flip_out = flip
     return dict(E1=E1c, E2=E2c, E1_pre=E1s, E2_pre=E2s, E1_i=E1_f, E2_i=E2_f, flip=flip_out, knots=knots,
                 min_radius=dict(E1_before=r1a, E1_after=r1b, E2_before=r2a, E2_after=r2b, W=W), wz=wz)
