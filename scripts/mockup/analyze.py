@@ -18,7 +18,7 @@ from skimage.morphology import skeletonize, remove_small_objects, remove_small_h
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 REF = os.path.join(ROOT, "public", "lab", "ref")
-OUT = ("/private/tmp/claude-501/-Users-ashmitkhurana-Development-studio-portfolio/"
+OUT = os.environ.get("ANALYZE_OUT", "/private/tmp/claude-501/-Users-ashmitkhurana-Development-studio-portfolio/"
        "428f1961-b6ad-4758-ba30-ff5eb1800006/scratchpad/fit")
 
 # ---------------------------------------------------------------- parameters
@@ -53,6 +53,7 @@ EXCLUDE = {
         "scroll_label": (55, 810, 270, 890),
         "domain_label": (1385, 845, 1625, 882),
     },
+    "sculpture": {},   # no text, no chrome
     "mobile": {
         "logo_AK": (40, 40, 145, 112),
         "nav_buttons": (620, 35, 820, 120),
@@ -64,7 +65,9 @@ EXCLUDE = {
 
 # Floor-glow zone (x0, y0, x1, y1): stricter V floor applies inside (see PARAMS floor_v_min).
 FLOOR_ZONE = {"desktop": [(0, 758, 1330, 941), (1330, 782, 1672, 941)],
-              "mobile": [(0, 1245, 852, 1846)]}
+              "mobile": [(0, 1245, 852, 1846)],
+              # sculpture: floor glow below the contact line, (the lower K loop bottoms out at y ~ 800)
+              "sculpture": [(0, 812, 1672, 941)]}
 
 # Topology regions in desktop 1672x941 coordinates; list of rects per label.
 TOPO = {
@@ -81,7 +84,8 @@ TOPO = {
 
 
 def load(name):
-    im = Image.open(os.path.join(REF, f"hero-{name}.webp")).convert("RGB")
+    fn = "ak-sculpture.webp" if name == "sculpture" else f"hero-{name}.webp"
+    im = Image.open(os.path.join(REF, fn)).convert("RGB")
     return np.array(im)
 
 
@@ -96,6 +100,8 @@ def make_masks(rgb, name):
     h, s, v = hsv_of(rgb)
     p = PARAMS
     text = (s < p["text"]["s_max"]) & (v > p["text"]["v_min"])
+    if name == "sculpture":      # no text: near-white specular streaks must stay ribbon
+        text[:] = False
     excl = np.zeros((H, W), bool)
     for (x0, y0, x1, y1) in EXCLUDE[name].values():
         excl[y0:y1, x0:x1] = True
@@ -103,12 +109,14 @@ def make_masks(rgb, name):
     # text: clean, drop chrome
     text_raw = text.copy()
     text &= ~excl
-    text = remove_small_objects(text, int(0.0005 * H * W))
-    text = ndi.binary_closing(text, np.ones((3, 3)))
-    text = remove_small_holes(text, 200)
+    if name != "sculpture":
+        text = remove_small_objects(text, int(0.0005 * H * W))
+        text = ndi.binary_closing(text, np.ones((3, 3)))
+        text = remove_small_holes(text, 200)
 
     r = p["ribbon"]
-    colour_ok = (h >= r["h_min"]) & (h <= r["h_max"]) & (s > r["s_min"]) & (v > r["v_min"])
+    v_min = 0.21 if name == "sculpture" else r["v_min"]   # sculpture: floor glow tops out at V ~ 0.2, the dimmest band face is ~ 0.35
+    colour_ok = (h >= r["h_min"]) & (h <= r["h_max"]) & (s > r["s_min"]) & (v > v_min)
     # specular highlights are cream-yellow (H up to ~55, S 0.2..0.35) and would otherwise
     # punch holes in the ribbon; text is S < 0.12 so the two stay separable.
     hl = (h >= 20) & (h <= 60) & (s >= p["highlight_s_min"]) & (v >= 0.85)
@@ -455,6 +463,8 @@ def qa_crops(rgb, rib, out_dir, name):
     H, W = rgb.shape[:2]
     if name == "desktop":
         boxes = [(640, 60, 1240, 460), (1150, 150, 1650, 520), (560, 560, 1200, 941)]
+    elif name == "sculpture":
+        boxes = [(500, 40, 960, 500), (1000, 40, 1260, 500), (1000, 560, 1400, 860)]
     else:
         boxes = [(0, 520, 500, 900), (350, 640, 852, 1260), (0, 1100, 852, 1846)]
     for i, (x0, y0, x1, y1) in enumerate(boxes):
