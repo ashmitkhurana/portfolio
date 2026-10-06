@@ -12,6 +12,8 @@ import type { DeepPartial, RibbonSettings } from "./settings";
  * and keeps them; a moving ribbon renders them every frame). Idle motion comes back in a later stage.
  */
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
+  // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
+  camera: { fov: 26.4 },
   sim: { mode: "frozen" },
   post: { adaptive: false },
   env: { autoRotate: false },
