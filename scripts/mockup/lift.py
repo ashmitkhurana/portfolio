@@ -73,7 +73,7 @@ def _lift_vec(P, z):
     return np.stack([(P[:, 0] - VW / 2) * k, (VH / 2 - P[:, 1]) * k, z], 1)
 
 
-def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs=None, fs=1, lam=0.06, forced=None):
+def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs=None, fs=1, lam=0.06, forced=None, nosolve=None):
     """True width W = percentile `pct` of the projected ruling lengths (world px at the centre depth) over trusted samples outside the
     turn windows; per ring the depth difference dz of the two ruling ends solves |R3 - L3| = W; the sign of dz is chosen by a DP
     minimising the change of the 3D ruling direction, flips only inside the turn windows (tw).
@@ -84,6 +84,8 @@ def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs
     if verbose:
         print("true width W = %.2f world px (p%d of projected ruling lengths at centre depth; median %.2f)" % (Wt, pct, np.median(l0[trusted & ~tw])))
     grown = l0 >= Wt
+    if nosolve is not None:      # the apex flat fold: sheared rulings are longer than W by design, no W-depth solve there (both layers stay in the legs' plane)
+        grown = grown | nosolve
     mag = np.zeros((N, 2))
     Ls = np.zeros((N, 2, 3)); Rs = np.zeros((N, 2, 3)); B = np.zeros((N, 2, 3))
     for j, sg_ in enumerate((+1, -1)):

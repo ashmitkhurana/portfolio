@@ -481,27 +481,84 @@ def contour_windows(S, M, T, X, rgb):
 
 # hand-read rulings (E1 = upper edge at entry = inner edge of the hairpin, E2 = outer) for windows whose edges are interior
 # colour edges, not silhouette (the wrap: a rolled hairpin around the front of the A right leg). Read off the sculpture at 4x.
+# E1 / E2 are the PHYSICAL edges (continuous labels). "flip": the +normal labels swap sides after the window (the heading reverses).
 OVERRIDES = {
-    # The wrap is a BELT around the A right leg (a half turn about the leg axis): the rulings stay near-vertical (E1 = top edge, E2 =
-    # bottom edge throughout), the +normal labelling swaps sides when the heading reverses, hence "flip" after the window.
-    "wrap": [   # (trace centre, E1, E2)
-        ((905, 447), (898, 420), (910, 484)),
-        ((868, 452), (862, 420), (872, 490)),
-        ((835, 462), (828, 422), (840, 498)),
-        ((808, 470), (800, 416), (812, 497)),
-        ((792, 450), (789, 410), (798, 490)),
-        ((803, 425), (797, 402), (808, 470)),
-        ((835, 414), (832, 393), (836, 456)),
-        ((880, 408), (878, 383), (884, 434)),
-        ((930, 390), (928, 352), (934, 414)),
-    ],
+    # The A apex is a FLAT SOFT SIDE-FOLD: the band folds over along a near-horizontal crease (the top silhouette, P1 -> P2), the left layer
+    # (dark inner face towards the camera) behind, the right layer (lit face) in front. Rulings shear towards the crease (at the crease the
+    # ruling IS the crease line, longer than W), then back into the right leg's rulings. E1 = left-leg outer edge -> crease left end -> right
+    # leg's INNER edge (it crosses the left layer, the overlap triangle); E2 = left-leg inner edge (hidden under the right layer above the
+    # triangle tip) -> crease right end -> right leg's outer edge. Read off the sculpture at 5x.
+    "apex": dict(even=True, flip=True, stations="apex"),
+    # The wrap is a BELT around the A right leg (a half turn about the leg axis): rulings stay near-vertical, the physical edges keep their
+    # sides (here E1 = BOTTOM edge, E2 = top edge: after the apex fold the physical E1 is the +normal-right edge), the +normal labels swap.
+    "wrap": dict(even=False, flip=True, stations=[   # (trace centre, E1, E2)
+        ((905, 447), (910, 484), (898, 420)),
+        ((868, 452), (872, 490), (862, 420)),
+        ((835, 462), (840, 498), (828, 422)),
+        ((808, 470), (812, 497), (800, 416)),
+        ((792, 450), (798, 490), (789, 410)),
+        ((803, 425), (808, 470), (797, 402)),
+        ((835, 414), (836, 456), (832, 393)),
+        ((880, 408), (884, 434), (878, 383)),
+        ((930, 390), (934, 414), (928, 352)),
+    ]),
 }
+
+
+def _ray_hit(p, d, poly):
+    """first intersection of the ray p + t d (t > 0) with the polyline poly"""
+    best = None
+    for i in range(len(poly) - 1):
+        a, b = np.array(poly[i], float), np.array(poly[i + 1], float)
+        e = b - a
+        den = d[0] * e[1] - d[1] * e[0]
+        if abs(den) < 1e-9:
+            continue
+        w = a - p
+        t = (w[0] * e[1] - w[1] * e[0]) / den
+        u = (w[0] * d[1] - w[1] * d[0]) / den
+        if t > 0 and 0 <= u <= 1 and (best is None or t < best[0]):
+            best = (t, p + d * t)
+    return None if best is None else best[1]
+
+
+def apex_stations():
+    """The apex flat side-fold, stations (centre, E1, E2) built from silhouette points measured on the mask (top silhouette flat from
+    x 632 to 714; hole tip at (681, 108)). Rulings run from E1 (physical edge 1) to E2 and always point LEFT (the ruling is continuous through
+    the fold); their line angle shears from the left leg's perpendicular tilt to the crease line and on to the right leg's tilt (smoothstep)."""
+    outer_l = [(533, 186), (536, 178), (542, 162), (552, 146), (561, 130), (569, 114), (580, 98), (595, 82), (611, 70), (623, 66)]
+    inner_l = [(626, 230), (632, 214), (636, 204), (641, 192), (645, 182), (651, 166), (658, 150), (664, 134), (673, 118), (678, 110), (690, 93), (702, 78), (714, 64), (722, 54)]
+    outer_r = [(720, 67), (725, 70), (735, 78), (743, 86), (750, 94), (756, 102), (762, 110), (767, 118), (771, 126), (776, 134), (784, 150), (792, 166), (796, 174)]
+    inner_r = [(632, 60), (640, 62), (648, 66), (662, 78), (674, 94), (685, 110), (689, 118), (694, 126), (698, 134), (705, 150), (713, 166), (718, 178), (722, 190), (726, 202), (730, 214)]
+    sm = lambda x: x * x * (3 - 2 * x)
+    st = []
+    n = len(outer_l)
+    for i, p in enumerate(outer_l):
+        al = np.radians(15.0 + (3.0 - 15.0) * sm(i / n))      # line angle, descending to the right
+        d = np.array([np.cos(al), np.sin(al)])
+        q = _ray_hit(np.array(p, float), d, inner_l)
+        if q is None:
+            continue
+        st.append((tuple((np.array(p) + q) / 2), tuple(q), tuple(p)))
+    # the crease: P1 (632,60) is the left end (E2), P2 (714,64) the right end (E1)
+    st.append(((673, 62), (714, 64), (632, 60)))
+    m = len(outer_r)
+    for i, p in enumerate(outer_r):
+        ga = np.radians(-3.0 + (21.0 + 3.0) * sm((i + 1) / m))   # line angle: going LEFT it descends (ascends to the right)
+        d = np.array([-np.cos(ga), np.sin(ga)])
+        q = _ray_hit(np.array(p, float), d, inner_r)
+        if q is None:
+            continue
+        st.append((tuple((np.array(p) + q) / 2), tuple(p), tuple(q)))
+    return st
 
 
 def apply_overrides(S, info):
     Q, ok = S["Q"], S["ok"]
     N = len(Q)
-    for nm, stations in OVERRIDES.items():
+    S["flip_idx"] = []
+    for nm, spec in OVERRIDES.items():
+        stations = apex_stations() if spec["stations"] == "apex" else spec["stations"]
         c0 = np.array(stations[len(stations) // 2][0], float)
         for w_ in info:
             if "i0" not in w_:
@@ -511,23 +568,30 @@ def apply_overrides(S, info):
                 continue
             lo, hi = max(0, a - 12), min(N - 1, b + 12)
             ok[lo:hi + 1] = False
-            used = set()
-            for c, e1, e2 in stations:
-                k = int(lo + np.argmin(np.hypot(*(Q[lo:hi + 1] - np.array(c, float)).T)))
+            cs = np.array([st[0] for st in stations], float)
+            if spec["even"]:
+                k0 = int(lo + np.argmin(np.hypot(*(Q[lo:hi + 1] - cs[0]).T)))
+                k1 = int(lo + np.argmin(np.hypot(*(Q[lo:hi + 1] - cs[-1]).T)))
+                cum = np.r_[0, np.cumsum(np.hypot(*np.diff(cs, axis=0).T))]
+                ks = [int(round(k0 + (k1 - k0) * c / cum[-1])) for c in cum]
+            else:
+                ks = [int(lo + np.argmin(np.hypot(*(Q[lo:hi + 1] - c).T))) for c in cs]
+            used = []
+            for k, (c, e1, e2) in zip(ks, stations):
                 if k in used:
                     continue
-                used.add(k)
+                used.append(k)
                 S["pL0"][k] = e1
                 S["pR0"][k] = e2
                 ok[k] = True
-            # keep the entry / exit trusted pairs just outside the window
+            used = sorted(used)
             w_["status"] = "hand rulings (%s, %d stations)" % (nm, len(used))
-            S.setdefault("override_idx", []).append(sorted(used))
-            if nm == "wrap":      # belt: physical edge labels swap against the +normal labels from here on
+            S.setdefault("override_idx", []).append(used)
+            if spec.get("flip"):
                 kk = max(used)
                 S["pL0"][kk + 1:], S["pR0"][kk + 1:] = S["pR0"][kk + 1:].copy(), S["pL0"][kk + 1:].copy()
-                S["flip_from"] = kk + 1
-            print("override", nm, "window", w_["id"], sorted(used))
+                S["flip_idx"].append(kk + 1)
+            print("override", nm, "window", w_["id"], used)
 
 
 def curvature_radius(P, k=4):
@@ -592,8 +656,8 @@ def reconstruct(S, info):
     Q, t, n, ok, W = S["Q"], S["t"], S["n"], S["ok"], S["W"]
     N = len(Q)
     flip = np.zeros(N, bool)
-    if S.get("flip_from") is not None:
-        flip[S["flip_from"]:] = True
+    for fi in S.get("flip_idx", []):
+        flip[fi:] ^= True
     # (contour chains keep the labels physically continuous: edge1 = pL, edge2 = pR
     E1 = S["pL0"].copy()
     E2 = S["pR0"].copy()
@@ -684,15 +748,17 @@ def reconstruct(S, info):
     # a C2 cubic spline THROUGH the hand stations (clamped to the smoothed edges' end slopes 12 samples outside the stations)
     from scipy.interpolate import CubicSpline
     for ids in S.get("override_idx", []):
-        pad = 12
-        a_, b_ = ids[0] - pad, ids[-1] + pad
+        ok_ns = ok.copy()
+        ok_ns[ids] = False
+        il = int(np.nonzero(ok_ns[:ids[0]])[0][-1]) if ok_ns[:ids[0]].any() else max(1, ids[0] - 12)
+        ir = int(ids[-1] + 1 + np.nonzero(ok_ns[ids[-1] + 1:])[0][0]) if ok_ns[ids[-1] + 1:].any() else min(N - 2, ids[-1] + 12)
         for E_c, E_src in ((E1c, S["pL0"]), (E2c, S["pR0"])):
-            k = np.array([a_] + list(ids) + [b_], float)
-            v = np.vstack([E_c[a_][None], E_src[ids], E_c[b_][None]])
-            d0 = (E_c[a_ + 1] - E_c[a_ - 1]) / 2.0
-            d1 = (E_c[b_ + 1] - E_c[b_ - 1]) / 2.0
+            k = np.array([il] + list(ids) + [ir], float)
+            v = np.vstack([E_c[il][None], E_src[ids], E_c[ir][None]])
+            d0 = (E_c[il + 1] - E_c[il - 1]) / 2.0
+            d1 = (E_c[ir + 1] - E_c[ir - 1]) / 2.0
             cs_ = CubicSpline(k, v, bc_type=((1, d0), (1, d1)))
-            E_c[a_:b_ + 1] = cs_(np.arange(a_, b_ + 1))
+            E_c[il:ir + 1] = cs_(np.arange(il, ir + 1))
     flip_out = flip
     return dict(E1=E1c, E2=E2c, E1_pre=E1s, E2_pre=E2s, E1_i=E1_f, E2_i=E2_f, flip=flip_out, knots=knots,
                 min_radius=dict(E1_before=r1a, E1_after=r1b, E2_before=r2a, E2_after=r2b, W=W), wz=wz)

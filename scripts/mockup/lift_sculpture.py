@@ -19,6 +19,7 @@ ANCHOR = L.ANCHOR
 ASHMIT = (56.609, 192.625, 977.047, 392.984)     # site-measured .display__line rects at 1672x941
 KHURANA = (56.609, 392.984, 1253.531, 593.344)
 PLANE_A, PLANE_K = -45.0, 45.0
+NOSOLVE = [None]
 GATE_PAIRS = []
 SEP_MARGIN = 4.0
 INSET = float(os.environ.get("INSET", "0"))
@@ -80,6 +81,11 @@ def main(write_pose=False):
         if "i0" in w:
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
+    nos = np.zeros(N, bool)
+    for w in E["turn_windows"]:
+        if "i0" in w and "apex" in w.get("status", ""):
+            nos[min(oi[0] for oi in [[w["i0"]]]) - 12:w["i1"] + 13] = True
+    NOSOLVE[0] = nos
     # observed visible face per ring from the sculpture's own shading along the ruling (dark inner face vs bright face)
     from PIL import Image
     im = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB")).astype(np.float32).max(2) / 255.0
@@ -94,13 +100,13 @@ def main(write_pose=False):
         obs[i] = -1 if m < 0.50 else (1 if m > 0.62 else 0)
     best = None
     for fs in (1, -1):
-        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, verbose=False)
+        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, verbose=False, nosolve=nos)
         c_ = L.solve_rings.last_cost
         print("faceSign %+d: DP cost %.2f" % (fs, c_))
         if best is None or c_ < best[0]:
             best = (c_, fs, r_)
     FS = int(os.environ.get("FORCE_FS", best[1]))
-    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS)
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, nosolve=nos)
     print("chosen faceSign %+d" % FS)
     # 3D regularisation: the per-ring depth solve is noisy where the projected ruling is close to the true width (sqrt singularity);
     # a Gaussian along the arc on the lifted ring ends removes the ripple the engine's curvature / roll metrics see
@@ -185,7 +191,7 @@ def main(write_pose=False):
         res = []
         for an in (over, under):
             c = min(N - 1, int(np.searchsorted(t, arc[an])))
-            lo, hi = max(0, c - 70), min(N - 1, c + 70)
+            lo, hi = max(0, c - 25), min(N - 1, c + 25)
             # restrict to samples whose ruling passes near p
             best = (1e9, None)
             for i in range(lo, hi + 1):
