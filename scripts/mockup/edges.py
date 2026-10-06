@@ -23,8 +23,13 @@ from scipy.interpolate import PchipInterpolator, LSQUnivariateSpline
 
 SP = ("/private/tmp/claude-501/-Users-ashmitkhurana-Development-studio-portfolio/"
       "428f1961-b6ad-4758-ba30-ff5eb1800006/scratchpad")
-FIT = SP + "/fit/desktop"
-OUTD = SP + "/rotoscope"
+SRC = os.environ.get("ROTO_SRC", "mockup")      # "mockup" (old hero-desktop) | "sculpture" (ak-sculpture.webp, $SP/r2)
+if SRC == "sculpture":
+    FIT = SP + "/r2/sculpture"
+    OUTD = SP + "/r2"
+else:
+    FIT = SP + "/fit/desktop"
+    OUTD = SP + "/rotoscope"
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.makedirs(OUTD, exist_ok=True)
 
@@ -35,6 +40,7 @@ CROSS_ARC = 3.0     # (x W) arc separation that makes two trace parts "different
 CROSS_DIST = 1.0    # (x W) centreline distance below which strands overlap in projection
 TURN_DEG = 90.0
 TURN_ARC = 2.0      # (x W)
+DMAX_CURV = 30.0 if SRC == "sculpture" else None    # sculpture: edges may move this far (px) from the silhouette to reach the curvature rule
 
 
 # ------------------------------------------------------------------ io
@@ -46,9 +52,14 @@ def load():
     M = gray(FIT + "/ribbon_mask.png")
     T = gray(FIT + "/text_mask.png")
     X = gray(FIT + "/exclusion_mask.png")
-    rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/hero-desktop.webp")).convert("RGB"))
-    cl = json.load(open(FIT + "/result_s2c/centreline2d_orig.json"))
-    g = json.load(open(FIT + "/graph.json"))
+    if SRC == "sculpture":
+        rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB"))
+        cl = json.load(open(FIT + "/trace.json"))
+        g = dict(nodes=[])      # the skeleton graph of the sculpture is not used: crossings come from the trace self-intersections
+    else:
+        rgb = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/hero-desktop.webp")).convert("RGB"))
+        cl = json.load(open(FIT + "/result_s2c/centreline2d_orig.json"))
+        g = json.load(open(FIT + "/graph.json"))
     return M, T, X, rgb, cl, g
 
 
@@ -128,12 +139,20 @@ class Boundaries:
 def prep_trace(cl, ext_tail=200.0):
     P = np.array(cl["points"], float)
     vis = np.array(cl["visible"], bool)
-    # extend the tail straight past the last point by ext_tail px
-    tl = P[-1] - P[-40]
-    tl /= np.hypot(*tl)
-    ext = np.array([P[-1] + tl * k for k in np.arange(1, ext_tail + 1, 1.0)])
-    P = np.vstack([P, ext])
-    vis = np.r_[vis, np.zeros(len(ext), bool)]
+    if SRC == "sculpture":
+        # End 1 (the tail) is the START of the trace: extend straight past it (down and out of the frame) by ext_tail px
+        tl = P[0] - P[min(40, len(P) - 1)]
+        tl /= np.hypot(*tl)
+        ext = np.array([P[0] + tl * k for k in np.arange(ext_tail, 0, -1.0)])
+        P = np.vstack([ext, P])
+        vis = np.r_[np.zeros(len(ext), bool), vis]
+    else:
+        # extend the tail straight past the last point by ext_tail px
+        tl = P[-1] - P[-40]
+        tl /= np.hypot(*tl)
+        ext = np.array([P[-1] + tl * k for k in np.arange(1, ext_tail + 1, 1.0)])
+        P = np.vstack([P, ext])
+        vis = np.r_[vis, np.zeros(len(ext), bool)]
     ps = smooth_poly(P, 4.0)
     # resample on arc, carry visibility by nearest original index
     s_orig = arclen(P)
@@ -254,6 +273,8 @@ def build(M, T, X, rgb, cl, g, verbose=True):
     tl, cls_l, tr, cls_r = pair_edges(B, Q, n, 1.4 * W0)
     ok0 = (cls_l == 0) & (cls_r == 0) & np.isfinite(tl) & np.isfinite(tr)
     W = float(np.median((tl + tr)[ok0]))
+    if SRC == "sculpture":      # the sculpture's apparent width ranges 55..115 (strongly foreshortened bands): scale on the p90
+        W = float(np.percentile((tl + tr)[ok0], 75))
     if verbose:
         print("W_est (median apparent width) = %.1f px" % W)
     rmax = 1.4 * W
@@ -261,10 +282,23 @@ def build(M, T, X, rgb, cl, g, verbose=True):
     # turn windows (>= 0.5 W of arc; shorter ones are kinks, not turns)
     wins, th, turn = turn_windows(Q, t, W)
     wins = [(a, b) for a, b in wins if (b - a) * STEP >= 0.5 * W]
-    # a window whose centre sits within 1.3 W of a trace self-crossing is the crossing, not a turn
-    _, _xp = crossing_flags(Q, t, W, g)
-    wins = [(a, b) for a, b in wins
-            if not any(np.hypot(*(Q[(a + b) // 2] - p_)) < 1.3 * W for p_ in _xp)]
+    if SRC == "sculpture":
+        # designer-named turns the 90 deg / 2 W detector under-reports (long rounded turns): the K lower tip and the
+        # crossbar end curl are added as explicit windows (anchor +- half-length); the wrap hairpin sits next to a trace
+        # self-crossing and is a turn, so there is no crossing filter here
+        off = len(P) - len(cl["points"]) if False else None
+        ext_n = 200
+        sA = arclen(P)
+        for nm, half in (("lower_tip", 1.1 * W), ("crossbar_curl", 1.0 * W)):
+            c = float(sA[ext_n + cl["anchors"][nm]])
+            a = int(np.searchsorted(t, c - half)); b = int(np.searchsorted(t, c + half))
+            wins = [w for w in wins if w[1] < a - 4 or w[0] > b + 4] + [(a, min(b, N - 1))]
+        wins.sort()
+    else:
+        # a window whose centre sits within 1.3 W of a trace self-crossing is the crossing, not a turn
+        _, _xp = crossing_flags(Q, t, W, g)
+        wins = [(a, b) for a, b in wins
+                if not any(np.hypot(*(Q[(a + b) // 2] - p_)) < 1.3 * W for p_ in _xp)]
     in_turn = np.zeros(N, bool)
     inner_pos = np.zeros(N, bool)       # True: inner side is +n (left)
     pad = int(round(0.25 * W / STEP))
@@ -417,7 +451,7 @@ def contour_windows(S, M, T, X, rgb):
         Qwin = Q[ia:ib + 1]
         res = {}
         CHk = CH
-        if k + 1 == 2:
+        if SRC != "sculpture" and k + 1 == 2:
             if CH_k2 is None:
                 CH_k2 = contour_chains(floor_fixed_boundaries(S, rgb, M, T, X, (1380, 600, 1672, 830)).M)
             CHk = CH_k2
@@ -445,6 +479,50 @@ def contour_windows(S, M, T, X, rgb):
     return info
 
 
+# hand-read rulings (E1 = upper edge at entry = inner edge of the hairpin, E2 = outer) for windows whose edges are interior
+# colour edges, not silhouette (the wrap: a rolled hairpin around the front of the A right leg). Read off the sculpture at 4x.
+OVERRIDES = {
+    "wrap": [   # (trace centre, E1, E2)
+        ((905, 447), (900, 420), (912, 482)),
+        ((868, 452), (866, 425), (874, 490)),
+        ((835, 462), (835, 435), (840, 500)),
+        ((808, 470), (815, 448), (804, 498)),
+        ((792, 450), (822, 447), (787, 450)),
+        ((803, 425), (825, 438), (795, 410)),
+        ((835, 414), (836, 456), (832, 395)),
+        ((880, 408), (884, 434), (876, 385)),
+        ((930, 390), (934, 414), (926, 352)),
+    ],
+}
+
+
+def apply_overrides(S, info):
+    Q, ok = S["Q"], S["ok"]
+    N = len(Q)
+    for nm, stations in OVERRIDES.items():
+        c0 = np.array(stations[len(stations) // 2][0], float)
+        for w_ in info:
+            if "i0" not in w_:
+                continue
+            a, b = w_["i0"], w_["i1"]
+            if np.hypot(*(Q[(a + b) // 2] - c0)) > 90:
+                continue
+            lo, hi = max(0, a - 12), min(N - 1, b + 12)
+            ok[lo:hi + 1] = False
+            used = set()
+            for c, e1, e2 in stations:
+                k = int(lo + np.argmin(np.hypot(*(Q[lo:hi + 1] - np.array(c, float)).T)))
+                if k in used:
+                    continue
+                used.add(k)
+                S["pL0"][k] = e1
+                S["pR0"][k] = e2
+                ok[k] = True
+            # keep the entry / exit trusted pairs just outside the window
+            w_["status"] = "hand rulings (%s, %d stations)" % (nm, len(used))
+            print("override", nm, "window", w_["id"], sorted(used))
+
+
 def curvature_radius(P, k=4):
     """radius of curvature at each vertex of a ~2 px resampled polyline (3-point circle, stride k)"""
     P = np.stack([ndi.gaussian_filter1d(P[:, i], 1.5, mode="nearest") for i in (0, 1)], 1)
@@ -460,6 +538,7 @@ def curvature_radius(P, k=4):
 
 
 def limit_curvature(P, t, rmin_of_t, max_iter=70, dmax=12.0):
+    dmax = DMAX_CURV or dmax
     """Locally smooth a polyline (keeping its t parametrisation) until its curvature radius is
     >= rmin(t) everywhere; smoothing sigma grows slowly and is capped at 28 samples (56 px)."""
     s_e = arclen(P)
@@ -677,6 +756,7 @@ if __name__ == "__main__":
     M, T, X, rgb, cl, g = load()
     S = build(M, T, X, rgb, cl, g)
     info = contour_windows(S, M, T, X, rgb)
+    apply_overrides(S, info)
     S["info"] = info
     for w_ in info:
         print("window", w_)
