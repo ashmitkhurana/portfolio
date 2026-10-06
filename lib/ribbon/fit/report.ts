@@ -45,7 +45,11 @@ export function visibleMask(rend: FitRenderer, data: FitData): Uint8Array {
 export async function makeImages(rend: FitRenderer, data: FitData, state: FitState, mockupUrl: string): Promise<Images> {
   const ev = new Evaluator(data, rend);
   ev.evaluate(cloneState(state), 1, WEIGHTS);
-  const vis = visibleMask(rend, data);
+  return imagesFromVis(visibleMask(rend, data), data, mockupUrl);
+}
+
+/** silhouette + overlay images for a visibility mask (top-down, full res) */
+export async function imagesFromVis(vis: Uint8Array, data: FitData, mockupUrl: string): Promise<Images> {
   const { W, H } = data;
   // silhouette
   const [sc, sctx] = canvas(W, H);

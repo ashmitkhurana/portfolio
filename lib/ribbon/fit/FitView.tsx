@@ -8,7 +8,8 @@ import { useEffect, useRef } from "react";
 import { FitSession, STAGES, type RunConfig, type Snapshot } from "./fit";
 import { cloneState, initialState, migrateState, toPosePoints, type FitState } from "./params";
 import type { PosePoint } from "../poses/types";
-import { makeImages, materialRender, mismatchRegions, parity, visibleMask, type Parity } from "./report";
+import { imagesFromVis, makeImages, materialRender, mismatchRegions, parity, visibleMask, type Parity } from "./report";
+import { S2c, cloneS2c, zeroState, type S2cInput, type S2cState } from "./s2c";
 import { WEIGHTS, type Terms } from "./loss";
 
 export interface FitApi {
@@ -35,6 +36,19 @@ declare global {
   interface Window {
     __fit?: FitApi;
     __fitPersist?: (json: string) => Promise<void> | void;
+    /** S2c direct reconstruction + refinement (scripts/s2c/run.mjs drives it) */
+    __s2c?: {
+      ready: Promise<void>;
+      load(input: S2cInput): void;
+      calibrate(): ReturnType<S2c["calibrate"]>;
+      zero(): S2cState;
+      evaluate(state: S2cState, scale: number): ReturnType<S2c["evaluate"]>;
+      refine(state: S2cState, cfg: { stages: { scale: number; gens: number; sigma: number }[]; seed?: number }): ReturnType<S2c["refine"]>;
+      pose(state: S2cState): ReturnType<S2c["pose"]>;
+      twist(): number[];
+      images(state: S2cState): Promise<{ silhouette: string; overlay: string; regions: ReturnType<typeof mismatchRegions> }>;
+      stop(): void;
+    };
   }
 }
 
@@ -172,6 +186,32 @@ export function FitView() {
       },
     };
     window.__fit = api;
+    let s2c: S2c | null = null;
+    window.__s2c = {
+      ready: api.ready.then(() => {
+        s2c = new S2c(session.rend, session.data);
+        s2c.log = (m) => {
+          console.log(m);
+          if (window.__fitPersist) void window.__fitPersist(JSON.stringify({ log: m }));
+        };
+      }),
+      load: (i) => (s2c as S2c).load(i),
+      calibrate: () => (s2c as S2c).calibrate(),
+      zero: () => zeroState((s2c as S2c).input),
+      evaluate: (st, sc) => (s2c as S2c).evaluate(st, sc),
+      refine: (st, cfg) => (s2c as S2c).refine(cloneS2c(st), cfg),
+      pose: (st) => (s2c as S2c).pose(st),
+      twist: () => [...(s2c as S2c).twist0],
+      images: async (st) => {
+        const c = s2c as S2c;
+        const vis = c.visibleMask(st);
+        const im = await imagesFromVis(vis, session.data, MOCKUP);
+        return { ...im, regions: mismatchRegions(vis, session.data) };
+      },
+      stop: () => {
+        if (s2c) s2c.stop = true;
+      },
+    };
     api.ready.catch((e) => {
       console.error("fit init failed", e);
       if (hud.current) hud.current.textContent = `init failed: ${String(e)}`;

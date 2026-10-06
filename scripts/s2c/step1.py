@@ -51,6 +51,10 @@ for k in range(1,nl+1):
     if len(idx)<8: sh[idx]=0; continue
     sh[idx]=ndi.gaussian_filter1d(best[idx],10,mode='nearest')
 sh[~vis]=0
+for (ia,ib) in wp.get('nosnap',[]):
+    ja,jb=nearest(P[ia]),nearest(P[ib]); w=np.ones(len(sh)); w[ja:jb+1]=0
+    w=ndi.gaussian_filter1d(w,12,mode='nearest'); w=np.where(np.arange(len(sh)).__ge__(ja)&np.arange(len(sh)).__le__(jb),0,w)
+    sh=sh*w
 xy2=xy+sh[:,None]*nrm
 # hidden run bridging
 def curv(a,i,half=12):

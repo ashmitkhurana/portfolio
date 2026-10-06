@@ -18,6 +18,7 @@ import { RibbonGeometry } from "../geometry";
 import { resolveControlPoints, resolvePose } from "../poses/resolve";
 import { DEFAULT_SETTINGS, cloneSettings } from "../settings";
 import { SWEEP_GLSL } from "../sweep";
+import type { PosePoint } from "../poses/types";
 import { ANCHOR, VIEW, engineWidth, toPosePoints, type FitState } from "./params";
 
 /** sim control points the site resolves a pose to (SiteRibbon / pose editor use 96) */
@@ -55,6 +56,9 @@ export interface Rings {
   /** body ring centres, xyz */
   pos: Float32Array;
   tan: Float32Array;
+  /** ruling (across the band) and face normal per body ring, xyz */
+  bv: Float32Array;
+  nv: Float32Array;
   /** half width (world px) per body ring */
   hw: Float32Array;
   /** arc fraction of each authored control point along the strip */
@@ -75,6 +79,9 @@ export interface Rings {
   hairpinRings: [number, number][];
   /** the engine's edge-kink metric of the strip as built (smooth.ts, limit 12) */
   kink: number;
+  /** body ring and edge of the worst kink */
+  kinkAt: number;
+  kinkEdge: string;
 }
 
 export class FitRenderer {
@@ -123,8 +130,10 @@ export class FitRenderer {
       E: (this.geometry.totalRings - M) >> 1,
       pos: new Float32Array(M * 3),
       tan: new Float32Array(M * 3),
+      bv: new Float32Array(M * 3),
+      nv: new Float32Array(M * 3),
       hw: new Float32Array(M),
-      frac: new Float64Array(26),
+      frac: new Float64Array(128),
       ds: 1,
       foldRings: [],
       sx: new Float32Array(M),
@@ -134,6 +143,8 @@ export class FitRenderer {
       ey: [new Float32Array(M), new Float32Array(M)],
       hairpinRings: [],
       kink: 0,
+      kinkAt: 0,
+      kinkEdge: "L",
     };
   }
 
@@ -152,8 +163,13 @@ export class FitRenderer {
 
   /** state -> geometry (CPU) + ring projections; the same call chain as the site (resolvePose -> RibbonGeometry.update) */
   build(s: FitState): Rings {
-    const pts = toPosePoints(s);
-    const ctx = { viewW: VIEW.w, viewH: VIEW.h, anchor: { ...ANCHOR }, fov: s.fov };
+    return this.buildPose(toPosePoints(s), s.fov, { ...ANCHOR }, s.width);
+  }
+
+  /** the same, for arbitrary anchor-space pose points (the S2c direct reconstruction); `bandW` = band width at z = 0 (px) */
+  buildPose(pts: PosePoint[], fov: number, anchor: { left: number; top: number; width: number; height: number }, bandW: number): Rings {
+    const s = { fov, width: bandW };
+    const ctx = { viewW: VIEW.w, viewH: VIEW.h, anchor, fov: s.fov };
     const pose = resolvePose(pts, ctx, POSE_COUNT, "curvature", "bspline");
     const geo = this.geometry;
     geo.frameMode = "curvature";
@@ -189,6 +205,10 @@ export class FitRenderer {
       R.tan[i * 3] = data[3 * row + o];
       R.tan[i * 3 + 1] = data[3 * row + o + 1];
       R.tan[i * 3 + 2] = data[3 * row + o + 2];
+      for (let a = 0; a < 3; a++) {
+        R.bv[i * 3 + a] = data[row + o + a];
+        R.nv[i * 3 + a] = data[2 * row + o + a];
+      }
       const k = D / Math.max(D - z, 1);
       R.k[i] = k;
       R.sx[i] = VIEW.w / 2 + x * k;
@@ -212,7 +232,10 @@ export class FitRenderer {
     const zr = Math.round((1.5 * s.width) / Math.max(R.ds, 1e-3));
     R.hairpinRings = geo.hairpinReports.map((h) => [Math.max(0, h.ring - zr), Math.min(M - 1, h.ring + zr)] as [number, number]);
     this.setCamera(s.fov);
-    R.kink = geo.edgeReport(this.camera, VIEW.w, VIEW.h).kink;
+    const er = geo.edgeReport(this.camera, VIEW.w, VIEW.h);
+    R.kink = er.kink;
+    R.kinkAt = er.kinkAt;
+    R.kinkEdge = er.edge;
     return R;
   }
 
@@ -254,9 +277,10 @@ export class FitRenderer {
 
 /** the desktop layouts the site actually has (viewport, measured hero-name anchor: the union of the .display__line boxes): the pose must be clean at each, not only at the mockup's */
 export const PROBES: { w: number; h: number; anchor: { left: number; top: number; width: number; height: number } }[] = [
-  { w: 1280, h: 800, anchor: { left: 48, top: 160, width: 882.5, height: 303.1875 } },
-  { w: 1512, h: 982, anchor: { left: 64, top: 196.390625, width: 1031.5625, height: 354.40625 } },
-  { w: 1920, h: 1080, anchor: { left: 64, top: 216, width: 1335.65625, height: 458.875 } },
+  { w: 1280, h: 800, anchor: { left: 42.328125, top: 163.390625, width: 917.890625, height: 307.3125 } },
+  { w: 1512, h: 982, anchor: { left: 57.375, top: 200.359375, width: 1072.921875, height: 359.1875 } },
+  { w: 1672, h: 941, anchor: { left: 56.609375, top: 192.625, width: 1196.921875, height: 400.71875 } },
+  { w: 1920, h: 1080, anchor: { left: 55.421875, top: 221.140625, width: 1389.1875, height: 465.09375 } },
   { w: 2560, h: 1080, anchor: { left: 320, top: 216, width: 1431.609375, height: 461.9375 } },
 ];
 
@@ -273,7 +297,12 @@ export class KinkProbes {
   }
   /** worst edge kink and worst smoothness-check violation (curvature / roll reversals over their limits, roll-rate over) over the layouts */
   kink(s: FitState): { kink: number; crinkle: number } {
-    const pts = toPosePoints(s);
+    return this.kinkPose(toPosePoints(s), s.fov);
+  }
+
+  /** the same for arbitrary pose points */
+  kinkPose(pts: PosePoint[], fovDeg: number): { kink: number; crinkle: number } {
+    const s = { fov: fovDeg };
     let worst = 0;
     let crinkle = 0;
     PROBES.forEach((p, i) => {
