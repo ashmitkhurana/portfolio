@@ -5,7 +5,7 @@
 import type { RibbonPose } from "../types";
 import { findAnchor, measureAnchor } from "./anchors";
 import { loadPose } from "./index";
-import { resolvePose, screenClassFor, variantFor } from "./resolve";
+import { resolvePose, resolveRuled, screenClassFor, variantFor } from "./resolve";
 import type { AnchorRect } from "./types";
 
 /** route -> authored pose; everything else keeps the interim lab sweep */
@@ -41,13 +41,10 @@ export function resolveNamedPose(name: string, e: PoseTarget): ResolvedNamedPose
   const cls = screenClassFor(e.width);
   const { variant } = variantFor(file, cls, e.height > e.width);
   if (!variant) return null;
-  const pose = resolvePose(
-    variant.points,
-    { viewW: e.width, viewH: e.height, anchor, fov: e.settings.camera.fov },
-    e.sim.count,
-    file.orientation ?? "curvature",
-    variant.spline ?? "catmull",
-  );
+  const ctx = { viewW: e.width, viewH: e.height, anchor, fov: e.settings.camera.fov };
+  const pose = variant.ruled
+    ? resolveRuled(variant.ruled, ctx, e.sim.count, variant.faceSign ?? 1)
+    : resolvePose(variant.points, ctx, e.sim.count, file.orientation ?? "curvature", variant.spline ?? "catmull");
   const r = (v: number) => Math.round(v * 2) / 2;
   const signature = [e.width, e.height, r(anchor.left), r(anchor.top), r(anchor.width), r(anchor.height)].join(",");
   return { pose, anchor, signature };

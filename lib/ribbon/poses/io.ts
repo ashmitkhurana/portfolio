@@ -40,8 +40,18 @@ export function parsePoseFile(raw: unknown): PoseFile {
   const variants: PoseFile["variants"] = {};
   const rv = (r.variants ?? {}) as Record<string, unknown>;
   for (const cls of SCREEN_CLASSES) {
-    const v = rv[cls] as { points?: unknown; spline?: unknown } | undefined;
-    if (!v || !Array.isArray(v.points)) continue;
+    const v = rv[cls] as { points?: unknown; spline?: unknown; ruled?: unknown; faceSign?: unknown } | undefined;
+    if (!v) continue;
+    if (Array.isArray(v.ruled) && v.ruled.length >= 2) {
+      const tri = (a: unknown): [number, number, number] => {
+        const q = (Array.isArray(a) ? a : []) as unknown[];
+        return [num(q[0], 0), num(q[1], 0), num(q[2], 0)];
+      };
+      const ruled = v.ruled.map((r) => ({ L: tri((r as { L?: unknown }).L), R: tri((r as { R?: unknown }).R) }));
+      variants[cls] = { points: [], ruled, faceSign: v.faceSign === -1 ? -1 : 1 };
+      continue;
+    }
+    if (!Array.isArray(v.points)) continue;
     const points = v.points.map(parsePoint);
     if (points.length >= 2) variants[cls] = { points, ...(v.spline === "bspline" ? { spline: "bspline" as const } : {}) };
   }
@@ -71,6 +81,17 @@ export function formatPoseJson(file: PoseFile): string {
   classes.forEach((cls, ci) => {
     const v = file.variants[cls] as PoseVariant;
     out.push(`    ${JSON.stringify(cls)}: {`);
+    if (v.ruled) {
+      out.push(`      "faceSign": ${v.faceSign === -1 ? -1 : 1},`);
+      out.push(`      "ruled": [`);
+      v.ruled.forEach((r, i) => {
+        const t3 = (a: [number, number, number]) => `[${r4(a[0])}, ${r4(a[1])}, ${r4(a[2])}]`;
+        out.push(`        { "L": ${t3(r.L)}, "R": ${t3(r.R)} }${i < v.ruled!.length - 1 ? "," : ""}`);
+      });
+      out.push(`      ]`);
+      out.push(`    }${ci < classes.length - 1 ? "," : ""}`);
+      return;
+    }
     if (v.spline === "bspline") out.push(`      "spline": "bspline",`);
     out.push(`      "points": [`);
     v.points.forEach((p, i) => {

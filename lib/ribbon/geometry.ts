@@ -22,6 +22,7 @@
  * - All buffers are preallocated; `update()` rewrites them in place.
  */
 import * as THREE from "three";
+import { NaturalSpline, type RuledData } from "./ruled";
 import {
   CurvatureFramer,
   DEFAULT_CURVATURE_FRAME,
@@ -473,6 +474,77 @@ export class RibbonGeometry {
     this.geometry = g;
   }
 
+  private readonly ruledX = new Float64Array(256);
+  private readonly ruledSp = new NaturalSpline(256);
+  private readonly ruledRaw = new Float32Array(256 * 4);
+
+  /**
+   * Ruled pose: rings take their ruling direction B and half width from the pose (natural cubic spline
+   * over the centreline's arc fraction), N = sign * unit(T x B); no frames, twist, taper, relaxation or folds.
+   */
+  private applyRuled(ruled: RuledData, n: number, M: number, E: number): void {
+    const fk = this.ruledX;
+    for (let k = 0; k < n; k++) {
+      fk[k] = this.curve.arcFractionAtControl(k);
+      if (k > 0 && fk[k] <= fk[k - 1] + 1e-6) fk[k] = fk[k - 1] + 1e-6;
+    }
+    const sp = this.ruledSp;
+    const chan: Float32Array[] = [];
+    for (let c = 0; c < 4; c++) {
+      sp.set(fk, ruled.data, n, 4, c);
+      const out = new Float32Array(M);
+      const hint = { i: 0 };
+      for (let i = 0; i < M; i++) out[i] = sp.eval(M > 1 ? i / (M - 1) : 0, hint);
+      chan.push(out);
+    }
+    const rN = this.rN;
+    const rB = this.rB;
+    const rTan = this.rTan;
+    const sign = ruled.sign < 0 ? -1 : 1;
+    let px = 0,
+      py = 0,
+      pz = 1;
+    for (let i = 0; i < M; i++) {
+      const o = (E + i) * 3;
+      let bx = chan[0][i];
+      let by = chan[1][i];
+      let bz = chan[2][i];
+      const bl = Math.hypot(bx, by, bz) || 1;
+      bx /= bl;
+      by /= bl;
+      bz /= bl;
+      const tx = rTan[o];
+      const ty = rTan[o + 1];
+      const tz = rTan[o + 2];
+      let nx = ty * bz - tz * by;
+      let ny = tz * bx - tx * bz;
+      let nz = tx * by - ty * bx;
+      const nl = Math.hypot(nx, ny, nz);
+      if (nl < 1e-3) {
+        nx = px;
+        ny = py;
+        nz = pz;
+      } else {
+        nx = (sign * nx) / nl;
+        ny = (sign * ny) / nl;
+        nz = (sign * nz) / nl;
+      }
+      px = nx;
+      py = ny;
+      pz = nz;
+      rB[o] = bx;
+      rB[o + 1] = by;
+      rB[o + 2] = bz;
+      rN[o] = nx;
+      rN[o + 1] = ny;
+      rN[o + 2] = nz;
+      this.rWidth[E + i] = (2 * chan[3][i]) / Math.max(this.params.width, 1e-6);
+      this.rScale[E + i] = 1;
+      this.rScaleT[E + i] = 1;
+      this.rTwist[E + i] = 0;
+    }
+  }
+
   /**
    * Rebuild all vertex data from the sim's control pose.
    * `n` is the number of control points.
@@ -482,6 +554,7 @@ export class RibbonGeometry {
     ctrlTwist: Float32Array,
     ctrlWidth: Float32Array,
     n: number,
+    ruled: RuledData | null = null,
   ): void {
     const P = this.params;
     const M = this.bodyRings;
@@ -503,6 +576,12 @@ export class RibbonGeometry {
     this.rShear.fill(1);
     const ringDs = this.curve.totalLength / Math.max(M - 1, 1);
     this.lastDs = ringDs;
+    if (ruled) {
+      this.foldReports.length = 0;
+      this.hairpinReports.length = 0;
+      this.rFoldMask.fill(0);
+      this.applyRuled(ruled, n, M, E);
+    } else {
     if (this.folds.length) {
       // keep the relaxation and the curvature frames out of the fold zones (the fold builds those rings)
       foldMask(this.rFoldMask, M, this.folds, P.width, ringDs);
@@ -560,6 +639,7 @@ export class RibbonGeometry {
     }
 
     this.measureHairpins(M, E, ringDs);
+    }
 
     // round caps: semicircular plan (radius = half width) and a domed section,
     // built by extrapolating the end rings along their tangents

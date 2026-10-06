@@ -19,6 +19,7 @@ export interface ProxyData {
 }
 
 import type { FoldSpec } from "./fold";
+import type { RuledData } from "./ruled";
 
 export interface RibbonPose {
   /** xyz triples, world px (1 unit = 1 css px at z = 0, +y up) */
@@ -35,6 +36,8 @@ export interface RibbonPose {
   folds?: FoldSpec[];
   /** rolled hairpins (bracelet-like U-turns the curvature frames do), positions as arc fractions; reports only */
   hairpins?: HairpinSpec[];
+  /** ruled pose: per-control-point ruling direction and half width (the geometry bypasses frames, folds and relaxation) */
+  ruled?: RuledData;
 }
 
 export interface HairpinSpec {

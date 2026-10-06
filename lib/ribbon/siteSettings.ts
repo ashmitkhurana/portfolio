@@ -14,6 +14,12 @@ import type { DeepPartial, RibbonSettings } from "./settings";
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
+  // the lacquered mockup colours (face A the bright outer face, face B the dark inner face)
+  material: {
+    faceA: { color: "#ff7a12" },
+    faceB: { color: "#b8480c" },
+    edge: { mode: "gradient" },
+  },
   sim: { mode: "frozen" },
   post: { adaptive: false },
   env: { autoRotate: false },

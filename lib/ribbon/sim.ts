@@ -7,6 +7,7 @@
  */
 import { curl3, fbm3, snoise3 } from "./noise";
 import { rlog } from "./debugLog";
+import type { RuledData } from "./ruled";
 
 /** `frozen`: output = target pose, exactly (no springs, no noise, no idle); `live`: springs + idle life */
 export type SimMode = "frozen" | "live";
@@ -119,6 +120,8 @@ export class RibbonSim {
   readonly outPos: Float32Array;
   readonly outTwist: Float32Array;
   readonly outWidth: Float32Array;
+  /** ruled pose (bx, by, bz, half width per control point + face sign); null for ordinary poses. Not simulated: carried as authored. */
+  ruled: RuledData | null = null;
 
   private readonly scratch = new Float32Array(3);
   private readonly scratch2 = new Float32Array(3);
@@ -144,6 +147,10 @@ export class RibbonSim {
    * Set the pose to spring toward. If the input point count differs from
    * `count` it is resampled by arc length (linear). `snap` jumps immediately.
    */
+  setRuled(r: RuledData | null | undefined): void {
+    this.ruled = r ?? null;
+  }
+
   setTargetPose(
     points: PoseInput["points"],
     twists?: ArrayLike<number>,

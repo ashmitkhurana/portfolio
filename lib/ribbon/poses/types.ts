@@ -43,8 +43,21 @@ export interface PosePoint {
   hairpin?: { name: string; radius: number };
 }
 
+/** one ring of a ruled pose: both ends of the ruling, anchor space (x, y = where it appears, z = depth in anchor heights) */
+export interface RuledRing {
+  L: [number, number, number];
+  R: [number, number, number];
+}
+
 export interface PoseVariant {
   points: PosePoint[];
+  /**
+   * RULED variant (rotoscoped): the ribbon as its rulings L -> R. `points` is ignored. The engine lifts each
+   * end onto its camera ray, so the projection equals the authored screen positions by construction.
+   */
+  ruled?: RuledRing[];
+  /** ruled: +1 / -1, which side of the band is face A */
+  faceSign?: 1 | -1;
   /** centreline through the points: `catmull` (default, interpolating) or `bspline` (C2, approximating) */
   spline?: "catmull" | "bspline";
 }

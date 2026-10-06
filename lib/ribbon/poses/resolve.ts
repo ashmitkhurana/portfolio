@@ -9,7 +9,7 @@ import { RibbonCurve, type SplineKind } from "../frames";
 import type { FoldSpec } from "../fold";
 import type { HairpinSpec, RibbonPose } from "../types";
 import { DEFAULT_FOV, cameraDistance } from "./camera";
-import type { AnchorRect, PoseFile, PosePoint, PoseVariant, ScreenClass } from "./types";
+import type { AnchorRect, PoseFile, PosePoint, PoseVariant, RuledRing, ScreenClass } from "./types";
 
 /** phone < 768, tablet 768-1099, desktop 1100-2199, ultrawide >= 2200 (the CSS screen classes) */
 export function screenClassFor(viewW: number): ScreenClass {
@@ -47,7 +47,7 @@ export function variantFor(file: PoseFile, cls: ScreenClass, portrait: boolean):
           : ["desktop", "ultrawide", "tablet", "phone"];
   for (const c of order) {
     const variant = v[c];
-    if (variant && variant.points.length >= 2) return { variant, source: c, derived: c !== cls };
+    if (variant && (variant.points.length >= 2 || (variant.ruled?.length ?? 0) >= 2)) return { variant, source: c, derived: c !== cls };
   }
   return { variant: null, source: cls, derived: true };
 }
@@ -172,5 +172,76 @@ export function resolvePose(
     orientation,
     ...(folds.length ? { folds } : {}),
     ...(hairpins.length ? { hairpins } : {}),
+  };
+}
+
+/**
+ * Resolve a RULED variant: each ring's two ends are unprojected with the engine camera (so the projection
+ * equals the authored screen positions), centre = midpoint, B = unit(R - L), half width = |R - L| / 2.
+ * `count` control points are chosen along the centreline with density rising with turning x width (the
+ * hairpins keep their shape), each carrying B and half width; the geometry interpolates those to its rings.
+ */
+export function resolveRuled(
+  rings: readonly RuledRing[],
+  ctx: ResolveContext,
+  count: number,
+  faceSign: 1 | -1 = 1,
+): RibbonPose {
+  const n = rings.length;
+  const C = new Float64Array(n * 3);
+  const Bv = new Float64Array(n * 3);
+  const H = new Float64Array(n);
+  const l: [number, number, number] = [0, 0, 0];
+  const r: [number, number, number] = [0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    pointToWorld({ x: rings[i].L[0], y: rings[i].L[1], z: rings[i].L[2] } as PosePoint, ctx, l);
+    pointToWorld({ x: rings[i].R[0], y: rings[i].R[1], z: rings[i].R[2] } as PosePoint, ctx, r);
+    const dx = r[0] - l[0], dy = r[1] - l[1], dz = r[2] - l[2];
+    const len = Math.hypot(dx, dy, dz) || 1;
+    C[i * 3] = (l[0] + r[0]) / 2;
+    C[i * 3 + 1] = (l[1] + r[1]) / 2;
+    C[i * 3 + 2] = (l[2] + r[2]) / 2;
+    Bv[i * 3] = dx / len;
+    Bv[i * 3 + 1] = dy / len;
+    Bv[i * 3 + 2] = dz / len;
+    H[i] = len / 2;
+  }
+  // sampling weight: arc length + turning angle x width (turns keep more control points)
+  const w = new Float64Array(n);
+  for (let i = 1; i < n; i++) {
+    const ds = Math.hypot(C[i * 3] - C[i * 3 - 3], C[i * 3 + 1] - C[i * 3 - 2], C[i * 3 + 2] - C[i * 3 - 1]);
+    let turn = 0;
+    if (i >= 2) {
+      const ax = C[i * 3 - 3] - C[i * 3 - 6], ay = C[i * 3 - 2] - C[i * 3 - 5], az = C[i * 3 - 1] - C[i * 3 - 4];
+      const bx = C[i * 3] - C[i * 3 - 3], by = C[i * 3 + 1] - C[i * 3 - 2], bz = C[i * 3 + 2] - C[i * 3 - 1];
+      const d = (ax * bx + ay * by + az * bz) / ((Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz)) || 1);
+      turn = Math.acos(Math.min(Math.max(d, -1), 1));
+    }
+    w[i] = w[i - 1] + ds + 3 * turn * H[i] * 2;
+  }
+  const outPos = new Float32Array(count * 3);
+  const data = new Float32Array(count * 4);
+  let j = 0;
+  for (let k = 0; k < count; k++) {
+    const target = count > 1 ? (k / (count - 1)) * w[n - 1] : 0;
+    while (j < n - 2 && w[j + 1] < target) j++;
+    const span = w[j + 1] - w[j];
+    const f = span > 1e-9 ? Math.min(Math.max((target - w[j]) / span, 0), 1) : 0;
+    for (let a = 0; a < 3; a++) {
+      outPos[k * 3 + a] = C[j * 3 + a] + (C[(j + 1) * 3 + a] - C[j * 3 + a]) * f;
+      data[k * 4 + a] = Bv[j * 3 + a] + (Bv[(j + 1) * 3 + a] - Bv[j * 3 + a]) * f;
+    }
+    const bl = Math.hypot(data[k * 4], data[k * 4 + 1], data[k * 4 + 2]) || 1;
+    data[k * 4] /= bl;
+    data[k * 4 + 1] /= bl;
+    data[k * 4 + 2] /= bl;
+    data[k * 4 + 3] = H[j] + (H[j + 1] - H[j]) * f;
+  }
+  return {
+    points: outPos,
+    twists: new Float32Array(count),
+    widths: new Float32Array(count).fill(1),
+    orientation: "curvature",
+    ruled: { data, sign: faceSign },
   };
 }
