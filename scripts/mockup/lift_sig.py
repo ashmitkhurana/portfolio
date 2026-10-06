@@ -30,6 +30,8 @@ else:
     ANCHOR = L.ANCHOR
     PLANES = (-37.0, 37.0)
     # desktop: uniform scale + translate chosen so the knot spans x 860..1600 and sits with the apex near the T (see DESKTOP below)
+    DS = 740.0 / 799.0                       # knot (x 41..840 in mockup px) spans x 860..1600
+    DTX, DTY = 860.0 - 41.0 * DS, 75.0 - 550.0 * DS     # apex top (y 550) at y 75
     M = None
 L.VW, L.VH, L.FOV = VW, VH, FOV
 L.D = (VH / 2) / math.tan(math.radians(FOV) / 2)
@@ -40,6 +42,8 @@ Z = [
     ("rleg_mid", 60), ("K_bottom", 55), ("ret_behind", -45), ("arch_top", -4), ("curl_left", -10), ("thin_tip", -80),
     ("cross_behind", -75), ("K_top_tip", -60), ("end2", -110),
 ]
+if FRAME != "phone":
+    Z = [(n, z * 2.02) for n, z in Z]
 if os.environ.get("ZOVR"):
     _o = json.loads(os.environ["ZOVR"]); Z = [(n, _o.get(n, z)) for n, z in Z]
 # face visibility spans (designer): face A visible on these arcs, face B elsewhere
@@ -54,7 +58,7 @@ def main(write_pose=False):
     if FRAME == "phone":
         xf = lambda a: np.asarray(a, float) @ M[:, :2].T
     else:
-        raise SystemExit("desktop frame: use FRAME=phone output + desktop_pose()")
+        xf = lambda a: np.asarray(a, float) * DS + np.array([DTX, DTY])
     E1, E2 = xf(E["edge1"]), xf(E["edge2"])
     if INSET > 0:
         u = E2 - E1
@@ -81,15 +85,19 @@ def main(write_pose=False):
     obs = np.full(N, -1.0)
     for a_n, b_n in A_SPANS:
         obs[(t >= arc[a_n]) & (t <= arc[b_n])] = 1.0
+    l0 = np.linalg.norm(L._lift_vec(E2, zc) - L._lift_vec(E1, zc), axis=1)
+    knot = trusted & ~tw & (t >= arc["band_mid"])
+    WFIX = float(np.percentile(l0[knot], 90))      # the true width from the knot (the tail is near the camera: its apparent width is not representative)
+    print("true width W = %.2f world px (p90 of the knot's trusted projected widths at centre depth)" % WFIX)
     best = None
     for fs in (1, -1):
-        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, lam=1.0, verbose=False)
+        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, lam=1.0, verbose=False, Wfix=WFIX)
         c_ = L.solve_rings.last_cost
         print("faceSign %+d: DP cost %.2f" % (fs, c_))
         if best is None or c_ < best[0]:
             best = (c_, fs)
     FS = best[1]
-    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, lam=1.0)
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, lam=1.0, Wfix=WFIX)
     print("chosen faceSign %+d" % FS)
     Tc = np.gradient(L._lift_vec(0.5 * (E1 + E2), zc), axis=0); Tc /= np.maximum(np.linalg.norm(Tc, axis=1), 1e-9)[:, None]
     Bn = (Rw - Lw) / np.maximum(np.linalg.norm(Rw - Lw, axis=1), 1e-9)[:, None]

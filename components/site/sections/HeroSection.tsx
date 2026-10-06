@@ -22,7 +22,8 @@ export function HeroSection() {
           depthCap={[-0.25, 0.25]}
           anchor="hero-name"
         />
-        <div className="hero__intro">
+        {/* the tagline always sits in front of the ribbon (very large proxy depth) */}
+        <div className="hero__intro" data-ribbon-proxy="" data-ribbon-depth="5000" data-ribbon-pad="6">
           <p className="hero__role">{identity.role}</p>
           <p className="hero__tagline">{identity.tagline}</p>
         </div>

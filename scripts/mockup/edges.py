@@ -44,6 +44,7 @@ CROSS_ARC = 3.0     # (x W) arc separation that makes two trace parts "different
 CROSS_DIST = 1.0    # (x W) centreline distance below which strands overlap in projection
 TURN_DEG = 90.0
 TURN_ARC = 2.0      # (x W)
+INNER_V = 0.36   # mean V below which the strip between a rim ridge and the silhouette is read as an inner face
 RIDGE_LO, RIDGE_HI, RIDGE_THR = 0.18, 0.66, 0.45   # ridge search window (x rmax/1.4 = x W) and strength
 SIG_WINDOWS = [("S_turn", 1.1), ("fold_left", 1.0), ("A_apex", 1.0), ("K_bottom", 1.1), ("curl_left", 1.0), ("thin_tip", 0.9), ("K_top_tip", 1.0)]
 RMIN_WIN = {} if SRC in SCUL else {}      # window id -> min radius (x W): the K lower tip's hole cusp needs a rounder edge
@@ -122,6 +123,7 @@ class Boundaries:
             return 1
         return 0
 
+    V = None
     ridge = None     # sculpture/sig: thin-rim ridge map (occlusion edges inside the silhouette), set by load()
 
     def cast(self, c, n, rmax, step=0.5):
@@ -142,6 +144,13 @@ class Boundaries:
         if t is not None and cls == 0 and abs(tr - t) <= 5.0:
             return t, cls
         if t is None or tr < t - 5.0:
+            if t is not None and cls == 0 and self.V is not None and (t - tr) < 0.5 * rmax / 1.4:
+                # a dark (shadowed inner face) band between the rim ridge and the silhouette is the same strand's inner face: the edge is the silhouette
+                kk0, kk1 = int((tr + 3) / step), int((t - 3) / step)
+                if kk1 - kk0 >= 2:
+                    vv = ndi.map_coordinates(self.V, [c[1] + n[1] * ts[kk0:kk1], c[0] + n[0] * ts[kk0:kk1]], order=1, mode="nearest")
+                    if vv.mean() < INNER_V:
+                        return t, cls
             return float(tr), 0
         return t, cls
 
@@ -306,6 +315,7 @@ def build(M, T, X, rgb, cl, g, verbose=True):
     B = Boundaries(M, T, X)
     if SRC == "sig":
         B.ridge = ridge_map(rgb)
+        B.V = ndi.gaussian_filter(rgb.max(2).astype(np.float32) / 255.0, 1.5)
     Q, t, vis, P, s_orig = prep_trace(cl)
     d, n = tangent_normal(Q)
     N = len(Q)
@@ -728,7 +738,7 @@ def reconstruct(S, info):
     wloc = np.hypot(*(E2 - E1).T)
     wmed = rolling_median(wloc, ok & ~S["in_turn"], int(round(3 * W / STEP)))
     wmed = np.where(np.isfinite(wmed), wmed, W)
-    cap = 1.15 * np.minimum(wmed, 1.25 * W)
+    cap = 1.15 * (wmed if SRC == "sig" else np.minimum(wmed, 1.25 * W))      # sig: the tail legitimately widens towards the camera
     scale = np.minimum(1.0, cap / np.maximum(wloc, 1e-6))
     ctr = 0.5 * (E1 + E2)
     E1 = ctr + (E1 - ctr) * scale[:, None]
@@ -745,6 +755,12 @@ def reconstruct(S, info):
     dy = pchip_fill(t, ok, dlt[:, 1])
     h_i = pchip_fill(t, ok, hw)
     p_i = pchip_fill(t, ok, phi_u)
+    if SRC == "sig":      # the tail runs out of the frame while widening towards the camera: extrapolate its half width linearly
+        idv = np.nonzero(ok)[0]
+        first = idv[0]
+        v_ = idv[:40]
+        cfh = np.polyfit(t[v_], hw[v_], 1)
+        h_i[:first] = np.maximum(np.polyval(cfh, t[:first]), h_i[first])
     m_i = Q + np.stack([dx, dy], 1)
     u = np.stack([np.cos(p_i), np.sin(p_i)], 1)
     E1_i = m_i - u * h_i[:, None]

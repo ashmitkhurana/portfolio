@@ -11,7 +11,7 @@ a = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-signature-cutout.w
 im = np.array(Image.open(sys.argv[1]).convert("RGB"))
 im = cv2.resize(im, (852, 1846), interpolation=cv2.INTER_AREA)
 h, s, v = analyze.hsv_of(im)
-m = (h >= 2) & (h <= 45) & (s > 0.4) & (v > 0.16)
+m = (h >= 2) & (h <= 45) & (s > 0.35) & (v > float(os.environ.get("VMIN", "0.16")))
 m = ndi.binary_opening(m, np.ones((3, 3)))
 valid = np.ones_like(a); valid[:140] = False; valid[1700:, :180] = False
 a = a & valid; m = m & valid
