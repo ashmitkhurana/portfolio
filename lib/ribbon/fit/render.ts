@@ -302,11 +302,13 @@ export class KinkProbes {
   }
 
   /** the same for arbitrary pose points */
-  kinkPose(pts: PosePoint[], fovDeg: number): { kink: number; crinkle: number; viol: number } {
+  kinkPose(pts: PosePoint[], fovDeg: number): { kink: number; crinkle: number; viol: number; kinkFrac: number; kinkLayout: number } {
     const s = { fov: fovDeg };
     let worst = 0;
     let crinkle = 0;
     let viol = 0;
+    let kinkFrac = 0;
+    let kinkLayout = 0;
     PROBES.forEach((p, i) => {
       const pose = resolvePose(pts, { viewW: p.w, viewH: p.h, anchor: p.anchor, fov: s.fov }, POSE_COUNT, "curvature", "bspline");
       const geo = this.geos[i];
@@ -324,7 +326,12 @@ export class KinkProbes {
       cam.lookAt(0, 0, 0);
       cam.updateProjectionMatrix();
       cam.updateMatrixWorld();
-      worst = Math.max(worst, geo.edgeReport(cam, p.w, p.h).kink);
+      const er = geo.edgeReport(cam, p.w, p.h);
+      if (er.kink > worst) {
+        worst = er.kink;
+        kinkFrac = er.kinkAt / Math.max(geo.bodyRings - 1, 1);
+        kinkLayout = i;
+      }
       const sm = geo.smoothnessReport();
       // every hairpin must stay a hairpin (turn > 150, pose-check) with a centreline radius inside 0.3 - 2.5 widths, with margin
       let hp = 0;
@@ -332,9 +339,9 @@ export class KinkProbes {
       crinkle = Math.max(crinkle, hp +  Math.max(0, sm.curvature - 3.5) + Math.max(0, sm.roll - 1.5) + Math.max(0, sm.rollRate - 1.4));
       // the pose-check limits themselves (no margin): curvature reversals <= 4, roll reversals <= 2, roll rate <= 1.6, hairpins turn > 150 and radius 0.3 - 2.5 widths
       let v = Math.max(0, sm.curvature - 4) + Math.max(0, sm.roll - 2) + 3 * Math.max(0, sm.rollRate - 1.6);
-      for (const h of geo.hairpinReports) v += Math.max(0, 152 - (h.turn * 180) / Math.PI) / 5 + Math.max(0, 0.31 - h.radiusW) / 0.04 + Math.max(0, h.radiusW - 2.4) / 0.3;
+      for (const h of geo.hairpinReports) v += Math.max(0, 153 - (h.turn * 180) / Math.PI) / 5 + Math.max(0, 0.34 - h.radiusW) / 0.04 + Math.max(0, h.radiusW - 2.4) / 0.3;
       viol = Math.max(viol, v);
     });
-    return { kink: worst, crinkle, viol };
+    return { kink: worst, crinkle, viol, kinkFrac, kinkLayout };
   }
 }

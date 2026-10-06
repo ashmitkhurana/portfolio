@@ -113,6 +113,8 @@ export class S2c {
   twist0: number[] = [];
   private grid = new Map<number, number[]>();
   stop = false;
+  /** weight of the dark-face term in the local silhouette costs */
+  darkW = 0.25;
   log: (m: string) => void = (m) => console.log(m);
 
   constructor(
@@ -179,6 +181,68 @@ export class S2c {
     return z >= this.input.planeZ[line];
   }
 
+  /** the pose-check limits over ALL site layouts (worst case): violation, kink, and where the worst kink is (arc fraction) */
+  layoutPen(twist: number[]): { viol: number; kink: number; frac: number } {
+    const pts = this.pose(zeroState(this.input)).map((p, i) => ({ ...p, twist: twist[i] }));
+    const pr = this.probes.kinkPose(pts, this.input.fov);
+    return { viol: pr.viol, kink: pr.kink, frac: pr.kinkFrac };
+  }
+
+  /** crossing order: the front strand must clear the back one by MARGIN_H cap heights */
+  crossPenalty(R: Rings): { pen: number; list: S2cTerms["crossings"] } {
+    const inp = this.input;
+    const margin = MARGIN_H * inp.hcap;
+    let pen = 0;
+    const list: S2cTerms["crossings"] = [];
+    for (const c of inp.crossings) {
+      const best = (span: [number, number]): number => {
+        const a = this.ringAt(R, span[0]);
+        const b = this.ringAt(R, span[1]);
+        let bi = Math.min(a, b);
+        let bd = Infinity;
+        for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
+          const d = (R.sx[i] - c.at[0]) ** 2 + (R.sy[i] - c.at[1]) ** 2;
+          if (d < bd) {
+            bd = d;
+            bi = i;
+          }
+        }
+        return bi;
+      };
+      const f = best(c.front);
+      const b = best(c.back);
+      const dz = R.pos[f * 3 + 2] - R.pos[b * 3 + 2];
+      pen += Math.max(0, (margin - dz) / margin) ** 2;
+      list.push({ name: c.name, margin: dz / inp.hcap, ok: dz >= margin });
+    }
+    return { pen, list };
+  }
+
+  /** self intersection: non-adjacent strands closer than 3 x thickness */
+  selfPenalty(R: Rings): number {
+    const inp = this.input;
+    const M = R.M;
+    const thick = (inp.W / 11) * 3;
+    const sub = 6;
+    const minSep = Math.round((3 * inp.W) / Math.max(R.ds, 1e-3));
+    let selfPen = 0;
+    let pairs = 0;
+    for (let i = 0; i < M; i += sub) {
+      const xi = R.pos[i * 3];
+      const yi = R.pos[i * 3 + 1];
+      const zi = R.pos[i * 3 + 2];
+      for (let j = i + minSep; j < M; j += sub) {
+        const dx = R.pos[j * 3] - xi;
+        const dy = R.pos[j * 3 + 1] - yi;
+        const dz = R.pos[j * 3 + 2] - zi;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < thick * thick) selfPen += ((thick - Math.sqrt(d2)) / thick) ** 2;
+        pairs++;
+      }
+    }
+    return pairs ? selfPen / 5 : 0;
+  }
+
   evaluate(state: S2cState, scale: number, twist?: number[]): S2cTerms {
     const inp = this.input;
     const R = this.build(state, twist);
@@ -206,53 +270,11 @@ export class S2c {
     const iou = uni ? inter / uni : 0;
     const darkIoU = dUni ? dInter / dUni : 0;
 
-    // ---- crossing order (front must clear back by MARGIN_H cap heights) ----
-    const margin = MARGIN_H * inp.hcap;
-    let cross = 0;
-    const crossings: S2cTerms["crossings"] = [];
-    for (const c of inp.crossings) {
-      const best = (span: [number, number]): number => {
-        const a = this.ringAt(R, span[0]);
-        const b = this.ringAt(R, span[1]);
-        let bi = Math.min(a, b);
-        let bd = Infinity;
-        for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
-          const d = (R.sx[i] - c.at[0]) ** 2 + (R.sy[i] - c.at[1]) ** 2;
-          if (d < bd) {
-            bd = d;
-            bi = i;
-          }
-        }
-        return bi;
-      };
-      const f = best(c.front);
-      const b = best(c.back);
-      const dz = R.pos[f * 3 + 2] - R.pos[b * 3 + 2];
-      cross += Math.max(0, (margin - dz) / margin) ** 2;
-      crossings.push({ name: c.name, margin: dz / inp.hcap, ok: dz >= margin });
-    }
-
-    // ---- self intersection (non-adjacent strands closer than 3 x thickness) ----
+    const cs = this.crossPenalty(R);
+    const cross = cs.pen;
+    const crossings = cs.list;
+    const self = this.selfPenalty(R);
     const M = R.M;
-    const thick = (inp.W / 11) * 3;
-    const sub = 6;
-    const minSep = Math.round((3 * inp.W) / Math.max(R.ds, 1e-3));
-    let selfPen = 0;
-    let pairs = 0;
-    for (let i = 0; i < M; i += sub) {
-      const xi = R.pos[i * 3];
-      const yi = R.pos[i * 3 + 1];
-      const zi = R.pos[i * 3 + 2];
-      for (let j = i + minSep; j < M; j += sub) {
-        const dx = R.pos[j * 3] - xi;
-        const dy = R.pos[j * 3 + 1] - yi;
-        const dz = R.pos[j * 3 + 2] - zi;
-        const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < thick * thick) selfPen += ((thick - Math.sqrt(d2)) / thick) ** 2;
-        pairs++;
-      }
-    }
-    const self = pairs ? selfPen / 5 : 0;
 
     // ---- centreline drift ----------------------------------------------------
     let dsum = 0;
@@ -553,6 +575,7 @@ export class S2c {
     const signA = agree >= dis ? 1 : -1;
     const foldIdx = inp.points.findIndex((p) => p.fold);
     const anchorIdx = foldIdx >= 0 ? Math.min(k - 1, foldIdx + 3) : -1;
+    // (the pose runs tail -> T1, so the fold turns the lit face (A, right leg) into the dark one (B, left leg), as in the mockup)
     const tw = base.slice();
     const measure = (R: Rings, i: number): { f: number; faceB: boolean } => {
       const r = Math.min(R.M - 1, Math.max(0, Math.round(R.frac[i] * (R.M - 1))));
@@ -570,8 +593,8 @@ export class S2c {
     for (let pass = 0; pass < passes; pass++) {
       for (let i = 0; i < k; i++) {
         if (i === anchorIdx) continue; // its own twist has no effect (the fold sets the roll there): later rings are relative to it
-        if (foldIdx >= 0 && i >= foldIdx - 2 && i <= foldIdx + 1) {
-          tw[i] = 0; // the strip arrives at (and leaves) the fold level: twist 0
+        if (foldIdx >= 0 && i >= foldIdx - 5 && i <= foldIdx + 1) {
+          tw[i] = 0; // the strip arrives at (and leaves) the fold level
           continue;
         }
         const t = inp.targets[i];
@@ -580,7 +603,7 @@ export class S2c {
         let best = Infinity;
         let bestTh = tw[i];
         const fixedFuture = pass === 0;
-        const nearFold = foldIdx >= 0 && Math.abs(i - foldIdx) <= 2;
+        const nearFold = foldIdx >= 0 && i >= foldIdx - 7 && i <= foldIdx + 2;
         for (let g = 0; g < grid; g++) {
           const th = prev + ((g / grid) * 2 - 1) * Math.PI; // within pi of the previous control point
           const saved = tw[i];
@@ -638,19 +661,19 @@ export class S2c {
   }
 
   /**
-   * Roll calibration against the measured SILHOUETTE: starting from the width-derived roll (`calibrateReal`), every control
-   * point's twist is searched (+- `span` rad) for the best local silhouette / dark-face agreement in a window around it,
-   * with a continuity prior. Greedy, control point by control point, a few passes.
+   * Local silhouette refinement of the control points themselves (screen x, y and depth z): greedy, control point by control
+   * point, small steps, scored on the local silhouette / dark-face agreement with the pose-check limits as global penalties and a
+   * soft pull back to the measured centreline. Deviates from the locked-centreline spec on purpose (reported as drift).
    */
-  calibrateSilhouette(passes = 2, span = 0.8, steps = 17, cont = 0.25, radius = 95, pinchW = 1.5, globalPen = false): { before: number; after: number; passes: number } {
+  refineLocal(passes = 2, stepPx = 7, stepZ = 0.06, maxOff = 16, lockW = 0.08, radius = 95, pinchW = 1.5): { before: number; after: number; driftMax: number } {
     const inp = this.input;
     const st = zeroState(inp);
-    const k = inp.targets.length;
+    const k = inp.points.length;
     const scale = 0.5;
     const m = this.data.scaled(scale);
-    const foldIdx = inp.points.findIndex((p) => p.fold);
-    const anchorIdx = foldIdx >= 0 ? Math.min(k - 1, foldIdx + 3) : -1;
-    const tw = this.twist0.slice();
+    const x0 = inp.points.map((p) => p.x);
+    const y0 = inp.points.map((p) => p.y);
+    const z0 = inp.points.map((p) => p.z);
     const local = (R: Rings, i: number): number => {
       const { px, w, h } = this.rend.draw(scale);
       const r = Math.min(R.M - 1, Math.max(0, Math.round(R.frac[i] * (R.M - 1))));
@@ -694,7 +717,134 @@ export class S2c {
         const hw = R.hw[q];
         pinch = Math.max(pinch, (hw * kb) / 0.5);
       }
-      return 1 - (uni ? inter / uni : 1) + 0.25 * (dU ? 1 - dI / dU : 0) + pinchW * Math.max(0, pinch - 0.85) ** 2;
+      return 1 - (uni ? inter / uni : 1) + this.darkW * (dU ? 1 - dI / dU : 0) + pinchW * Math.max(0, pinch - 0.85) ** 2;
+    };
+    const global = (): number => {
+      this.build(st, this.twist0, true);
+      const { px, w, h } = this.rend.draw(scale);
+      let inter = 0;
+      let uni = 0;
+      for (let gi = 0; gi < w * h; gi++) {
+        if (m.excl[gi]) continue;
+        const vis = this.visible(px, w, h, m, gi);
+        const mk = m.ribbon[gi] === 1;
+        if (vis && mk) inter++;
+        if (vis || mk) uni++;
+      }
+      return uni ? inter / uni : 0;
+    };
+    const before = global();
+    const pxW = inp.anchor.width;
+    const pxH = inp.anchor.height;
+    const foldIdx = inp.points.findIndex((p) => p.fold);
+    for (let pass = 0; pass < passes; pass++) {
+      for (let i = 0; i < k; i++) {
+        if (foldIdx >= 0 && Math.abs(i - foldIdx) <= 2) continue; // the fold point is the author's anchor of the roll
+        const bx = inp.points[i].x;
+        const by = inp.points[i].y;
+        const bz = inp.points[i].z;
+        let best = Infinity;
+        let bestC: [number, number, number] = [bx, by, bz];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dz = -1; dz <= 1; dz++) {
+              const nx = bx + (dx * stepPx) / pxW;
+              const ny = by + (dy * stepPx) / pxH;
+              const nz = bz + (dz * stepZ * inp.hcap) / inp.anchor.height;
+              const offx = (nx - x0[i]) * pxW;
+              const offy = (ny - y0[i]) * pxH;
+              if (Math.hypot(offx, offy) > maxOff || Math.abs(nz - z0[i]) * inp.anchor.height > 0.15 * inp.hcap) continue;
+              inp.points[i].x = nx;
+              inp.points[i].y = ny;
+              inp.points[i].z = nz;
+              const R = this.build(st, this.twist0, false);
+              let c = local(R, i) + (lockW * (offx * offx + offy * offy)) / (maxOff * maxOff);
+              const lp = this.layoutPen(this.twist0);
+              c += 0.6 * Math.min(lp.viol, 6) + 1.0 * Math.min(Math.max(0, lp.kink - 10), 60) / 10;
+              c += 2 * this.crossPenalty(R).pen + 1.5 * this.selfPenalty(R);
+              const fr = this.rend.geometry.foldReports[0];
+              if (foldIdx >= 0 && (!fr || !fr.built || fr.theta > 2.6 || fr.issues.some((q) => q.level === "error"))) c += 3; // the apex stays a flat fold, not a rolled U-turn
+              if (c < best) {
+                best = c;
+                bestC = [nx, ny, nz];
+              }
+            }
+          }
+        }
+        inp.points[i].x = bestC[0];
+        inp.points[i].y = bestC[1];
+        inp.points[i].z = bestC[2];
+      }
+    }
+    let dm = 0;
+    for (let i = 0; i < k; i++) dm = Math.max(dm, Math.hypot((inp.points[i].x - x0[i]) * pxW, (inp.points[i].y - y0[i]) * pxH));
+    return { before, after: global(), driftMax: dm };
+  }
+
+  /**
+   * Roll calibration against the measured SILHOUETTE: starting from the width-derived roll (`calibrateReal`), every control
+   * point's twist is searched (+- `span` rad) for the best local silhouette / dark-face agreement in a window around it,
+   * with a continuity prior. Greedy, control point by control point, a few passes.
+   */
+  calibrateSilhouette(passes = 2, span = 0.8, steps = 17, cont = 0.25, radius = 95, pinchW = 1.5, globalPen = false): { before: number; after: number; passes: number } {
+    const inp = this.input;
+    const st = zeroState(inp);
+    const k = inp.targets.length;
+    const scale = 0.5;
+    const m = this.data.scaled(scale);
+    const foldIdx = inp.points.findIndex((p) => p.fold);
+    const anchorIdx = foldIdx >= 0 ? Math.min(k - 1, foldIdx + 3) : -1;
+    const tw = this.twist0.slice();
+    // the roll must change gently into and out of a rolled hairpin (the projected band edge kinks where it turns fast)
+    const tipProx = new Array<number>(k).fill(0);
+    inp.points.forEach((p, j) => {
+      if (!p.hairpin) return;
+      for (let i = 0; i < k; i++) tipProx[i] = Math.max(tipProx[i], Math.exp(-(((i - j) / 5) ** 2)));
+    });
+    const local = (R: Rings, i: number): number => {
+      const { px, w, h } = this.rend.draw(scale);
+      const r = Math.min(R.M - 1, Math.max(0, Math.round(R.frac[i] * (R.M - 1))));
+      const cx = R.sx[r] * scale;
+      const cy = R.sy[r] * scale;
+      const rr = radius * scale;
+      const x0 = Math.max(0, Math.floor(cx - rr));
+      const x1 = Math.min(w - 1, Math.ceil(cx + rr));
+      const y0 = Math.max(0, Math.floor(cy - rr));
+      const y1 = Math.min(h - 1, Math.ceil(cy + rr));
+      let inter = 0;
+      let uni = 0;
+      let dI = 0;
+      let dU = 0;
+      for (let y = y0; y <= y1; y++) {
+        const gy = h - 1 - y;
+        for (let x = x0; x <= x1; x++) {
+          if ((x - cx) ** 2 + (y - cy) ** 2 > rr * rr) continue;
+          const gi = gy * w + x;
+          if (m.excl[gi]) continue;
+          const vis = this.visible(px, w, h, m, gi);
+          const mk = m.ribbon[gi] === 1;
+          if (vis && mk) inter++;
+          if (vis || mk) uni++;
+          const bVis = vis && ((px[gi * 4] + 32) >> 6) === 2;
+          const mDark = m.cls[gi] === 3;
+          if (bVis && mDark) {
+            dI++;
+            dU++;
+          } else if (bVis || mDark) dU++;
+        }
+      }
+      // edge-wise bending near this control point: where hw * kappa_B / 0.5 > 1 the engine relaxes (moves) the path and the edge kinks
+      let pinch = 0;
+      for (let q = Math.max(3, r - 24); q <= Math.min(R.M - 4, r + 24); q += 2) {
+        const dx = R.tan[(q + 2) * 3] - R.tan[(q - 2) * 3];
+        const dy = R.tan[(q + 2) * 3 + 1] - R.tan[(q - 2) * 3 + 1];
+        const dz = R.tan[(q + 2) * 3 + 2] - R.tan[(q - 2) * 3 + 2];
+        const ds = Math.hypot(R.pos[(q + 2) * 3] - R.pos[(q - 2) * 3], R.pos[(q + 2) * 3 + 1] - R.pos[(q - 2) * 3 + 1], R.pos[(q + 2) * 3 + 2] - R.pos[(q - 2) * 3 + 2]) || 1;
+        const kb = Math.abs(dx * R.bv[q * 3] + dy * R.bv[q * 3 + 1] + dz * R.bv[q * 3 + 2]) / ds;
+        const hw = R.hw[q];
+        pinch = Math.max(pinch, (hw * kb) / 0.5);
+      }
+      return 1 - (uni ? inter / uni : 1) + this.darkW * (dU ? 1 - dI / dU : 0) + pinchW * Math.max(0, pinch - 0.85) ** 2;
     };
     const total = (): number => {
       const R = this.build(st, tw, true);
@@ -720,10 +870,7 @@ export class S2c {
     for (let pass = 0; pass < passes; pass++) {
       for (let i = 0; i < k; i++) {
         if (i === anchorIdx) continue;
-        if (foldIdx >= 0 && i >= foldIdx - 2 && i <= foldIdx + 1) {
-          tw[i] = 0;
-          continue;
-        }
+        if (foldIdx >= 0 && i >= foldIdx - 5 && i <= foldIdx + 1) continue; // stays level (set by calibrateReal)
         const prev = i > 0 ? tw[i - 1] : tw[i];
         const nxt = i < k - 1 ? tw[i + 1] : tw[i];
         const t0 = tw[i];
@@ -732,14 +879,12 @@ export class S2c {
         for (let g = 0; g < steps; g++) {
           const th = t0 + ((g / (steps - 1)) * 2 - 1) * span;
           tw[i] = th;
-          const R = this.build(st, tw, !globalPen);
-          let c = local(R, i) + cont * ((th - prev) ** 2 + (th - nxt) ** 2);
+          const R = this.build(st, tw, true);
+          let c = local(R, i) + cont * (1 + 5 * tipProx[i]) * ((th - prev) ** 2 + (th - nxt) ** 2);
           if (globalPen) {
-            // the pose-check limits (worst over the strip: a candidate pays when the worst spot is near it or it creates a new one)
-            const sm = this.rend.geometry.smoothnessReport();
-            let v = Math.max(0, sm.curvature - 4) + Math.max(0, sm.roll - 2) + 3 * Math.max(0, sm.rollRate - 1.6);
-            for (const h of this.rend.geometry.hairpinReports) v += Math.max(0, 152 - (h.turn * 180) / Math.PI) / 5 + Math.max(0, 0.31 - h.radiusW) / 0.04;
-            c += 0.3 * Math.min(v, 6) + 0.2 * Math.min(Math.max(0, R.kink - 10), 100) / 10;
+            // the pose-check limits over every site layout (worst case)
+            const lp = this.layoutPen(tw);
+            c += 0.6 * Math.min(lp.viol, 6) + 1.0 * Math.min(Math.max(0, lp.kink - 10), 60) / 10;
           }
           if (foldIdx >= 0 && Math.abs(i - foldIdx) <= 2) c += 0.8 * Math.sin(th) ** 2;
           if (c < best) {
@@ -797,6 +942,188 @@ export class S2c {
       hist.push({ rms: Math.sqrt(s2 / Math.max(n, 1)), max: mx });
     }
     return hist;
+  }
+
+  /**
+   * Target the worst edge kink directly: at the control points around its ring try small roll / depth / position changes
+   * and keep the one that lowers the kink most for the least silhouette loss (kink units vs IoU: 1 IoU point = `iouW` kink units).
+   */
+  fixKink(maxIter = 40, target = 10.2, iouW = 150): { kink: number; iou: number; iters: number; viol: number } {
+    const inp = this.input;
+    const st = zeroState(inp);
+    const k = inp.points.length;
+    const scale = 0.5;
+    const m = this.data.scaled(scale);
+    const foldIdx = inp.points.findIndex((p) => p.fold);
+    const iouNow = (): number => {
+      this.build(st, this.twist0, true);
+      const { px, w, h } = this.rend.draw(scale);
+      let inter = 0;
+      let uni = 0;
+      for (let gi = 0; gi < w * h; gi++) {
+        if (m.excl[gi]) continue;
+        const vis = this.visible(px, w, h, m, gi);
+        const mk = m.ribbon[gi] === 1;
+        if (vis && mk) inter++;
+        if (vis || mk) uni++;
+      }
+      return uni ? inter / uni : 0;
+    };
+    // hard constraints (fold built, crossings, no self intersection); the layout limits (viol) are traded in the score
+    const violOf = (R: Rings): number => {
+      let v = 0;
+      const fr = this.rend.geometry.foldReports[0];
+      if (foldIdx >= 0 && (!fr || !fr.built || fr.theta > 2.6 || fr.issues.some((q) => q.level === "error"))) v += 3;
+      return v + 4 * this.crossPenalty(R).pen + 4 * this.selfPenalty(R);
+    };
+    let iters = 0;
+    const worstKink = (): { kink: number; frac: number; viol: number } => {
+      const R0 = this.build(st, this.twist0, false);
+      const pr = this.layoutPen(this.twist0);
+      return R0.kink >= pr.kink ? { kink: R0.kink, frac: R0.kinkAt / Math.max(R0.M - 1, 1), viol: pr.viol } : { kink: pr.kink, frac: pr.frac, viol: pr.viol };
+    };
+    let R = this.build(st, this.twist0, false);
+    let wk = worstKink();
+    let kink = wk.kink;
+    let iou = iouNow();
+    for (; iters < maxIter; iters++) {
+      R = this.build(st, this.twist0, false);
+      wk = worstKink();
+      kink = wk.kink;
+      if (kink <= target && wk.viol <= 0.01) break;
+      const ring = wk.frac * (R.M - 1);
+      let ci = 0;
+      let bd = Infinity;
+      for (let i = 0; i < k; i++) {
+        const d = Math.abs(R.frac[i] * (R.M - 1) - ring);
+        if (d < bd) {
+          bd = d;
+          ci = i;
+        }
+      }
+      type Var = { i: number; kind: string; d: number };
+      const vars: Var[] = [];
+      for (let i = Math.max(0, ci - 3); i <= Math.min(k - 1, ci + 3); i++) {
+        if (foldIdx >= 0 && Math.abs(i - foldIdx) <= 2) continue;
+        for (const d of [-0.3, -0.12, 0.12, 0.3]) vars.push({ i, kind: "tw", d });
+        for (const d of [-0.06, 0.06]) vars.push({ i, kind: "z", d });
+        for (const d of [-7, 7]) {
+          vars.push({ i, kind: "x", d });
+          vars.push({ i, kind: "y", d });
+        }
+      }
+      let bestScore = kink + 60 * wk.viol;
+      let best: Var | null = null;
+      const apply = (v: Var, sign: number): void => {
+        const p = inp.points[v.i];
+        if (v.kind === "tw") this.twist0[v.i] += sign * v.d;
+        else if (v.kind === "z") p.z += (sign * v.d * inp.hcap) / inp.anchor.height;
+        else if (v.kind === "x") p.x += (sign * v.d) / inp.anchor.width;
+        else p.y += (sign * v.d) / inp.anchor.height;
+      };
+      for (const v of vars) {
+        apply(v, 1);
+        const R2 = this.build(st, this.twist0, false);
+        if (violOf(R2) <= 0.01) {
+          const i2 = iouNow();
+          const w2 = worstKink();
+          const sc = w2.kink + 60 * w2.viol + iouW * Math.max(0, iou - i2);
+          if (sc < bestScore - 0.05) {
+            bestScore = sc;
+            best = v;
+          }
+        }
+        apply(v, -1);
+      }
+      if (!best) break;
+      apply(best, 1);
+      iou = iouNow();
+      kink = worstKink().kink;
+    }
+    return { kink, iou, iters, viol: wk.viol };
+  }
+
+  /**
+   * Which face shows on each strand is a parity question: every half-turn of the roll (rolled hairpin, or a twist hidden behind
+   * the type) flips it. Try every subset of the candidate spots (control indices); a half-turn is added as a smooth ramp over
+   * ~4 control points (all later controls carry it), scored on silhouette + dark-face agreement. Keeps the best.
+   */
+  parityScan(spots: number[]): { best: number[]; score: number; scores: number[] } {
+    const inp = this.input;
+    const st = zeroState(inp);
+    const k = inp.points.length;
+    const scale = 0.5;
+    const m = this.data.scaled(scale);
+    const base = this.twist0.slice();
+    const sorted = [...spots].sort((a, b) => a - b);
+    const score = (tw: number[]): number => {
+      this.build(st, tw, true);
+      const { px, w, h } = this.rend.draw(scale);
+      let inter = 0;
+      let uni = 0;
+      let dI = 0;
+      let dU = 0;
+      for (let gi = 0; gi < w * h; gi++) {
+        if (m.excl[gi]) continue;
+        const vis = this.visible(px, w, h, m, gi);
+        const mk = m.ribbon[gi] === 1;
+        if (vis && mk) inter++;
+        if (vis || mk) uni++;
+        const bVis = vis && ((px[gi * 4] + 32) >> 6) === 2;
+        const mDark = m.cls[gi] === 3;
+        if (bVis && mDark) {
+          dI++;
+          dU++;
+        } else if (bVis || mDark) dU++;
+      }
+      return (uni ? inter / uni : 0) + 1.5 * (dU ? dI / dU : 0);
+    };
+    let best: number[] = [];
+    let bestScore = -Infinity;
+    const scores: number[] = [];
+    for (let mask = 0; mask < 1 << sorted.length; mask++) {
+      const tw = base.slice();
+      for (let b = 0; b < sorted.length; b++) {
+        if (!(mask & (1 << b))) continue;
+        const j = sorted[b];
+        for (let i = 0; i < k; i++) {
+          const t = Math.min(Math.max((i - (j - 2)) / 4, 0), 1);
+          tw[i] += Math.PI * t * t * (3 - 2 * t);
+        }
+      }
+      const sc = score(tw);
+      scores.push(sc);
+      if (sc > bestScore) {
+        bestScore = sc;
+        best = sorted.filter((_, b) => mask & (1 << b));
+        this.twist0 = tw;
+      }
+    }
+    return { best, score: bestScore, scores };
+  }
+
+  /** low-pass the calibrated roll over neighbouring control points (not across the fold zone) */
+  smoothTwist(sigma: number): void {
+    const k = this.twist0.length;
+    const foldIdx = this.input.points.findIndex((p) => p.fold);
+    const tw = this.twist0.slice();
+    const rad = Math.ceil(sigma * 3);
+    for (let i = 0; i < k; i++) {
+      if (foldIdx >= 0 && i >= foldIdx - 2 && i <= foldIdx + 4) continue;
+      let sw = 0;
+      let sv = 0;
+      for (let d = -rad; d <= rad; d++) {
+        const j = i + d;
+        if (j < 0 || j >= k) continue;
+        if (foldIdx >= 0 && j >= foldIdx - 2 && j <= foldIdx + 4) continue;
+        if (foldIdx >= 0 && (i < foldIdx) !== (j < foldIdx)) continue;
+        const w = Math.exp(-0.5 * (d / sigma) ** 2);
+        sw += w;
+        sv += w * this.twist0[j];
+      }
+      tw[i] = sv / sw;
+    }
+    this.twist0 = tw;
   }
 
   /** debug: how a uniform twist rotates the frames (angle of B about T, per sampled ring) */
@@ -887,6 +1214,22 @@ export class S2c {
       }
     }
     return { state: best, terms: this.evaluate(best, 1) };
+  }
+
+  /** visible face class per pixel at full resolution, TOP-DOWN: 0 none, 1 face A, 2 face B, 3 edge */
+  classMap(state: S2cState): Uint8Array {
+    this.build(state ? state : zeroState(this.input), this.twist0);
+    const { px, w, h } = this.rend.draw(1);
+    const m = this.data.scaled(1);
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const gy = h - 1 - y;
+      for (let x = 0; x < w; x++) {
+        const gi = gy * w + x;
+        out[y * w + x] = this.visible(px, w, h, m, gi) ? (px[gi * 4] + 32) >> 6 : 0;
+      }
+    }
+    return out;
   }
 
   /** our visible silhouette at full resolution, TOP-DOWN (per-line text planes) */

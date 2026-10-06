@@ -42,6 +42,13 @@ declare global {
       load(input: S2cInput): void;
       calibrate(): ReturnType<S2c["calibrate"]>;
       lockCentreline(iters?: number): ReturnType<S2c["lockCentreline"]>;
+      refineLocal(passes?: number, stepPx?: number, stepZ?: number, maxOff?: number): ReturnType<S2c["refineLocal"]>;
+      smoothTwist(sigma: number): void;
+      parityScan(spots: number[]): ReturnType<S2c["parityScan"]>;
+      controlAt(arc: number): number;
+      classMap(state: S2cState): string;
+      setDarkW(w: number): void;
+      fixKink(maxIter?: number): ReturnType<S2c["fixKink"]>;
       calibrateReal(): ReturnType<S2c["calibrateReal"]>;
       calibrateSilhouette(p?: number, span?: number, steps?: number, cont?: number, radius?: number, pinchW?: number, globalPen?: boolean): ReturnType<S2c["calibrateSilhouette"]>;
       zero(): S2cState;
@@ -202,6 +209,23 @@ export function FitView() {
       load: (i) => (s2c as S2c).load(i),
       calibrate: () => (s2c as S2c).calibrate(),
       lockCentreline: (n) => (s2c as S2c).lockCentreline(n),
+      refineLocal: (a, b, c, d) => (s2c as S2c).refineLocal(a, b, c, d),
+      setDarkW: (w) => ((s2c as S2c).darkW = w),
+      classMap: (st) => {
+        const a = (s2c as S2c).classMap(st);
+        let bin = "";
+        for (let i = 0; i < a.length; i += 32768) bin += String.fromCharCode(...a.subarray(i, i + 32768));
+        return btoa(bin);
+      },
+      parityScan: (sp) => (s2c as S2c).parityScan(sp),
+      controlAt: (arc) => {
+        const kn = (s2c as S2c).input.knots;
+        let b = 0;
+        for (let i = 1; i < kn.length; i++) if (Math.abs(kn[i] - arc) < Math.abs(kn[b] - arc)) b = i;
+        return b;
+      },
+      smoothTwist: (sg) => (s2c as S2c).smoothTwist(sg),
+      fixKink: (n) => (s2c as S2c).fixKink(n),
       calibrateReal: () => (s2c as S2c).calibrateReal(),
       calibrateSilhouette: (p, sp, st, c, r, pw, gp) => (s2c as S2c).calibrateSilhouette(p, sp, st, c, r, pw, gp),
       zero: () => zeroState((s2c as S2c).input),

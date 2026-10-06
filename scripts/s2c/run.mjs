@@ -72,12 +72,35 @@ if (flag("probe")) {
   console.log("rTwist", JSON.stringify(await page.evaluate(() => { window.__s2c.probeTwist(0.5); const g = window.__fit.session.rend.geometry; const out = []; for (const th of [0, 0.5]) { const st = window.__s2c.zero(); window.__s2c.probeTwist(th); const d = g.sweep.uRingTex.value.image.data; const tot = g.totalRings; const o = (g.caps + 300) * 4; const q = (g.caps + 20) * 3; out.push({ th, tw: g.rTwist[g.caps + 20], c: g.rTwC[g.caps + 20], n0: [g.rN0[q], g.rN0[q+1], g.rN0[q+2]], n: [g.rN[q], g.rN[q+1], g.rN[q+2]], B: [d[tot*4+o], d[tot*4+o+1], d[tot*4+o+2]], rB: [g.rB[(g.caps+300)*3], g.rB[(g.caps+300)*3+1], g.rB[(g.caps+300)*3+2]], N: [d[2*tot*4+o], d[2*tot*4+o+1], d[2*tot*4+o+2]] }); } return out; })));
   for (const th of [0.5, 1.0, -0.5]) console.log("probe", th, JSON.stringify(await page.evaluate((t) => window.__s2c.probeTwist(t), th)));
 }
+await page.evaluate((w) => window.__s2c.setDarkW(w), Number(arg("dark-w", "0.25")));
 const cal = flag("no-calibrate") ? null : await page.evaluate(() => (window.__s2c.calibrateReal()));
 if (cal) console.log("detail", cal.detail);
 if (flag("lock")) console.log("lock", JSON.stringify(await page.evaluate(() => window.__s2c.lockCentreline(8))));
+if (flag("parity")) {
+  const names = ["drop_R", "crossbar_right", "ret_hidden_start", "K_junction", "lower_tip", "upper_tip", "S_turn", "A_right_leg_low", "lower_back"];
+  const cl = JSON.parse(readFileSync(path.join(OUT, "centreline2d.json"), "utf8"));
+  const N = cl.points.length;
+  const spots = [];
+  for (const n of names) spots.push(await page.evaluate((a) => window.__s2c.controlAt(a), input.reversed ? N - 1 - cl.anchors[n] : cl.anchors[n]));
+  const r = await page.evaluate((sp) => window.__s2c.parityScan(sp), spots);
+  console.log("parity spots", JSON.stringify(spots), "best flips", JSON.stringify(r.best), "score", r.score.toFixed(3), "min", Math.min(...r.scores).toFixed(3));
+}
 if (!flag("no-sil")) console.log("silhouette roll", JSON.stringify(await page.evaluate((a) => window.__s2c.calibrateSilhouette(...a), [Number(arg('sil-passes', '2')), Number(arg('sil-span', '0.8')), Number(arg('sil-steps', '17')), Number(arg('sil-cont', '0.25')), 95, 1.5, flag('sil-global')])));
 console.log("calibrate", JSON.stringify(cal));
 if (flag("lock")) console.log("lock2", JSON.stringify(await page.evaluate(() => window.__s2c.lockCentreline(6))));
+if (flag("local")) {
+  for (let r = 0; r < Number(arg("local-rounds", "1")); r++) console.log("refineLocal", JSON.stringify(await page.evaluate((a) => window.__s2c.refineLocal(...a), [Number(arg("local-passes", "2")), Number(arg("local-step", "7")), 0.06, Number(arg("local-max", "16"))])));
+}
+if (flag("twist-after")) console.log("twist-after", JSON.stringify(await page.evaluate(() => window.__s2c.calibrateSilhouette(2, 0.6, 13, 0.25, 95, 1.5, true))));
+if (flag("local2")) console.log("refineLocal2", JSON.stringify(await page.evaluate(() => window.__s2c.refineLocal(3, 6, 0.05, 30))));
+if (flag("tw-smooth")) await page.evaluate((sg) => window.__s2c.smoothTwist(sg), Number(arg("tw-smooth", "1")));
+if (flag("fix-kink")) console.log("fixKink", JSON.stringify(await page.evaluate((n) => window.__s2c.fixKink(n), Number(arg("fix-kink", "40")))));
+if (flag("polish")) {
+  for (let r = 0; r < Number(arg("polish", "1")); r++) {
+    console.log("polish local", JSON.stringify(await page.evaluate(() => window.__s2c.refineLocal(2, 5, 0.04, 30))));
+    console.log("polish fixKink", JSON.stringify(await page.evaluate(() => window.__s2c.fixKink(30))));
+  }
+}
 if (flag("lock-after")) {
   for (let r = 0; r < Number(arg("lock-rounds", "2")); r++) {
     const h = await page.evaluate(() => window.__s2c.lockCentreline(6));
@@ -93,17 +116,19 @@ console.log("pre-refine", JSON.stringify({ ...pre, driftAll: undefined }));
 if (flag("refine")) {
   const gens = Number(arg("gens", "60"));
   const res = await page.evaluate(
-    (s) => window.__s2c.refine(s, { seed: 1, stages: [{ scale: 0.25, gens: s.__g * 2, sigma: 0.6 }, { scale: 0.5, gens: s.__g, sigma: 0.3 }, { scale: 1, gens: Math.round(s.__g / 3), sigma: 0.15 }] }),
-    { ...state, __g: gens },
+    (s) => window.__s2c.refine(s, { seed: 1, stages: s.__st }),
+    { ...state, __g: gens, __st: flag('gentle') ? [{ scale: 0.5, gens, sigma: 0.25 }, { scale: 1, gens: Math.round(gens / 3), sigma: 0.12 }] : [{ scale: 0.25, gens: gens * 2, sigma: 0.6 }, { scale: 0.5, gens, sigma: 0.3 }, { scale: 1, gens: Math.round(gens / 3), sigma: 0.15 }] },
   );
   state = res.state;
   delete state.__g;
+  delete state.__st;
   writeFileSync(statePath, JSON.stringify(state));
   console.log("refined", JSON.stringify({ ...res.terms, driftAll: undefined }));
 }
 const terms = await page.evaluate((s) => window.__s2c.evaluate(s, 1), state);
 const imgs = await page.evaluate((s) => window.__s2c.images(s), state);
 const pose = await page.evaluate((s) => window.__s2c.pose(s), state);
+writeFileSync(path.join(OUT, `classes${arg('tag', '')}.bin`), Buffer.from(await page.evaluate((s) => window.__s2c.classMap(s), state), 'base64'));
 const twist = await page.evaluate(() => window.__s2c.twist());
 const tag = arg("tag", "");
 writeFileSync(path.join(OUT, `overlay${tag}.png`), decode(imgs.overlay));
