@@ -19,17 +19,21 @@ ANCHOR = L.ANCHOR
 ASHMIT = (56.609, 192.625, 977.047, 392.984)     # site-measured .display__line rects at 1672x941
 KHURANA = (56.609, 392.984, 1253.531, 593.344)
 PLANE_A, PLANE_K = -45.0, 45.0
+GATE_PAIRS = []
+SEP_MARGIN = 4.0
 INSET = float(os.environ.get("INSET", "0"))
 SMOOTH_SIGMA = float(os.environ.get("SMOOTH_SIGMA", "6"))
 
 # centre depth anchors (world px), End 1 -> End 2. Edit here.
 Z = [
     ("tail_a", 420), ("tail_b", 280), ("S_turn", 160), ("S_mid", 110), ("S_left", 60), ("leg_bottom", -30),
-    ("leg_under_crossbar", -125), ("A_apex", -70), ("rleg_top", -10), ("rleg_mid", 35), ("rleg_under_wrap", 20),
-    ("lower_back", 50), ("lower_tip", 40), ("lower_return", 25), ("ret_behind", -10), ("wrap", 60), ("wrap_front", 100),
-    ("lowerarm_mid", 120), ("upper_tip", 60), ("top_arm", 20), ("top_behind", -25), ("crossbar_right", -15),
-    ("crossbar_mid", 0), ("crossbar_curl", 5), ("end2", 5),
+    ("leg_under_crossbar", -125), ("A_apex", -70), ("rleg_top", -10), ("rleg_mid", 0), ("rleg_under_wrap", -8),
+    ("lower_back", 15), ("lower_tip", 30), ("lower_return", 0), ("ret_pre", -90), ("ret_behind", -210), ("wrap", 10), ("wrap_front", 175),
+    ("lowerarm_mid", 190), ("upper_tip", 80), ("top_arm", -40), ("top_behind", -150), ("crossbar_right", -100),
+    ("crossbar_mid", 5), ("crossbar_curl", 5), ("end2", 5),
 ]
+if os.environ.get("ZOVR"):
+    _o = json.loads(os.environ["ZOVR"]); Z = [(n, _o.get(n, z)) for n, z in Z]
 # section names (arc ranges between anchors) used by the weave report
 SECTIONS = [
     ("tail+S", "tail_a", "leg_bottom"), ("left leg", "leg_bottom", "A_apex"), ("right leg", "A_apex", "lower_back"),
@@ -205,10 +209,13 @@ def main(write_pose=False):
     tree = cKDTree(pts3)
     worst = (1e9, None, None)
     bad_rings = set()
+    GATE_PAIRS.clear()
     for a, b in tree.query_pairs(2.0 * THICK + 20.0):
         if abs(arcw[a] - arcw[b]) < 1.5 * Wt:
             continue
         d = float(np.linalg.norm(pts3[a] - pts3[b]))
+        if d < 2.0 * THICK + SEP_MARGIN:
+            GATE_PAIRS.append((int(ring[a]), int(ring[b]), float(t[ring[a]]), float(t[ring[b]]), float(zc[ring[a]]), float(zc[ring[b]])))
         if d < 2.0 * THICK:
             bad_rings.add(int(ring[a])); bad_rings.add(int(ring[b]))
         if d < worst[0]:
@@ -265,5 +272,46 @@ def write_pose_file(rings, fs=1):
     print("wrote", path)
 
 
+FIXED = {"tail_a", "tail_b", "S_turn", "S_mid", "S_left", "leg_bottom", "leg_under_crossbar", "A_apex", "rleg_top", "rleg_mid", "rleg_under_wrap",
+         "lower_back", "crossbar_mid", "crossbar_curl", "end2"}
+
+
+def auto_separate(iters=40, step=12.0):
+    """Move the free depth anchors apart until no two non-adjacent rings come closer than 2 x thickness (+ margin): the lower strand of
+    each offending pair goes down, the higher one up (anchors that carry the text weave stay fixed)."""
+    import io, contextlib
+    global Z
+    for it in range(iters):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            main(False)
+        if not GATE_PAIRS:
+            print("auto_separate: gate clear after %d iterations" % it)
+            return
+        E, Pl, cl = load()
+        _, _, _, P_, s_orig = ed.prep_trace(cl)
+        arcs = {nm: float(s_orig[200 + i]) for nm, i in cl["anchors"].items()}
+        names = [z[0] for z in Z]
+        votes = {}
+        for ra, rb, ta, tb, za, zb in GATE_PAIRS:
+            lo, hi = (ta, tb) if za < zb else (tb, ta)
+            for tt_, sgn in ((lo, -1), (hi, +1)):
+                # the two bracketing anchors
+                k = int(np.searchsorted([arcs[n] for n in names], tt_))
+                for n in names[max(0, k - 1):k + 1]:
+                    if n not in FIXED:
+                        votes[n] = votes.get(n, 0) + sgn
+        if not votes:
+            print("auto_separate: only fixed anchors involved; stop"); return
+        Zd = dict(Z)
+        for n, v in votes.items():
+            Zd[n] += step * np.sign(v) if v else 0
+        Z = [(n, Zd[n]) for n in names]
+    print("auto_separate: did not converge in %d iterations" % iters)
+
+
 if __name__ == "__main__":
+    if "--sep" in sys.argv:
+        auto_separate()
+        print("Z =", Z)
     main("--pose" in sys.argv)
