@@ -40,6 +40,7 @@ CROSS_ARC = 3.0     # (x W) arc separation that makes two trace parts "different
 CROSS_DIST = 1.0    # (x W) centreline distance below which strands overlap in projection
 TURN_DEG = 90.0
 TURN_ARC = 2.0      # (x W)
+RMIN_WIN = {} if SRC == "sculpture" else {}      # window id -> min radius (x W): the K lower tip's hole cusp needs a rounder edge
 DMAX_CURV = 30.0 if SRC == "sculpture" else None    # sculpture: edges may move this far (px) from the silhouette to reach the curvature rule
 
 
@@ -500,7 +501,6 @@ OVERRIDES = {
         ((803, 425), (808, 470), (797, 402)),
         ((835, 414), (836, 456), (832, 393)),
         ((880, 408), (884, 434), (878, 383)),
-        ((930, 390), (934, 414), (928, 352)),
     ]),
 }
 
@@ -651,6 +651,10 @@ def pchip_fill(t, ok, vals):
     return out
 
 
+LOCAL_SMOOTH = [   # (from anchor, to anchor, px before the first, px after the second, sigma in W)
+]
+
+
 def reconstruct(S, info):
     """Physical edges E1/E2 (continuous labels; the +-normal labelling is E1/E2 swapped where `flip`)."""
     Q, t, n, ok, W = S["Q"], S["t"], S["n"], S["ok"], S["W"]
@@ -739,8 +743,8 @@ def reconstruct(S, info):
     # curvature rule: radius >= 0.12 W inside turn windows, >= 0.1 W elsewhere
     def rmin_of_t(tt):
         r = np.full(len(tt), 0.1 * W)
-        for lo, hi_ in wz:
-            r[(tt >= lo) & (tt <= hi_)] = 0.12 * W
+        for k_, (lo, hi_) in enumerate(wz):
+            r[(tt >= lo) & (tt <= hi_)] = (RMIN_WIN.get(k_ + 1, 0.12)) * W
         return r
     E1c, r1a, r1b, it1 = limit_curvature(E1s, t, rmin_of_t)
     E2c, r2a, r2b, it2 = limit_curvature(E2s, t, rmin_of_t)
@@ -759,6 +763,24 @@ def reconstruct(S, info):
             d1 = (E_c[ir + 1] - E_c[ir - 1]) / 2.0
             cs_ = CubicSpline(k, v, bc_type=((1, d0), (1, d1)))
             E_c[il:ir + 1] = cs_(np.arange(il, ir + 1))
+    # cloth-like ripples: edge noise of the sculpture's mask (floor reflections near the bottoms, the dark S underside) is low-passed over
+    # the named spans with a Gaussian of support >= 1.5 W (sigma 0.5 W), blended in/out with a smoothstep over 1 W
+    if SRC == "sculpture" and S.get("anchor_arcs"):
+        arcs = S["anchor_arcs"]
+        for (na, nb, pad_a, pad_b, sig_w) in LOCAL_SMOOTH:
+            a_t, b_t = arcs[na] - pad_a, arcs[nb] + pad_b
+            ia, ib = int(np.searchsorted(t, a_t)), min(N - 1, int(np.searchsorted(t, b_t)))
+            sg = sig_w * W / STEP
+            blend = np.zeros(N)
+            blend[ia:ib + 1] = 1.0
+            fw = max(2, int(round(W / STEP)))
+            blend = ndi.gaussian_filter1d(blend, fw / 2.5)
+            blend = np.minimum(1.0, blend * 1.0 / max(blend.max(), 1e-9))
+            for ids in S.get("override_idx", []):
+                blend[ids[0] - 12:ids[-1] + 13] = 0.0
+            for E_c in (E1c, E2c):
+                sm_ = np.stack([ndi.gaussian_filter1d(E_c[:, k], sg, mode="nearest") for k in (0, 1)], 1)
+                E_c[:] = E_c * (1 - blend[:, None]) + sm_ * blend[:, None]
     flip_out = flip
     return dict(E1=E1c, E2=E2c, E1_pre=E1s, E2_pre=E2s, E1_i=E1_f, E2_i=E2_f, flip=flip_out, knots=knots,
                 min_radius=dict(E1_before=r1a, E1_after=r1b, E2_before=r2a, E2_after=r2b, W=W), wz=wz)
@@ -847,6 +869,9 @@ if __name__ == "__main__":
     info = contour_windows(S, M, T, X, rgb)
     apply_overrides(S, info)
     S["info"] = info
+    if SRC == "sculpture":
+        _sA = arclen(prep_trace(cl)[3])
+        S["anchor_arcs"] = {nm: float(_sA[200 + i]) for nm, i in cl["anchors"].items()}
     for w_ in info:
         print("window", w_)
     R = reconstruct(S, info)
