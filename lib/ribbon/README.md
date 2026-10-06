@@ -144,7 +144,8 @@ bevel scale with viewport width (0.5x..1.4x of the 1440 value).
 
 ## Geometry (GPU sweep)
 
-`frames.ts`: centripetal Catmull-Rom, resampled by arc length; rotation
+`frames.ts`: centripetal Catmull-Rom (or, for a pose variant with `"spline": "bspline"`, a C2 uniform cubic B-spline: approximating, the
+control points are its control polygon, so the curvature is continuous and there are no kinks at control points; used by the AK desktop pose), resampled by arc length; rotation
 minimising frames (double reflection, `transportFrames` + `twistFrames`).
 `geometry.ts` + `sweep.ts`: **the sweep runs in the vertex shader**.
 
@@ -190,7 +191,11 @@ like a satin ribbon looped over and laid flat. Never a crease: `radius` is in ri
   folded layers never interpenetrate. The side the strip rolls to follows the authored exit; `radius` widens up to 1.7 x to meet a
   further-apart exit.
 * Hairpins (turn > 150 degrees, legs nearly parallel) cannot be a flat fold; they are left to the curvature frames: a rolled,
-  out-of-plane U-turn that shows the other face by itself (the K tips of the AK).
+  out-of-plane U-turn that shows the other face by itself (the K tips and the S turn of the AK).
+* The AK has exactly ONE fold (the A apex, `fold.name = "a-apex"`) and three ROLLED HAIRPINS (`hairpin: { name, radius }` on the tip
+  point: `k-upper`, `k-lower`, `s-turn`; radius = centreline radius in band widths, 0.4 - 2). A hairpin is NOT built by `fold.ts`: its two
+  neighbouring control points are laid on a circle through the tip, so the band's face normal points to the loop's centre (curvature
+  frames) and its silhouette is a smooth round arc. `RibbonGeometry.hairpinReports` (turn, tightest radius) is what `scripts/pose-check.mjs` checks.
 * `FoldReport` (per fold: zone, turn, roll, mismatch, lift error, crease axis, issues) is what the editor draws (dashed crease line) and
   flags. `inferFolds` finds sharp in-plane turns that want to be folds.
 
@@ -199,7 +204,8 @@ like a satin ribbon looped over and laid flat. Never a crease: `radius` is in ri
 The mockup is long calm curves. `smoothness()` counts reversals of the centreline's curvature and of the strip's roll inside any 3-width
 window (zig-zag filtered; fold zones and their shoulders skipped) plus the roll rate. A clean strip has <= 4 curvature reversals (a sharp apex arch gives 3, a rolled hairpin 4, a crumpled strip 5+), <= 2 roll
 reversals and a roll rate <= 1.6 rad per width. The editor shows a "Crinkled strip" diagnostic; `node scripts/pose-check.mjs` loads the hero
-at several viewport sizes in headless Chromium and fails on any violation (and on a wrong number of folds).
+at several viewport sizes in headless Chromium and fails on any violation (and on the wrong turn structure: the desktop pose must be
+`{ folds: ["a-apex"], hairpins: ["k-upper", "k-lower", "s-turn"] }`, each hairpin turning > 150 degrees).
 
 ## Perf notes (Step 1b)
 
@@ -282,6 +288,8 @@ Poses are authored in **anchor space** and stored as JSON in `lib/ribbon/poses/`
   engine camera, so changing `z` only changes occlusion, parallax and ribbon scale.
 * `z`: in anchor HEIGHTS, + towards the camera, 0 = the text plane (proxy depth 0).
 * `twist`: radians about the tangent (cumulative; the face flips every pi). `width`: multiplier of the ribbon width.
+* A variant may set `"spline": "bspline"` (default Catmull-Rom). The B-spline only changes how `resolvePose` turns the authored points into the
+  96 sim points; the geometry's own spline then runs through those dense samples.
 * Variants per screen class (`phone < 768 < tablet < 1100 <= desktop < 2200 <= ultrawide`). A missing `tablet`
   is derived (portrait: phone, landscape: desktop); a missing `ultrawide` reuses desktop. Adding the key is the override.
 * `resolvePose(points, { viewW, viewH, anchor, fov }, sim.count)` runs the points through the geometry's own

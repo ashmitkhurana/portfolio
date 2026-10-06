@@ -42,6 +42,8 @@ export interface FoldSpec {
   angle: number;
   /** soft radius of the roll, in ribbon widths */
   radius: number;
+  /** label for reports (pose-check): `a-apex` */
+  name?: string;
 }
 
 export const DEFAULT_FOLD_ANGLE = Math.PI;

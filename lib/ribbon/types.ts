@@ -33,4 +33,13 @@ export interface RibbonPose {
   orientation?: "rmf" | "curvature";
   /** soft folds (the strip rolls over itself), positions as arc fractions of the body */
   folds?: FoldSpec[];
+  /** rolled hairpins (bracelet-like U-turns the curvature frames do), positions as arc fractions; reports only */
+  hairpins?: HairpinSpec[];
+}
+
+export interface HairpinSpec {
+  at: number;
+  name: string;
+  /** design radius of the centreline, in ribbon widths */
+  radius: number;
 }

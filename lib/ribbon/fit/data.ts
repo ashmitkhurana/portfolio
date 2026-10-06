@@ -23,6 +23,61 @@ export interface ScaledMasks {
   kzone: Uint8Array;
 }
 
+/** squared Euclidean distance to the nearest pixel with src = 1 (Felzenszwalb & Huttenlocher, separable) */
+function edtSq(src: Uint8Array, W: number, H: number): Float32Array {
+  const INF = 1e12;
+  const g = new Float32Array(W * H);
+  const n = Math.max(W, H);
+  const f = new Float64Array(n);
+  const d = new Float64Array(n);
+  const v = new Int32Array(n);
+  const z = new Float64Array(n + 1);
+  const pass = (len: number, get: (i: number) => number, put: (i: number, val: number) => void) => {
+    for (let i = 0; i < len; i++) f[i] = get(i);
+    let k = 0;
+    v[0] = 0;
+    z[0] = -INF;
+    z[1] = INF;
+    for (let q = 1; q < len; q++) {
+      let s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      while (s <= z[k]) {
+        k--;
+        s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      }
+      k++;
+      v[k] = q;
+      z[k] = s;
+      z[k + 1] = INF;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) {
+      while (z[k + 1] < q) k++;
+      d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+    }
+    for (let i = 0; i < len; i++) put(i, d[i]);
+  };
+  for (let i = 0; i < W * H; i++) g[i] = src[i] ? 0 : INF;
+  for (let x = 0; x < W; x++) pass(H, (y) => g[y * W + x], (y, val) => (g[y * W + x] = val));
+  for (let y = 0; y < H; y++) pass(W, (x) => g[y * W + x], (x, val) => (g[y * W + x] = val));
+  return g;
+}
+
+/** morphological opening of `mask` with a disk of radius r (erode, then dilate) */
+function openDisk(mask: Uint8Array, W: number, H: number, r: number): Uint8Array {
+  const bg = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) bg[i] = mask[i] ? 0 : 1;
+  const dBg = edtSq(bg, W, H); // distance to the background
+  const eroded = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) eroded[i] = dBg[i] > r * r ? 1 : 0;
+  const dEr = edtSq(eroded, W, H);
+  const out = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) out[i] = dEr[i] <= r * r ? 1 : 0;
+  return out;
+}
+
+/** radius (px) of the smallest corner the mockup contour counts as having: features sharper than this vanish in an opening */
+export const CORNER_R = 14;
+
 export interface Graph {
   branches: { id: number; points: [number, number][]; mean_width: number; T: string }[];
   topology_regions: Record<string, number[][]>;
@@ -42,6 +97,10 @@ export class FitData {
   dt!: Float32Array;
   skeleton!: Uint8Array;
   private cache = new Map<number, ScaledMasks>();
+  /** 1 on the mockup silhouette's sharp corners (convex: mask - opening; concave: the same on the complement), full res, top-down */
+  corner!: Uint8Array;
+  /** integral image of `corner`, (W + 1) x (H + 1) */
+  private cornerInt!: Int32Array;
   /** K loop boxes (T4 / T5 topology regions) */
   kBoxes: number[][] = [];
 
@@ -73,7 +132,41 @@ export class FitData {
     d.graph = graph;
     d.kBoxes = [...(graph.topology_regions.T4 ?? []), ...(graph.topology_regions.T5 ?? [])];
     d.buildSkeleton();
+    d.buildCorners();
     return d;
+  }
+
+  private buildCorners(): void {
+    const { W, H } = this;
+    const m = this.ribbon;
+    const inv = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) inv[i] = m[i] ? 0 : 1;
+    const o1 = openDisk(m, W, H, CORNER_R);
+    const o2 = openDisk(inv, W, H, CORNER_R);
+    const c = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) c[i] = (m[i] && !o1[i]) || (inv[i] && !o2[i]) ? 1 : 0;
+    this.corner = c;
+    const ii = new Int32Array((W + 1) * (H + 1));
+    for (let y = 0; y < H; y++) {
+      let row = 0;
+      for (let x = 0; x < W; x++) {
+        row += c[y * W + x];
+        ii[(y + 1) * (W + 1) + x + 1] = ii[y * (W + 1) + x + 1] + row;
+      }
+    }
+    this.cornerInt = ii;
+  }
+
+  /** number of mockup corner pixels in the box [x0, x1) x [y0, y1) (full res, top-down) */
+  cornerCount(x0: number, y0: number, x1: number, y1: number): number {
+    const { W, H } = this;
+    const a = Math.min(Math.max(Math.round(x0), 0), W);
+    const b = Math.min(Math.max(Math.round(x1), 0), W);
+    const c = Math.min(Math.max(Math.round(y0), 0), H);
+    const d = Math.min(Math.max(Math.round(y1), 0), H);
+    const ii = this.cornerInt;
+    const S = W + 1;
+    return ii[d * S + b] - ii[c * S + b] - ii[d * S + a] + ii[c * S + a];
   }
 
   private buildSkeleton(): void {

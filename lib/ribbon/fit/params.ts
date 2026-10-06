@@ -34,9 +34,23 @@ export const GROUP_RANGES: Record<string, [number, number]> = {
   T8: [21, 23],
   T9: [24, 25],
 };
-/** the 4 fold points: A apex, K lower tip, K upper tip, S U-turn */
-export const FOLD_IDX = [4, 9, 13, 23] as const;
-export const FOLD_NAMES = ["A apex", "K lower tip", "K upper tip", "S U-turn"] as const;
+/** the ONE true rounded fold: the A apex */
+export const FOLD_IDX = [4] as const;
+export const FOLD_NAMES = ["a-apex"] as const;
+
+/**
+ * The rolled hairpins (bracelet-like U-turns, no fold construction): tip control point per hairpin. Each has its own
+ * radius parameter; the two control points next to the tip are DERIVED from tip, radius and the legs (see `expandPoints`).
+ */
+export const HAIRPIN_IDX = [13, 9, 23] as const;
+export const HAIRPIN_NAMES = ["k-upper", "k-lower", "s-turn"] as const;
+/** the derived neighbours of the tips (their x / y / z are not fit parameters) */
+export const DERIVED_IDX: number[] = HAIRPIN_IDX.flatMap((k) => [k - 1, k + 1]);
+const IS_DERIVED = new Set(DERIVED_IDX);
+/** angular half-spacing (rad) of the tip triple on its circle: P[k +- 1] = C + R' (cos a e_out +- sin a e_t) */
+const HP_ALPHA = (50 * Math.PI) / 180;
+/** the curve's curvature radius at the tip knot is R' (1 + cos a) / 2 (uniform cubic B-spline through P[k-1], P[k], P[k+1]) */
+const HP_RADIUS_FACTOR = (1 + Math.cos(HP_ALPHA)) / 2;
 
 /** the K junction / crossing control point indices used by the constraints */
 export const IDX = {
@@ -62,10 +76,12 @@ export interface FitState {
   width: number;
   /** camera fov (degrees) */
   fov: number;
-  /** fold radius in ribbon widths (of the band) */
+  /** radius of the A apex fold in ribbon widths (of the band) */
   foldR: number;
-  /** +1 / -1 per fold (the sign of the dihedral angle: which side it rolls to) */
+  /** +1 / -1 for the A apex fold (the sign of the dihedral angle: which side it rolls to) */
   foldSign: number[];
+  /** centreline radius of each rolled hairpin (k-upper, k-lower, s-turn), in ribbon widths */
+  hairR: number[];
 }
 
 /** hand-ordered initial waypoints (x, y, z) of the 26 control points; see scripts/fit/init.mjs */
@@ -132,7 +148,8 @@ export function initialState(snap?: { x: number; y: number }[] | null): FitState
     width: 62,
     fov: 28,
     foldR: 0.8,
-    foldSign: [1, 1, 1, 1],
+    foldSign: [1],
+    hairR: [1, 1, 1],
   };
 }
 
@@ -146,12 +163,31 @@ export function cloneState(s: FitState): FitState {
     fov: s.fov,
     foldR: s.foldR,
     foldSign: [...s.foldSign],
+    hairR: [...s.hairR],
   };
+}
+
+/** an older params.json (4 fold signs, no hairpin radii) -> the current state */
+export function migrateState(o: Partial<FitState> & { x: number[] }): FitState {
+  const s = initialState();
+  const n = N_PTS;
+  for (let i = 0; i < n; i++) {
+    s.x[i] = o.x[i];
+    s.y[i] = o.y?.[i] ?? s.y[i];
+    s.z[i] = o.z?.[i] ?? s.z[i];
+    s.twist[i] = o.twist?.[i] ?? 0;
+  }
+  s.width = o.width ?? s.width;
+  s.fov = o.fov ?? s.fov;
+  s.foldR = o.foldR ?? s.foldR;
+  s.foldSign = [o.foldSign?.[0] ?? 1];
+  s.hairR = o.hairR && o.hairR.length === 3 ? [...o.hairR] : [1, 1, 1];
+  return s;
 }
 
 // ---- vector layout --------------------------------------------------------
 
-export type DimKind = "x" | "y" | "z" | "twist" | "width" | "fov" | "foldR";
+export type DimKind = "x" | "y" | "z" | "twist" | "width" | "fov" | "foldR" | "hairR";
 export interface Dim {
   kind: DimKind;
   idx: number;
@@ -168,7 +204,8 @@ export const DIMS: Dim[] = (() => {
   for (let i = 0; i < N_PTS; i++) d.push({ kind: "z", idx: i, scale: 60, lo: -350, hi: 900 });
   for (let i = 0; i < N_PTS; i++) d.push({ kind: "twist", idx: i, scale: 0.45, lo: -6.5, hi: 6.5 });
   d.push({ kind: "width", idx: 0, scale: 8, lo: 40, hi: 130 });
-  d.push({ kind: "fov", idx: 0, scale: 3, lo: 18, hi: 45 });
+  d.push({ kind: "fov", idx: 0, scale: 3, lo: 22, hi: 36 });
+  for (let i = 0; i < HAIRPIN_IDX.length; i++) d.push({ kind: "hairR", idx: i, scale: 0.2, lo: 0.4, hi: 2.0 });
   d.push({ kind: "foldR", idx: 0, scale: 0.15, lo: 0.55, hi: 1.6 });
   return d;
 })();
@@ -189,6 +226,8 @@ export function getDim(s: FitState, d: Dim): number {
       return s.fov;
     case "foldR":
       return s.foldR;
+    case "hairR":
+      return s.hairR[d.idx];
   }
 }
 
@@ -215,6 +254,9 @@ export function setDim(s: FitState, d: Dim, v: number): void {
     case "foldR":
       s.foldR = v;
       break;
+    case "hairR":
+      s.hairR[d.idx] = v;
+      break;
   }
 }
 
@@ -233,9 +275,11 @@ export function activeDims(stage: StageDims): number[] {
   const out: number[] = [];
   DIMS.forEach((d, i) => {
     if (d.kind === "fov" && fovLock !== null) return;
+    // the tip neighbours are derived from the tip + radius
+    if ((d.kind === "x" || d.kind === "y" || d.kind === "z") && IS_DERIVED.has(d.idx)) return;
     if (d.kind === "x" || d.kind === "y") out.push(i);
     else if (stage !== "xy" && (d.kind === "z" || d.kind === "twist" || d.kind === "fov")) out.push(i);
-    else if (stage === "all" && (d.kind === "width" || d.kind === "foldR")) out.push(i);
+    else if (stage === "all" && (d.kind === "width" || d.kind === "foldR" || d.kind === "hairR")) out.push(i);
   });
   return out;
 }
@@ -266,43 +310,78 @@ export function clampState(s: FitState): number {
 
 // ---- pose conversion -------------------------------------------------------
 
-/** the pose points exactly as they go into ak-hero.json (anchor space) */
+/**
+ * The control points as they go into the pose file: the free points plus the DERIVED neighbours of each hairpin tip.
+ * A hairpin is a circle of radius R' through the tip triple, in the plane of (tip, the two leg points k -+ 2): with
+ * e_out from the legs' midpoint to the tip and e_t along the legs, P[k -+ 1] = T - R' (1 - cos a) e_out -+ R' sin a e_t
+ * (world space, so the loop is a true circle whatever the depth). The B-spline then turns with radius ~ R at the tip.
+ */
+export function expandPoints(s: FitState): { x: number[]; y: number[]; z: number[] } {
+  const x = [...s.x];
+  const y = [...s.y];
+  const z = [...s.z];
+  const D = VIEW.h / 2 / Math.tan((s.fov * Math.PI) / 360);
+  const toW = (i: number): [number, number, number] => {
+    const k = (D - z[i]) / D;
+    return [(x[i] - VIEW.w / 2) * k, (VIEW.h / 2 - y[i]) * k, z[i]];
+  };
+  HAIRPIN_IDX.forEach((k, h) => {
+    const A = toW(k - 2);
+    const B = toW(k + 2);
+    const T = toW(k);
+    const mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
+    let eo = [T[0] - mid[0], T[1] - mid[1], T[2] - mid[2]];
+    let l = Math.hypot(eo[0], eo[1], eo[2]);
+    if (l < 1e-3) eo = [1, 0, 0];
+    else eo = eo.map((v) => v / l);
+    let et = [B[0] - A[0], B[1] - A[1], B[2] - A[2]];
+    const d = et[0] * eo[0] + et[1] * eo[1] + et[2] * eo[2];
+    et = et.map((v, i) => v - d * eo[i]);
+    l = Math.hypot(et[0], et[1], et[2]);
+    if (l < 1e-3) {
+      // legs collinear with the axis: any perpendicular
+      et = Math.abs(eo[0]) < 0.9 ? [1 - eo[0] * eo[0], -eo[0] * eo[1], -eo[0] * eo[2]] : [-eo[1] * eo[0], 1 - eo[1] * eo[1], -eo[1] * eo[2]];
+      l = Math.hypot(et[0], et[1], et[2]);
+    }
+    et = et.map((v) => v / l);
+    const Rc = s.hairR[h] * s.width; // the curve's radius at the tip (world px; the band is `width` px at z = 0)
+    const Rp = Rc / HP_RADIUS_FACTOR;
+    const sa = Math.sin(HP_ALPHA);
+    const ca = Math.cos(HP_ALPHA);
+    [-1, 1].forEach((sg) => {
+      const i = k + sg;
+      const w = [
+        T[0] - Rp * (1 - ca) * eo[0] + sg * Rp * sa * et[0],
+        T[1] - Rp * (1 - ca) * eo[1] + sg * Rp * sa * et[1],
+        T[2] - Rp * (1 - ca) * eo[2] + sg * Rp * sa * et[2],
+      ];
+      const kk = D / Math.max(D - w[2], 1);
+      x[i] = VIEW.w / 2 + w[0] * kk;
+      y[i] = VIEW.h / 2 - w[1] * kk;
+      z[i] = w[2];
+    });
+  });
+  return { x, y, z };
+}
+
+/** the pose points exactly as they go into ak-hero.json (anchor space, spline `bspline`) */
 export function toPosePoints(s: FitState): PosePoint[] {
   const m = s.width / engineWidth();
+  const e = expandPoints(s);
   const pts: PosePoint[] = [];
   for (let i = 0; i < N_PTS; i++) {
     const p: PosePoint = {
-      x: (s.x[i] - ANCHOR.left) / ANCHOR.width,
-      y: (s.y[i] - ANCHOR.top) / ANCHOR.height,
-      z: s.z[i] / ANCHOR.height,
+      x: (e.x[i] - ANCHOR.left) / ANCHOR.width,
+      y: (e.y[i] - ANCHOR.top) / ANCHOR.height,
+      z: e.z[i] / ANCHOR.height,
       twist: s.twist[i],
       width: m,
     };
     const f = (FOLD_IDX as readonly number[]).indexOf(i);
-    if (f >= 0) p.fold = { angle: s.foldSign[f] * Math.PI, radius: s.foldR * m };
+    if (f >= 0) p.fold = { angle: s.foldSign[f] * Math.PI, radius: s.foldR * m, name: FOLD_NAMES[f] };
+    const h = (HAIRPIN_IDX as readonly number[]).indexOf(i);
+    if (h >= 0) p.hairpin = { name: HAIRPIN_NAMES[h], radius: s.hairR[h] };
     pts.push(p);
   }
   return pts;
-}
-
-/** inverse of toPosePoints (for --resume / re-evaluating a pose file) */
-export function fromPosePoints(pts: PosePoint[], fov: number): FitState {
-  const m = pts[0].width;
-  const s = initialState();
-  for (let i = 0; i < N_PTS; i++) {
-    s.x[i] = ANCHOR.left + pts[i].x * ANCHOR.width;
-    s.y[i] = ANCHOR.top + pts[i].y * ANCHOR.height;
-    s.z[i] = pts[i].z * ANCHOR.height;
-    s.twist[i] = pts[i].twist;
-  }
-  s.width = m * engineWidth();
-  s.fov = fov;
-  FOLD_IDX.forEach((idx, f) => {
-    const fo = pts[idx].fold;
-    if (fo) {
-      s.foldSign[f] = fo.angle >= 0 ? 1 : -1;
-      s.foldR = fo.radius / m;
-    }
-  });
-  return s;
 }

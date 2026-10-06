@@ -33,7 +33,8 @@ import {
   type CurvatureFrameOptions,
   type FrameMode,
 } from "./frames";
-import { applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
+import { HAIRPIN_TURN, applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
+import type { HairpinSpec } from "./types";
 import { edgeSmoothness, smoothness, type EdgeSmoothnessReport, type SmoothnessReport } from "./smooth";
 import type { RibbonSettings } from "./settings";
 import type { SweepUniforms } from "./sweep";
@@ -125,6 +126,20 @@ function buildProfile(p: GeometryParams): Profile {
   return prof;
 }
 
+/** what the last update built at a rolled hairpin (see PosePoint.hairpin) */
+export interface HairpinReport {
+  name: string;
+  at: number;
+  ring: number;
+  /** turn between the tangents 3 widths before / after the tip, radians */
+  turn: number;
+  /** tightest centreline radius of curvature near the tip, in ribbon widths */
+  radiusW: number;
+  designRadiusW: number;
+  /** turn >= HAIRPIN_TURN: left to the curvature frames (a flat fold is not built) */
+  rolled: boolean;
+}
+
 export class RibbonGeometry {
   geometry: THREE.BufferGeometry;
   readonly curve: RibbonCurve;
@@ -193,6 +208,9 @@ export class RibbonGeometry {
   folds: FoldSpec[] = [];
   /** what the last update built (for the editor's diagnostics) */
   readonly foldReports: FoldReport[] = [];
+  /** rolled hairpins of the pose (reports only: the curvature frames do the turn) */
+  hairpins: HairpinSpec[] = [];
+  readonly hairpinReports: HairpinReport[] = [];
   private rShear!: Float32Array; // per-ring half-width multiplier (folds shear the rulings)
   private rFoldMask!: Uint8Array; // rings inside a fold zone (body index)
   private rOvW!: Float32Array; // curvature frames: fold zone weight (0..1) and wanted normal
@@ -246,6 +264,42 @@ export class RibbonGeometry {
 
   setFolds(list: readonly FoldSpec[] | undefined): void {
     this.folds = list ? [...list].sort((a, b) => a.at - b.at) : [];
+  }
+
+  setHairpins(list: readonly HairpinSpec[] | undefined): void {
+    this.hairpins = list ? [...list].sort((a, b) => a.at - b.at) : [];
+  }
+
+  /** measure each rolled hairpin on the strip as built: turn across +-3 widths and the tightest centreline radius (in widths) */
+  private measureHairpins(M: number, E: number, ds: number): void {
+    const out = this.hairpinReports;
+    out.length = 0;
+    const pos = this.rPos;
+    const tan = this.rTan;
+    for (const h of this.hairpins) {
+      const c = Math.round(Math.min(Math.max(h.at, 0), 1) * (M - 1));
+      const W = this.params.width * this.rWidth[E + c]; // the band's width here (the pose scales it per point)
+      const z = Math.max(2, Math.round((3 * W) / Math.max(ds, 1e-3)));
+      const a = E + Math.max(0, c - z);
+      const b = E + Math.min(M - 1, c + z);
+      const d = tan[a * 3] * tan[b * 3] + tan[a * 3 + 1] * tan[b * 3 + 1] + tan[a * 3 + 2] * tan[b * 3 + 2];
+      const turn = Math.acos(Math.min(Math.max(d, -1), 1));
+      const hs = Math.max(2, Math.round((0.12 * W) / Math.max(ds, 1e-3)));
+      let minR = Infinity;
+      for (let i = Math.max(hs, c - z); i <= Math.min(M - 1 - hs, c + z); i++) {
+        const p = (E + i - hs) * 3;
+        const q = (E + i + hs) * 3;
+        const dx = tan[q] - tan[p];
+        const dy = tan[q + 1] - tan[p + 1];
+        const dz = tan[q + 2] - tan[p + 2];
+        const ex = pos[q] - pos[p];
+        const ey = pos[q + 1] - pos[p + 1];
+        const ez = pos[q + 2] - pos[p + 2];
+        const kap = Math.sqrt(dx * dx + dy * dy + dz * dz) / Math.max(Math.sqrt(ex * ex + ey * ey + ez * ez), 1e-6);
+        if (kap > 1e-9) minR = Math.min(minR, 1 / kap);
+      }
+      out.push({ name: h.name, at: h.at, ring: c, turn, radiusW: minR / Math.max(W, 1e-6), designRadiusW: h.radius, rolled: turn >= HAIRPIN_TURN });
+    }
   }
   private readonly seedArr: [number, number, number] = [0, 0, 1];
 
@@ -497,6 +551,8 @@ export class RibbonGeometry {
         this.foldReports,
       );
     }
+
+    this.measureHairpins(M, E, ringDs);
 
     // round caps: semicircular plan (radius = half width) and a domed section,
     // built by extrapolating the end rings along their tangents

@@ -183,6 +183,7 @@ export class FitSession {
     this.stopFlag = false;
     setFovLock(cfg.fovLock ?? null);
     if (cfg.fovLock != null) start = { ...cloneState(start), fov: cfg.fovLock };
+    const rnd = mulberry32(cfg.seed);
     const stages = cfg.stages ?? STAGES;
     const startIdx = cfg.fromStage ? Math.max(0, stages.findIndex((s) => s.name === cfg.fromStage)) : 0;
     let cur = cloneState(start);

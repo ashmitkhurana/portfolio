@@ -33,11 +33,20 @@ export interface PosePoint {
    * over itself, the sign picks the side it rolls towards), `radius` the radius of the roll in
    * ribbon widths (0.5 - 1 reads as satin; below ~0.45 it starts to look like a crease).
    */
-  fold?: { angle: number; radius: number };
+  fold?: { angle: number; radius: number; name?: string };
+  /**
+   * Marks this point as the tip of a ROLLED HAIRPIN: a bracelet-like U-turn (> 150 degrees) the curvature frames roll,
+   * so the face normal points to the loop's centre and the inner face shows inside. NOT a fold (no construction); the
+   * control points around the tip already encode the loop, this is the label and the design radius (in ribbon widths,
+   * 0.4 - 2) the engine reports and pose-check verifies.
+   */
+  hairpin?: { name: string; radius: number };
 }
 
 export interface PoseVariant {
   points: PosePoint[];
+  /** centreline through the points: `catmull` (default, interpolating) or `bspline` (C2, approximating) */
+  spline?: "catmull" | "bspline";
 }
 
 export interface PoseFile {

@@ -6,11 +6,13 @@
  *   smoothness (bending + twist rate + hard r < 0.6 w outside folds)   w 0.05 (hard part stiff)
  *   self-intersection (non-adjacent strands closer than 3 x thickness)
  *   crossing order (4 constraints, quadratic penalties)
- *   dark-face hint                              w 0.1
+ *   face-B IoU vs the mockup's dark class       w 0.25 x (1 - IoU)
+ *   silhouette corners: XOR area within 12 px of our sharp contour points the mockup does not have (+ their arc length)
+ *   edge kink (smooth.ts EDGE_KINK_LIMIT 12) as a penalty above ~7.5
  *   bounds violation
  */
 import { FitData, type ScaledMasks } from "./data";
-import { FitRenderer, type Rings } from "./render";
+import { FitRenderer, KinkProbes, type Rings } from "./render";
 import { ANCHOR, IDX, N_PTS, VIEW, clampState, type FitState } from "./params";
 
 export interface LossWeights {
@@ -19,11 +21,28 @@ export interface LossWeights {
   smooth: number;
   self: number;
   cross: number;
+  /** face-B vs mockup dark class: weight of (1 - IoU) */
   dark: number;
+  /** silhouette corner XOR (fraction of the mockup ribbon area) */
+  cornerXor: number;
+  /** sharp contour arc length (band widths x severity) */
+  cornerArc: number;
+  kink: number;
 }
 
-export const WEIGHTS_S1: LossWeights = { iou: 1, chamfer: 0.3, smooth: 0.05, self: 0.5, cross: 1, dark: 0.1 };
-export const WEIGHTS: LossWeights = { iou: 1, chamfer: 0.1, smooth: 0.05, self: 0.5, cross: 1, dark: 0.1 };
+export const WEIGHTS_S1: LossWeights = { iou: 1, chamfer: 0.3, smooth: 0.05, self: 0.5, cross: 1, dark: 0.25, cornerXor: 1, cornerArc: 0.05, kink: 0.04 };
+export const WEIGHTS: LossWeights = { iou: 1, chamfer: 0.1, smooth: 0.05, self: 0.5, cross: 1, dark: 0.25, cornerXor: 1, cornerArc: 0.05, kink: 0.04 };
+
+/** a projected contour point is "sharp" when its radius of curvature is below this x the band width */
+const CORNER_RADIUS_W = 0.3;
+/** radius (px) around a sharp point inside which the silhouette XOR is charged */
+const CORNER_XOR_R = 12;
+/** the mockup counts as having a corner at a point when >= this many of its sharp-contour pixels lie within +-CORNER_WIN px */
+const CORNER_EXCUSE = 40;
+const CORNER_WIN = 22;
+/** edge kink (smooth.ts) above which the penalty starts / its span */
+const KINK_FREE = 7.5;
+const KINK_SPAN = 4.5
 
 export interface CrossingStatus {
   legOverCrossbar: boolean;
@@ -44,7 +63,14 @@ export interface Terms {
   twistRate: number;
   self: number;
   cross: number;
+  /** 1 - face-B IoU vs the mockup dark class */
   dark: number;
+  darkIoU: number;
+  /** silhouette corner XOR fraction, sharp arc (widths x severity) */
+  cornerXor: number;
+  cornerArc: number;
+  /** engine edge kink metric (limit 12) */
+  kink: number;
   bounds: number;
   inter: number;
   union: number;
@@ -55,6 +81,19 @@ const Z_MARGIN = 12; // px of z separation the crossing constraints ask for
 const K_HARD = 1 / 0.6; // curvature * width above which a bend outside a fold is "too tight"
 
 export class Evaluator {
+  private readonly probes = new KinkProbes();
+  private seen = new Int32Array(0);
+  private stamp = 0;
+  /** per-evaluation visited marks for the corner XOR (a generation counter instead of clearing) */
+  private seenFor(n: number): Int32Array {
+    if (this.seen.length < n) {
+      this.seen = new Int32Array(n);
+      this.stamp = 0;
+    }
+    this.stamp++;
+    return this.seen;
+  }
+
   constructor(
     readonly data: FitData,
     readonly rend: FitRenderer,
@@ -83,6 +122,9 @@ export class Evaluator {
 
   evaluate(state: FitState, scale: number, w: LossWeights): Terms {
     const bounds = clampState(state);
+    // the site layouts first (they build in their own geometries), then the fit frame (its ring texture is what draw() reads)
+    const site = this.probes.kink(state);
+    const siteKink = site.kink;
     const R = this.rend.build(state);
     const { px, w: pw, h: ph } = this.rend.draw(scale);
     const m = this.data.scaled(scale);
@@ -91,8 +133,9 @@ export class Evaluator {
     // ---- IoU + dark hint (one pass) ------------------------------------
     let inter = 0;
     let uni = 0;
-    let darkBad = 0;
-    let darkTot = 0;
+    let dInter = 0;
+    let dUni = 0;
+    let mockArea = 0;
     const n = pw * ph;
     for (let i = 0; i < n; i++) {
       if (m.excl[i]) continue;
@@ -100,23 +143,23 @@ export class Evaluator {
       const c = (px[o] + 32) >> 6; // 0..3
       const vis = c > 0 && !(m.text[i] === 1 && px[o + 1] === 0);
       const mk = m.ribbon[i];
+      const bVis = vis && c === 2;
+      const mDark = m.cls[i] === 3;
+      if (bVis && mDark) {
+        dInter++;
+        dUni++;
+      } else if (bVis || mDark) dUni++;
+      if (mk) mockArea++;
       if (vis) {
         if (mk) {
           inter++;
           uni++;
-          const mc = m.cls[i];
-          if (mc === 1) {
-            darkTot++;
-            if (c === 2) darkBad++;
-          } else if (mc === 3 && m.kzone[i]) {
-            darkTot++;
-            if (c === 1) darkBad++;
-          }
         } else uni++;
       } else if (mk) uni++;
     }
     const iou = uni > 0 ? inter / uni : 0;
-    const dark = darkTot > 0 ? darkBad / darkTot : 0;
+    const darkIoU = dUni > 0 ? dInter / dUni : 0;
+    const dark = 1 - darkIoU;
 
     // ---- chamfer (visible rings only) ------------------------------------
     const full = this.data;
@@ -137,11 +180,84 @@ export class Evaluator {
     }
     const chamfer = chN > 0 ? chSum / chN : 2;
 
+    // ---- silhouette corners ----------------------------------------------------
+    let cornerArc = 0;
+    let xorPx = 0;
+    {
+      const inv = 1 / Math.max(scale, 1e-6);
+      const wr = Math.max(1, Math.round(3 * scale)); // boundary test window (scaled px)
+      const rr = Math.max(2, Math.round(CORNER_XOR_R * scale));
+      const visAt = (ix: number, iy: number): number => {
+        // ix, iy: top-down scaled px -> GL row order
+        if (ix < 0 || iy < 0 || ix >= pw || iy >= ph) return 0;
+        const gi = (ph - 1 - iy) * pw + ix;
+        const c = (px[gi * 4] + 32) >> 6;
+        return c > 0 && !(m.text[gi] === 1 && px[gi * 4 + 1] === 0) ? 1 : 0;
+      };
+      const seen = this.seenFor(pw * ph);
+      const stamp = this.stamp;
+      const st = 2;
+      for (let e = 0; e < 2; e++) {
+        const ex = R.ex[e];
+        const ey = R.ey[e];
+        for (let i = st + 1; i < R.M - st - 1; i += st) {
+          const ax = ex[i] - ex[i - st];
+          const ay = ey[i] - ey[i - st];
+          const bx = ex[i + st] - ex[i];
+          const by = ey[i + st] - ey[i];
+          const la = Math.sqrt(ax * ax + ay * ay);
+          const lb = Math.sqrt(bx * bx + by * by);
+          const len = (la + lb) / 2;
+          if (len < 1e-3) continue;
+          const kap = Math.abs(Math.atan2(ax * by - ay * bx, ax * bx + ay * by)) / len;
+          const wpx = Math.max(bw * R.k[i], 8);
+          const rad = 1 / Math.max(kap, 1e-9);
+          if (rad >= CORNER_RADIUS_W * wpx) continue;
+          const sx = ex[i];
+          const sy = ey[i];
+          if (sx < 25 || sy < 25 || sx > VIEW.w - 25 || sy > VIEW.h - 25) continue;
+          if (full.excl[Math.floor(sy) * VIEW.w + Math.floor(sx)]) continue;
+          // on OUR visible silhouette boundary?
+          const cx = Math.round(sx * scale);
+          const cy = Math.round(sy * scale);
+          let any = 0;
+          let all = 1;
+          for (let yy = -wr; yy <= wr; yy += wr) {
+            for (let xx = -wr; xx <= wr; xx += wr) {
+              const v = visAt(cx + xx, cy + yy);
+              any |= v;
+              all &= v;
+            }
+          }
+          if (!any || all) continue;
+          // the mockup has a corner here too?
+          if (full.cornerCount(sx - CORNER_WIN, sy - CORNER_WIN, sx + CORNER_WIN, sy + CORNER_WIN) >= CORNER_EXCUSE) continue;
+          cornerArc += Math.min(CORNER_RADIUS_W * wpx / rad - 1, 3) * (len * st / wpx);
+          // silhouette XOR within CORNER_XOR_R px
+          for (let yy = Math.max(0, cy - rr); yy <= Math.min(ph - 1, cy + rr); yy++) {
+            for (let xx = Math.max(0, cx - rr); xx <= Math.min(pw - 1, cx + rr); xx++) {
+              if ((xx - cx) * (xx - cx) + (yy - cy) * (yy - cy) > rr * rr) continue;
+              const gi = (ph - 1 - yy) * pw + xx;
+              if (m.excl[gi] || seen[gi] === stamp) continue;
+              if (visAt(xx, yy) !== m.ribbon[gi]) {
+                seen[gi] = stamp;
+                xorPx++;
+              }
+            }
+          }
+        }
+      }
+      void inv;
+    }
+    const cornerXor = mockArea > 0 ? xorPx / mockArea : 0;
+
     // ---- smoothness -------------------------------------------------------
     const M = R.M;
     const skip = new Uint8Array(M);
     const pad = Math.round((1.5 * bw) / Math.max(R.ds, 1e-3));
     for (const [a, b] of R.foldRings) for (let i = Math.max(0, a - pad); i <= Math.min(M - 1, b + pad); i++) skip[i] = 1;
+    // a rolled hairpin may be as tight as 0.4 band widths: only the curvature frames' business
+    for (const [a, b] of R.hairpinRings) for (let i = Math.max(0, a); i <= Math.min(M - 1, b); i++) skip[i] = 1;
     let bend = 0;
     let hard = 0;
     let bn = 0;
@@ -272,6 +388,8 @@ export class Evaluator {
       detail,
     };
 
+    const kink = Math.max(R.kink, siteKink);
+    const kinkPen = ((Math.max(0, kink - KINK_FREE)) / KINK_SPAN) ** 2;
     const total =
       w.iou * (1 - iou) +
       w.chamfer * chamfer +
@@ -279,8 +397,12 @@ export class Evaluator {
       w.self * self +
       w.cross * cross +
       w.dark * dark +
+      w.cornerXor * cornerXor +
+      w.cornerArc * cornerArc +
+      w.kink * kinkPen +
+      0.1 * site.crinkle ** 2 +
       0.05 * bounds;
-    return { total, iou, chamfer, smooth, bend, hardBend, twistRate, self, cross, dark, bounds, inter, union: uni, crossing };
+    return { total, iou, chamfer, smooth, bend, hardBend, twistRate, self, cross, dark, darkIoU, cornerXor, cornerArc, kink, bounds, inter, union: uni, crossing };
   }
 }
 

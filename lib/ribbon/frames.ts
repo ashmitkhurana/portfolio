@@ -13,6 +13,9 @@
  * Everything is preallocated; nothing allocates per call.
  */
 
+/** how the centreline follows its control points (see RibbonCurve) */
+export type SplineKind = "catmull" | "bspline";
+
 /** Euclidean length (Math.hypot is an order of magnitude slower in V8 and runs per ring per iteration) */
 export function hyp3(x: number, y: number, z: number): number {
   return Math.sqrt(x * x + y * y + z * z);
@@ -30,6 +33,8 @@ export class RibbonCurve {
   private readonly ctrlPos: Float32Array;
   private readonly ctrlTwist: Float32Array;
   private readonly ctrlWidth: Float32Array;
+  /** `catmull`: centripetal Catmull-Rom through the points; `bspline`: C2 uniform cubic B-spline (approximating) */
+  private spline: SplineKind = "catmull";
   totalLength = 0;
 
   constructor(maxControlPoints = 128) {
@@ -47,9 +52,11 @@ export class RibbonCurve {
     twist: Float32Array,
     width: Float32Array,
     n: number,
+    spline: SplineKind = "catmull",
   ): void {
     if (n > this.maxN) throw new Error("RibbonCurve: too many control points");
     this.n = n;
+    this.spline = spline;
     this.ctrlPos.set(pos.subarray(0, n * 3));
     this.ctrlTwist.set(twist.subarray(0, n));
     this.ctrlWidth.set(width.subarray(0, n));
@@ -57,7 +64,7 @@ export class RibbonCurve {
     this.buildTable();
   }
 
-  /** arc-length fraction (0..1) at control point `k` */
+  /** arc-length fraction (0..1) at control point `k` (for a B-spline: at its knot, the curve point nearest the control point) */
   arcFractionAtControl(k: number): number {
     const t = this.totalLength || 1;
     const idx = Math.min(Math.max(k, 0), this.n - 1) * DENSE;
@@ -81,6 +88,25 @@ export class RibbonCurve {
   private buildCoefficients(): void {
     const n = this.n;
     const c = this.coef;
+    if (this.spline === "bspline") {
+      // uniform cubic B-spline: C2 (continuous curvature at every knot). Segment s runs between the knots
+      // (p[s-1] + 4 p[s] + p[s+1]) / 6 and (p[s] + 4 p[s+1] + p[s+2]) / 6; the ends are reflected (2 p0 - p1), so the
+      // curve starts at p0 and ends at p[n-1]. The control points APPROXIMATE the curve: it is pulled inside every bend.
+      for (let s = 0; s < n - 1; s++) {
+        for (let a = 0; a < 3; a++) {
+          const p0 = this.px(s - 1, a);
+          const p1 = this.px(s, a);
+          const p2 = this.px(s + 1, a);
+          const p3 = this.px(s + 2, a);
+          const o = s * 12 + a;
+          c[o] = (p0 + 4 * p1 + p2) / 6;
+          c[o + 3] = (p2 - p0) / 2;
+          c[o + 6] = (p0 - 2 * p1 + p2) / 2;
+          c[o + 9] = (-p0 + 3 * p1 - 3 * p2 + p3) / 6;
+        }
+      }
+      return;
+    }
     for (let s = 0; s < n - 1; s++) {
       const dx01 = this.px(s, 0) - this.px(s - 1, 0);
       const dy01 = this.px(s, 1) - this.px(s - 1, 1);

@@ -68,6 +68,13 @@ export interface Rings {
   sy: Float32Array;
   /** perspective scale at each ring (1 at z = 0) */
   k: Float32Array;
+  /** projected band edges (centre -/+ half width x ruling), image px, one entry per body ring: [edge 0 | edge 1] */
+  ex: [Float32Array, Float32Array];
+  ey: [Float32Array, Float32Array];
+  /** body ring index ranges [ring0, ring1] around each rolled hairpin tip (+-1.5 band widths) */
+  hairpinRings: [number, number][];
+  /** the engine's edge-kink metric of the strip as built (smooth.ts, limit 12) */
+  kink: number;
 }
 
 export class FitRenderer {
@@ -123,6 +130,10 @@ export class FitRenderer {
       sx: new Float32Array(M),
       sy: new Float32Array(M),
       k: new Float32Array(M),
+      ex: [new Float32Array(M), new Float32Array(M)],
+      ey: [new Float32Array(M), new Float32Array(M)],
+      hairpinRings: [],
+      kink: 0,
     };
   }
 
@@ -143,10 +154,11 @@ export class FitRenderer {
   build(s: FitState): Rings {
     const pts = toPosePoints(s);
     const ctx = { viewW: VIEW.w, viewH: VIEW.h, anchor: { ...ANCHOR }, fov: s.fov };
-    const pose = resolvePose(pts, ctx, POSE_COUNT, "curvature");
+    const pose = resolvePose(pts, ctx, POSE_COUNT, "curvature", "bspline");
     const geo = this.geometry;
     geo.frameMode = "curvature";
     geo.setFolds(pose.folds);
+    geo.setHairpins(pose.hairpins);
     geo.update(
       pose.points as Float32Array,
       (pose.twists as Float32Array) ?? new Float32Array(POSE_COUNT),
@@ -155,7 +167,7 @@ export class FitRenderer {
     );
     // arc fraction of the authored points
     const src = resolveControlPoints(pts, ctx);
-    this.authored.setControl(src.pos, src.twist, src.width, pts.length);
+    this.authored.setControl(src.pos, src.twist, src.width, pts.length, "bspline");
     const R = this.rings;
     for (let i = 0; i < pts.length; i++) R.frac[i] = this.authored.arcFractionAtControl(i);
     // ring data from the texture the GPU will read
@@ -181,12 +193,26 @@ export class FitRenderer {
       R.k[i] = k;
       R.sx[i] = VIEW.w / 2 + x * k;
       R.sy[i] = VIEW.h / 2 - y * k;
+      // the two band edges: centre -/+ half width x ruling (row 1; sheared in fold zones)
+      const hw = data[o + 3];
+      for (let e = 0; e < 2; e++) {
+        const sg = e === 0 ? -1 : 1;
+        const bx = x + sg * data[row + o] * hw;
+        const by = y + sg * data[row + o + 1] * hw;
+        const bz = z + sg * data[row + o + 2] * hw;
+        const kk = D / Math.max(D - bz, 1);
+        R.ex[e][i] = VIEW.w / 2 + bx * kk;
+        R.ey[e][i] = VIEW.h / 2 - by * kk;
+      }
     }
     R.M = M;
     R.E = E;
     R.ds = geo.curve.totalLength / Math.max(M - 1, 1);
     R.foldRings = geo.foldReports.filter((r) => r.built).map((r) => [r.ring0, r.ring1] as [number, number]);
+    const zr = Math.round((1.5 * s.width) / Math.max(R.ds, 1e-3));
+    R.hairpinRings = geo.hairpinReports.map((h) => [Math.max(0, h.ring - zr), Math.min(M - 1, h.ring + zr)] as [number, number]);
     this.setCamera(s.fov);
+    R.kink = geo.edgeReport(this.camera, VIEW.w, VIEW.h).kink;
     return R;
   }
 
@@ -223,5 +249,57 @@ export class FitRenderer {
     this.geometry.dispose();
     this.material.dispose();
     this.renderer.dispose();
+  }
+}
+
+/** the desktop layouts the site actually has (viewport, measured hero-name anchor: the union of the .display__line boxes): the pose must be clean at each, not only at the mockup's */
+export const PROBES: { w: number; h: number; anchor: { left: number; top: number; width: number; height: number } }[] = [
+  { w: 1280, h: 800, anchor: { left: 48, top: 160, width: 882.5, height: 303.1875 } },
+  { w: 1512, h: 982, anchor: { left: 64, top: 196.390625, width: 1031.5625, height: 354.40625 } },
+  { w: 1920, h: 1080, anchor: { left: 64, top: 216, width: 1335.65625, height: 458.875 } },
+  { w: 2560, h: 1080, anchor: { left: 320, top: 216, width: 1431.609375, height: 461.9375 } },
+];
+
+/** builds the pose in a site layout (own geometry, no drawing) and returns the engine's edge-kink metric there */
+export class KinkProbes {
+  private readonly geos: RibbonGeometry[];
+  private readonly cam = new THREE.PerspectiveCamera(28, 1, 10, 12000);
+  constructor() {
+    this.geos = PROBES.map((p) => {
+      const g = cloneSettings(DEFAULT_SETTINGS).geometry;
+      const k = Math.min(Math.max(p.w / 1440, 0.5), 1.4);
+      return new RibbonGeometry({ ...g, width: g.width * k, edgeBevel: g.edgeBevel * k }, 128);
+    });
+  }
+  /** worst edge kink and worst smoothness-check violation (curvature / roll reversals over their limits, roll-rate over) over the layouts */
+  kink(s: FitState): { kink: number; crinkle: number } {
+    const pts = toPosePoints(s);
+    let worst = 0;
+    let crinkle = 0;
+    PROBES.forEach((p, i) => {
+      const pose = resolvePose(pts, { viewW: p.w, viewH: p.h, anchor: p.anchor, fov: s.fov }, POSE_COUNT, "curvature", "bspline");
+      const geo = this.geos[i];
+      geo.frameMode = "curvature";
+      geo.setFolds(pose.folds);
+      geo.setHairpins(pose.hairpins);
+      geo.update(pose.points as Float32Array, pose.twists as Float32Array, pose.widths as Float32Array, POSE_COUNT);
+      const cam = this.cam;
+      cam.fov = s.fov;
+      cam.aspect = p.w / p.h;
+      const dist = p.h / 2 / Math.tan((s.fov * DEG) / 2);
+      cam.position.set(0, 0, dist);
+      cam.near = Math.max(10, dist * 0.05);
+      cam.far = dist + 8000;
+      cam.lookAt(0, 0, 0);
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+      worst = Math.max(worst, geo.edgeReport(cam, p.w, p.h).kink);
+      const sm = geo.smoothnessReport();
+      // every hairpin must stay a hairpin (turn > 150, pose-check) with a centreline radius inside 0.3 - 2.5 widths, with margin
+      let hp = 0;
+      for (const h of geo.hairpinReports) hp += Math.max(0, 158 - (h.turn * 180) / Math.PI) / 4 + Math.max(0, 0.42 - h.radiusW) / 0.08;
+      crinkle = Math.max(crinkle, hp +  Math.max(0, sm.curvature - 3.5) + Math.max(0, sm.roll - 1.5) + Math.max(0, sm.rollRate - 1.4));
+    });
+    return { kink: worst, crinkle };
   }
 }

@@ -7,7 +7,8 @@ import { DEFAULT_SETTINGS } from "../settings";
 import { FitData } from "./data";
 import { FitRenderer, POSE_COUNT } from "./render";
 import { Evaluator, WEIGHTS, type Terms } from "./loss";
-import { ANCHOR, VIEW, toPosePoints, type FitState } from "./params";
+import { SITE_SETTINGS } from "../siteSettings";
+import { ANCHOR, VIEW, cloneState, toPosePoints, type FitState } from "./params";
 
 export interface Images {
   /** our visible silhouette, white on black (visibility emulation applied) */
@@ -43,7 +44,7 @@ export function visibleMask(rend: FitRenderer, data: FitData): Uint8Array {
 
 export async function makeImages(rend: FitRenderer, data: FitData, state: FitState, mockupUrl: string): Promise<Images> {
   const ev = new Evaluator(data, rend);
-  ev.evaluate({ ...state, x: [...state.x], y: [...state.y], z: [...state.z], twist: [...state.twist], foldSign: [...state.foldSign] }, 1, WEIGHTS);
+  ev.evaluate(cloneState(state), 1, WEIGHTS);
   const vis = visibleMask(rend, data);
   const { W, H } = data;
   // silhouette
@@ -190,6 +191,7 @@ export async function parity(rend: FitRenderer, state: FitState): Promise<Parity
       { viewW: engine.width, viewH: engine.height, anchor: { ...ANCHOR }, fov: engine.settings.camera.fov },
       engine.sim.count,
       "curvature",
+      "bspline",
     );
     engine.setPose(pose, true);
     const bl = engine.captureLayers({ matte: "black" });
@@ -247,6 +249,70 @@ export async function parity(rend: FitRenderer, state: FitState): Promise<Parity
       oursOnly,
       engineOnly: engOnly,
     };
+  } finally {
+    engine.dispose();
+    host.remove();
+  }
+}
+
+/**
+ * The real engine with the REAL material and site defaults (SITE_SETTINGS, tier 4 look, floor / wall shadows and glow on)
+ * at the mockup's 1672 x 941 framing and anchor, as a PNG data URL. The page has no HTML text, so where the mockup shows
+ * the name and the ribbon is behind the text plane the mockup's own text pixels are put back (our ribbon in front of the
+ * text stays ours).
+ */
+export async function materialRender(rend: FitRenderer, data: FitData, state: FitState): Promise<string> {
+  const host = document.createElement("div");
+  host.style.cssText = `position:fixed;left:0;top:0;width:${VIEW.w}px;height:${VIEW.h}px;opacity:0;pointer-events:none;z-index:-1`;
+  const back = document.createElement("canvas");
+  const front = document.createElement("canvas");
+  for (const c of [back, front]) c.style.cssText = "position:absolute;inset:0;width:100%;height:100%";
+  host.append(back, front);
+  document.body.appendChild(host);
+  await new Promise((r) => requestAnimationFrame(() => r(null)));
+  const engine = new RibbonEngine({
+    back,
+    front,
+    controlPoints: POSE_COUNT,
+    tier: 4,
+    watchdog: false,
+    settings: { ...(SITE_SETTINGS as object), camera: { fov: state.fov } },
+  });
+  try {
+    if (engine.width !== VIEW.w || engine.height !== VIEW.h) throw new Error(`engine size ${engine.width}x${engine.height}`);
+    const pose = resolvePose(
+      toPosePoints(state),
+      { viewW: engine.width, viewH: engine.height, anchor: { ...ANCHOR }, fov: engine.settings.camera.fov },
+      engine.sim.count,
+      "curvature",
+      "bspline",
+    );
+    engine.setPose(pose, true);
+    const cap = engine.captureLayers({});
+    const ours = await dataUrlToRgba(cap.back);
+    const mock = await dataUrlToRgba("/lab/ref/hero-desktop.webp");
+    rend.build(state);
+    const { px } = rend.draw(1);
+    const W = VIEW.w;
+    const H = VIEW.h;
+    const [oc, octx] = canvas(W, H);
+    const out = octx.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const o = i * 4;
+        const gi = (H - 1 - y) * W + x;
+        const inFront = (px[gi * 4] + 32) >> 6 > 0 && px[gi * 4 + 1] === 255;
+        const textHere = data.text[i] === 1 && !inFront;
+        const src = textHere ? mock.d : ours.d;
+        out.data[o] = src[o];
+        out.data[o + 1] = src[o + 1];
+        out.data[o + 2] = src[o + 2];
+        out.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(out, 0, 0);
+    return oc.toDataURL("image/png");
   } finally {
     engine.dispose();
     host.remove();

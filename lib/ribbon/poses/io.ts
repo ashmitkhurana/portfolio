@@ -14,6 +14,7 @@ const num = (v: unknown, d: number): number =>
 export function parsePoint(raw: unknown): PosePoint {
   const r = (raw ?? {}) as Record<string, unknown>;
   const f = r.fold as Record<string, unknown> | undefined | null;
+  const h = r.hairpin as Record<string, unknown> | undefined | null;
   return {
     x: num(r.x, 0),
     y: num(r.y, 0),
@@ -21,8 +22,15 @@ export function parsePoint(raw: unknown): PosePoint {
     twist: num(r.twist, 0),
     width: num(r.width, 1),
     ...(f && typeof f === "object"
-      ? { fold: { angle: num(f.angle, DEFAULT_FOLD_ANGLE), radius: num(f.radius, DEFAULT_FOLD_RADIUS) } }
+      ? {
+          fold: {
+            angle: num(f.angle, DEFAULT_FOLD_ANGLE),
+            radius: num(f.radius, DEFAULT_FOLD_RADIUS),
+            ...(typeof f.name === "string" ? { name: f.name } : {}),
+          },
+        }
       : {}),
+    ...(h && typeof h === "object" ? { hairpin: { name: typeof h.name === "string" ? h.name : "hairpin", radius: num(h.radius, 1) } } : {}),
   };
 }
 
@@ -32,10 +40,10 @@ export function parsePoseFile(raw: unknown): PoseFile {
   const variants: PoseFile["variants"] = {};
   const rv = (r.variants ?? {}) as Record<string, unknown>;
   for (const cls of SCREEN_CLASSES) {
-    const v = rv[cls] as { points?: unknown } | undefined;
+    const v = rv[cls] as { points?: unknown; spline?: unknown } | undefined;
     if (!v || !Array.isArray(v.points)) continue;
     const points = v.points.map(parsePoint);
-    if (points.length >= 2) variants[cls] = { points };
+    if (points.length >= 2) variants[cls] = { points, ...(v.spline === "bspline" ? { spline: "bspline" as const } : {}) };
   }
   if (Object.keys(variants).length === 0) throw new Error("pose file has no usable variant");
   return {
@@ -63,11 +71,15 @@ export function formatPoseJson(file: PoseFile): string {
   classes.forEach((cls, ci) => {
     const v = file.variants[cls] as PoseVariant;
     out.push(`    ${JSON.stringify(cls)}: {`);
+    if (v.spline === "bspline") out.push(`      "spline": "bspline",`);
     out.push(`      "points": [`);
     v.points.forEach((p, i) => {
-      const fold = p.fold ? `, "fold": { "angle": ${r4(p.fold.angle)}, "radius": ${r4(p.fold.radius)} }` : "";
+      const fold = p.fold
+        ? `, "fold": { "angle": ${r4(p.fold.angle)}, "radius": ${r4(p.fold.radius)}${p.fold.name ? `, "name": ${JSON.stringify(p.fold.name)}` : ""} }`
+        : "";
+      const hp = p.hairpin ? `, "hairpin": { "name": ${JSON.stringify(p.hairpin.name)}, "radius": ${r4(p.hairpin.radius)} }` : "";
       out.push(
-        `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)}${fold} }${i < v.points.length - 1 ? "," : ""}`,
+        `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)}${fold}${hp} }${i < v.points.length - 1 ? "," : ""}`,
       );
     });
     out.push(`      ]`);

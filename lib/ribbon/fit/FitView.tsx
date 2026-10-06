@@ -6,8 +6,9 @@
  */
 import { useEffect, useRef } from "react";
 import { FitSession, STAGES, type RunConfig, type Snapshot } from "./fit";
-import { cloneState, initialState, type FitState } from "./params";
-import { makeImages, mismatchRegions, parity, visibleMask, type Parity } from "./report";
+import { cloneState, initialState, migrateState, toPosePoints, type FitState } from "./params";
+import type { PosePoint } from "../poses/types";
+import { makeImages, materialRender, mismatchRegions, parity, visibleMask, type Parity } from "./report";
 import { WEIGHTS, type Terms } from "./loss";
 
 export interface FitApi {
@@ -19,7 +20,11 @@ export interface FitApi {
     terms: Terms;
     images: { silhouette: string; overlay: string };
     regions: ReturnType<typeof mismatchRegions>;
+    posePoints: PosePoint[];
+    state: FitState;
   }>;
+  /** the engine with the real material / site defaults at the mockup framing, text of the mockup composited where the ribbon is behind it */
+  material(state: FitState): Promise<string>;
   parity(state: FitState): Promise<Parity>;
   benchmark(state: FitState | null, n: number): { ms: number; evalsPerSec: number };
   stop(): void;
@@ -86,9 +91,9 @@ export function FitView() {
           `stage ${s.stage}  gen ${s.gen}  evals ${s.evals}  restart ${s.restart}  ${s.seconds.toFixed(0)}s\n` +
           `IoU ${t.iou.toFixed(4)}   total ${t.total.toFixed(4)}\n` +
           `chamfer ${t.chamfer.toFixed(3)}  smooth ${t.smooth.toFixed(3)} (bend ${t.bend.toFixed(2)} hard ${t.hardBend.toFixed(3)} twist ${t.twistRate.toFixed(3)})\n` +
-          `self ${t.self.toFixed(3)}  cross ${t.cross.toFixed(3)}  dark ${t.dark.toFixed(3)}  bounds ${t.bounds.toFixed(3)}\n` +
+          `self ${t.self.toFixed(3)}  cross ${t.cross.toFixed(3)}  darkIoU ${t.darkIoU.toFixed(3)}  corner xor ${t.cornerXor.toFixed(4)} arc ${t.cornerArc.toFixed(2)}  kink ${t.kink.toFixed(1)}  bounds ${t.bounds.toFixed(3)}\n` +
           `crossing: leg>bar ${t.crossing.legOverCrossbar}  K ${t.crossing.kJunctionOrder}  bar/text ${t.crossing.crossbarVsText}  leftLeg<T ${t.crossing.leftLegBehindT}\n` +
-          `width ${s.state.width.toFixed(1)}  fov ${s.state.fov.toFixed(1)}  foldR ${s.state.foldR.toFixed(2)}` +
+          `width ${s.state.width.toFixed(1)}  fov ${s.state.fov.toFixed(1)}  foldR ${s.state.foldR.toFixed(2)}  hairR ${s.state.hairR.map((v) => v.toFixed(2)).join("/")}` +
           (info ? `\nsigma ${info.sigma.toFixed(3)}  pop ${info.popsize}  cond ${info.condition.toExponential(1)}` : "");
     };
 
@@ -128,27 +133,32 @@ export function FitView() {
       async run(state, cfg) {
         await api.ready;
         const full: RunConfig = { budget: 3600, seed: 1, target: 0.85, maxRestarts: 6, stages: STAGES, ...cfg };
-        const r = await session.run(state ? cloneState(state) : initialState(), full);
+        const r = await session.run(state ? migrateState(state) : initialState(), full);
         draw(r.state);
         return r;
       },
       evalState(state, scale) {
-        return session.evaluate(state, scale, WEIGHTS);
+        return session.evaluate(migrateState(state), scale, WEIGHTS);
       },
-      async finalize(state) {
+      async finalize(inState) {
         await api.ready;
+        const state = migrateState(inState);
         const terms = session.evaluate(state, 1, WEIGHTS);
         const images = await makeImages(session.rend, session.data, state, MOCKUP);
         session.ev.evaluate(cloneState(state), 1, WEIGHTS);
         const vis = visibleMask(session.rend, session.data);
-        return { terms, images, regions: mismatchRegions(vis, session.data) };
+        return { terms, images, regions: mismatchRegions(vis, session.data), posePoints: toPosePoints(state), state };
+      },
+      async material(state) {
+        await api.ready;
+        return materialRender(session.rend, session.data, migrateState(state));
       },
       async parity(state) {
         await api.ready;
-        return parity(session.rend, state);
+        return parity(session.rend, migrateState(state));
       },
       benchmark(state, n) {
-        const s = state ?? initialState();
+        const s = state ? migrateState(state) : initialState();
         const t0 = performance.now();
         for (let i = 0; i < n; i++) session.evaluate(s, 0.25, WEIGHTS);
         const ms = performance.now() - t0;

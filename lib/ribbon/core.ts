@@ -287,6 +287,7 @@ export class RibbonCore {
     rlog("sim-pose", { snap, points: pose.points.length, folds: pose.folds?.length ?? 0 });
     this.ribbon.frameMode = pose.orientation ?? "rmf";
     this.ribbon.setFolds(pose.folds);
+    this.ribbon.setHairpins(pose.hairpins);
     this.sim.setTargetPose(pose.points, pose.twists, pose.widths, snap);
   }
 

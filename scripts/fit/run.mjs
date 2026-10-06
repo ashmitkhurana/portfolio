@@ -32,11 +32,11 @@ function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i > -1 ? process.argv[i + 1] : fallback;
 }
-const base = arg("base", "http://localhost:4000").replace(/\/$/, "");
+const base = arg("base", "http://localhost:4100").replace(/\/$/, "");
 const budget = Number(arg("budget", "3600"));
 const seed = Number(arg("seed", "1"));
 const restarts = Number(arg("restarts", "6"));
-const target = Number(arg("target", "0.85"));
+const target = Number(arg("target", "0.92"));
 const fromStage = arg("from", undefined);
 const fovLock = arg("fov", undefined);
 
@@ -90,7 +90,7 @@ async function main() {
   const csv = path.join(OUT, "progress.csv");
   const resume = flag("resume") || flag("final-only") || flag("bench") || flag("init-only");
   if (!resume || !existsSync(csv)) {
-    writeFileSync(csv, "t,stage,restart,gen,evals,scale,total,iou,chamfer,smooth,self,cross,dark,sigma,popsize\n");
+    writeFileSync(csv, "t,stage,restart,gen,evals,scale,total,iou,chamfer,smooth,self,cross,darkIoU,cornerXor,kink,sigma,popsize\n");
   }
   let lastBest = null;
   const t0 = Date.now();
@@ -113,7 +113,7 @@ async function main() {
       [
         snap.seconds.toFixed(1), snap.stage, snap.restart, snap.gen, snap.evals, snap.scale,
         t.total.toFixed(5), t.iou.toFixed(5), t.chamfer.toFixed(4), t.smooth.toFixed(4), t.self.toFixed(4),
-        t.cross.toFixed(4), t.dark.toFixed(4), info.sigma.toFixed(4), info.popsize,
+        t.cross.toFixed(4), t.darkIoU.toFixed(4), t.cornerXor.toFixed(4), t.kink.toFixed(2), info.sigma.toFixed(4), info.popsize,
       ].join(",") + "\n",
     );
     // the stage best is the resume point while the main pass is running (restarts only write via onBest)
@@ -160,6 +160,7 @@ async function main() {
 
   // ---- final scoring, images, parity -------------------------------------------
   const fin = await page.evaluate((s) => window.__fit.finalize(s), state);
+  state = fin.state; // migrated to the current layout
   writeFileSync(path.join(OUT, "overlay.png"), decode(fin.images.overlay));
   writeFileSync(path.join(OUT, "silhouette.png"), decode(fin.images.silhouette));
   let par = null;
@@ -170,16 +171,20 @@ async function main() {
   } catch (e) {
     console.warn("parity failed:", e.message);
   }
-  const pose = await page.evaluate(() => null);
-  void pose;
+  const mat = await page.evaluate((st) => window.__fit.material(st), state);
+  writeFileSync(path.join(OUT, "material.png"), decode(mat));
+  await materialSheets();
   const summary = {
     iouFull: fin.terms.iou,
+    darkFaceIoU: fin.terms.darkIoU,
     chamfer: fin.terms.chamfer,
     crossing: fin.terms.crossing,
     smoothness: { bend: fin.terms.bend, hardBend: fin.terms.hardBend, twistRate: fin.terms.twistRate },
     selfIntersection: fin.terms.self,
-    darkHint: fin.terms.dark,
-    state: { width: state.width, fov: state.fov, foldR: state.foldR, foldSign: state.foldSign },
+    cornerXor: fin.terms.cornerXor,
+    cornerArc: fin.terms.cornerArc,
+    edgeKink: fin.terms.kink,
+    state: { width: state.width, fov: state.fov, foldR: state.foldR, foldSign: state.foldSign, hairR: { "k-upper": state.hairR[0], "k-lower": state.hairR[1], "s-turn": state.hairR[2] } },
     parityIoU: par?.iou ?? null,
     parityNote: par?.note ?? null,
     mismatchRegions: fin.regions,
@@ -188,52 +193,52 @@ async function main() {
   if (!flag("init-only")) writeParams(state, fin.terms, "final (full res)");
   console.log(JSON.stringify(summary, null, 1));
 
-  if (!flag("no-pose") && (fin.terms.iou >= 0.85 || flag("force-pose"))) writePose(state);
+  writeFileSync(path.join(OUT, "pose_points.json"), JSON.stringify(fin.posePoints));
+  if (!flag("no-pose") && (fin.terms.iou >= 0.85 || flag("force-pose"))) writePose(fin.posePoints, state.fov);
   else console.log(fin.terms.iou >= 0.85 ? "ak-hero.json untouched (--no-pose)" : "IoU < 0.85: ak-hero.json untouched");
   await browser.close();
 }
 
-const ANCHOR = { left: 68, top: 205, width: 1265 - 68, height: 590 - 205 };
-const engineWidth = 68 * Math.min(Math.max(1672 / 1440, 0.5), 1.4);
-const FOLD_IDX = [4, 9, 13, 23];
 const r4 = (v) => (Math.round(v * 10000) / 10000).toString();
 
+/** side-by-side (mockup | ours) and 50/50 blend of the real-material render */
+async function materialSheets() {
+  const mock = await sharp("/Users/ashmitkhurana/Development/studio/portfolio/public/lab/ref/hero-desktop.webp").resize(1672, 941).removeAlpha().png().toBuffer();
+  const ours = readFileSync(path.join(OUT, "material.png"));
+  await sharp({ create: { width: 1672 * 2 + 16, height: 941, channels: 3, background: "#222" } })
+    .composite([{ input: mock, left: 0, top: 0 }, { input: ours, left: 1672 + 16, top: 0 }])
+    .png()
+    .toFile(path.join(OUT, "material_vs.png"));
+  const half = await sharp(ours).ensureAlpha(0.5).png().toBuffer();
+  await sharp(mock).composite([{ input: half, blend: "over" }]).png().toFile(path.join(OUT, "material_blend.png"));
+}
+
 /** write the desktop variant of ak-hero.json (phone variant and the file layout are untouched) */
-function writePose(s) {
+function writePose(points, fov) {
   const file = path.join(root, "lib/ribbon/poses/ak-hero.json");
   const j = JSON.parse(readFileSync(file, "utf8"));
-  const m = s.width / engineWidth;
-  const pts = s.x.map((_, i) => {
-    const p = {
-      x: (s.x[i] - ANCHOR.left) / ANCHOR.width,
-      y: (s.y[i] - ANCHOR.top) / ANCHOR.height,
-      z: s.z[i] / ANCHOR.height,
-      twist: s.twist[i],
-      width: m,
-    };
-    const f = FOLD_IDX.indexOf(i);
-    if (f >= 0) p.fold = { angle: s.foldSign[f] * Math.PI, radius: s.foldR * m };
-    return p;
-  });
-  const lines = (points) =>
-    points
+  const lines = (pts) =>
+    pts
       .map((p, i) => {
-        const fold = p.fold ? `, "fold": { "angle": ${r4(p.fold.angle)}, "radius": ${r4(p.fold.radius)} }` : "";
-        return `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)}${fold} }${i < points.length - 1 ? "," : ""}`;
+        const fold = p.fold ? `, "fold": { "angle": ${r4(p.fold.angle)}, "radius": ${r4(p.fold.radius)}${p.fold.name ? `, "name": ${JSON.stringify(p.fold.name)}` : ""} }` : "";
+        const hp = p.hairpin ? `, "hairpin": { "name": ${JSON.stringify(p.hairpin.name)}, "radius": ${r4(p.hairpin.radius)} }` : "";
+        return `        { "x": ${r4(p.x)}, "y": ${r4(p.y)}, "z": ${r4(p.z)}, "twist": ${r4(p.twist)}, "width": ${r4(p.width)}${fold}${hp} }${i < pts.length - 1 ? "," : ""}`;
       })
       .join("\n");
-  j.variants.desktop = { points: pts };
+  j.variants.desktop = { spline: "bspline", points };
   const order = ["phone", "tablet", "desktop", "ultrawide"].filter((c) => j.variants[c]);
   const out = [];
   out.push("{", `  "version": 1,`, `  "name": ${JSON.stringify(j.name)},`, `  "anchor": ${JSON.stringify(j.anchor)},`);
   if (j.notes) out.push(`  "notes": ${JSON.stringify(j.notes)},`);
   out.push(`  "orientation": ${JSON.stringify(j.orientation ?? "curvature")},`, `  "variants": {`);
   order.forEach((c, ci) => {
-    out.push(`    ${JSON.stringify(c)}: {`, `      "points": [`, lines(j.variants[c].points), `      ]`, `    }${ci < order.length - 1 ? "," : ""}`);
+    out.push(`    ${JSON.stringify(c)}: {`);
+    if (j.variants[c].spline === "bspline") out.push(`      "spline": "bspline",`);
+    out.push(`      "points": [`, lines(j.variants[c].points), `      ]`, `    }${ci < order.length - 1 ? "," : ""}`);
   });
   out.push("  }", "}");
   writeFileSync(file, out.join("\n") + "\n");
-  console.log(`wrote desktop variant to ${path.relative(root, file)} (fit fov ${s.fov.toFixed(2)})`);
+  console.log(`wrote desktop variant to ${path.relative(root, file)} (fit fov ${fov.toFixed(2)})`);
 }
 
 main().catch((e) => {
