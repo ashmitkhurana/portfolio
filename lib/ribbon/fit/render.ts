@@ -22,7 +22,7 @@ import type { PosePoint } from "../poses/types";
 import { ANCHOR, VIEW, engineWidth, toPosePoints, type FitState } from "./params";
 
 /** sim control points the site resolves a pose to (SiteRibbon / pose editor use 96) */
-export const POSE_COUNT = 96;
+export const POSE_COUNT = 128;
 const DEG = Math.PI / 180;
 
 const VERT = /* glsl */ `
@@ -167,7 +167,7 @@ export class FitRenderer {
   }
 
   /** the same, for arbitrary anchor-space pose points (the S2c direct reconstruction); `bandW` = band width at z = 0 (px) */
-  buildPose(pts: PosePoint[], fov: number, anchor: { left: number; top: number; width: number; height: number }, bandW: number): Rings {
+  buildPose(pts: PosePoint[], fov: number, anchor: { left: number; top: number; width: number; height: number }, bandW: number, lite = false): Rings {
     const s = { fov, width: bandW };
     const ctx = { viewW: VIEW.w, viewH: VIEW.h, anchor, fov: s.fov };
     const pose = resolvePose(pts, ctx, POSE_COUNT, "curvature", "bspline");
@@ -231,6 +231,7 @@ export class FitRenderer {
     R.foldRings = geo.foldReports.filter((r) => r.built).map((r) => [r.ring0, r.ring1] as [number, number]);
     const zr = Math.round((1.5 * s.width) / Math.max(R.ds, 1e-3));
     R.hairpinRings = geo.hairpinReports.map((h) => [Math.max(0, h.ring - zr), Math.min(M - 1, h.ring + zr)] as [number, number]);
+    if (lite) return R;
     this.setCamera(s.fov);
     const er = geo.edgeReport(this.camera, VIEW.w, VIEW.h);
     R.kink = er.kink;
@@ -301,10 +302,11 @@ export class KinkProbes {
   }
 
   /** the same for arbitrary pose points */
-  kinkPose(pts: PosePoint[], fovDeg: number): { kink: number; crinkle: number } {
+  kinkPose(pts: PosePoint[], fovDeg: number): { kink: number; crinkle: number; viol: number } {
     const s = { fov: fovDeg };
     let worst = 0;
     let crinkle = 0;
+    let viol = 0;
     PROBES.forEach((p, i) => {
       const pose = resolvePose(pts, { viewW: p.w, viewH: p.h, anchor: p.anchor, fov: s.fov }, POSE_COUNT, "curvature", "bspline");
       const geo = this.geos[i];
@@ -328,7 +330,11 @@ export class KinkProbes {
       let hp = 0;
       for (const h of geo.hairpinReports) hp += Math.max(0, 158 - (h.turn * 180) / Math.PI) / 4 + Math.max(0, 0.42 - h.radiusW) / 0.08;
       crinkle = Math.max(crinkle, hp +  Math.max(0, sm.curvature - 3.5) + Math.max(0, sm.roll - 1.5) + Math.max(0, sm.rollRate - 1.4));
+      // the pose-check limits themselves (no margin): curvature reversals <= 4, roll reversals <= 2, roll rate <= 1.6, hairpins turn > 150 and radius 0.3 - 2.5 widths
+      let v = Math.max(0, sm.curvature - 4) + Math.max(0, sm.roll - 2) + 3 * Math.max(0, sm.rollRate - 1.6);
+      for (const h of geo.hairpinReports) v += Math.max(0, 152 - (h.turn * 180) / Math.PI) / 5 + Math.max(0, 0.31 - h.radiusW) / 0.04 + Math.max(0, h.radiusW - 2.4) / 0.3;
+      viol = Math.max(viol, v);
     });
-    return { kink: worst, crinkle };
+    return { kink: worst, crinkle, viol };
   }
 }

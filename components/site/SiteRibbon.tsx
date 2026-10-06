@@ -28,7 +28,7 @@ type PoseModules = {
 };
 
 /** the AK is a long, tightly bent strip: give the sim more control points */
-const CONTROL_POINTS = 96;
+const CONTROL_POINTS = 128;
 
 /** `?ribbon=0` skips the ribbon entirely (clean layout screenshots, QA). */
 const noop = () => () => {};

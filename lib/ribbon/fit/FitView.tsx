@@ -41,11 +41,15 @@ declare global {
       ready: Promise<void>;
       load(input: S2cInput): void;
       calibrate(): ReturnType<S2c["calibrate"]>;
+      lockCentreline(iters?: number): ReturnType<S2c["lockCentreline"]>;
+      calibrateReal(): ReturnType<S2c["calibrateReal"]>;
+      calibrateSilhouette(p?: number, span?: number, steps?: number, cont?: number, radius?: number, pinchW?: number, globalPen?: boolean): ReturnType<S2c["calibrateSilhouette"]>;
       zero(): S2cState;
       evaluate(state: S2cState, scale: number): ReturnType<S2c["evaluate"]>;
       refine(state: S2cState, cfg: { stages: { scale: number; gens: number; sigma: number }[]; seed?: number }): ReturnType<S2c["refine"]>;
       pose(state: S2cState): ReturnType<S2c["pose"]>;
       twist(): number[];
+      probeTwist(th: number): ReturnType<S2c["probeTwist"]>;
       images(state: S2cState): Promise<{ silhouette: string; overlay: string; regions: ReturnType<typeof mismatchRegions> }>;
       stop(): void;
     };
@@ -197,11 +201,15 @@ export function FitView() {
       }),
       load: (i) => (s2c as S2c).load(i),
       calibrate: () => (s2c as S2c).calibrate(),
+      lockCentreline: (n) => (s2c as S2c).lockCentreline(n),
+      calibrateReal: () => (s2c as S2c).calibrateReal(),
+      calibrateSilhouette: (p, sp, st, c, r, pw, gp) => (s2c as S2c).calibrateSilhouette(p, sp, st, c, r, pw, gp),
       zero: () => zeroState((s2c as S2c).input),
       evaluate: (st, sc) => (s2c as S2c).evaluate(st, sc),
       refine: (st, cfg) => (s2c as S2c).refine(cloneS2c(st), cfg),
       pose: (st) => (s2c as S2c).pose(st),
       twist: () => [...(s2c as S2c).twist0],
+      probeTwist: (th) => (s2c as S2c).probeTwist(th),
       images: async (st) => {
         const c = s2c as S2c;
         const vis = c.visibleMask(st);

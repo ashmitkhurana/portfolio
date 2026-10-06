@@ -42,6 +42,7 @@ async function buildData() {
   return out;
 }
 
+const r4 = (v) => (Math.round(v * 10000) / 10000).toString();
 const dataBin = await buildData();
 const graph = readFileSync(path.join(SCRATCH, "graph.json"));
 const input = JSON.parse(readFileSync(path.join(OUT, arg("input", "s2c_input.json")), "utf8"));
@@ -64,14 +65,31 @@ await page.exposeFunction("__fitPersist", (json) => {
 await page.goto(`${base}/lab/fit`, { waitUntil: "load" });
 await page.waitForFunction(() => window.__s2c, null, { timeout: 120000 });
 await page.evaluate(() => window.__s2c.ready);
+if (flag("nofold")) input.points.forEach((p) => { delete p.fold; });
+if (flag("nohair")) input.points.forEach((p) => { delete p.hairpin; });
 await page.evaluate((i) => window.__s2c.load(i), input);
-const cal = await page.evaluate(() => window.__s2c.calibrate());
+if (flag("probe")) {
+  console.log("rTwist", JSON.stringify(await page.evaluate(() => { window.__s2c.probeTwist(0.5); const g = window.__fit.session.rend.geometry; const out = []; for (const th of [0, 0.5]) { const st = window.__s2c.zero(); window.__s2c.probeTwist(th); const d = g.sweep.uRingTex.value.image.data; const tot = g.totalRings; const o = (g.caps + 300) * 4; const q = (g.caps + 20) * 3; out.push({ th, tw: g.rTwist[g.caps + 20], c: g.rTwC[g.caps + 20], n0: [g.rN0[q], g.rN0[q+1], g.rN0[q+2]], n: [g.rN[q], g.rN[q+1], g.rN[q+2]], B: [d[tot*4+o], d[tot*4+o+1], d[tot*4+o+2]], rB: [g.rB[(g.caps+300)*3], g.rB[(g.caps+300)*3+1], g.rB[(g.caps+300)*3+2]], N: [d[2*tot*4+o], d[2*tot*4+o+1], d[2*tot*4+o+2]] }); } return out; })));
+  for (const th of [0.5, 1.0, -0.5]) console.log("probe", th, JSON.stringify(await page.evaluate((t) => window.__s2c.probeTwist(t), th)));
+}
+const cal = flag("no-calibrate") ? null : await page.evaluate(() => (window.__s2c.calibrateReal()));
+if (cal) console.log("detail", cal.detail);
+if (flag("lock")) console.log("lock", JSON.stringify(await page.evaluate(() => window.__s2c.lockCentreline(8))));
+if (!flag("no-sil")) console.log("silhouette roll", JSON.stringify(await page.evaluate((a) => window.__s2c.calibrateSilhouette(...a), [Number(arg('sil-passes', '2')), Number(arg('sil-span', '0.8')), Number(arg('sil-steps', '17')), Number(arg('sil-cont', '0.25')), 95, 1.5, flag('sil-global')])));
 console.log("calibrate", JSON.stringify(cal));
+if (flag("lock")) console.log("lock2", JSON.stringify(await page.evaluate(() => window.__s2c.lockCentreline(6))));
+if (flag("lock-after")) {
+  for (let r = 0; r < Number(arg("lock-rounds", "2")); r++) {
+    const h = await page.evaluate(() => window.__s2c.lockCentreline(6));
+    console.log("lock", r, h.map((x) => x.rms.toFixed(1) + "/" + x.max.toFixed(0)).join(" "));
+    console.log("silhouette roll", JSON.stringify(await page.evaluate(() => window.__s2c.calibrateSilhouette(1, 0.4, 9, 0.25))));
+  }
+}
 let state = await page.evaluate(() => window.__s2c.zero());
 const statePath = path.join(OUT, "s2c_state.json");
 if (flag("resume") && existsSync(statePath)) state = JSON.parse(readFileSync(statePath, "utf8"));
 const pre = await page.evaluate((s) => window.__s2c.evaluate(s, 1), state);
-console.log("pre-refine", JSON.stringify({ ...pre, crossings: pre.crossings }));
+console.log("pre-refine", JSON.stringify({ ...pre, driftAll: undefined }));
 if (flag("refine")) {
   const gens = Number(arg("gens", "60"));
   const res = await page.evaluate(
@@ -81,7 +99,7 @@ if (flag("refine")) {
   state = res.state;
   delete state.__g;
   writeFileSync(statePath, JSON.stringify(state));
-  console.log("refined", JSON.stringify(res.terms));
+  console.log("refined", JSON.stringify({ ...res.terms, driftAll: undefined }));
 }
 const terms = await page.evaluate((s) => window.__s2c.evaluate(s, 1), state);
 const imgs = await page.evaluate((s) => window.__s2c.images(s), state);
@@ -96,7 +114,6 @@ console.log("final", JSON.stringify({ iou: terms.iou, darkIoU: terms.darkIoU, cr
 if (flag("write-pose")) writePose(pose);
 await browser.close();
 
-const r4 = (v) => (Math.round(v * 10000) / 10000).toString();
 function writePose(points) {
   const file = path.join(root, "lib/ribbon/poses/ak-hero.json");
   const j = JSON.parse(readFileSync(file, "utf8"));

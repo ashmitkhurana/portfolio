@@ -9,7 +9,7 @@ import { QUALITY_TIERS } from "@/lib/ribbon/settings";
 import { findAnchor, measureAnchor, measureInk } from "@/lib/ribbon/poses/anchors";
 import type { PoseStageApi, StageLayout, StageMessage, StageRings } from "./stageApi";
 
-const CONTROL_POINTS = 96;
+const CONTROL_POINTS = 128;
 
 function post(type: StageMessage["type"]) {
   const msg: StageMessage = { source: "pose-stage", type };

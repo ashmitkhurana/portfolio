@@ -131,7 +131,7 @@ export interface HairpinReport {
   name: string;
   at: number;
   ring: number;
-  /** turn between the tangents 3 widths before / after the tip, radians */
+  /** turn between the tangents HAIRPIN_WINDOW_W widths before / after the tip, radians */
   turn: number;
   /** tightest centreline radius of curvature near the tip, in ribbon widths */
   radiusW: number;
@@ -139,6 +139,13 @@ export interface HairpinReport {
   /** turn >= HAIRPIN_TURN: left to the curvature frames (a flat fold is not built) */
   rolled: boolean;
 }
+
+/**
+ * The turn of a rolled hairpin is measured between the tangents this many band widths before / after the tip. The band is
+ * wide (~1.5 x the engine default on the AK desktop pose, ~117 px at 1672), so +-3 widths reaches past the neighbouring
+ * bends; +-2 widths stays on the two legs.
+ */
+export const HAIRPIN_WINDOW_W = 2;
 
 export class RibbonGeometry {
   geometry: THREE.BufferGeometry;
@@ -270,7 +277,7 @@ export class RibbonGeometry {
     this.hairpins = list ? [...list].sort((a, b) => a.at - b.at) : [];
   }
 
-  /** measure each rolled hairpin on the strip as built: turn across +-3 widths and the tightest centreline radius (in widths) */
+  /** measure each rolled hairpin on the strip as built: turn across +-HAIRPIN_WINDOW_W widths and the tightest centreline radius (in widths) */
   private measureHairpins(M: number, E: number, ds: number): void {
     const out = this.hairpinReports;
     out.length = 0;
@@ -279,7 +286,7 @@ export class RibbonGeometry {
     for (const h of this.hairpins) {
       const c = Math.round(Math.min(Math.max(h.at, 0), 1) * (M - 1));
       const W = this.params.width * this.rWidth[E + c]; // the band's width here (the pose scales it per point)
-      const z = Math.max(2, Math.round((3 * W) / Math.max(ds, 1e-3)));
+      const z = Math.max(2, Math.round((HAIRPIN_WINDOW_W * W) / Math.max(ds, 1e-3)));
       const a = E + Math.max(0, c - z);
       const b = E + Math.min(M - 1, c + z);
       const d = tan[a * 3] * tan[b * 3] + tan[a * 3 + 1] * tan[b * 3 + 1] + tan[a * 3 + 2] * tan[b * 3 + 2];
