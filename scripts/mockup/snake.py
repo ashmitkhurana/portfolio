@@ -104,6 +104,29 @@ def apply_hand(E1, E2, Q, name, spec, N0):
 
 
 
+def curv_osc(P, u, W, amp_min=0.25):
+    """arc positions (u) of curvature lobes shorter than 0.5 W with |kappa| W > amp_min between two curved lobes (wavelength < 1 W)"""
+    n = int(u[-1] / 2.0)
+    g = np.linspace(0, u[-1], n)
+    Q = np.stack([np.interp(g, u, P[:, 0]), np.interp(g, u, P[:, 1])], 1)
+    Q = np.stack([ndi.gaussian_filter1d(Q[:, c], 1.5) for c in (0, 1)], 1)
+    d1 = np.gradient(Q, axis=0); d2 = np.gradient(d1, axis=0)
+    k = (d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]) / np.maximum(np.hypot(*d1.T), 1e-6) ** 3 * W
+    sg = np.sign(np.where(np.abs(k) < 0.02, 0, k))
+    lobes = []; a = 0
+    for i in range(1, n + 1):
+        if i == n or sg[i] != sg[a]:
+            if sg[a] != 0:
+                lobes.append((a, i - 1, np.abs(k[a:i]).max()))
+            a = i
+    out = []
+    for j in range(1, len(lobes) - 1):
+        a_, b_, amp = lobes[j]
+        if (b_ - a_ + 1) * 2.0 < 0.5 * W and amp > amp_min and lobes[j - 1][2] > amp_min and lobes[j + 1][2] > amp_min and amp < 3.0:
+            out.append(float(g[(a_ + b_) // 2]))
+    return out
+
+
 def resample2(P, step=2.0):
     # index-based doubling: both edges (and the centre) must stay paired sample by sample
     n = len(P)
@@ -261,27 +284,58 @@ def main():
             wz.append((w_["i0"] * N / N0 * 2.0, w_["i1"] * N / N0 * 2.0))
     for lo_, hi_ in HAND_WINDOWS:
         wz.append((lo_ * 2.0, hi_ * 2.0))
-    KS = float(os.environ.get('KNOT_OUT', '1.0')); KD = float(os.environ.get('KNOT_WIN', '0.4'))
-    knots = list(np.arange(KS * W, tt[-1] - 0.5 * W, KS * W))
-    dense = []
-    for lo_, hi_ in wz:
-        dense += list(np.arange(lo_, hi_, KD * W))
-        knots = [k for k in knots if not (lo_ - 0.2 * W < k < hi_ + 0.2 * W)]
-    knots = np.array(sorted(set(np.round(knots + dense, 2))))
-    knots = knots[(knots > tt[0] + 8) & (knots < tt[-1] - 8)]
-    def rmin_of_t(q):
-        r = np.full(len(q), 0.1 * W)
-        for lo_, hi_ in wz:
-            r[(q >= lo_) & (q <= hi_)] = 0.12 * W
-        return r
+    KS = float(os.environ.get('KNOT_OUT', '0.8')); KD = float(os.environ.get('KNOT_WIN', '0.4'))
+    E1raw, E2raw = E1.copy(), E2.copy()
+    widx = []
+    for w_ in E["turn_windows"]:
+        if "i0" in w_:
+            widx.append((int(w_["i0"] * N / N0), int(w_["i1"] * N / N0)))
+    widx += [(int(l_), int(h_)) for l_, h_ in HAND_WINDOWS]
     sm = []
     for Ee in (E1, E2):
-        P2 = np.stack([LSQUnivariateSpline(tt, Ee[:, c], knots, k=3)(tt) for c in (0, 1)], 1)
-        P2, r0, r1, itn = ed.limit_curvature(P2, tt, rmin_of_t, dmax=SMOOTH_DMAX)
+        # per-edge chord-length parameter: knots are spaced by TRUE arc length of this edge (0.8 W straight-ish, 0.4 W in fold / hand windows)
+        u = np.r_[0, np.cumsum(np.hypot(*np.diff(Ee, axis=0).T))]
+        wz_u = [(u[min(l_, N - 1)], u[min(h_, N - 1)]) for l_, h_ in widx]
+        knots = list(np.arange(KS * W, u[-1] - 0.5 * W, KS * W))
+        dense = []
+        for lo_, hi_ in wz_u:
+            dense += list(np.arange(lo_, hi_, KD * W))
+            knots = [k for k in knots if not (lo_ - 0.2 * W < k < hi_ + 0.2 * W)]
+        knots = np.array(sorted(set(np.round(knots + dense, 2))))
+        knots = knots[(knots > u[0] + 8) & (knots < u[-1] - 8)]
+        kk = [knots[0]]
+        for k_ in knots[1:]:
+            if k_ - kk[-1] >= 0.25 * W:
+                kk.append(k_)
+        knots = np.array(kk)
+        # one least-squares cubic spline over the whole edge: C2 across every span join, bridge and fold window by construction;
+        # wherever the curvature still oscillates (lobe < 0.5 W) the knots within 0.6 W are thinned (looser fit there: smoothness wins, up to ~3+ px)
+        TH = 0.3
+        for rnd in range(10):
+            TH = min(0.3 + 0.05 * rnd, 0.6)
+            if rnd == 0:
+                pass
+            P2 = np.stack([LSQUnivariateSpline(u, Ee[:, c], knots, k=3)(u) for c in (0, 1)], 1)
+            offs_u = curv_osc(P2, u, W)
+            if not offs_u:
+                break
+            keep = np.ones(len(knots), bool)
+            for uo in offs_u:
+                keep &= np.abs(knots - uo) > TH * W
+            if keep.sum() < 4:
+                break
+            knots = knots[keep]
+        print("  edge fit: %d knots, %d residual oscillations" % (len(knots), len(offs_u)))
         sm.append(P2)
-    dev = [np.hypot(*(a - b).T) for a, b in zip(sm, (E1, E2))]
-    print("smoothing: deviation from snapped edges mean %.2f max %.2f px" % (np.mean([d.mean() for d in dev]), max(d.max() for d in dev)))
+    dev = [np.hypot(*(a - b).T) for a, b in zip(sm, (E1raw, E2raw))]
+    print("smoothing: deviation from snapped edges mean %.2f p99 %.2f max %.2f px (knots %d)" % (np.mean([d.mean() for d in dev]), np.percentile(np.r_[dev[0], dev[1]], 99), max(d.max() for d in dev), len(knots)))
+    for nm_, d_ in zip(("edge1", "edge2"), dev):
+        idx_ = np.nonzero(d_ > 3.0)[0]
+        if len(idx_):
+            runs_ = ed.spans(d_ > 3.0)
+            print("  %s deviation > 3 px at (screen, max px):" % nm_, [(np.round(sm[0 if nm_ == "edge1" else 1][(a_ + b_) // 2]).astype(int).tolist(), round(float(d_[a_:b_ + 1].max()), 1)) for a_, b_ in runs_][:12])
     E1, E2 = sm
+    np.save(R4 + "/E1raw.npy", E1raw); np.save(R4 + "/E2raw.npy", E2raw)
     # back to the 4 px sampling of edges.json (every 2nd), keep every other sample
     out = dict(E)
     k = np.round(np.linspace(0, N - 1, N0)).astype(int)
