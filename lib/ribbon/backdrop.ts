@@ -38,6 +38,7 @@ export class Backdrop {
         uGlowRadius: { value: 0.5 },
         uGrain: { value: 0.03 },
         uTime: { value: 0 },
+        uGrainFps: { value: 12 },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
@@ -57,6 +58,7 @@ export class Backdrop {
         uniform float uGlowRadius;
         uniform float uGrain;
         uniform float uTime;
+        uniform float uGrainFps;
         varying vec2 vUv;
         float bdHash(uvec2 p, uint seed) {
           uint h = p.x * 1664525u + p.y * 1013904223u + seed * 374761393u;
@@ -71,9 +73,10 @@ export class Backdrop {
           // tight bounce under the ribbon (gaussian, elliptical: wider than tall)
           vec2 g = (vUv - uGlowPos) * vec2(uAspect, 1.0) / vec2(max(uGlowRadius, 1e-3) * 1.6, max(uGlowRadius, 1e-3));
           col += uGlowColor * uGlowK * exp(-dot(g, g));
-          // dither (kills 8-bit banding) + film grain (background only, ~12 re-seeds/sec)
+          // dither (kills 8-bit banding) + film grain (background only, uGrainFps re-seeds/sec;
+          // 0 = one static pattern: the same pixels every frame)
           uvec2 q = uvec2(gl_FragCoord.xy);
-          float f = floor(uTime * 12.0);
+          float f = uGrainFps > 0.0 ? floor(uTime * uGrainFps) : 0.0;
           float g1 = bdHash(q, 0u);
           float g2 = bdHash(q, uint(f) + 1u);
           float g3 = bdHash(q, uint(f) + 977u);
@@ -124,6 +127,7 @@ export class Backdrop {
     u.uGlowK.value = sh.glow ? sh.glowIntensity : 0;
     u.uGlowRadius.value = sh.glowRadius;
     u.uGrain.value = bg.grain;
+    u.uGrainFps.value = bg.grainFps;
 
     this.floor.visible = sh.floor;
     this.floorMat.opacity = sh.floorOpacity;

@@ -3,7 +3,7 @@
  * edits it live; production uses DEFAULT_SETTINGS as-is.
  */
 
-import { IDLE_PRESETS } from "./sim";
+import { IDLE_PRESETS, type SimMode } from "./sim";
 
 export type ToneMapName =
   | "AgX"
@@ -196,8 +196,12 @@ export interface RibbonSettings {
     gradient: number;
     /** film grain on the background only (display-referred amplitude, 0..0.1) */
     grain: number;
+    /** grain re-seeds per second (0 = a static pattern, no animation: the site) */
+    grainFps: number;
   };
   sim: {
+    /** `frozen`: the target pose exactly (no springs, no noise, no idle); `live`: springs + idle */
+    mode: SimMode;
     stiffness: number;
     damping: number;
     /** 0..1 stiffness falloff towards the tail (follow-through) */
@@ -441,9 +445,11 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     vignette: 0,
     gradient: 0,
     grain: 0.03,
+    grainFps: 12,
   },
   // calm idle (see IDLE_PRESETS in sim.ts): gentle breathing/drift, no twist churn
   sim: {
+    mode: "live",
     stiffness: 38,
     damping: 1.0,
     followLag: 0.45,

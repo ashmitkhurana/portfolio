@@ -15,10 +15,11 @@
  *   1. static   (this file, before importing three): WebGL2 probe on a throwaway
  *               canvas, renderer string, deviceMemory, hardwareConcurrency,
  *               saveData, forced-colors, OffscreenCanvas weave support.
- *   2. cache    last locked tier from localStorage (versioned, 14 day TTL).
- *   3. runtime  `TierGovernor`: the first ~1.5 s of frames pick the tier and LOCK
- *               it; afterwards only sustained slowness may step it DOWN. Never up.
- *   4. override `?tier=0..4` (debug; skips cache, probe and downgrades).
+ *   2. cache    last tier a catastrophic downgrade settled on (versioned, 14 day TTL).
+ *   3. runtime  `TierGovernor`: nothing is re-decided after first paint (a visible quality
+ *               change is a glitch). Only sustained catastrophic slowness (< 20 fps for 5 s)
+ *               steps the tier DOWN, crossfaded by the engine. Never up.
+ *   4. override `?tier=0..4` (debug; skips cache and the watchdog).
  */
 
 export type Tier = 0 | 1 | 2 | 3 | 4;
@@ -50,13 +51,13 @@ export interface TierDecision {
   ceiling: Tier;
   reason: string;
   source: TierSource;
-  /** the runtime probe has nothing to decide (override, or a cached locked tier) */
+  /** informational: the decision came from an override or a cached verdict (no static signals were weighed) */
   locked: boolean;
   signals: CapabilitySignals;
 }
 
 const CACHE_KEY = "ribbon:tier";
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3; // 3: the 1.5 s runtime probe is gone (its cached verdicts must not stick)
 const CACHE_TTL_MS = 14 * 24 * 3600 * 1000;
 const CACHE_TTL_POSTER_MS = 24 * 3600 * 1000;
 
@@ -326,125 +327,65 @@ export interface FrameSample {
   work: number;
 }
 
+/**
+ * The tier is decided ONCE, before the first live frame (static signals + cache, see `decideTier`),
+ * and never re-decided: a visible quality change after first paint reads as a glitch. The only
+ * runtime action left is the catastrophic one: frames slower than 50 ms (< 20 fps) for 5 s steps
+ * one tier down (crossfaded by the engine), and at the lowest live tier gives up live rendering
+ * (posters, crossfaded).
+ */
 export const GOVERNOR = {
   /** frames ignored at the start (shader compilation, first uploads) */
-  warmupFrames: 14,
-  /** length of one probe window, ms of accumulated frame time */
-  probeMs: 1500,
-  /** probe verdict: p75 frame interval above this (~ <42 fps) means weak */
-  probeSlowDt: 24,
-  /**
-   * probe verdict: median per-frame sim + geometry CPU time (pure JS, no GL sync)
-   * above this means a slow device. ~0.8 ms on a fast desktop (900 rings). This is
-   * only a backstop for devices the static CPU benchmark rated wrongly: 3.5 ms is
-   * ~4x a fast desktop at 600 rings.
-   */
-  probeSlowWork: 3.5,
-  /** sustained slowness (EMA of dt) that steps a tier down after `downMs` */
-  downDt: 30,
-  /** EMA below this resets the slow timer (hysteresis) */
-  recoverDt: 25,
+  warmupFrames: 30,
+  /** sustained slowness (EMA of the frame interval) above this ms = < 20 fps ... */
+  downDt: 50,
+  /** ... EMA below this resets the slow timer (hysteresis) */
+  recoverDt: 40,
+  /** ... for this long */
   downMs: 5000,
-  /** at the lowest live tier, this much slowness gives up live rendering */
-  giveUpDt: 48,
-  giveUpMs: 7000,
   /** quiet time after a step before the next may happen */
   cooldownMs: 8000,
 } as const;
 
-export type GovernorEvent =
-  | { type: "lock"; tier: Tier; reason: string }
-  | { type: "down"; tier: Tier; reason: string };
+export type GovernorEvent = { type: "down"; tier: Tier; reason: string };
 
 /**
- * Picks the tier from measured frames, then locks it. After the lock only
- * sustained slowness steps it down (one tier at a time; T2 -> T1 = give up).
- * Frames must be fed only when the loop runs at full rate (not when the idle
- * 30 fps cap or reduced-motion pauses are active), and never while hidden.
+ * Catastrophic-slowness watchdog. Frames must be fed only when the loop runs at full rate (not
+ * when the idle 30 fps cap or reduced-motion pauses are active), and never while hidden.
  */
 export class TierGovernor {
-  private phase: "probe" | "monitor" = "probe";
   private frames = 0;
-  private dts: number[] = [];
-  private works: number[] = [];
-  private acc = 0;
   private ema = 16.7;
   private slowFor = 0;
   private cooldown = 0;
 
-  constructor(
-    public tier: Tier,
-    locked: boolean,
-  ) {
-    if (locked) this.phase = "monitor";
-    this.cooldown = GOVERNOR.probeMs;
-  }
+  constructor(public tier: Tier) {}
 
   /** drop partial windows after a pause (hidden tab, bfcache, resize hitch) */
   resetWindow(): void {
     this.frames = 0;
-    this.dts.length = 0;
-    this.works.length = 0;
-    this.acc = 0;
+    this.ema = 16.7;
     this.slowFor = 0;
   }
 
   push(s: FrameSample): GovernorEvent | null {
     if (s.dt > 250) return null; // tab switch / debugger, not a measurement
-    if (this.phase === "probe") return this.probe(s);
-    return this.monitor(s);
-  }
-
-  private probe(s: FrameSample): GovernorEvent | null {
     if (++this.frames <= GOVERNOR.warmupFrames) return null;
-    this.dts.push(s.dt);
-    this.works.push(s.work);
-    this.acc += s.dt;
-    if (this.acc < GOVERNOR.probeMs || this.dts.length < 20) return null;
-    const p75 = quantile(this.dts, 0.75);
-    const work = quantile(this.works, 0.5);
-    const slow = p75 > GOVERNOR.probeSlowDt || work > GOVERNOR.probeSlowWork;
-    const detail = `p75 ${p75.toFixed(1)} ms, cpu ${work.toFixed(2)} ms`;
-    this.resetWindow();
-    if (slow && this.tier > 2) {
-      this.tier = (this.tier - 1) as Tier;
-      // run another window at the lower tier before locking
-      return { type: "down", tier: this.tier, reason: `probe slow (${detail})` };
-    }
-    this.phase = "monitor";
-    this.cooldown = GOVERNOR.cooldownMs;
-    this.ema = Math.min(this.ema, 16.7);
-    return {
-      type: "lock",
-      tier: this.tier,
-      reason: slow ? `probe slow at lowest live tier (${detail})` : `probe ok (${detail})`,
-    };
-  }
-
-  private monitor(s: FrameSample): GovernorEvent | null {
     this.ema += (s.dt - this.ema) * 0.05;
     if (this.cooldown > 0) {
       this.cooldown -= s.dt;
       return null;
     }
-    const lowest = this.tier <= 2;
-    const limit = lowest ? GOVERNOR.giveUpDt : GOVERNOR.downDt;
-    const need = lowest ? GOVERNOR.giveUpMs : GOVERNOR.downMs;
-    if (this.ema > limit) {
+    if (this.ema > GOVERNOR.downDt) {
       this.slowFor += s.dt;
     } else if (this.ema < GOVERNOR.recoverDt) {
       this.slowFor = 0;
     }
-    if (this.slowFor < need) return null;
+    if (this.slowFor < GOVERNOR.downMs) return null;
     this.slowFor = 0;
     this.cooldown = GOVERNOR.cooldownMs;
-    const reason = `sustained slowness (${this.ema.toFixed(1)} ms/frame)`;
+    const reason = `sustained slowness (${this.ema.toFixed(1)} ms/frame for ${GOVERNOR.downMs / 1000} s)`;
     this.tier = (this.tier - 1) as Tier;
     return { type: "down", tier: this.tier, reason };
   }
-}
-
-function quantile(a: number[], q: number): number {
-  const s = [...a].sort((x, y) => x - y);
-  return s[Math.min(s.length - 1, Math.floor(q * s.length))];
 }

@@ -36,6 +36,7 @@ for (const [w, h] of sizes) {
         requestAnimationFrame(() =>
           res({
             smooth: e.ribbon.smoothnessReport(),
+            edge: e.ribbon.edgeReport(e.camera, e.width, e.height),
             folds: e.ribbon.foldReports.map((f) => ({ at: f.at, built: f.built, theta: f.theta, mismatch: f.mismatch, issues: f.issues })),
           }),
         ),
@@ -50,9 +51,12 @@ for (const [w, h] of sizes) {
     if (!f.built) lines.push(`fold at ${f.at.toFixed(3)} not built`);
     for (const i of f.issues) lines.push(`fold at ${f.at.toFixed(3)} ${i.level}: ${i.text}`);
   }
-  const bad = !s.ok || r.folds.length !== 3 || r.folds.some((f) => !f.built || f.issues.some((i) => i.level === "error"));
+  // projected band-edge smoothness (notches the eye sees); the phone pose has a known tight hairpin (warn only below 768 px)
+  const ed = r.edge;
+  if (!ed.ok) lines.push(`edge kink ${ed.kink.toFixed(1)} > ${ed.limit} at ring ${ed.kinkAt} (${ed.edge} edge)${w < 768 ? " [warning: phone pose]" : ""}`);
+  const bad = (!ed.ok && w >= 768) || !s.ok || r.folds.length !== 3 || r.folds.some((f) => !f.built || f.issues.some((i) => i.level === "error"));
   if (bad) failed = true;
-  console.log(`${bad ? "FAIL" : "ok  "} ${w}x${h}  curvature ${s.curvature}  roll ${s.roll}  rate ${s.rollRate.toFixed(2)}  folds ${r.folds.length}`);
+  console.log(`${bad ? "FAIL" : "ok  "} ${w}x${h}  curvature ${s.curvature}  roll ${s.roll}  rate ${s.rollRate.toFixed(2)}  folds ${r.folds.length}  edge kink ${ed.kink.toFixed(1)} (max ${ed.limit})  jerk ${ed.jerk.toFixed(0)}`);
   for (const l of lines) console.log("     " + l);
   await page.context().close();
 }

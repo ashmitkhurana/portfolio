@@ -9,6 +9,7 @@ import {
   type Tier,
   type TierDecision,
 } from "@/lib/ribbon/capability";
+import { rlog } from "@/lib/ribbon/debugLog";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import type { DeepPartial, RibbonSettings } from "@/lib/ribbon/settings";
 import { PosterPicture, RibbonPoster } from "./RibbonPoster";
@@ -143,6 +144,7 @@ export function RibbonStage({
     const capture = !lab && url.get("capture") === "1";
 
     const publish = (p: Phase) => {
+      rlog("phase", { phase: p, tier: decision?.tier ?? null });
       window.__ribbonState = {
         tier: decision?.tier ?? null,
         reason: decision?.reason ?? "",
@@ -191,7 +193,8 @@ export function RibbonStage({
     const onTier = (ev: GovernorEvent) => {
       if (!decision) return;
       decision = { ...decision, tier: ev.tier, reason: ev.reason };
-      logTier(ev.tier, ev.reason, ev.type === "lock" ? " locked" : " downgraded");
+      rlog("tier-event", ev);
+      logTier(ev.tier, ev.reason, " downgraded");
       if (decision.source !== "override") writeTierCache(ev.tier);
       publish("live");
     };
@@ -199,10 +202,11 @@ export function RibbonStage({
     const start = async () => {
       let mod: typeof import("@/lib/ribbon/engine");
       let tier: 2 | 3 | 4 | null = null;
-      let locked = true;
+      let watchdog = false;
 
       if (!lab) {
         decision = decideTier();
+        rlog("tier-decision", { tier: decision.tier, source: decision.source, locked: decision.locked, reason: decision.reason });
         logTier(decision.tier, decision.reason, ` [${decision.source}]`);
         publish("pending");
         if (decision.tier < 2) {
@@ -213,7 +217,9 @@ export function RibbonStage({
           return;
         }
         tier = decision.tier as 2 | 3 | 4;
-        locked = decision.locked;
+        // the tier is final before the first live frame; only the catastrophic-slowness watchdog may
+        // ever lower it (never for a `?tier=` override)
+        watchdog = decision.source !== "override";
       }
 
       if (!capture) {
@@ -248,7 +254,10 @@ export function RibbonStage({
           settings: settingsRef.current,
           controlPoints: controlPointsRef.current,
           tier,
-          tierLocked: locked,
+          watchdog,
+          // alive (frames are being produced): the 4 s deadline is met
+          onRendering: () => window.clearTimeout(deadline),
+          // fully ready (shadow map, contact catcher and environment rendered): fade the canvases in
           onFirstFrame: () => {
             if (cancelled || settled) return;
             settled = true;

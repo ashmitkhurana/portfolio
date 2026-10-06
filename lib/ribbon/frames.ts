@@ -385,6 +385,13 @@ export interface CurvatureFrameOptions {
   maxRate: number;
   /** fastest change of the authored per-point roll (`twist`), radians per width of arc length (see `limitTwistRate`) */
   twistRate: number;
+  /**
+   * arc length (in widths) over which the finished roll is low-passed (a zero-phase triangular filter: half
+   * width on either side). The roll follows its target at a limited rate and REVERSES where its nearest
+   * branch flips; either leaves a corner in theta(s) that shows as a notch on the band edge. The low-pass
+   * rounds those corners without changing which way (which face) the band rolls.
+   */
+  rollSmooth: number;
 }
 
 export const DEFAULT_CURVATURE_FRAME: CurvatureFrameOptions = {
@@ -394,6 +401,7 @@ export const DEFAULT_CURVATURE_FRAME: CurvatureFrameOptions = {
   radiusNone: 16,
   maxRate: 0.8,
   twistRate: 1.5,
+  rollSmooth: 0.5,
 };
 
 const wrapHalfPi = (a: number): number => {
@@ -423,10 +431,14 @@ export class CurvatureFramer {
   private kv = new Float32Array(0);
   private tmp = new Float32Array(0);
   private pre = new Float64Array(0);
+  private th = new Float32Array(0);
+  private th2 = new Float32Array(0);
 
   private ensure(m: number): void {
     if (this.cap >= m) return;
     this.cap = m;
+    this.th = new Float32Array(m);
+    this.th2 = new Float32Array(m);
     this.kv = new Float32Array(m * 3);
     this.tmp = new Float32Array(m * 3);
     this.pre = new Float64Array((m + 1) * 3);
@@ -501,6 +513,7 @@ export class CurvatureFramer {
     const r1 = Math.max(opts.radiusNone * W, r0 + 1);
     const maxStep = (opts.maxRate * ds) / W;
     let theta = 0;
+    const thArr = this.th;
     for (let i = 0; i < count; i++) {
       const o = (offset + i) * 3;
       const tx = tan[o];
@@ -549,19 +562,44 @@ export class CurvatureFramer {
         else if (d < -maxStep) d = -maxStep;
         theta += d;
       }
-      if (theta !== 0) {
-        const nx = outN0[o];
-        const ny = outN0[o + 1];
-        const nz = outN0[o + 2];
-        const bx = ty * nz - tz * ny;
-        const by = tz * nx - tx * nz;
-        const bz = tx * ny - ty * nx;
-        const c = Math.cos(theta);
-        const s = Math.sin(theta);
-        outN0[o] = nx * c + bx * s;
-        outN0[o + 1] = ny * c + by * s;
-        outN0[o + 2] = nz * c + bz * s;
-      }
+      thArr[i] = theta;
+    }
+
+    // 5. low-pass the roll along the arc (zero phase: two box passes = a triangular kernel), then apply it
+    const hs = Math.round((opts.rollSmooth * opts.width) / (2 * ds));
+    if (hs >= 1) {
+      this.boxSmooth(thArr, this.th2, count, hs);
+      this.boxSmooth(this.th2, thArr, count, hs);
+    }
+    for (let i = 0; i < count; i++) {
+      const th = thArr[i];
+      if (th === 0) continue;
+      const o = (offset + i) * 3;
+      const tx = tan[o];
+      const ty = tan[o + 1];
+      const tz = tan[o + 2];
+      const nx = outN0[o];
+      const ny = outN0[o + 1];
+      const nz = outN0[o + 2];
+      const bx = ty * nz - tz * ny;
+      const by = tz * nx - tx * nz;
+      const bz = tx * ny - ty * nx;
+      const c = Math.cos(th);
+      const s = Math.sin(th);
+      outN0[o] = nx * c + bx * s;
+      outN0[o + 1] = ny * c + by * s;
+      outN0[o + 2] = nz * c + bz * s;
+    }
+  }
+
+  /** box blur of a scalar per ring (prefix sums); the window shrinks symmetrically at the ends, so an end keeps its value */
+  private boxSmooth(src: Float32Array, dst: Float32Array, m: number, h: number): void {
+    const p = this.pre;
+    p[0] = 0;
+    for (let i = 0; i < m; i++) p[i + 1] = p[i] + src[i];
+    for (let i = 0; i < m; i++) {
+      const k = Math.min(h, i, m - 1 - i);
+      dst[i] = (p[i + k + 1] - p[i - k]) / (2 * k + 1);
     }
   }
 }

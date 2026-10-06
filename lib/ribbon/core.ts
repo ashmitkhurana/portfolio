@@ -20,6 +20,7 @@ import { Backdrop, BACKDROP_LAYER } from "./backdrop";
 import { EnvironmentBuilder } from "./environment";
 import { temperatureColor } from "./color";
 import { GpuTimer } from "./gpuTimer";
+import { rlog, ribbonLogFrame } from "./debugLog";
 import { RibbonGeometry } from "./geometry";
 import {
   applyMaterialSettings,
@@ -142,6 +143,9 @@ export class RibbonCore {
   private lightRadius = 0;
   private frontWasActive = false;
   private forceShadow = true;
+  private shadowRendered = false;
+  private catcherRendered = false;
+  private contactWanted = false;
   // motion-gated shadow map / catcher (see frame())
   private shadowSig: Float32Array | null = null;
   private shadowLight = new THREE.Vector4(NaN, 0, 0, 0);
@@ -153,6 +157,7 @@ export class RibbonCore {
   private frameIndex = 0;
   private glowX = 0.6;
   private glowY = 0.2;
+  private glowInit = false;
   private envYaw = 0;
   private disposed = false;
 
@@ -279,6 +284,7 @@ export class RibbonCore {
   // ---- public API -------------------------------------------------------
 
   setPose(pose: RibbonPose, snap = false): void {
+    rlog("sim-pose", { snap, points: pose.points.length, folds: pose.folds?.length ?? 0 });
     this.ribbon.frameMode = pose.orientation ?? "rmf";
     this.ribbon.setFolds(pose.folds);
     this.sim.setTargetPose(pose.points, pose.twists, pose.widths, snap);
@@ -289,6 +295,7 @@ export class RibbonCore {
   }
 
   patchSettings(patch: DeepPartial<RibbonSettings>): void {
+    rlog("settings-patch", patch);
     assignSettings(
       this.settings as unknown as Record<string, unknown>,
       patch as Record<string, unknown>,
@@ -304,6 +311,13 @@ export class RibbonCore {
   setSize(cssW: number, cssH: number, pixelRatio: number): void {
     this.width = Math.max(cssW, 1);
     this.height = Math.max(cssH, 1);
+    rlog("core-size", {
+      css: [this.width, this.height],
+      pixelRatio,
+      prev: this.pixelRatio,
+      rings: this.settings.geometry.rings,
+      samples: this.applied.samples,
+    });
     this.pixelRatio = pixelRatio;
     const r = this.renderer;
     r.setPixelRatio(pixelRatio);
@@ -346,6 +360,7 @@ export class RibbonCore {
 
   /** Re-apply `settings` after mutating them (diffs expensive subsystems). */
   applySettings(force = false): void {
+    rlog("apply-settings", { force });
     const s = this.settings;
     this.forceShadow = true;
     this.catcherDirty = true;
@@ -401,6 +416,7 @@ export class RibbonCore {
     sh.bias = s.shadows.bias;
     sh.normalBias = s.shadows.normalBias;
     if (sh.mapSize.x !== s.shadows.mapSize) {
+      rlog("shadow-map-recreate", { size: s.shadows.mapSize });
       sh.mapSize.set(s.shadows.mapSize, s.shadows.mapSize);
       sh.map?.dispose();
       sh.map = null;
@@ -431,6 +447,7 @@ export class RibbonCore {
     const s = this.settings;
     const st = this.stats;
     const r = this.renderer;
+    ribbonLogFrame(this.frameIndex);
     const ema = (prev: number, v: number) => prev + (v - prev) * 0.08;
 
     let t = performance.now();
@@ -456,22 +473,32 @@ export class RibbonCore {
     this.backdrop.setTime(now / 1000);
     this.compBackU.uTime.value = now / 1000;
 
-    // shadow map: every N frames, but only once the ribbon moved a fraction of a
-    // shadow-map texel (or the light frustum / settings changed)
+    // shadow map: every N frames. A FROZEN pose renders it once and keeps it (re-render only on an
+    // exact change of the geometry, the light frustum or the settings: no threshold, nothing that
+    // can toggle). A live ribbon re-renders it every time (threshold 0, the site) or once it moved
+    // a fraction of a shadow-map texel (lab).
     const every = Math.max(1, Math.floor(s.shadows.updateEvery));
+    const frozen = this.sim.params.mode === "frozen";
     let shadowNow = this.forceShadow;
     if (!shadowNow && this.frameIndex % every === 0) {
       const lc = this.lightCenter;
       const sl = this.shadowLight;
       const thr = s.shadows.moveThreshold;
-      if (thr <= 0 || sl.x !== lc.x || sl.y !== lc.y || sl.z !== lc.z || sl.w !== this.lightRadius) {
+      const delta = this.ribbon.signatureDelta(this.shadowSig);
+      if (sl.x !== lc.x || sl.y !== lc.y || sl.z !== lc.z || sl.w !== this.lightRadius) {
+        shadowNow = true;
+      } else if (frozen) {
+        shadowNow = delta > 0;
+      } else if (thr <= 0) {
         shadowNow = true;
       } else {
         const texel = (2 * this.lightRadius) / s.shadows.mapSize;
-        shadowNow = this.ribbon.signatureDelta(this.shadowSig) > thr * texel;
+        shadowNow = delta > thr * texel;
       }
     }
     if (shadowNow) {
+      this.shadowRendered = true;
+      rlog("shadow-render", { forced: this.forceShadow });
       this.shadowSig = this.ribbon.snapshotSignature(this.shadowSig);
       this.shadowLight.set(this.lightCenter.x, this.lightCenter.y, this.lightCenter.z, this.lightRadius);
     }
@@ -481,6 +508,7 @@ export class RibbonCore {
     const measure = s.debug.hud && s.debug.gpuTimer;
     const frontActive = proxies.count > 0 && this.ribbon.maxZ > proxies.minDepth && this.weave;
     const contactOn = s.contact.enabled && frontActive;
+    this.contactWanted = contactOn;
     const bloomOn = s.post.bloom && this.rtBloomA !== null && this.rtBloomB !== null;
     r.info.reset();
 
@@ -524,15 +552,18 @@ export class RibbonCore {
         this.catcherDirty = true;
       }
       const thr = s.contact.moveThreshold;
+      // same rule as the shadow map: frozen = once + exact change; live = every frame (0) or by threshold
+      const cdelta = this.ribbon.signatureDelta(this.catcherSig);
       if (
         this.catcherDirty ||
         !this.catcherValid ||
-        thr <= 0 ||
-        this.ribbon.signatureDelta(this.catcherSig) > thr
+        (frozen ? cdelta > 0 : thr <= 0 || cdelta > thr)
       ) {
         this.catcherDirty = false;
         this.catcherValid = true;
+        this.catcherRendered = true;
         this.catcherSig = this.ribbon.snapshotSignature(this.catcherSig);
+        rlog("catcher-render");
         this.stageBegin("catcher", measure);
         this.renderCatcher();
         this.stageEnd("catcher", measure);
@@ -688,6 +719,15 @@ export class RibbonCore {
     }
   }
 
+  /**
+   * Everything a first visible frame needs has been rendered at least once: the shadow map, the
+   * contact catcher (when this layout uses it) and the environment. The adapter reveals the live
+   * canvases only then.
+   */
+  get ready(): boolean {
+    return this.shadowRendered && this.scene.environment !== null && (!this.contactWanted || this.catcherRendered);
+  }
+
   /** MSAA samples currently in use on the ribbon target */
   get effectiveSamples(): number {
     return this.applied.samples;
@@ -698,6 +738,7 @@ export class RibbonCore {
     const p = this.settings.post;
     const n = this.pixelRatio >= 1.75 && p.samplesRetina >= 0 ? p.samplesRetina : p.samples;
     if (this.applied.samples === n) return;
+    rlog("msaa-recreate", { samples: n, prev: this.applied.samples, pixelRatio: this.pixelRatio });
     this.applied.samples = n;
     this.rtRibbon.samples = n;
     this.rtRibbon.dispose();
@@ -710,6 +751,7 @@ export class RibbonCore {
 
   private rebuildEnv(): void {
     if (this.disposed) return;
+    rlog("env-pmrem");
     this.scene.environment = this.env.build(this.settings);
   }
 
@@ -905,7 +947,9 @@ export class RibbonCore {
     by -= this.settings.shadows.glowDrop;
     const ux = (bx + hw) / this.width;
     const uy = (by + hh) / this.height;
-    const k = 1 - Math.exp(-dt * 3);
+    // a frozen pose has a constant target (and the very first frame has no history): snap, don't glide
+    const k = this.glowInit && this.sim.params.mode !== "frozen" ? 1 - Math.exp(-dt * 3) : 1;
+    this.glowInit = true;
     this.glowX += (Math.min(Math.max(ux, 0.05), 0.95) - this.glowX) * k;
     this.glowY += (Math.min(Math.max(uy, 0.02), 0.9) - this.glowY) * k;
     this.backdrop.setGlowPosition(this.glowX, this.glowY);

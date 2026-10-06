@@ -17,6 +17,7 @@
 import * as THREE from "three";
 import { TierGovernor, type GovernorEvent, type Tier } from "./capability";
 import { RibbonCore, type CoreStats, type OutputKind } from "./core";
+import { rlog } from "./debugLog";
 import { ProxyRegistry } from "./proxies";
 import {
   applyQualityTier,
@@ -59,18 +60,25 @@ export interface RibbonEngineOptions {
    * downgrade governor. Omit (the lab) for the plain settings with no governance.
    */
   tier?: 2 | 3 | 4 | null;
-  /** the tier is final (cached / `?tier=`): skip the probe, never downgrade */
-  tierLocked?: boolean;
+  /** run the catastrophic-slowness watchdog (default true when `tier` is set; off for `?tier=` overrides) */
+  watchdog?: boolean;
   /** an unrecoverable problem (thrown error, shader error, WebGL context loss) */
   onFatal?: (err: unknown, kind: "error" | "context-lost") => void;
-  /** first back composite handed to the visible canvas */
+  /**
+   * The first frame that is FULLY ready (shadow map, contact catcher and environment rendered at
+   * least once) was handed to the visible canvases. Reveal the live layers from here.
+   */
   onFirstFrame?: () => void;
-  /** the probe locked a tier, or sustained slowness stepped it down */
+  /** the first back composite was handed over (ready or not): the engine is alive */
+  onRendering?: () => void;
+  /** sustained catastrophic slowness stepped the tier down */
   onTier?: (e: GovernorEvent) => void;
 }
 
 /** idle cap: how long after the last scroll / resize / pose change the ribbon counts as "moving" */
 const ACTIVE_MS = 1500;
+/** crossfade of a (catastrophic) tier downgrade */
+const CROSSFADE_MS = 400;
 /** the probe window (1.5 s + warm-up) always runs at full rate */
 const STARTUP_ACTIVE_MS = 3200;
 /** a touch device keeps the URL bar showing/hiding without any resize: ignore height-only changes this small */
@@ -139,6 +147,8 @@ export class RibbonEngine {
   private lastRenderAt = 0;
   private resumeSkip = 0;
   private firstFrame = false;
+  private rendering = false;
+  private waitFrames = 0;
   private fatalFired = false;
 
   private raf = 0;
@@ -178,8 +188,14 @@ export class RibbonEngine {
     const ctx = which === "back" ? this.backCtx : this.frontCtx;
     if (ctx) ctx.transferFromImageBitmap(bmp);
     else bmp.close();
-    if (!this.firstFrame && which === "back") {
+    if (which === "back" && !this.rendering) {
+      this.rendering = true;
+      this.opts.onRendering?.();
+    }
+    // normally ready on the first frame; a stuck core must not keep the layers hidden for ever
+    if (!this.firstFrame && which === "back" && (this.core.ready || ++this.waitFrames > 30)) {
       this.firstFrame = true;
+      rlog("first-frame", { tier: this.tier, pixelRatio: this.pixelRatio, samples: this.core.effectiveSamples });
       this.opts.onFirstFrame?.();
     }
   };
@@ -252,11 +268,12 @@ export class RibbonEngine {
     };
 
     this.coarse = window.matchMedia("(pointer: coarse)").matches;
-    if (this.tier !== null) {
-      this.governor = new TierGovernor(this.tier, opts.tierLocked === true);
+    if (this.tier !== null && opts.watchdog !== false) {
+      this.governor = new TierGovernor(this.tier);
     }
 
     this.ro = new ResizeObserver(() => {
+      rlog("resize-observer", { w: opts.front.clientWidth, h: opts.front.clientHeight, dpr: window.devicePixelRatio });
       // resizing a canvas clears it: repaint in the same task so there is no blank frame
       if (this.resize()) this.renderNow();
     });
@@ -315,6 +332,7 @@ export class RibbonEngine {
   setTier(tier: 2 | 3 | 4): void {
     const profile = profileFor(tier);
     if (!profile) return;
+    rlog("tier-set", { from: this.tier, to: tier });
     this.tier = tier;
     this.profile = profile;
     const t = QUALITY_TIERS[profile.quality];
@@ -329,6 +347,43 @@ export class RibbonEngine {
     this.prCeil = Infinity;
     this.resize(true);
     this.markActive(STARTUP_ACTIVE_MS);
+  }
+
+  /**
+   * Step down to a lower tier WITHOUT a visible pop: the current frames are copied into overlay
+   * canvases, the new tier renders underneath at once, and the overlays fade out over 400 ms.
+   */
+  downgradeTo(tier: 2 | 3 | 4): void {
+    const overlays: HTMLCanvasElement[] = [];
+    if (this.mode === "weave") {
+      for (const c of [this.opts.back, this.opts.front]) {
+        const host = c?.parentElement;
+        if (!c || !host || c.width === 0 || c.height === 0) continue;
+        try {
+          const o = document.createElement("canvas");
+          o.width = c.width;
+          o.height = c.height;
+          o.getContext("2d")?.drawImage(c, 0, 0);
+          o.setAttribute("aria-hidden", "true");
+          o.style.cssText =
+            "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:1;" +
+            `transition:opacity ${CROSSFADE_MS}ms ease`;
+          host.appendChild(o);
+          overlays.push(o);
+        } catch {
+          /* no overlay: the downgrade then happens without a fade (rare, and still correct) */
+        }
+      }
+    }
+    rlog("downgrade-crossfade", { to: tier, overlays: overlays.length, ms: CROSSFADE_MS });
+    this.setTier(tier);
+    this.renderNow(); // the new quality is on the canvases before the overlays start to fade
+    if (overlays.length) {
+      requestAnimationFrame(() => {
+        for (const o of overlays) o.style.opacity = "0";
+      });
+      window.setTimeout(() => overlays.forEach((o) => o.remove()), CROSSFADE_MS + 100);
+    }
   }
 
   /** Test hook: lose the GL context like a GPU reset would. */
@@ -397,6 +452,7 @@ export class RibbonEngine {
 
   start(): void {
     if (this.running || this.disposed || this.fatalFired) return;
+    rlog("loop-start");
     this.running = true;
     this.lastT = performance.now();
     this.lastRenderAt = this.lastT;
@@ -407,6 +463,7 @@ export class RibbonEngine {
   }
 
   stop(): void {
+    if (this.running) rlog("loop-stop");
     this.running = false;
     cancelAnimationFrame(this.raf);
   }
@@ -495,6 +552,14 @@ export class RibbonEngine {
     }
     const pr = this.targetPixelRatio(w, h);
     if (!force && w === this.width && h === this.height && pr === this.pixelRatio) return false;
+    rlog("resize", {
+      css: [w, h],
+      prev: [this.width, this.height],
+      pixelRatio: pr,
+      prevPixelRatio: this.pixelRatio,
+      devicePixelRatio: window.devicePixelRatio,
+      ceil: this.prCeil,
+    });
     this.width = w;
     this.height = h;
     this.pixelRatio = pr;
@@ -561,6 +626,7 @@ export class RibbonEngine {
     if (this.slowFrames > 40 && cur > 1) {
       // a drop soon after a probe means the higher ratio does not fit: back off
       if (this.clock - this.lastProbeAt < 15) this.probeWait = Math.min(this.probeWait * 2, 600);
+      rlog("adaptive-dpr-down", { from: cur, ema: this.emaMs });
       this.prCeil = Math.max(1, cur - 0.25);
       this.slowFrames = 0;
       this.okSeconds = 0;
@@ -569,6 +635,7 @@ export class RibbonEngine {
     } else if (this.okSeconds > this.probeWait && this.prCeil !== Infinity) {
       const up = cur + 0.25;
       if (up <= Math.min(window.devicePixelRatio || 1, this.settings.post.pixelRatioCap)) {
+        rlog("adaptive-dpr-up", { from: cur, to: up });
         this.prCeil = up;
         this.okSeconds = 0;
         this.lastProbeAt = this.clock;
@@ -636,10 +703,9 @@ export class RibbonEngine {
     if (!g || document.hidden) return;
     const ev = g.push({ dt: dtMs, work: logic });
     if (!ev) return;
+    rlog("governor", ev);
     this.opts.onTier?.(ev);
-    if (ev.type === "down") {
-      if (ev.tier >= 2) this.setTier(ev.tier as 2 | 3 | 4);
-      else this.fatal(new Error(ev.reason), "error");
-    }
+    if (ev.tier >= 2) this.downgradeTo(ev.tier as 2 | 3 | 4);
+    else this.fatal(new Error(ev.reason), "error");
   }
 }

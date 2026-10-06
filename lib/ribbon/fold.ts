@@ -127,6 +127,26 @@ const smooth01 = (t: number): number => {
   return x * x * x * (x * (x * 6 - 15) + 10);
 };
 
+const S5 = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * t * (t * (t * 6 - 15) + 10));
+
+/**
+ * Where the roll of a fold of dihedral angle `psi` and radius `rho` starts and ends, measured along the
+ * centreline from the virtual crease (negative before it): x0 = b0 / sphi, x1 = (b0 + psi rho) / sphi, with
+ * b0 the roll start in crease distance (the roll is not symmetric about the crease unless psi = pi). The
+ * zone of the fold must contain [x0 - reach, x1 + reach] (plus the ruling ramps), or the strip would ENTER
+ * the zone already mid-roll (a visible step in normal, tangent and ruling at its first ring): the radius
+ * is only widened as far as that stays true (see the widening in `applyFolds`).
+ */
+export function rollOffsets(psi: number, rho: number, sphi: number): { x0: number; x1: number } {
+  const L = psi * rho;
+  let c1 = 0;
+  const TK = 48;
+  for (let k = 0; k < TK; k++) c1 += Math.cos(psi * S5((k + 0.5) / TK)) / TK;
+  const b0 = psi > 0.02 ? (L * Math.cos(psi) - L * c1) / Math.max(1 - Math.cos(psi), 1e-4) : 0;
+  const s = Math.max(sphi, 0.12);
+  return { x0: b0 / s, x1: (b0 + L) / s };
+}
+
 /** nominal half-extent in rings of a fold zone (used to keep other passes out of it) */
 export function foldZoneRings(spec: FoldSpec, width: number, ds: number): number {
   const hw = 0.5 * width;
@@ -429,7 +449,8 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
         });
       }
       if (Math.abs(eps) > 1e-3) {
-        const Lr = Math.max(Math.ceil((Math.abs(eps) * W * 1.0) / ds), 3);
+        // at a limited rate (1 rad / width) and never over less than 1.5 widths: a short ramp is a visible bend of the edge
+        const Lr = Math.max(Math.ceil((Math.abs(eps) * W * 1.0) / ds), Math.ceil((1.5 * W) / ds), 3);
         const iR = Math.max(lastEnd + 1, iA - Lr);
         const span = Math.max(iA - iR, 1);
         for (let j = iR; j <= iA; j++) {
@@ -548,7 +569,8 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     let x1 = 0;
     let xr0 = 0;
     let xr1 = 0;
-    let LsIn = 0;
+    let xRs = 0;
+    let xRe = 0;
     let LsOut = 0;
     // The roll turns by beta(t) = psi * S(t), t = (b - b0) / L across its length L = psi * radius, with S the
     // quintic smootherstep: the curvature starts and ends at ZERO (no step in the normal's rate of change, so no
@@ -557,7 +579,6 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
     const TK = 48;
     const ccT = new Float64Array(TK + 1);
     const ssT = new Float64Array(TK + 1);
-    const S5 = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * t * (t * (t * 6 - 15) + 10));
     for (let k = 1; k <= TK; k++) {
       const t0 = (k - 1) / TK;
       const t1 = k / TK;
@@ -581,8 +602,12 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
       x1 = (b0 + rollLen) / sphi;
       xr0 = x0 - reach; // ruling is the crease axis from here ...
       xr1 = x1 + reach; // ... to here
-      LsIn = Math.max(Math.min(Ls, xr0 - xs - 0.05 * hw), 0.2 * hw);
       LsOut = Math.max(Math.min(Ls, xe - xr1 - 0.05 * hw), 0.2 * hw);
+      // The ruling ramp STARTS at the first ring of the zone (identity there: no step against the rings before
+      // it) even when a widened roll begins before it; it needs about 1.9 hw gamma to swing without the
+      // sheared sections crossing (the roll itself is still ~flat in its first stretch)
+      xRs = Math.max(xs, xr0 - Ls);
+      xRe = Math.max(xr0, xRs + Math.min(Ls, 1.9 * hw * gammaA + 0.3 * hw));
     };
     const mAt = (bb: number): number => {
       if (bb <= b0) return bb;
@@ -730,7 +755,7 @@ export function applyFolds(g: FoldTarget, specs: readonly FoldSpec[], reports?: 
       tz /= tl;
       // ruling in the unfolded strip: B1 -> c' (across the roll) -> B1, smooth ramps
       let w: number;
-      if (x < xr0) w = smooth01((x - (xr0 - LsIn)) / LsIn);
+      if (x < xRe) w = smooth01((x - xRs) / Math.max(xRe - xRs, 1e-3));
       else if (x <= xr1) w = 1;
       else w = 1 - smooth01((x - xr1) / LsOut);
       const om = gammaA * w;

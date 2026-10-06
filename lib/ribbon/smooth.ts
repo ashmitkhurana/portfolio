@@ -208,3 +208,104 @@ export function smoothness(g: SmoothnessInput, windowWidths = 3): SmoothnessRepo
     ok: kMax <= SMOOTH_LIMITS.curvature && pMax <= SMOOTH_LIMITS.roll && rate <= SMOOTH_LIMITS.rollRate,
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Edge smoothness (what the eye sees): the PROJECTED band edges
+
+export interface EdgeSmoothnessInput {
+  /** body ring count, offset of the first body ring, total ring count */
+  M: number;
+  E: number;
+  R: number;
+  /** the ring texture data (4 rows x R x RGBA: [c, hw] [B, scale] [N, scale] [T, s]) */
+  ringData: ArrayLike<number>;
+  /** ribbon width (px) */
+  width: number;
+  /** projection * view, column-major (16), and the viewport in CSS px */
+  viewProj: ArrayLike<number>;
+  viewW: number;
+  viewH: number;
+  /** 1 inside a fold zone and its shoulders (skipped: a rolled fold has cusps in its projected edge), by body ring */
+  skip?: ArrayLike<number> | null;
+}
+
+export interface EdgeSmoothnessReport {
+  /** worst high-pass curvature of a band edge, x ribbon width (a straight edge 0, a clean edge below ~3) */
+  kink: number;
+  /** body ring and edge ("L" / "R") where it peaks */
+  kinkAt: number;
+  edge: "L" | "R";
+  /** worst change of curvature per unit arc, x width^2 (the second derivative of the curvature along the edge) */
+  jerk: number;
+  jerkAt: number;
+  limit: number;
+  ok: boolean;
+}
+
+/**
+ * a clean edge stays below this. The hero measured 15-28 before the S0 fixes (roll reversals, fold-entry
+ * ruling step) and 4.5-11.6 after; what is left is the Catmull-Rom curvature step at a control point.
+ */
+export const EDGE_KINK_LIMIT = 12;
+
+/**
+ * Edge smoothness: the two side edges of the strip (centre -/+ half width x ruling) are projected to the
+ * screen; their signed curvature kappa_i (turning angle / mean segment length) is high-pass filtered
+ * (kappa_i - mean of kappa over +-5 rings) and scaled by the width. A smooth edge has a calm, bell-shaped
+ * curvature, so the high-pass is small; a NOTCH (a step in roll or in curvature that lasts a ring or two)
+ * is exactly what it keeps. Fold zones are skipped. Also reports the largest d(kappa)/ds.
+ */
+export function edgeSmoothness(inp: EdgeSmoothnessInput): EdgeSmoothnessReport {
+  const { M, E, R, ringData: rd, width, viewProj: vp, viewW, viewH, skip } = inp;
+  const row = R * 4;
+  const px = new Float64Array(M);
+  const py = new Float64Array(M);
+  const kap = new Float64Array(M);
+  const spd = new Float64Array(M);
+  const K = 5;
+  const out: EdgeSmoothnessReport = { kink: 0, kinkAt: 0, edge: "L", jerk: 0, jerkAt: 0, limit: EDGE_KINK_LIMIT, ok: true };
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < M; i++) {
+      const o = (E + i) * 4;
+      const hw = rd[o + 3];
+      const x = rd[o] + side * rd[row + o] * hw;
+      const y = rd[o + 1] + side * rd[row + o + 1] * hw;
+      const z = rd[o + 2] + side * rd[row + o + 2] * hw;
+      const cw = vp[3] * x + vp[7] * y + vp[11] * z + vp[15];
+      const cx = vp[0] * x + vp[4] * y + vp[8] * z + vp[12];
+      const cy = vp[1] * x + vp[5] * y + vp[9] * z + vp[13];
+      px[i] = ((cx / cw + 1) / 2) * viewW;
+      py[i] = ((1 - cy / cw) / 2) * viewH;
+    }
+    for (let i = 1; i < M - 1; i++) {
+      const ax = px[i] - px[i - 1];
+      const ay = py[i] - py[i - 1];
+      const bx = px[i + 1] - px[i];
+      const by = py[i + 1] - py[i];
+      const la = Math.sqrt(ax * ax + ay * ay);
+      const lb = Math.sqrt(bx * bx + by * by);
+      const len = Math.max((la + lb) / 2, 1e-3);
+      kap[i] = Math.atan2(ax * by - ay * bx, ax * bx + ay * by) / len;
+      spd[i] = len;
+    }
+    for (let i = K + 1; i < M - 1 - K; i++) {
+      if (skip && skip[i]) continue;
+      let m = 0;
+      for (let j = i - K; j <= i + K; j++) m += kap[j];
+      m /= 2 * K + 1;
+      const hp = Math.abs(kap[i] - m) * width;
+      if (hp > out.kink) {
+        out.kink = hp;
+        out.kinkAt = i;
+        out.edge = side < 0 ? "L" : "R";
+      }
+      const jerk = (Math.abs(kap[i] - kap[i - 1]) / Math.max(spd[i], 1e-3)) * width * width;
+      if (jerk > out.jerk) {
+        out.jerk = jerk;
+        out.jerkAt = i;
+      }
+    }
+  }
+  out.ok = out.kink <= EDGE_KINK_LIMIT;
+  return out;
+}

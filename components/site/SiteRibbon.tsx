@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { RibbonStage } from "@/components/ribbon/RibbonStage";
+import { rlog } from "@/lib/ribbon/debugLog";
+import { SITE_SETTINGS } from "@/lib/ribbon/siteSettings";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 
 /**
@@ -64,6 +66,7 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
     const { w: pw, h: ph } = posed.current;
     // an orientation flip is a new composition: jump instead of springing across
     const flipped = pw > 0 && pw > ph !== e.width > e.height;
+    rlog("pose-apply", { name, sig, snap, flipped });
     posed.current = { w: e.width, h: e.height, sig };
     const pose = authored?.pose ?? m.test.makeTestPose("sweep", e.width, e.height, e.sim.count);
     e.setPose(pose, snap || flipped);
@@ -71,11 +74,18 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
 
   const prepare = useCallback(
     () =>
-      Promise.all([import("@/lib/ribbon/testPoses"), import("@/lib/ribbon/poses/site")]).then(
-        ([test, site]) => {
-          mods.current = { test, site };
-        },
-      ),
+      Promise.all([
+        import("@/lib/ribbon/testPoses"),
+        import("@/lib/ribbon/poses/site"),
+        // the pose is resolved against the name's measured box: wait for the real fonts (bounded), so
+        // the first live frame is already the final composition (a late font swap would re-aim it)
+        Promise.race([
+          document.fonts?.ready ?? Promise.resolve(),
+          new Promise((r) => window.setTimeout(r, 2000)),
+        ]),
+      ]).then(([test, site]) => {
+        mods.current = { test, site };
+      }),
     [],
   );
 
@@ -97,8 +107,14 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
       window.clearTimeout(t);
       t = window.setTimeout(() => applyPose(false), ms);
     };
-    const onResize = () => later(120);
-    const onFonts = () => later(30);
+    const onResize = () => {
+      rlog("window-resize", { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio });
+      later(120);
+    };
+    const onFonts = () => {
+      rlog("fonts");
+      later(30);
+    };
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
     document.fonts?.addEventListener?.("loadingdone", onFonts);
@@ -118,7 +134,12 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
   }, [pathname, applyPose]);
 
   return (
-    <RibbonStage onEngine={onEngine} prepare={prepare} controlPoints={CONTROL_POINTS}>
+    <RibbonStage
+      onEngine={onEngine}
+      prepare={prepare}
+      controlPoints={CONTROL_POINTS}
+      settings={SITE_SETTINGS}
+    >
       {children}
     </RibbonStage>
   );

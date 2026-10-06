@@ -34,7 +34,7 @@ import {
   type FrameMode,
 } from "./frames";
 import { applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
-import { smoothness, type SmoothnessReport } from "./smooth";
+import { edgeSmoothness, smoothness, type EdgeSmoothnessReport, type SmoothnessReport } from "./smooth";
 import type { RibbonSettings } from "./settings";
 import type { SweepUniforms } from "./sweep";
 
@@ -185,6 +185,7 @@ export class RibbonGeometry {
     radiusNone: DEFAULT_CURVATURE_FRAME.radiusNone,
     maxRate: DEFAULT_CURVATURE_FRAME.maxRate,
     twistRate: DEFAULT_CURVATURE_FRAME.twistRate,
+    rollSmooth: DEFAULT_CURVATURE_FRAME.rollSmooth,
   };
   private readonly framer = new CurvatureFramer();
 
@@ -216,6 +217,29 @@ export class RibbonGeometry {
       pos: this.rPos,
       tan: this.rTan,
       N: this.rN,
+      skip,
+    });
+  }
+
+  /**
+   * Edge smoothness of the strip as built, seen through `camera` (the projected band edges, see smooth.ts):
+   * the crinkle check that looks at what the eye sees. Fold zones are skipped.
+   */
+  edgeReport(camera: THREE.Camera, viewW: number, viewH: number): EdgeSmoothnessReport {
+    const M = this.bodyRings;
+    const skip = new Uint8Array(M);
+    const pad = Math.round((1.5 * this.params.width) / Math.max(this.lastDs, 1e-3));
+    for (const r of this.foldReports) if (r.built) for (let i = Math.max(0, r.ring0 - pad); i <= r.ring1 + pad && i < M; i++) skip[i] = 1;
+    const vp = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    return edgeSmoothness({
+      M,
+      E: this.caps,
+      R: this.totalRings,
+      ringData: this.ringData,
+      width: this.params.width,
+      viewProj: vp.elements,
+      viewW,
+      viewH,
       skip,
     });
   }

@@ -6,8 +6,14 @@
  * Phase 3 extends this with scroll-driven poses and richer follow-through.
  */
 import { curl3, fbm3, snoise3 } from "./noise";
+import { rlog } from "./debugLog";
+
+/** `frozen`: output = target pose, exactly (no springs, no noise, no idle); `live`: springs + idle life */
+export type SimMode = "frozen" | "live";
 
 export interface SimParams {
+  /** see SimMode */
+  mode: SimMode;
   /** spring stiffness (1/s^2), e.g. 38 */
   stiffness: number;
   /** damping ratio, 1 = critical */
@@ -55,6 +61,7 @@ export const IDLE_PRESETS: Record<string, Pick<SimParams, "idleAmplitude" | "idl
 };
 
 export const DEFAULT_SIM_PARAMS: SimParams = {
+  mode: "live",
   stiffness: 38,
   damping: 1,
   followLag: 0.45,
@@ -78,6 +85,24 @@ export class RibbonSim {
   idleScale01 = 1;
   /** seconds of simulated time */
   time = 0;
+  private lastMode: SimMode = "live";
+
+  /** frozen: the output is the target pose, nothing moves (shorthand for `params.mode`) */
+  get mode(): SimMode {
+    return this.params.mode;
+  }
+  set mode(m: SimMode) {
+    this.params = { ...this.params, mode: m };
+    this.noteMode();
+  }
+
+  /** a mode change snaps the springs to the target so `live` never starts from a stale state */
+  private noteMode(): void {
+    if (this.params.mode === this.lastMode) return;
+    rlog("sim-mode", { from: this.lastMode, to: this.params.mode });
+    this.lastMode = this.params.mode;
+    this.snapToTarget();
+  }
 
   // targets
   readonly targetPos: Float32Array;
@@ -137,7 +162,8 @@ export class RibbonSim {
     } else {
       this.resample(src, m, twists, widths);
     }
-    if (snap) this.snapToTarget();
+    // a frozen sim has no springs to travel along: the target IS the pose
+    if (snap || this.params.mode === "frozen") this.snapToTarget();
   }
 
   snapToTarget(): void {
@@ -151,6 +177,12 @@ export class RibbonSim {
   }
 
   step(dtRaw: number): void {
+    this.noteMode();
+    if (this.params.mode === "frozen") {
+      // exactly the target pose, every frame: no integration, no idle, no clock
+      this.snapToTarget();
+      return;
+    }
     const dt = Math.min(Math.max(dtRaw, 0), MAX_DT);
     this.time += dt;
     const n = this.count;
@@ -192,8 +224,9 @@ export class RibbonSim {
   private compose(): void {
     const n = this.count;
     const p = this.params;
-    const amp = p.idleAmplitude * this.idleScale01;
-    const wob = p.twistWobble * this.idleScale01;
+    const live = p.mode !== "frozen";
+    const amp = live ? p.idleAmplitude * this.idleScale01 : 0;
+    const wob = live ? p.twistWobble * this.idleScale01 : 0;
     const t = this.time * p.idleSpeed;
     const a = this.scratch;
     const b = this.scratch2;
