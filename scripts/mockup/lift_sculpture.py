@@ -7,6 +7,7 @@ Usage: ANALYZE_OUT=$SP/r2 .venv/bin/python lift_sculpture.py [--pose]     (--pos
 import json, math, os, subprocess, sys
 os.environ["ROTO_SRC"] = "sculpture"
 import numpy as np
+from scipy import ndimage as ndi
 from scipy.interpolate import PchipInterpolator
 sys.path.insert(0, os.path.dirname(__file__))
 import edges as ed
@@ -75,10 +76,30 @@ def main(write_pose=False):
         if "i0" in w:
             tw[w["i0"]:w["i1"] + 1] = True
     trusted = np.array(E["trusted"], bool)
-    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90)
+    # observed visible face per ring from the sculpture's own shading along the ruling (dark inner face vs bright face)
+    from PIL import Image
+    im = np.array(Image.open(os.path.join(ROOT, "public/lab/ref/ak-sculpture.webp")).convert("RGB")).astype(np.float32).max(2) / 255.0
+    imb = ndi.gaussian_filter(im, 1.0)
+    obs = np.zeros(N)
+    E1s, E2s = np.array(E["edge1"]), np.array(E["edge2"])
+    for i in range(N):
+        fr = np.linspace(0.15, 0.85, 9)
+        xy = E1s[i][None] * (1 - fr[:, None]) + E2s[i][None] * fr[:, None]
+        v = ndi.map_coordinates(imb, [xy[:, 1], xy[:, 0]], order=1, mode="nearest")
+        m = float(np.median(v))
+        obs[i] = -1 if m < 0.50 else (1 if m > 0.62 else 0)
+    best = None
+    for fs in (1, -1):
+        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, verbose=False)
+        c_ = L.solve_rings.last_cost
+        print("faceSign %+d: DP cost %.2f" % (fs, c_))
+        if best is None or c_ < best[0]:
+            best = (c_, fs, r_)
+    FS = int(os.environ.get("FORCE_FS", best[1]))
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS)
+    print("chosen faceSign %+d" % FS)
     # 3D regularisation: the per-ring depth solve is noisy where the projected ruling is close to the true width (sqrt singularity);
     # a Gaussian along the arc on the lifted ring ends removes the ripple the engine's curvature / roll metrics see
-    from scipy import ndimage as ndi
     if SMOOTH_SIGMA > 0:
         Lw = ndi.gaussian_filter1d(Lw, SMOOTH_SIGMA, axis=0, mode="nearest")
         Rw = ndi.gaussian_filter1d(Rw, SMOOTH_SIGMA, axis=0, mode="nearest")
@@ -90,6 +111,20 @@ def main(write_pose=False):
             dev.append(np.hypot(sx - E_[:, 0], sy - E_[:, 1]))
         dev = np.concatenate(dev)
         print("3D smoothing sigma %g samples: projected deviation from the edges mean %.2f max %.2f px; ruling length %.3f..%.3f W" % (SMOOTH_SIGMA, dev.mean(), dev.max(), ln.min() / Wt, ln.max() / Wt))
+    # report: sign / visible-face agreement per turn window
+    Tc = np.gradient(L._lift_vec(0.5 * (E1 + E2), zc), axis=0); Tc /= np.maximum(np.linalg.norm(Tc, axis=1), 1e-9)[:, None]
+    Bn = (Rw - Lw) / np.maximum(np.linalg.norm(Rw - Lw, axis=1), 1e-9)[:, None]
+    Nz = -FS * np.cross(Tc, Bn)[:, 2]
+    vis = np.where(Nz > 0, 1, -1)
+    chk = (obs != 0) & (np.abs(Nz) > 0.2)
+    print("visible-face agreement with the sculpture shading: %.1f %% of %d rings overall" % (100 * np.mean(vis[chk] == obs[chk]), chk.sum()))
+    for w in E["turn_windows"]:
+        if "i0" in w:
+            a_, b_ = w["i0"], w["i1"]
+            c_ = chk[a_:b_ + 1]
+            print("  window %d (samples %d-%d, screen %s): agreement %.0f %% of %d; E2-nearer fraction %.2f; max |dz| %.0f" % (
+                w["id"], a_, b_, np.round(0.5 * (E1[(a_ + b_) // 2] + E2[(a_ + b_) // 2])).astype(int).tolist(), 100 * np.mean(vis[a_:b_ + 1][c_] == obs[a_:b_ + 1][c_]) if c_.any() else -1, c_.sum(),
+                np.mean(dzs[a_:b_ + 1] > 0), np.abs(dzs[a_:b_ + 1]).max()))
     print("sign flips at samples", flips, "(arc", [round(float(t[i])) for i in flips], ")")
     print("dz = 0 (grown) samples: %d of %d (%.1f %%), max ruling %.2f W; |dz| max %.0f mean %.0f" % (gr.sum(), N, 100 * gr.mean(), ln.max() / Wt, np.abs(dzs).max(), np.abs(dzs).mean()))
     print("  grown spans (sample idx):", [(a, b) for a, b in ed.spans(gr)][:40])
@@ -194,10 +229,10 @@ def main(write_pose=False):
                    Lw=np.round(Lw, 2).tolist(), Rw=np.round(Rw, 2).tolist(), dz0=int(gr.sum()), over_under_ok=bool(ok_all)), open(OUT + "/ruled_sculpture.json", "w"))
     print("wrote", OUT + "/ruled_sculpture.json", len(rings), "rings")
     if write_pose:
-        write_pose_file(rings)
+        write_pose_file(rings, FS)
 
 
-def write_pose_file(rings):
+def write_pose_file(rings, fs=1):
     path = os.path.join(ROOT, "lib/ribbon/poses/ak-hero.json")
     head = json.loads(subprocess.check_output(["git", "show", "HEAD:lib/ribbon/poses/ak-hero.json"], cwd=ROOT))
     r4 = lambda v: repr(round(v * 10000) / 10000)
@@ -218,13 +253,15 @@ def write_pose_file(rings):
     out.append("      ]")
     out.append("    },")
     out.append('    "desktop": {')
-    out.append('      "faceSign": 1,')
+    out.append('      "faceSign": %d,' % fs)
     out.append('      "ruled": [')
     t3 = lambda a: "[%s, %s, %s]" % (r4(a[0]), r4(a[1]), r4(a[2]))
     for i, r in enumerate(rings):
         out.append('        { "L": %s, "R": %s }%s' % (t3(r["L"]), t3(r["R"]), "," if i < len(rings) - 1 else ""))
     out += ["      ]", "    }", "  }", "}"]
-    open(path, "w").write("\n".join(out) + "\n")
+    txt = "\n".join(out) + "\n"
+    json.loads(txt)     # never leave the live site with an invalid pose
+    open(path, "w").write(txt)
     print("wrote", path)
 
 

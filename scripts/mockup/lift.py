@@ -73,7 +73,7 @@ def _lift_vec(P, z):
     return np.stack([(P[:, 0] - VW / 2) * k, (VH / 2 - P[:, 1]) * k, z], 1)
 
 
-def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True):
+def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs=None, fs=1, lam=0.06, forced=None):
     """True width W = percentile `pct` of the projected ruling lengths (world px at the centre depth) over trusted samples outside the
     turn windows; per ring the depth difference dz of the two ruling ends solves |R3 - L3| = W; the sign of dz is chosen by a DP
     minimising the change of the 3D ruling direction, flips only inside the turn windows (tw).
@@ -99,20 +99,34 @@ def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True):
         Rs[:, j] = _lift_vec(E2, zc + sg_ * m / 2)
         d = Rs[:, j] - Ls[:, j]
         B[:, j] = d / np.maximum(np.linalg.norm(d, axis=1), 1e-9)[:, None]
+    # observation term: the face the camera sees (N_z > 0 side) must match the sculpture's shading class (bright = face A, dark inner = face B)
+    Tc = _lift_vec(0.5 * (E1 + E2), zc)
+    Tc = np.gradient(Tc, axis=0)
+    Tc /= np.maximum(np.linalg.norm(Tc, axis=1), 1e-9)[:, None]
+    obsc = np.zeros((N, 2))
+    if obs is not None:
+        for j in range(2):
+            Nz = -fs * np.cross(Tc, B[:, j])[:, 2]      # the engine shows face A on the -N side
+            vis = np.where(Nz > 0, 1, -1)
+            obsc[:, j] = lam * ((vis != obs) & (obs != 0) & (np.abs(Nz) > 0.2))
+    if forced is not None:    # {sample idx range: sign index} hard choices (e.g. the apex rolls with its top edge towards the camera)
+        for (a_, b_), j in forced.items():
+            obsc[a_:b_ + 1, 1 - j] += 10.0
     cost = np.full((N, 2), np.inf)
     arg = np.zeros((N, 2), int)
-    cost[0] = 0.0
+    cost[0] = obsc[0]
     for i in range(1, N):
         for a_ in range(2):
             for b_ in range(2):
                 if a_ != b_ and not tw[i]:
                     continue
-                c = float(np.arccos(np.clip(B[i, a_] @ B[i - 1, b_], -1, 1)))
+                c = float(np.arccos(np.clip(B[i, a_] @ B[i - 1, b_], -1, 1))) + obsc[i, a_]
                 if a_ != b_:
                     c += 1e-3
                 if cost[i - 1, b_] + c < cost[i, a_]:
                     cost[i, a_] = cost[i - 1, b_] + c
                     arg[i, a_] = b_
+    solve_rings.last_cost = float(cost[-1].min())
     sg = np.zeros(N, int)
     sg[-1] = int(np.argmin(cost[-1]))
     for i in range(N - 1, 0, -1):
