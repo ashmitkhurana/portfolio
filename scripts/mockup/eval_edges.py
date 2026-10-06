@@ -20,7 +20,10 @@ def canny(rgb):
         b = cv2.GaussianBlur(L, (0, 0), sg)
         lo = 6 if sg > 2 else 10
         out |= cv2.Canny(b, lo, lo * 2.5) > 0
-    return out
+    lab, n = ndi.label(out, structure=np.ones((3, 3)))
+    sz = ndi.sum(out, lab, range(1, n + 1))
+    keep = np.r_[False, sz >= 25]      # drop grain / dither speckle (components shorter than 25 px)
+    return keep[lab]
 
 
 def main():

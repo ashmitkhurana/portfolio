@@ -105,6 +105,13 @@ def apply_hand(E1, E2, Q, name, spec, N0):
 
 
 def resample2(P, step=2.0):
+    # index-based doubling: both edges (and the centre) must stay paired sample by sample
+    n = len(P)
+    u = np.linspace(0, n - 1, 2 * (n - 1) + 1)
+    return np.stack([np.interp(u, np.arange(n), P[:, 0]), np.interp(u, np.arange(n), P[:, 1])], 1)
+
+
+def resample2_arc(P, step=2.0):
     s = np.r_[0, np.cumsum(np.hypot(*np.diff(P, axis=0).T))]
     n = int(s[-1] / step) + 1
     u = np.arange(n) * step
@@ -214,7 +221,7 @@ def main():
     E1 = np.array(E["edge1"]); E2 = np.array(E["edge2"]); N0 = len(E1)
     zc = 0.5 * (np.array(RP["Lw"])[:, 2] + np.array(RP["Rw"])[:, 2])
     E1 = resample2(E1); E2 = resample2(E2)
-    N = min(len(E1), len(E2)); E1, E2 = E1[:N], E2[:N]
+    N = len(E1)
     z = np.interp(np.linspace(0, N0 - 1, N), np.arange(N0), zc)
     Qc = resample2(np.array(E["centre"]))[:N]
     for nm, spec in HAND.items():
@@ -234,6 +241,8 @@ def main():
                 oth = E1_new
             off, Nn = snake(P, v, strength, gdir, R=R, other=oth, lmin=lmin, lmax=lmax)
             off = fill_hidden(off, v)
+            for lo_, hi_ in HAND_WINDOWS:      # hand-read windows are kept as read (they are already exact; the DP only refines the automatic parts)
+                off[lo_:hi_ + 1] = 0.0
             off = ndi.gaussian_filter1d(off, 1.0, mode="nearest")
             offs.append((P + Nn * off[:, None], off, v))
             if nm == "e1":
@@ -252,10 +261,11 @@ def main():
             wz.append((w_["i0"] * N / N0 * 2.0, w_["i1"] * N / N0 * 2.0))
     for lo_, hi_ in HAND_WINDOWS:
         wz.append((lo_ * 2.0, hi_ * 2.0))
-    knots = list(np.arange(0.75 * W, tt[-1] - 0.5 * W, 0.75 * W))
+    KS = float(os.environ.get('KNOT_OUT', '1.0')); KD = float(os.environ.get('KNOT_WIN', '0.4'))
+    knots = list(np.arange(KS * W, tt[-1] - 0.5 * W, KS * W))
     dense = []
     for lo_, hi_ in wz:
-        dense += list(np.arange(lo_, hi_, 0.25 * W))
+        dense += list(np.arange(lo_, hi_, KD * W))
         knots = [k for k in knots if not (lo_ - 0.2 * W < k < hi_ + 0.2 * W)]
     knots = np.array(sorted(set(np.round(knots + dense, 2))))
     knots = knots[(knots > tt[0] + 8) & (knots < tt[-1] - 8)]

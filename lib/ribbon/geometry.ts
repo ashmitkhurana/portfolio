@@ -474,8 +474,8 @@ export class RibbonGeometry {
     this.geometry = g;
   }
 
-  private readonly ruledX = new Float64Array(256);
-  private readonly ruledSp = new NaturalSpline(256);
+  private readonly ruledX = new Float64Array(512);
+  private readonly ruledSp = new NaturalSpline(512);
   private readonly ruledRaw = new Float32Array(256 * 4);
 
   /**

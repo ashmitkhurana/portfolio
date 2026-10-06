@@ -174,7 +174,7 @@ export class RibbonCore {
     this.settings = mergeSettings(opts.settings);
     const s = this.settings;
     this.sim = new RibbonSim(opts.controlPoints ?? 64);
-    this.ribbon = new RibbonGeometry(s.geometry, 128);
+    this.ribbon = new RibbonGeometry(s.geometry, 400);
     this.shared = createSharedUniforms();
 
     this.renderer = new THREE.WebGLRenderer({
