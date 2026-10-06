@@ -84,8 +84,20 @@ def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs
     if verbose:
         print("true width W = %.2f world px (p%d of projected ruling lengths at centre depth; median %.2f)" % (Wt, pct, np.median(l0[trusted & ~tw])))
     grown = l0 >= Wt
-    if nosolve is not None:      # the apex flat fold: sheared rulings are longer than W by design, no W-depth solve there (both layers stay in the legs' plane)
-        grown = grown | nosolve
+    nos_runs = []
+    if nosolve is not None:      # the apex flat fold: sheared rulings are longer than W by design, no W-depth solve there: dz blends smoothly
+        grown = grown | nosolve    # between the values just outside the window (both layers stay in the legs' plane)
+        i = 0
+        while i < N:
+            if nosolve[i]:
+                j2 = i
+                while j2 + 1 < N and nosolve[j2 + 1]:
+                    j2 += 1
+                if i > 0 and j2 < N - 1:
+                    nos_runs.append((i, j2))
+                i = j2 + 1
+            else:
+                i += 1
     mag = np.zeros((N, 2))
     Ls = np.zeros((N, 2, 3)); Rs = np.zeros((N, 2, 3)); B = np.zeros((N, 2, 3))
     for j, sg_ in enumerate((+1, -1)):
@@ -96,6 +108,10 @@ def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs
             small = ln_ < Wt
             lo = np.where(small, mid, lo); hi = np.where(small, hi, mid)
         m = np.where(grown, 0.0, 0.5 * (lo + hi))
+        for (a_, b_) in nos_runs:
+            u = np.linspace(0, 1, b_ - a_ + 1)
+            u = u * u * (3 - 2 * u)
+            m[a_:b_ + 1] = m[a_ - 1] * (1 - u) + m[b_ + 1] * u
         mag[:, j] = m
         Ls[:, j] = _lift_vec(E1, zc - sg_ * m / 2)
         Rs[:, j] = _lift_vec(E2, zc + sg_ * m / 2)

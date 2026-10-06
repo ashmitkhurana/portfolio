@@ -19,6 +19,11 @@ ANCHOR = L.ANCHOR
 ASHMIT = (56.609, 192.625, 977.047, 392.984)     # site-measured .display__line rects at 1672x941
 KHURANA = (56.609, 392.984, 1253.531, 593.344)
 PLANE_A, PLANE_K = -45.0, 45.0
+def FORCED_SIGN(N):
+    j = os.environ.get("WRAPSIGN")
+    return None if j is None else {(662, N - 1): int(j)}
+
+
 NOSOLVE = [None]
 GATE_PAIRS = []
 SEP_MARGIN = 4.0
@@ -28,9 +33,9 @@ SMOOTH_SIGMA = float(os.environ.get("SMOOTH_SIGMA", "6"))
 # centre depth anchors (world px), End 1 -> End 2. Edit here.
 Z = [
     ("tail_a", 420), ("tail_b", 280), ("S_turn", 160), ("S_mid", 110), ("S_left", 60), ("leg_bottom", -30),
-    ("leg_under_crossbar", -125), ("A_apex", -70), ("rleg_top", -10), ("rleg_mid", 0), ("rleg_under_wrap", -8),
-    ("lower_back", 15), ("lower_tip", 30), ("lower_return", 0), ("ret_pre", -90), ("ret_behind", -210), ("wrap", 10), ("wrap_front", 175),
-    ("lowerarm_mid", 190), ("upper_tip", 80), ("top_arm", -40), ("top_behind", -150), ("crossbar_right", -100),
+    ("leg_under_crossbar", -125), ("A_apex", -70), ("rleg_top", -10), ("rleg_mid", 25), ("rleg_under_wrap", 25),
+    ("lower_back", 25), ("lower_tip", 30), ("lower_return", 0), ("ret_pre", -100), ("ret_behind", -160), ("wrap", 30), ("wrap_front", 200),
+    ("lowerarm_mid", 220), ("upper_tip", 80), ("top_arm", -40), ("top_behind", -120), ("crossbar_right", -140),
     ("crossbar_mid", 5), ("crossbar_curl", 5), ("end2", 5),
 ]
 if os.environ.get("ZOVR"):
@@ -100,13 +105,13 @@ def main(write_pose=False):
         obs[i] = -1 if m < 0.50 else (1 if m > 0.62 else 0)
     best = None
     for fs in (1, -1):
-        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, verbose=False, nosolve=nos)
+        r_ = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=fs, verbose=False, nosolve=nos, forced=FORCED_SIGN(N))
         c_ = L.solve_rings.last_cost
         print("faceSign %+d: DP cost %.2f" % (fs, c_))
         if best is None or c_ < best[0]:
             best = (c_, fs, r_)
     FS = int(os.environ.get("FORCE_FS", best[1]))
-    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, nosolve=nos)
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, nosolve=nos, forced=FORCED_SIGN(N))
     print("chosen faceSign %+d" % FS)
     # 3D regularisation: the per-ring depth solve is noisy where the projected ruling is close to the true width (sqrt singularity);
     # a Gaussian along the arc on the lifted ring ends removes the ripple the engine's curvature / roll metrics see
