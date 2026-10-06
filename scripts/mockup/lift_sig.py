@@ -51,7 +51,7 @@ A_SPANS = [("tail_a", "S_turn"), ("fold_left", "A_apex"), ("K_top_tip", "end2")]
 
 
 def main(write_pose=False):
-    E = json.load(open(OUT + "/edges.json"))
+    E = json.load(open(os.environ.get("EDGESFILE", OUT + "/edges.json")))
     cl = json.load(open(ed.FIT + "/trace.json"))
     t = np.array(E["s"])
     N = len(t)
@@ -99,6 +99,12 @@ def main(write_pose=False):
     FS = best[1]
     Wt, sg, flips, Lw, Rw, dzs, gr, ln = L.solve_rings(E1, E2, t, zc, tw, trusted, 90, obs=obs, fs=FS, lam=1.0, Wfix=WFIX)
     print("chosen faceSign %+d" % FS)
+    ZS = float(os.environ.get("ZSMOOTH", "10"))
+    if ZS > 0:     # low-pass the depths of the two ruling ends along arc and re-project each end along its own camera ray: the projection never changes
+        zL = ndi.gaussian_filter1d(Lw[:, 2], ZS, mode="nearest"); zR = ndi.gaussian_filter1d(Rw[:, 2], ZS, mode="nearest")
+        Lw = L._lift_vec(E1, zL); Rw = L._lift_vec(E2, zR)
+        ln = np.linalg.norm(Rw - Lw, axis=1)
+        print("z low-pass sigma %g samples: ruling length %.2f..%.2f W" % (ZS, ln.min() / Wt, ln.max() / Wt))
     Tc = np.gradient(L._lift_vec(0.5 * (E1 + E2), zc), axis=0); Tc /= np.maximum(np.linalg.norm(Tc, axis=1), 1e-9)[:, None]
     Bn = (Rw - Lw) / np.maximum(np.linalg.norm(Rw - Lw, axis=1), 1e-9)[:, None]
     Nz = -FS * np.cross(Tc, Bn)[:, 2]
