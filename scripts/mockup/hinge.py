@@ -1,0 +1,302 @@
+"""Exact hinge-chain ribbon solver.
+
+Flat strip: ring i has flat endpoints L_i^f = (a_i, 0, 0), R_i^f = (b_i, W, 0). Quad k = [ring k, ring k+1]
+(k = 0..N-2) carries a rigid transform T_k (flat -> 3D). Root quad m = (N-1)//2 has T_m = (Rot(omega), t).
+Hinge i (i = 1..N-2) joins quad i-1 and quad i about ring i's ruling, signed angle theta_i.
+  k > m : T_k = T_{k-1} o Rot(axis_k, theta_k)
+  k < m : T_k = T_{k+1} o Rot(axis_{k+1}, -theta_{k+1})
+Isometry and planarity hold by construction.
+
+x = [omega(3), t(3), theta_1..theta_{N-2}, a_0..a_{N-1} except a_m, b_0..b_{N-1}]
+"""
+import time
+
+import numpy as np
+from scipy.linalg import cho_factor, cho_solve
+from scipy.spatial.transform import Rotation
+
+import solve3d as S
+import solve3d_fast as F
+
+
+def _rodrigues(u, th):
+    """u (B,K,3) unit axes, th (B,K) -> (B,K,3,3)."""
+    c, s = np.cos(th)[..., None, None], np.sin(th)[..., None, None]
+    K = np.zeros(u.shape[:-1] + (3, 3))
+    K[..., 0, 1], K[..., 0, 2] = -u[..., 2], u[..., 1]
+    K[..., 1, 0], K[..., 1, 2] = u[..., 2], -u[..., 0]
+    K[..., 2, 0], K[..., 2, 1] = -u[..., 1], u[..., 0]
+    uu = u[..., :, None] * u[..., None, :]
+    return c * np.eye(3) + s * K + (1 - c) * uu
+
+
+class Hinge:
+    def __init__(self, N, W, h):
+        self.N, self.W, self.h = N, float(W), float(h)
+        self.m = (N - 1) // 2
+        self.nx = 3 * N + 3
+        self.i_th = 6                       # theta_1..theta_{N-2} -> 6 .. 6+N-3
+        self.i_a = 6 + (N - 2)              # a without m: N-1 entries
+        self.i_b = self.i_a + (N - 1)       # b: N entries
+        self.a_m = 0.0
+
+    # --------------------------------------------------- packing
+    def pack(self, omega, t, th, a, b):
+        m = self.m
+        return np.concatenate([omega, t, th[1:self.N - 1], np.delete(a, m), b])
+
+    def unpack(self, X):
+        """X (B,nx) -> omega, t, th (B,N) (idx 0,N-1 zero), a (B,N), b (B,N)."""
+        N, m = self.N, self.m
+        B = X.shape[0]
+        th = np.zeros((B, N))
+        th[:, 1:N - 1] = X[:, self.i_th:self.i_th + N - 2]
+        a = np.empty((B, N))
+        ar = X[:, self.i_a:self.i_a + N - 1]
+        a[:, :m], a[:, m + 1:] = ar[:, :m], ar[:, m:]
+        a[:, m] = self.a_m
+        return X[:, :3], X[:, 3:6], th, a, X[:, self.i_b:self.i_b + N]
+
+    # --------------------------------------------------- forward kinematics (batched)
+    def fk_quads(self, X):
+        N, m, W = self.N, self.m, self.W
+        omega, t, th, a, b = self.unpack(X)
+        B = X.shape[0]
+        Lf = np.zeros((B, N, 3)); Lf[..., 0] = a
+        Rf = np.zeros((B, N, 3)); Rf[..., 0] = b; Rf[..., 1] = W
+        u = Rf - Lf
+        u /= np.linalg.norm(u, axis=-1, keepdims=True)
+        Rg = _rodrigues(u, th)                                   # (B,N,3,3)
+        tg = Lf - np.einsum('bkij,bkj->bki', Rg, Lf)
+        Rgi = np.swapaxes(Rg, -1, -2)
+        tgi = Lf - np.einsum('bkij,bkj->bki', Rgi, Lf)
+        Rq = np.empty((B, N - 1, 3, 3))
+        tq = np.empty((B, N - 1, 3))
+        Rq[:, m] = Rotation.from_rotvec(omega).as_matrix()
+        tq[:, m] = t
+        for k in range(m + 1, N - 1):
+            Rq[:, k] = Rq[:, k - 1] @ Rg[:, k]
+            tq[:, k] = np.einsum('bij,bj->bi', Rq[:, k - 1], tg[:, k]) + tq[:, k - 1]
+        for k in range(m - 1, -1, -1):
+            Rq[:, k] = Rq[:, k + 1] @ Rgi[:, k + 1]
+            tq[:, k] = np.einsum('bij,bj->bi', Rq[:, k + 1], tgi[:, k + 1]) + tq[:, k + 1]
+        return Rq, tq, Lf, Rf
+
+    def ring_quad(self):
+        i = np.arange(self.N)
+        return np.where(i <= self.m, i, i - 1)
+
+    def fk(self, X, alt=False):
+        """X (B,nx) -> L,R (B,N,3). alt=True uses the neighbouring quad for hinge rings (consistency test)."""
+        Rq, tq, Lf, Rf = self.fk_quads(X)
+        q = self.ring_quad()
+        if alt:
+            q = q.copy()
+            hr = np.arange(1, self.N - 1)
+            q[hr] = np.where(hr <= self.m, hr - 1, hr)
+        Rr, tr = Rq[:, q], tq[:, q]
+        L = np.einsum('bnij,bnj->bni', Rr, Lf) + tr
+        R = np.einsum('bnij,bnj->bni', Rr, Rf) + tr
+        return L, R
+
+    def points(self, x):
+        L, R = self.fk(x[None])
+        return L[0], R[0]
+
+    def full(self, x):
+        """x -> F-layout vector [L | R | a | b]."""
+        L, R = self.points(x)
+        _, _, _, a, b = self.unpack(x[None])
+        return np.concatenate([L.ravel(), R.ravel(), a[0], b[0]])
+
+    # --------------------------------------------------- point jacobian
+    def point_jac(self, x):
+        """P (6N, nx): d(L ravel, R ravel)/dx."""
+        N, m = self.N, self.m
+        nx = self.nx
+        P = np.zeros((2, N, 3, nx))
+        L0, R0 = self.points(x)
+        # t
+        for c in range(3):
+            P[:, :, c, 3 + c] = 1.0
+        # theta (analytic)
+        pts = np.stack([L0, R0])                                # (2,N,3)
+        for k in range(1, N - 1):
+            u = R0[k] - L0[k]
+            u /= np.linalg.norm(u)
+            if k > m:
+                sl, s = slice(k, N), 1.0
+            else:
+                sl, s = slice(0, k + 1), -1.0
+            d = np.cross(u, pts[:, sl] - L0[k]) * s             # (2,n,3)
+            P[:, sl, :, self.i_th + k - 1] = d
+        # FD columns: omega, a, b via one batched forward kinematics
+        cols, steps = [], []
+        for c in range(3):
+            cols.append(c); steps.append(1e-6)
+        for j in range(N - 1):
+            cols.append(self.i_a + j); steps.append(1e-6 * max(1.0, abs(x[self.i_a + j])))
+        for j in range(N):
+            cols.append(self.i_b + j); steps.append(1e-6 * max(1.0, abs(x[self.i_b + j])))
+        nc = len(cols)
+        X = np.repeat(x[None], 2 * nc, 0)
+        ar = np.arange(nc)
+        X[ar, cols] += steps
+        X[nc + ar, cols] -= steps
+        Lb, Rb = self.fk(X)
+        den = (2 * np.array(steps))[:, None, None]
+        dL = (Lb[:nc] - Lb[nc:]) / den
+        dR = (Rb[:nc] - Rb[nc:]) / den
+        P[0][:, :, cols] = np.transpose(dL, (1, 2, 0))
+        P[1][:, :, cols] = np.transpose(dR, (1, 2, 0))
+        return P.reshape(6 * N, nx)
+
+
+# ====================================================================== problem
+BLK = ('data', 'mono', 'obl', 'ruling', 'bend', 'clear', 'cov_in', 'cov_out')
+
+
+class HingeProblem:
+    """Point-based blocks reuse solve3d_fast.IsoProblem (residuals and row-local jacobians);
+    bending is the second difference of theta (direct)."""
+
+    def __init__(self, H, iso_prob):
+        self.H, self.ip = H, iso_prob
+        self.names = [n for n in iso_prob.names if n not in ('iso', 'planar')]
+        x0 = np.zeros(H.nx)
+        self.sizes = {n: len(v) for n, v in self.blocks(self._probe(x0)).items()}
+        self.nres = sum(self.sizes.values())
+
+    def _probe(self, x0):
+        H = self.H
+        x = x0.copy()
+        x[H.i_a:H.i_a + H.N - 1] = np.arange(H.N - 1) * H.h
+        x[H.i_b:] = np.arange(H.N) * H.h
+        x[3:6] = 0
+        return x
+
+    def blocks(self, x):
+        H = self.H
+        xf = H.full(x)
+        out = {}
+        for n in self.names:
+            if n == 'bend':
+                th = x[H.i_th:H.i_th + H.N - 2]
+                out[n] = (th[2:] - 2 * th[1:-1] + th[:-2]) * self.ip.sb
+            else:
+                out[n] = self.ip.block(n, xf)
+        return out
+
+    def f(self, x):
+        return np.concatenate(list(self.blocks(x).values()))
+
+    def jac_blocks(self, x):
+        """dict name -> dense (n_block, nx)."""
+        H, N = self.H, self.H.N
+        xf = H.full(x)
+        P = H.point_jac(x)
+        jb = self.ip.jac_blocks(xf)
+        from scipy.sparse import coo_matrix
+        out = {}
+        m = H.m
+        for n in self.names:
+            ns = self.sizes[n]
+            if n == 'bend':
+                Jd = np.zeros((ns, H.nx))
+                k = np.arange(ns)
+                for off, co in ((0, 1.0), (1, -2.0), (2, 1.0)):
+                    Jd[k, H.i_th + k + off] = co * self.ip.sb
+                out[n] = Jd
+                continue
+            r, c, v = jb[n]
+            Jf = coo_matrix((np.concatenate([np.asarray(q, float) for q in v]),
+                             (np.concatenate([np.asarray(q) for q in r]), np.concatenate([np.asarray(q) for q in c]))),
+                            shape=(ns, 8 * N)).tocsr()
+            Jd = np.asarray(Jf[:, :6 * N] @ P)
+            Ab = Jf[:, 6 * N:].toarray()
+            Jd[:, H.i_a:H.i_a + m] += Ab[:, :m]
+            Jd[:, H.i_a + m:H.i_a + N - 1] += Ab[:, m + 1:N]
+            Jd[:, H.i_b:H.i_b + N] += Ab[:, N:2 * N]
+            out[n] = Jd
+        return out
+
+    def jac(self, x):
+        jb = self.jac_blocks(x)
+        return np.concatenate([jb[n] for n in self.names], 0)
+
+
+class PrefitProblem:
+    """Residual p(x) - p_init for all ring points."""
+
+    def __init__(self, H, L0, R0):
+        self.H = H
+        self.p0 = np.concatenate([np.asarray(L0, float).ravel(), np.asarray(R0, float).ravel()])
+        self.nres = len(self.p0)
+
+    def f(self, x):
+        L, R = self.H.points(x)
+        return np.concatenate([L.ravel(), R.ravel()]) - self.p0
+
+    def jac(self, x):
+        return self.H.point_jac(x)
+
+
+# ====================================================================== dense LM
+def lm_dense(fun, jac, x0, max_iter=300, mu0=1e-3):
+    t0 = time.perf_counter()
+    x = np.asarray(x0, float).copy()
+    mu, nu = mu0, 2.0
+    r = fun(x)
+    cost = 0.5 * float(r @ r)
+    cost0 = cost
+    it = acc = small = 0
+    reason = 'max_iter'
+    while it < max_iter:
+        it += 1
+        J = jac(x)
+        g = J.T @ r
+        if np.abs(g).max() < 1e-9:
+            reason = 'gradient'
+            break
+        A = J.T @ J
+        d = np.maximum(np.diag(A), 1e-6)
+        try:
+            dx = cho_solve(cho_factor(A + mu * np.diag(d), lower=True), -g)
+        except Exception:
+            try:
+                dx = np.linalg.lstsq(A + mu * np.diag(d), -g, rcond=None)[0]
+            except Exception:
+                dx = np.full_like(x, np.nan)
+        if not np.all(np.isfinite(dx)):
+            mu *= nu
+            nu *= 2
+            if mu > 1e12:
+                reason = 'mu'
+                break
+            continue
+        if np.linalg.norm(dx) <= 1e-10 * (np.linalg.norm(x) + 1e-10):
+            reason = 'step'
+            break
+        pred = -(float(g @ dx) + 0.5 * float(dx @ (A @ dx)))
+        rn = fun(x + dx)
+        cn = 0.5 * float(rn @ rn)
+        rho = (cost - cn) / pred if pred > 0 else -1.0
+        if rho > 0:
+            rel = (cost - cn) / max(cost, 1e-300)
+            x = x + dx
+            r, cost = rn, cn
+            acc += 1
+            mu *= max(1 / 3, 1 - (2 * rho - 1) ** 3)
+            nu = 2.0
+            small = small + 1 if rel < 1e-12 else 0
+            if small >= 5:
+                reason = 'ftol'
+                break
+        else:
+            mu *= nu
+            nu *= 2
+            if mu > 1e12:
+                reason = 'mu'
+                break
+    return x, dict(iterations=it, accepted=acc, cost0=cost0, cost=cost, reason=reason,
+                   seconds=time.perf_counter() - t0)
