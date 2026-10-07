@@ -1,0 +1,150 @@
+RETRACE REPORT  route=route_v4.json
+edges: E1 2819 samples, E2 2553 samples, pairs 1325
+
+[gap pieces]
+
+[snap: two-pass; pass1 +-12.0, re-centre gaussian sigma 8, pass2 +-5.0, step 0.5, transition 0.15]
+  E1 total n_hard 1944 mean|o1| 3.327 n1_at_limit 92 mean|o2| 0.353 n2_at_limit 61
+  E1 piece  1 n=159 mean|o1| 3.072 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E1 piece  2 n=180 mean|o1| 2.964 n1_at_limit 0 mean|o2| 0.528 n2_at_limit 0
+  E1 piece  3 n=149 mean|o1| 2.057 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E1 piece  4 n=213 mean|o1| 2.110 n1_at_limit 0 mean|o2| 0.333 n2_at_limit 0
+  E1 piece  6 n=232 mean|o1| 4.175 n1_at_limit 0 mean|o2| 0.034 n2_at_limit 0
+  E1 piece  7 n=228 mean|o1| 3.057 n1_at_limit 0 mean|o2| 0.037 n2_at_limit 0
+  E1 piece  9 n=210 mean|o1| 4.548 n1_at_limit 0 mean|o2| 0.105 n2_at_limit 0
+  E1 piece 11 n=135 mean|o1| 1.341 n1_at_limit 0 mean|o2| 0.041 n2_at_limit 0
+  E1 piece 13 n=147 mean|o1| 8.449 n1_at_limit 92 mean|o2| 2.983 n2_at_limit 61
+  E1 piece 15 n=291 mean|o1| 2.222 n1_at_limit 0 mean|o2| 0.127 n2_at_limit 0
+  E1 soft piece  0 n=130 mean|o1| 1.504 n1_at_limit 0 mean|o2| 0.146 n2_at_limit 0
+  E2 total n_hard 1755 mean|o1| 3.104 n1_at_limit 51 mean|o2| 0.327 n2_at_limit 43
+  E2 piece  1 n=117 mean|o1| 7.231 n1_at_limit 51 mean|o2| 2.308 n2_at_limit 43
+  E2 piece  2 n= 25 mean|o1| 1.660 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E2 piece  4 n= 82 mean|o1| 1.085 n1_at_limit 0 mean|o2| 0.238 n2_at_limit 0
+  E2 piece  5 n=108 mean|o1| 1.833 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E2 piece  6 n=118 mean|o1| 1.458 n1_at_limit 0 mean|o2| 0.076 n2_at_limit 0
+  E2 piece  8 n=133 mean|o1| 1.970 n1_at_limit 0 mean|o2| 0.041 n2_at_limit 0
+  E2 piece 10 n= 63 mean|o1| 1.500 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E2 piece 12 n= 58 mean|o1| 0.991 n1_at_limit 0 mean|o2| 0.405 n2_at_limit 0
+  E2 piece 13 n=266 mean|o1| 2.695 n1_at_limit 0 mean|o2| 0.064 n2_at_limit 0
+  E2 piece 14 n= 85 mean|o1| 3.918 n1_at_limit 0 mean|o2| 0.653 n2_at_limit 0
+  E2 piece 15 n=153 mean|o1| 4.369 n1_at_limit 0 mean|o2| 0.333 n2_at_limit 0
+  E2 piece 18 n=144 mean|o1| 4.316 n1_at_limit 0 mean|o2| 0.396 n2_at_limit 0
+  E2 piece 20 n=149 mean|o1| 3.487 n1_at_limit 0 mean|o2| 0.315 n2_at_limit 0
+  E2 piece 22 n=150 mean|o1| 2.057 n1_at_limit 0 mean|o2| 0.127 n2_at_limit 0
+  E2 piece 24 n=104 mean|o1| 4.995 n1_at_limit 0 mean|o2| 0.000 n2_at_limit 0
+  E2 soft piece  0 n=122 mean|o1| 4.553 n1_at_limit 17 mean|o2| 0.762 n2_at_limit 0
+
+[missing landmarks]
+  pre-smoothing  {"E1": ["wrap_out"], "E2": []}
+  pairing (union) ['wrap_out']
+
+[lambda selection: smallest lam_out with osc_out==0 (both edges) and core p95<=2.0 and core max<=5.0 (both edges)]
+  lam_out  osc_out E1/E2  osc_in E1/E2  core_p95 E1/E2  core_max E1/E2
+       10      0     1       7     3      0.27    0.39     0.72    1.35
+       30      0     1       4     1      0.37    0.51     1.06    1.63
+      100      0     0       3     1      0.58    0.88     1.82    2.01  <- chosen
+      300      0     0       2     1      1.08    1.38     3.06    2.98
+     1000      0     0       1     0      2.24    2.26     5.00    5.00
+     3000      0     0       0     0      4.03    3.76     7.36    7.87
+    10000      0     0       0     0      7.36    7.05    11.19   12.66
+  chosen lam_out 100 (window lam 12.5)  gate PASS
+
+[fidelity: core hard snapped -> smoothed curve, px; core excludes 12 px of arc at piece ends and n2_at_limit samples]
+  E1 piece  1 n_core=147 mean 0.09 p95 0.15 max 0.33
+  E1 piece  2 n_core=168 mean 0.29 p95 1.08 max 1.82
+  E1 piece  3 n_core=135 mean 0.11 p95 0.21 max 0.24
+  E1 piece  4 n_core=201 mean 0.21 p95 0.67 max 1.61
+  E1 piece  6 n_core=220 mean 0.20 p95 0.78 max 1.49
+  E1 piece  7 n_core=215 mean 0.14 p95 0.24 max 0.28
+  E1 piece  9 n_core=198 mean 0.12 p95 0.26 max 0.39
+  E1 piece 11 n_core=123 mean 0.28 p95 0.64 max 1.15
+  E1 piece 13 n_core= 74 mean 0.39 p95 0.84 max 1.06
+  E1 piece 15 n_core=278 mean 0.18 p95 0.55 max 1.12
+  E1 ALL core n_core=1759 p95 0.58 max 1.82
+  E1 soft piece  0 n=116 mean 0.22 p95 0.75 max 0.84 (info)
+  E1 soft (info) n=116 mean 0.22 p95 0.75 max 0.84
+  E2 piece  1 n_core= 67 mean 0.41 p95 1.04 max 1.69
+  E2 piece  2 n_core= 13 mean 0.73 p95 0.96 max 0.96
+  E2 piece  4 n_core= 68 mean 0.12 p95 0.26 max 0.29
+  E2 piece  5 n_core= 96 mean 0.08 p95 0.13 max 0.20
+  E2 piece  6 n_core=105 mean 0.14 p95 0.57 max 0.67
+  E2 piece  8 n_core=121 mean 0.10 p95 0.22 max 0.31
+  E2 piece 10 n_core= 51 mean 0.11 p95 0.19 max 0.20
+  E2 piece 12 n_core= 45 mean 0.17 p95 0.44 max 0.62
+  E2 piece 13 n_core=253 mean 0.12 p95 0.25 max 0.39
+  E2 piece 14 n_core= 72 mean 0.41 p95 1.21 max 1.84
+  E2 piece 15 n_core=139 mean 0.52 p95 1.68 max 1.78
+  E2 piece 18 n_core=132 mean 0.60 p95 1.76 max 2.01
+  E2 piece 20 n_core=136 mean 0.23 p95 0.53 max 0.84
+  E2 piece 22 n_core=136 mean 0.16 p95 0.41 max 0.60
+  E2 piece 24 n_core= 90 mean 0.15 p95 0.31 max 0.50
+  E2 ALL core n_core=1524 p95 0.88 max 2.01
+  E2 soft piece  0 n=109 mean 0.59 p95 2.10 max 2.74 (info)
+  E2 soft (info) n=109 mean 0.59 p95 2.10 max 2.74
+
+[landmarks i1/i2]
+  start         0     0
+  s_in        290   237
+  s_out       475   431
+  fl_in       624   539
+  fl_out      807   757
+  apex_in    1005   947
+  apex_out   1145  1094
+  bk_in      1351  1306
+  bk_out     1681  1483
+  j1_in      1797  1568
+  j1_out     1887  1660
+  wrap_in    1991  1770
+  j2_in      2310  2053
+  j2_out     2368  2138
+  tk_in      2453  2211
+  tk_out     2642  2387
+  end        2818  2552
+
+[face check]
+   0 start    ->s_in      exp A      n=132 agree 1.0 disagree []
+   1 s_in     ->s_out     exp window n=  0 agree None disagree []
+   2 s_out    ->fl_in     exp B      n= 63 agree 1.0 disagree []
+   3 fl_in    ->fl_out    exp window n=  0 agree None disagree []
+   4 fl_out   ->apex_in   exp A      n= 41 agree 1.0 disagree []
+   5 apex_in  ->apex_out  exp window n=  0 agree None disagree []
+   6 apex_out ->bk_in     exp B      n=103 agree 1.0 disagree []
+   7 bk_in    ->bk_out    exp window n=  0 agree None disagree []
+   8 bk_out   ->j1_in     exp B      n= 49 agree 1.0 disagree []
+   9 j1_in    ->j1_out    exp hidden n=  0 agree None disagree []
+  10 j1_out   ->wrap_in   exp B      n= 52 agree 1.0 disagree []
+  11 wrap_in  ->j2_in     exp window n=  0 agree None disagree []
+  12 j2_in    ->j2_out    exp hidden n=  0 agree None disagree []
+  13 j2_out   ->tk_in     exp B      n= 38 agree 1.0 disagree []
+  14 tk_in    ->tk_out    exp window n=  0 agree None disagree []
+  15 tk_out   ->end       exp A      n= 10 agree 1.0 disagree []
+  overall: 488 checked, agreement 1.0, gate>=0.95 PASS
+
+[oscillation]
+  edge1 outside windows: 0 curvature lobes shorter than 0.5 W with |kappa|W < 3 : []
+  edge1 inside windows (info only): 3 : [(376, [681, 1373], 26, 0.48), (2176, [217, 1058], 50, 1.05), (2275, [398, 999], 40, 0.77)]
+  edge2 outside windows: 0 curvature lobes shorter than 0.5 W with |kappa|W < 3 : []
+  edge2 inside windows (info only): 1 : [(1919, [218, 1039], 34, 0.66)]
+  oscillation gate (outside windows): PASS
+
+[widths |E2-E1| px]
+   0 start    ->s_in      min  226.5 med  261.9 max  314.2
+   1 s_in     ->s_out     min   24.2 med   76.2 max  225.6
+   2 s_out    ->fl_in     min   81.8 med   88.6 max   99.0
+   3 fl_in    ->fl_out    min   47.5 med   98.1 max  128.4
+   4 fl_out   ->apex_in   min  107.5 med  114.6 max  127.1
+   5 apex_in  ->apex_out  min  107.1 med  114.9 max  123.1
+   6 apex_out ->bk_in     min  113.3 med  119.1 max  123.1
+   7 bk_in    ->bk_out    min   21.0 med   98.9 max  118.9
+   8 bk_out   ->j1_in     min   96.7 med  103.2 max  112.3
+   9 j1_in    ->j1_out    min   96.3 med   99.6 max  102.7
+  10 j1_out   ->wrap_in   min   54.2 med   87.6 max  102.6
+  11 wrap_in  ->j2_in     min   33.9 med   46.9 max   93.8
+  12 j2_in    ->j2_out    min   95.3 med  118.9 max  141.0
+  13 j2_out   ->tk_in     min  102.5 med  127.8 max  140.7
+  14 tk_in    ->tk_out    min    3.6 med   84.6 max  100.9
+  15 tk_out   ->end       min   40.9 med   56.9 max   95.4
+
+[self-intersections outside hidden spans: x, y, seg i, seg j]
+  E1 count 2 [[439.0, 985.1, 1291, 2307], [566.2, 894.0, 1789, 2385]]
+  E2 count 2 [[554.5, 986.1, 1239, 1568], [373.8, 935.4, 1662, 2022]]

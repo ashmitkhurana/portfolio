@@ -1,0 +1,101 @@
+{
+  "metrics": {
+    "init": {
+      "sil_iou": 0.9202486012103812,
+      "faceA_iou": 0.9925998529772114,
+      "faceB_iou": 0.7738304093567251,
+      "rms_reproj": 0.7185489258698015,
+      "max_iso_resid": 67.7842800624077,
+      "max_planarity": 0.020040027813389205,
+      "min_clearance": 101.43422469477959,
+      "layer_order": 0.07631851085832471,
+      "n_overlap_px": 4835,
+      "rms_3d": 72.94617257954899
+    },
+    "solve": {
+      "sil_iou": 0.9224258830436058,
+      "faceA_iou": 0.990853509415505,
+      "faceB_iou": 0.7773934226552984,
+      "rms_reproj": 0.6721358754216217,
+      "max_iso_resid": 95.95754731530877,
+      "max_planarity": 0.08867200213918419,
+      "min_clearance": 113.12998598067232,
+      "layer_order": 0.10444674250258532,
+      "n_overlap_px": 4835,
+      "rms_3d": 72.92777140071324
+    },
+    "solve_iso": {
+      "sil_iou": 0.9129869073757827,
+      "faceA_iou": 0.9849596567779051,
+      "faceB_iou": 0.75497041993987,
+      "rms_reproj": 2.0156329439783547,
+      "max_iso_resid": 0.11424591629787528,
+      "max_planarity": 0.1653915414331266,
+      "min_clearance": 126.80447523204512,
+      "layer_order": 0.08852119958634953,
+      "n_overlap_px": 4835,
+      "rms_3d": 68.33928062998324
+    }
+  },
+  "history_solve": [
+    {
+      "stage": 1,
+      "cost_before": 296188.2989145621,
+      "cost_after": 20.754245972721435,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 0,
+      "n_resid": 2631
+    },
+    {
+      "stage": 2,
+      "cost_before": 41.64750936692864,
+      "cost_after": 22.774942112026167,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 674,
+      "n_resid": 3305
+    },
+    {
+      "stage": 3,
+      "cost_before": 31.98922070915542,
+      "cost_after": 28.39977238130528,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 779,
+      "n_resid": 3410
+    }
+  ],
+  "history_iso": [
+    {
+      "stage": 1,
+      "cost_before": 2250135.118581758,
+      "cost_after": 1658.354271607486,
+      "nfev": 300,
+      "status": 0,
+      "n_pairs": 0,
+      "n_resid": 3082
+    },
+    {
+      "stage": 2,
+      "cost_before": 8670.384147722112,
+      "cost_after": 880.2020567543307,
+      "nfev": 300,
+      "status": 0,
+      "n_pairs": 6483,
+      "n_resid": 9565
+    },
+    {
+      "stage": 3,
+      "cost_before": 2635.634845066339,
+      "cost_after": 1174.7102302640758,
+      "nfev": 300,
+      "status": 0,
+      "n_pairs": 6485,
+      "n_resid": 9567
+    }
+  ],
+  "solve_seconds": 33.85802602767944,
+  "solve_iso_seconds": 92.08221316337585,
+  "max_nfev_iso": 300
+}

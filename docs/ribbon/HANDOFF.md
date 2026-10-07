@@ -3,7 +3,7 @@
 This doc is for whoever continues this work: Codex, another agent, or a human. It covers the vision, every decision the owner (Ashmit) has made, what is built, what failed and why, and a step-by-step plan to finish. Read all of it before changing anything. Most of the expensive mistakes so far came from re-deciding things that were already decided.
 
 - Repo: `/Users/ashmitkhurana/Development/studio/portfolio`
-- Branch: `rebrand/ribbon`. It is **local only and not pushed**; push it first so it is backed up.
+- Branch: `rebrand/ribbon`. It is pushed to `origin`.
 - `main` is the live site at ashmitkhurana.com. Do not touch it until the rebuild ships through a PR.
 - Last commit when this was written: `938cce8`.
 
@@ -197,7 +197,7 @@ How the tier is chosen and protected:
 8. It crosses right **behind** the A right leg.
 9. The **upper K loop** (≈ 530–830, 680–900), with a fold at its tip.
 10. It folds back **behind** the top part of the K and heads down.
-11. **End 2** stops hidden behind the K ribbons. It is never visible.
+11. **End 2**: the strand runs down behind the right leg and its tip stops hidden a little above the bottom of the A right leg. The strand leading to it IS visible (see §5a); only the tip is hidden.
 
 ### Faces
 Face A is the face visible on the leading end at the bottom.
@@ -214,7 +214,7 @@ Face A is the face visible on the leading end at the bottom.
 - The bottom-K return is behind the right leg; the cross to the top K is behind the right leg.
 - The crossbar is in front of the A left leg, then wraps behind it.
 - The top-K back section is behind the top-K front.
-- End 2 is fully hidden.
+- End 2's tip is hidden behind the A right leg (the strand leading to it is visible; see §5a).
 - 3D clearance ≥ 2 × thickness between non-adjacent strands, everywhere.
 
 ### Weave with the HTML text
@@ -225,6 +225,45 @@ Face A is the face visible on the leading end at the bottom.
   - the A right leg and the tail are **in front** of the name
   - other strands overlapping the name are behind KHURANA
   - the apex is behind ASHMIT where they overlap
+
+---
+
+## 5a. Owner-confirmed spec (2026-10-07). Supersedes §5 wherever they differ
+
+The owner walked through the phone mockup with the agent line by line. **The phone cutout (`ak-signature-cutout.webp`) is the source of truth for everything, with exactly one exception (the left-leg anomaly below).** When in doubt, look at the image first; it is a valid single strand.
+
+**Flow, End 1 (leading, off-screen bottom-left) → End 2 (hidden):**
+
+| # | Segment | Visible face | Over/under |
+|---|---|---|---|
+| 1 | Leading end rises from off-screen bottom | A | Behind the tagline |
+| 2 | S-curve slightly right, then the long diagonal sweep left. The flip starts at the S's **right-hand bend** and the span stays B until the far-left fold | A → **B** | – |
+| 3 | **Fold** at the far bottom-left, up and to the right: A left leg | **A** | – |
+| 4 | **Fold** at the apex, down and to the right: A right leg | **B** | **In front of everything** |
+| 5 | Continues down (about the left leg's length), curls into the bottom K loop | B outside, glimpse of A inside the curl | – |
+| 6 | Returns up to the middle of the right leg (the "junction") | B | Behind the right leg (back layer) |
+| 7 | Exits left as the **crossbar**: the UPPER of the two strands between the A legs, running right → left | B | – |
+| 8 | Goes **over the front** of the left leg, curls down the outside (left) of the leg (only this loop is visible), wraps **behind** the leg | B, glimpse of A in the curl | Front of left leg, then behind it |
+| 9 | Comes back as the **return**: the LOWER strand, running left → right, after a small twist that shows B again | **B** | Behind the right leg but **in front of** the back layer (#6/#7) |
+| 10 | Rises up-right, away from the right leg: top K loop front strand | B | – |
+| 11 | **Fold** at the top K tip, back down and to the left | **A** (dark) | Behind the top K front strand |
+| 12 | Runs down past the junction. **Visible as the dark strand in the gap between the right leg and the bottom K loop**, then slides behind the right leg; tip ends a little above the bottom of the right leg | A | Tip hidden behind the right leg |
+
+**Junction:** the back layer (#6→#7, enters lower-right, exits upper-left) and the middle layer (#9→#10, enters lower-left, exits upper-right) cross in an **X entirely hidden behind the right leg**. The X is never seen, but the way the strands lead in and out makes it obvious. The crossbar (#7) and return (#9) meet the right leg as a clean sideways V with no visible crossing on the left of the right leg.
+
+**Left-leg anomaly (the one exception):** below the crossbar wrap, the mockup shows the left leg about 2× too wide: a bright band plus a dark stripe on its right. The real leg is the bright band; its true right edge is the faint, slightly curved edge line in the image running from the underside of the crossbar wrap down to the top edge of the sweep. Delete the dark stripe. The return strand (#9) extends left to emerge from behind that true edge. Constant width everywhere.
+
+**Edge crossover rule (applies at every face change):** wherever the visible face changes, the two physical edges cross over. One edge rolls over and dives down the inside; the other emerges on the far side; the roll outline between them is surface (a fold contour), never an edge. Face changes, in order: (1) S twist, (2) far-left fold, (3) apex, (4) small twist after the wrap, (5) top K tip. The curls (bottom K loop, wrap) also cross over in projection where the inner face is glimpsed.
+- **Apex:** E1 (left leg's outer edge) climbs to the top-left shoulder and dives down the thin bright diagonal rim line just inside the top of the A, becoming the right leg's inner (hole-side) edge. E2 (left leg's inner edge) passes hidden behind the front layer and emerges at the top-right shoulder, where the outline starts to fall, becoming the right leg's outer edge. The flat top between the shoulders is the roll outline, not an edge.
+- **Top K tip:** the same structure turned sideways (to be confirmed on a zoomed crop during the turn breakdown).
+- **Far-left fold:** the bright rim along the top of the sweep continues up the left leg's OUTER edge (visible in the mockup).
+- The previous trace labelled edges by position ("outer = magenta, inner = green") at every turn. That is the root bug, not only at the apex: it also missed the swaps at the S twist and the far-left fold, which cancel each other so the left leg looked right while the sweep between them was inverted.
+
+**Rendering decisions:**
+- Constant ribbon width; the tail only looks ~2.5× wider through perspective as it swings toward the camera.
+- Depth-of-field blur on the near tail: ON for higher tiers, OFF on low-end.
+- The sculpture rests on the dark floor with soft contact shadows; it does not float.
+- Desktop: the same sculpture, bigger, on the right. The leading end (tail) is re-routed to follow the desktop mockup's tail; details are decided at that stage with the owner.
 
 ---
 

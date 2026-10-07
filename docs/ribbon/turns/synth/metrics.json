@@ -1,0 +1,68 @@
+{
+  "ground_truth": {
+    "rms_3d": 0.0,
+    "rms_reproj": 0.0,
+    "width_err_mean": 6.394695973637645,
+    "width_err_max": 52.94682586114905,
+    "inext_err_mean": 0.11138813828968883,
+    "inext_err_max": 0.5852620357053722,
+    "max_inplane_curvature": 0.007060175194647955,
+    "min_clearance": 249.07604548327524,
+    "face_agreement": 1.0
+  },
+  "init": {
+    "rms_3d": 72.94617257954899,
+    "rms_reproj": 0.7185489258698015,
+    "width_err_mean": 14.927281846812683,
+    "width_err_max": 67.7842800624077,
+    "inext_err_mean": 0.3968580374594923,
+    "inext_err_max": 1.605713639291705,
+    "max_inplane_curvature": 0.08867928358756957,
+    "min_clearance": 245.63029949579553,
+    "face_agreement": 1.0
+  },
+  "solved": {
+    "rms_3d": 72.92777140071324,
+    "rms_reproj": 0.6721358754216217,
+    "width_err_mean": 2.913738471747316e-05,
+    "width_err_max": 0.00024187732424252317,
+    "inext_err_mean": 0.0011711801240955307,
+    "inext_err_max": 0.01300543691108036,
+    "max_inplane_curvature": 0.10956716434926529,
+    "min_clearance": 250.74167332125734,
+    "face_agreement": 0.9859154929577465
+  },
+  "history": [
+    {
+      "stage": 1,
+      "cost_before": 296188.2989145621,
+      "cost_after": 20.754245972721435,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 0,
+      "n_resid": 2631
+    },
+    {
+      "stage": 2,
+      "cost_before": 41.64750936692864,
+      "cost_after": 22.774942112026167,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 674,
+      "n_resid": 3305
+    },
+    {
+      "stage": 3,
+      "cost_before": 31.98922070915542,
+      "cost_after": 28.39977238130528,
+      "nfev": 200,
+      "status": 0,
+      "n_pairs": 779,
+      "n_resid": 3410
+    }
+  ],
+  "solve_seconds": 33.685534954071045,
+  "max_nfev": 200,
+  "visible_E1": 128,
+  "visible_E2": 129
+}
