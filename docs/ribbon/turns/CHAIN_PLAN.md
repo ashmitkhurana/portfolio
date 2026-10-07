@@ -116,3 +116,12 @@ Residuals:
 - **Growth order:** apex → left leg → far-left → sweep → right leg → bottom-K → k_return → back layer → crossbar → wrap → middle layer → top-K front → top-K tip → end strand → S → tail.
 - **Per-stage gate:** RMS of the NEW interval's rings ≤ 12 px (≤ 20 px for S and tail). Stop only if a new interval exceeds 20 px (25 px for S/tail).
 - The S keeps the S bend plus 4 oblique rolls. The tail keeps 2 bends.
+
+## Decision after re-rooted stage 2 (apex 1.08 px PASS; left leg 51.7 px)
+- The root frame needs paper3's own left-leg bends. Paper3 fitted the left leg with oblique bends right next to the apex (β 160°/78°, φ −34°); seeding only the apex fold breaks that.
+- **Stage 1 = the whole paper3 section** (rings 363–580), with all 5 paper3 rolls seeded exactly and the pose free. Check that its RMS ≈ paper3's.
+- **Bend rule relaxed:** ρ ≥ 0.5W, |φ| ≤ 1.2 rad, β free.
+  - The crease lines came from the uneven export sampling (now fixed in emit_chain), not from ρ = 0.5W itself.
+  - Bends at least 1W apart.
+- Then grow outward in the same order, skipping intervals already covered by stage 1.
+- **Gates:** new-interval target 12 px; stop at > 25 px (> 30 px for S/tail).

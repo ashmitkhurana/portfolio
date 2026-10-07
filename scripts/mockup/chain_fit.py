@@ -72,6 +72,7 @@ DU_Z = 1.7
 OU_PAD = 6000
 NV_COV = 9
 BEND_MIN_ARC = 1.5
+BEND_PHI = float(os.environ.get('BEND_PHI', '0.5'))
 Z_LO, Z_HI = -140.0, 220.0
 P3_SOL = os.path.join(ROOT, 'docs/ribbon/turns/paper3/solution.npz')
 P3_MET = os.path.join(ROOT, 'docs/ribbon/turns/paper3/metrics.json')
@@ -164,6 +165,8 @@ class Chain:
         self.kind = [k for _, k, _ in ROLLS]
         self.rname = [n for n, _, _ in ROLLS]
         self.cam = np.array([0.0, 0.0, AP.D])
+        self.k_apex = self.rname.index('apex fold')
+        self.tau_root = float(self.tau[ROLLS[self.k_apex][2]])
         self._stage = {}
         arc3 = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(self.T0, axis=0), axis=1))]
         a3 = np.r_[arc3[self.i0], arc3[-1]]
@@ -173,6 +176,7 @@ class Chain:
         self.lo, self.hi = self.bounds()
         self.x0 = self.x_init()
         self.bk_bottom = None
+        self._active = set(range(NR))
 
     # ------------------------------------------------------------ params
     def bounds(self):
@@ -180,7 +184,7 @@ class Chain:
         lo = np.full(self.nx, -np.inf); hi = np.full(self.nx, np.inf)
         for k in range(NR):
             o = 6 + 4 * k
-            lo[o], hi[o] = self.roll_tau0[k] - 0.8 * W, self.roll_tau0[k] + 0.8 * W
+            lo[o], hi[o] = self.roll_tau0[k] - 2.0 * W, self.roll_tau0[k] + 2.0 * W
             lo[o + 1], hi[o + 1] = PM.BETA_LO, PM.BETA_HI
             if self.kind[k] == 'obl':
                 lo[o + 2], hi[o + 2] = 0.25 * W, 3.0 * W
@@ -190,7 +194,7 @@ class Chain:
                 lo[o + 3], hi[o + 3] = -np.pi - 0.3, np.pi + 0.3
             else:
                 lo[o + 2], hi[o + 2] = 1.0 * W, 6.0 * W
-                lo[o + 3], hi[o + 3] = -0.5, 0.5
+                lo[o + 3], hi[o + 3] = -BEND_PHI, BEND_PHI
         lo[6 + 4 * NR:], hi[6 + 4 * NR:] = LAM_LO, LAM_HI
         return lo, hi
 
@@ -206,8 +210,10 @@ class Chain:
         return x[6 + 4 * NR:]
 
     def F(self, x, tau):
+        """flat coordinate of the trace coordinate tau, anchored so that F(tau_root) = tau_root (the apex entry stays put when lambdas change)"""
         U = np.r_[0.0, np.cumsum(self.lam(x) * np.diff(self.tau_b))]
-        return np.interp(tau, self.tau_b, U)
+        off = np.interp(self.tau_root, self.tau_b, U) - self.tau_root
+        return np.interp(tau, self.tau_b, U) - off
 
     def u_ring(self, x):
         return self.F(x, self.tau)
@@ -215,31 +221,41 @@ class Chain:
     def rolls(self, x):
         return x[6:6 + 4 * NR].reshape(NR, 4)
 
-    def paper_x(self, x, K):
-        r = self.rolls(x)[:K].copy()
+    # ------------------------------------------------------------ re-rooted kinematics
+    def ctx(self, x, act):
+        """frames of the chain re-rooted at the apex entry segment: returns (G, rollsU, s_r)"""
+        act = list(act)
+        r = self.rolls(x)[act].copy()
         r[:, 0] = self.F(x, r[:, 0])
-        return np.concatenate([x[:6], r.ravel()])
+        s_r = int(sum(1 for k in act if k < self.k_apex))
+        return build_frames(x[:3], x[3:6], r, s_r), r
+
+    def surf(self, x, u, v, act=None, cx=None):
+        act = list(range(NR)) if act is None else act
+        (G, E), r = cx if cx is not None else self.ctx(x, act)
+        return chain_surface(G, r, u, v)
 
     # ------------------------------------------------------------ stage info
-    def stage_info(self, K, e):
-        """problem restricted to the first K rolls and rings 0..e (complete windows / strands only)"""
-        key = (K, e)
+    def stage_info(self, act, lo, hi):
+        act = tuple(sorted(act))
+        key = (act, lo, hi, self.bk_bottom)
         if key in self._stage:
             return self._stage[key]
-        nR = e + 1
         W = self.W
-        st = dict(K=K, e=e, nR=nR)
-        st['strands'] = [j for j in range(NI) if self.i1[j] <= e]
-        st['nlam'] = int(np.sum(self.i0 <= e))
-        st['wins'] = [wi for wi, k in enumerate(self.win_iv) if self.i1[k] <= e]
-        st['idx1'] = np.nonzero(self.out1[:nR])[0]
-        st['idx2'] = np.nonzero(self.out2[:nR])[0]
+        nR = hi - lo + 1
+        st = dict(act=list(act), lo=lo, hi=hi)
+        st['strands'] = [j for j in range(NI) if self.i0[j] >= lo and self.i1[j] <= hi]
+        st['ivs'] = [j for j in range(NI) if self.i0[j] >= lo and self.i1[j] <= hi]
+        st['wins'] = [wi for wi, k in enumerate(self.win_iv) if self.i0[k] >= lo and self.i1[k] <= hi]
+        inr = (np.arange(self.N) >= lo) & (np.arange(self.N) <= hi)
+        st['idx1'] = np.nonzero(self.out1 & inr)[0]
+        st['idx2'] = np.nonzero(self.out2 & inr)[0]
         st['amp1'] = np.sqrt(self.kw1[st['idx1']])[:, None]
         st['amp2'] = np.sqrt(self.kw2[st['idx2']])[:, None]
         st['cov'] = []
         for wi in st['wins']:
             k = self.win_iv[wi]
-            a, b = max(self.i0[k] - 15, 0), min(self.i1[k] + 15, e)
+            a, b = max(self.i0[k] - 15, lo), min(self.i1[k] + 15, hi)
             idx = np.arange(a, b + 1)
             n = len(idx)
             cv = self.cov[wi]
@@ -249,23 +265,24 @@ class Chain:
         st['ns'] = NS
         st['sid'] = np.concatenate([np.full(n, j) for j, n in zip(st['strands'], NS)]) if NS else np.zeros(0, int)
         st['vz'] = np.linspace(-W / 2, W / 2, NVZ)
-        fo = self.face_ok[:e].copy()
+        fo = self.face_ok.copy(); fo[:lo] = False; fo[hi:] = False
         st['face_j'] = np.nonzero(fo)[0]
         st['face_sign'] = np.where(self.face_exp[st['face_j']] == 'A', 1.0, -1.0)
-        st['seen'] = {k: SEEN_RULES[self.rname[k]] for k in range(K) if self.rname[k] in SEEN_RULES}
-        if self.bk_bottom is not None and self.bk_bottom < K:
-            st['seen'][self.bk_bottom] = -1
-        if e >= self.N - 1:
+        pos = {k: i for i, k in enumerate(act)}
+        st['seen'] = {pos[k]: SEEN_RULES[self.rname[k]] for k in act if self.rname[k] in SEEN_RULES}
+        if self.bk_bottom is not None and self.bk_bottom in pos:
+            st['seen'][pos[self.bk_bottom]] = -1
+        if hi >= self.N - 1 and self.i0[self.end_behind] >= lo:
             st['end_idx'] = np.arange(self.N - 20, self.N)
             st['leg_idx'] = np.arange(self.i0[self.end_behind], self.i1[self.end_behind] + 1)
-        st['bend_pairs'] = [(a, a + 1) for a in range(K - 1) if self.kind[a] == 'bend' and self.kind[a + 1] == 'bend']
-        st['hidden_rolls'] = [k for k in range(K) if self.rname[k] in HIDDEN_ROLLS]
+        st['bend_pairs'] = [(a, a + 1) for a in range(len(act) - 1) if self.kind[act[a]] == 'bend' and self.kind[act[a + 1]] == 'bend']
+        st['hidden_rolls'] = [k for k in act if self.rname[k] in HIDDEN_ROLLS]
+        st['tailz'] = lo == 0
         self._stage[key] = st
         return st
 
     # ------------------------------------------------------------ residual blocks
-    def dense(self, x, st, xp):
-        """strand samples: points (M,3), flat arc uf (M,), strand id"""
+    def dense(self, x, st, cx):
         W = self.W
         ur = self.u_ring(x)
         us = []
@@ -276,13 +293,13 @@ class Chain:
         u = np.concatenate(us) if us else np.zeros(0)
         vz = st['vz']
         U = np.repeat(u, len(vz)); V = np.tile(vz, len(u))
-        pts = PM.surface(xp, U, V, st['K'])
+        pts = self.surf(x, U, V, st['act'], cx)
         return pts, U, np.repeat(st['sid'], len(vz)), V
 
-    def ou_blocks(self, x, st, xp):
+    def ou_blocks(self, x, st, cx):
         if not st['strands']:
             return np.zeros(OU_PAD), np.zeros(0), np.zeros(0), (None, None, None, None)
-        pts, U, sid, V = self.dense(x, st, xp)
+        pts, U, sid, V = self.dense(x, st, cx)
         thk = self.thk
         p2 = AP.project(pts)
         key = (np.floor(p2[:, 0] / CELL).astype(np.int64) + 2000) * 4000 + (np.floor(p2[:, 1] / CELL).astype(np.int64) + 2000)
@@ -313,19 +330,15 @@ class Chain:
         out = np.zeros(OU_PAD)
         n = min(len(r), OU_PAD)
         out[:n] = r[:n]
-        # text weave: apex / left leg / right leg behind the KHURANA plane inside its proxy rect
         wk = np.isin(sid, self.weave_strands)
         pc = AP.project_css(pts[wk])
         inside = (pc[:, 0] >= KHURANA['x']) & (pc[:, 0] <= KHURANA['x'] + KHURANA['w']) & (pc[:, 1] >= KHURANA['y']) & (pc[:, 1] <= KHURANA['y'] + KHURANA['h'])
         wv = np.where(inside, np.maximum(0.0, pts[wk, 2] - (KHURANA['z'] - thk)), 0.0) * SC * W_WEAVE
-        wv_full = np.zeros(int(np.isin(st['sid'], self.weave_strands).sum()) * NVZ)
-        wv_full[:len(wv)] = wv
-        # z range
-        zr = (np.maximum(0.0, pts[::7, 2] - Z_HI) + np.maximum(0.0, Z_LO - pts[::7, 2])) * W_ZR
-        return out, wv_full, zr, (r, pts, sid, U)
+        return out, wv, np.zeros(0), (r, pts, sid, U)
 
-    def seen_block(self, xp, K, k_roll, side):
-        u0, b, rho, phi = xp[6 + 4 * k_roll:6 + 4 * k_roll + 4]
+    def seen_block(self, cx, k_roll, side):
+        (G, E), r = cx
+        u0, b, rho, phi = r[k_roll]
         W = self.W
         t = abs(phi) * np.linspace(0.15, 0.85, 15)
         vv = np.array([-0.4, -0.2, 0.0, 0.2, 0.4]) * W
@@ -335,7 +348,7 @@ class Chain:
         q = np.stack([u0 + Yp * np.cos(b) + Xp * np.sin(b), V], 1)
         a = np.array([np.cos(b), np.sin(b)]); ap = np.array([np.sin(b), -np.cos(b)])
         d = 0.05
-        Sf = lambda qq: PM.surface(xp, qq[:, 0], qq[:, 1], K)
+        Sf = lambda qq: chain_surface(G, r, qq[:, 0], qq[:, 1])
         P0 = Sf(q); Pp = Sf(q + d * ap); Pm = Sf(q - d * ap); Pa = Sf(q + d * a)
         N = np.cross(Pp - Pm, Pa - P0)
         N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
@@ -346,16 +359,21 @@ class Chain:
         return np.maximum(0.0, 0.2 - side * (N * vh).sum(1)) * W_SEEN
 
     def parts(self, x, st):
-        W, K, nR = self.W, st['K'], st['nR']
-        xp = self.paper_x(x, K)
-        ur = self.u_ring(x)[:nR]
-        PL = PM.surface(xp, ur, np.full(nR, -W / 2), K)
-        PR = PM.surface(xp, ur, np.full(nR, W / 2), K)
+        W = self.W
+        lo, hi = st['lo'], st['hi']
+        act = st['act']
+        cx = self.ctx(x, act)
+        (G, E), r = cx
+        ufull = self.u_ring(x)
+        ur = ufull[lo:hi + 1]
+        n = hi - lo + 1
+        FL = np.zeros((self.N, 3)); FR = np.zeros((self.N, 3))
+        FL[lo:hi + 1] = chain_surface(G, r, ur, np.full(n, -W / 2))
+        FR[lo:hi + 1] = chain_surface(G, r, ur, np.full(n, W / 2))
         out = {}
-        p1, p2 = AP.project(PL), AP.project(PR)
+        p1, p2 = AP.project(FL), AP.project(FR)
         i1, i2 = st['idx1'], st['idx2']
         out['pt'] = np.concatenate([((p1[i1] - self.e1[i1]) * st['amp1']).ravel(), ((p2[i2] - self.e2[i2]) * st['amp2']).ravel()])
-        FL = np.zeros((self.N, 3)); FR = np.zeros((self.N, 3)); FL[:nR] = PL; FR[:nR] = PR
         sl, an = [], []
         for wi in st['wins']:
             s1, a1 = self.sd[wi][0].resid(FL)
@@ -367,55 +385,59 @@ class Chain:
         cov = []
         for cw in st['cov']:
             idx = cw['idx']
-            n = len(idx)
-            G = np.stack([PM.surface(xp, ur[idx], np.full(n, v), K) for v in np.linspace(-W / 2, W / 2, NV_COV)])
+            m = len(idx)
+            G3 = np.stack([chain_surface(G, r, ufull[idx], np.full(m, v)) for v in np.linspace(-W / 2, W / 2, NV_COV)])
             for kind, pts, cand in (('in', cw['pin'], cw['cin']), ('out', cw['pout'], cw['cout'])):
-                r = np.stack([S.coverage_resid(G[k], G[k + 1], pts, cand, W, kind) for k in range(NV_COV - 1)])
+                rr_ = np.stack([S.coverage_resid(G3[k], G3[k + 1], pts, cand, W, kind) for k in range(NV_COV - 1)])
                 if kind == 'in':
-                    rr = r.min(0)
+                    rr = rr_.min(0)
                 else:
-                    rp = np.where(r > 0, r, np.inf).min(0)
+                    rp = np.where(rr_ > 0, rr_, np.inf).min(0)
                     rr = np.where(np.isfinite(rp), rp, 0.0)
                 cov.append(rr * sq)
         out['cov'] = np.concatenate(cov) if cov else np.zeros(0)
-        # over/under, weave, z range
-        ou, wv, zr, _ = self.ou_blocks(x, st, xp)
-        out['ou'], out['weave'], out['zr'] = ou, wv, zr
-        # face
+        ou, wv, _, _ = self.ou_blocks(x, st, cx)
+        out['ou'], out['weave'] = ou, wv
         j = st['face_j']
-        C = (PL + PR) / 2
+        C = (FL + FR) / 2
         Tq = C[1:] - C[:-1]
-        Dq = ((PR - PL)[1:] + (PR - PL)[:-1]) / 2
-        n = np.cross(Tq, Dq)
+        Dq = ((FR - FL)[1:] + (FR - FL)[:-1]) / 2
+        nn = np.cross(Tq, Dq)
         cc = (C[1:] + C[:-1]) / 2
         vh = self.cam - cc
-        sh = (n * vh).sum(1) / np.maximum(np.linalg.norm(n, axis=1) * np.linalg.norm(vh, axis=1), 1e-12)
+        sh = (nn * vh).sum(1) / np.maximum(np.linalg.norm(nn, axis=1) * np.linalg.norm(vh, axis=1), 1e-12)
         out['face'] = np.maximum(0.0, st['face_sign'] * sh[j] + 0.05) * W_FACE
-        # roll side rules
-        out['seen'] = np.concatenate([self.seen_block(xp, K, k, side) for k, side in st['seen'].items()]) if st['seen'] else np.zeros(0)
-        # roll geometry penalties
-        rolls = xp[6:].reshape(K, 4) if K else np.zeros((0, 4))
-        og = -PM.overlap_gaps(xp, W, K) if K >= 2 else np.zeros(0)
+        out['seen'] = np.concatenate([self.seen_block(cx, k, side) for k, side in st['seen'].items()]) if st['seen'] else np.zeros(0)
+        K = len(act)
+        og = np.zeros(0)
+        if K >= 2:
+            g = []
+            for a in range(K - 1):
+                u0, b0, r0, p0 = r[a]; u1, b1, r1, p1_ = r[a + 1]
+                for v in (-W / 2, W / 2):
+                    end_k = u0 + v / np.tan(b0) + r0 * abs(p0) / np.sin(b0)
+                    start_n = u1 + v / np.tan(b1)
+                    g.append(start_n - end_k)
+            og = -np.array(g)
         out['overlap'] = np.maximum(0.0, og) * SC * W_OVL
-        bp = [max(0.0, BEND_MIN_ARC * W - (rolls[b, 0] - rolls[a, 0])) * SC * W_BEND for a, b in st['bend_pairs']]
-        order = [max(0.0, 2.0 - (rolls[k + 1, 0] - rolls[k, 0])) * SC * 5 for k in range(K - 1)]
+        bp = [max(0.0, BEND_MIN_ARC * W - (r[b, 0] - r[a, 0])) * SC * W_BEND for a, b in st['bend_pairs']]
+        order = [max(0.0, 2.0 - (r[k + 1, 0] - r[k, 0])) * SC * 5 for k in range(K - 1)]
         out['bend'] = np.array(bp + order)
-        # end hidden
         if 'end_idx' in st:
             ei, li = st['end_idx'], st['leg_idx']
             pe = np.concatenate([p1[ei], p2[ei], (p1[ei] + p2[ei]) / 2])
             cand = np.tile(np.arange(len(li) - 1), (len(pe), 1))
-            out['end'] = S.coverage_resid(PL[li], PR[li], pe, cand, W, 'in') * math.sqrt(W_END)
+            out['end'] = S.coverage_resid(FL[li], FR[li], pe, cand, W, 'in') * math.sqrt(W_END)
         else:
             out['end'] = np.zeros(0)
-        # lambda prior
         lam_all = self.lam(x)
-        out['lam'] = (lam_all[:st['nlam']] - self.lam0[:st['nlam']]) * W_LAM * 0.3
-        # tail toward the camera: z of the centre line decreases from ring 0 to the S window
-        nz = min(nR, int(self.i0[1]) + 1)
-        zc = (PL[:nz, 2] + PR[:nz, 2]) / 2
-        out['tailz'] = np.maximum(0.0, np.diff(zc)) * W_TZ
-        # weak prior of hidden rolls toward the init
+        out['lam'] = (lam_all[st['ivs']] - self.lam0[st['ivs']]) * W_LAM * 0.3
+        if st['tailz']:
+            nz = int(self.i0[1]) + 1
+            zc = (FL[:nz, 2] + FR[:nz, 2]) / 2
+            out['tailz'] = np.maximum(0.0, np.diff(zc)) * W_TZ
+        else:
+            out['tailz'] = np.zeros(0)
         pr = []
         for k in st['hidden_rolls']:
             o = 6 + 4 * k
@@ -426,21 +448,66 @@ class Chain:
     def res(self, x, st):
         return np.concatenate(list(self.parts(x, st).values()))
 
-    # ------------------------------------------------------------ geometry helpers
-    def ring_edges(self, x, st=None, K=None, upto=None):
-        K = NR if K is None else K
-        n = self.N if upto is None else upto
-        xp = self.paper_x(x, K)
-        ur = self.u_ring(x)[:n]
+    def ring_edges(self, x, act=None, lo=0, hi=None):
+        act = list(range(NR)) if act is None else list(act)
+        hi = self.N - 1 if hi is None else hi
+        cx = self.ctx(x, act)
+        u = self.u_ring(x)[lo:hi + 1]
         W = self.W
-        return PM.surface(xp, ur, np.full(n, -W / 2), K), PM.surface(xp, ur, np.full(n, W / 2), K)
+        n = len(u)
+        return self.surf(x, u, np.full(n, -W / 2), act, cx), self.surf(x, u, np.full(n, W / 2), act, cx)
+
+
+# ================================================================== re-rooted chain kinematics (isometric, C1; inverse frames walk toward u = 0)
+def build_frames(rotvec, t, rolls, s_r):
+    """segment frames G_s (R, t): flat (q, 0) of segment s (between roll s-1 and roll s) -> world. G_{s_r} = pose.
+    G_{s+1} = G_s o E_s (forward), G_s = G_{s+1} o E_s^{-1} (reverse)"""
+    K = len(rolls)
+    E = []
+    for (u, b, rho, phi) in rolls:
+        q0, a_, ap_, sg_, L_ = PM.roll_frame(u, b, rho, phi)
+        E.append(PM.roll_E(q0, a_, ap_, sg_, rho, phi))
+    G = [None] * (K + 1)
+    G[s_r] = (Rotation.from_rotvec(rotvec).as_matrix(), np.asarray(t, float))
+    for s in range(s_r + 1, K + 1):
+        R, tt = G[s - 1]; RE, tE = E[s - 1]
+        G[s] = (R @ RE, R @ tE + tt)
+    for s in range(s_r - 1, -1, -1):
+        R, tt = G[s + 1]; RE, tE = E[s]
+        G[s] = (R @ RE.T, tt - R @ RE.T @ tE)
+    return G, E
+
+
+def chain_surface(G, rolls, u, v):
+    K = len(rolls)
+    u = np.asarray(u, float).ravel(); v = np.asarray(v, float).ravel()
+    q = np.stack([u, v], 1)
+    out = np.zeros((len(q), 3))
+    active = np.ones(len(q), bool)
+    for k in range(K):
+        q0, a, ap, sg, L = PM.roll_frame(*rolls[k])
+        rho = rolls[k, 2]
+        Xp = (q - q0) @ ap
+        Yp = (q - q0) @ a
+        flat = active & (Xp <= 0)
+        mid = active & (Xp > 0) & (Xp < L)
+        P = np.zeros((len(q), 3))
+        P[flat, :2] = q[flat]
+        t = Xp[mid] / rho
+        P[mid, :2] = q0[None] + Yp[mid, None] * a[None] + (rho * np.sin(t))[:, None] * ap[None]
+        P[mid, 2] = sg * rho * (1 - np.cos(t))
+        done = flat | mid
+        R, tt = G[k]
+        out[done] = P[done] @ R.T + tt
+        active = active & ~done
+    if active.any():
+        q3 = np.concatenate([q[active], np.zeros((active.sum(), 1))], 1)
+        R, tt = G[K]
+        out[active] = q3 @ R.T + tt
+    return out
 
 
 # ================================================================== fitting
-def set_free(pr, x, st, free_idx):
-    return np.array(sorted(free_idx))
-
-
 def run_fit(pr, x0, st, free, secs, label, max_nfev=2000, quiet=False):
     lo, hi = pr.lo, pr.hi
     x_full = x0.copy()
@@ -462,70 +529,86 @@ def run_fit(pr, x0, st, free, secs, label, max_nfev=2000, quiet=False):
     status = 'ok'
     try:
         r = least_squares(f, z0, method='trf', x_scale='jac', max_nfev=max_nfev, bounds=(lo[free], hi[free]), diff_step=1e-6)
-        z, cost, stat = r.x, float(r.cost), int(r.status)
+        z, cost = r.x, float(r.cost)
     except Timeout:
-        z, cost, stat, status = best[1], best[0], -9, 'timeout'
+        z, cost, status = best[1], best[0], 'timeout'
     xo = x0.copy(); xo[free] = z
     if not quiet:
         log(f'    [{label}] {status} cost {cost:.1f} evals {counter[0]} ({time.time() - t0:.0f}s)')
     return xo, cost, status
 
 
-# ---------------------------------------------------------------- initialisation of new rolls
-def kabsch(Pm, Q):
-    pc, qc = Pm.mean(0), Q.mean(0)
-    U, _, Vt = np.linalg.svd((Pm - pc).T @ (Q - qc))
-    d = np.sign(np.linalg.det(Vt.T @ U.T))
-    Rm = Vt.T @ np.diag([1, 1, d]) @ U.T
-    return Rm, qc - Rm @ pc
+# ---------------------------------------------------------------- seeding from paper3 (apex root)
+def apex_seed(pr):
+    s = np.load(P3_SOL)
+    m = json.load(open(P3_MET))
+    row = m['params']['table'][2]
+    ur = s['u_rings']
+    ring = 363.0 + float(np.interp(row['u_css'], ur, np.arange(len(ur))))
+    return dict(beta=np.radians(row['beta_deg']), rho=row['rho_css'], phi=np.radians(row['phi_deg']), ring=ring, u=row['u_css'],
+                x=np.array(m['params']['pose']['rotvec'] + m['params']['pose']['t']), table=m['params']['table'])
 
 
-def init_pose(pr, x):
-    """pose of the straight tail (rolls inert) by Kabsch to the back-projected rings before the first roll"""
-    x = x.copy()
-    r0 = int(ROLLS[0][2]) - 5
-    x[:6] = 0
-    xp = pr.paper_x(x, 1)
-    ur = pr.u_ring(x)[:r0]
-    n = r0
-    PLm = PM.surface(xp, ur, np.full(n, -pr.W / 2), 1); PRm = PM.surface(xp, ur, np.full(n, pr.W / 2), 1)
-    Rm, tt = kabsch(np.concatenate([PLm, PRm]), np.concatenate([pr.L0[:n], pr.R0[:n]]))
-    x[:3] = Rotation.from_matrix(Rm).as_rotvec(); x[3:6] = tt
+def seed_x(pr):
+    """root pose = frame of paper3's entry segment (after its two left bends), shifted into the chain flat u; apex fold from paper3"""
+    a = apex_seed(pr)
+    x = pr.x0.copy()
+    k = pr.k_apex
+    o = 6 + 4 * k
+    tau_a = float(np.interp(a['ring'], np.arange(pr.N), pr.tau))
+    pr.roll_tau0[k] = tau_a
+    pr.lo, pr.hi = pr.bounds()
+    x[o:o + 4] = [tau_a, a['beta'], a['rho'], a['phi']]
+    u_chain = float(pr.F(x, np.array([tau_a]))[0])
+    shift = u_chain - a['u']
+    tab = a['table']
+    rv, t0 = a['x'][:3], a['x'][3:6]
+    Rp = Rotation.from_rotvec(rv).as_matrix()
+    Rc = np.eye(3); tc = np.zeros(3)
+    for row in tab[:2]:                               # paper3 left bends 1, 2 -> entry segment frame
+        u, b, rho, phi = row['u_css'], np.radians(row['beta_deg']), row['rho_css'], np.radians(row['phi_deg'])
+        q0, aa, ap, sg, L = PM.roll_frame(u, b, rho, phi)
+        RE, tE = PM.roll_E(q0, aa, ap, sg, rho, phi)
+        tc = Rc @ tE + tc
+        Rc = Rc @ RE
+    R_root = Rp @ Rc
+    t_root = Rp @ tc + t0 - R_root @ np.array([shift, 0.0, 0.0])
+    x[:3] = Rotation.from_matrix(R_root).as_rotvec(); x[3:6] = t_root
     return x
 
 
+# ---------------------------------------------------------------- initialisation of new rolls (closed form against the depth-profile targets)
 def local_frame(pr, x, k):
-    """(e_u, e_v, n) world axes of the flat frame just before roll k (rolls k.. inert)"""
-    K = k + 1
-    xp = pr.paper_x(x, K)
-    uk = xp[6 + 4 * k]
-    h = 0.5
-    Pa = PM.surface(xp, np.array([uk - 3.0]), np.array([0.0]), K)
-    Pb = PM.surface(xp, np.array([uk - 1.0]), np.array([0.0]), K)
-    eu = (Pb[0] - Pa[0]); eu /= np.linalg.norm(eu)
-    Pv = PM.surface(xp, np.array([uk - 2.0, uk - 2.0]), np.array([-1.0, 1.0]), K)
-    ev = Pv[1] - Pv[0]; ev /= np.linalg.norm(ev)
-    ev = ev - (ev @ eu) * eu; ev /= np.linalg.norm(ev)
-    n = np.cross(eu, ev)
-    return eu, ev, n
+    """world axes (e_u, e_v, n) of the flat frame at roll k (roll k inert there)"""
+    act = [j for j in range(NR) if j in pr._active]
+    cx = pr.ctx(x, act)
+    uk = pr.F(x, np.array([x[6 + 4 * k]]))[0]
+    sf = lambda u, v: pr.surf(x, np.array([u]), np.array([v]), act, cx)[0]
+    eu = sf(uk + 3.0, 0.0) - sf(uk + 1.0, 0.0); eu /= np.linalg.norm(eu)
+    ev = sf(uk + 2.0, 1.0) - sf(uk + 2.0, -1.0); ev = ev - (ev @ eu) * eu; ev /= np.linalg.norm(ev)
+    return eu, ev, np.cross(eu, ev)
 
 
-def target_dir(pr, k):
-    """world direction of the back-projected centre line beyond roll k (from the depth-profile targets)"""
+def target_dir(pr, k, reverse):
     r = ROLLS[k][2]
-    nxt = ROLLS[k + 1][2] if k + 1 < NR else pr.N - 1
-    d = nxt - r
-    a = int(round(r + 0.45 * d)); b = int(round(r + 0.9 * d))
-    b = min(b, pr.N - 1); a = min(a, b - 3)
+    if not reverse:
+        nxt = ROLLS[k + 1][2] if k + 1 < NR else pr.N - 1
+        d = nxt - r
+        a = int(round(r + 0.45 * d)); b = int(round(r + 0.9 * d))
+        b = min(b, pr.N - 1); a = min(a, b - 3)
+    else:
+        prv = ROLLS[k - 1][2] if k > 0 else 0
+        d = r - prv
+        a = int(round(r - 0.45 * d)); b = int(round(r - 0.9 * d))
+        b = max(b, 0); a = max(a, b + 3)
     t = pr.T0[b] - pr.T0[a]
     return t / np.linalg.norm(t)
 
 
-def roll_from_dir(dl, beta_fixed=None):
-    """(beta, phi) of the single roll that rotates e_u = (1,0,0) onto dl (local flat frame, unit vector). Model: RE = Rot(a, -phi)."""
-    eu = np.array([1.0, 0, 0])
+def roll_from_vecs(vf, vt, beta_fixed=None):
+    """(beta, phi) of the single roll with RE(vf) = vt in the local flat frame (RE = Rot(a, -phi))"""
+    w = vt - vf
     if beta_fixed is None:
-        w = dl - eu
         if np.linalg.norm(w) < 1e-3:
             return np.pi / 2, 0.0
         a = np.array([w[1], -w[0], 0.0])
@@ -538,14 +621,13 @@ def roll_from_dir(dl, beta_fixed=None):
     else:
         beta = beta_fixed
         a = np.array([np.cos(beta), np.sin(beta), 0.0])
-    ep = eu - (eu @ a) * a
-    dp = dl - (dl @ a) * a
+    ep = vf - (vf @ a) * a
+    dp = vt - (vt @ a) * a
     th = np.arctan2(a @ np.cross(ep, dp), ep @ dp)
     return beta, float(-th)
 
 
 def sil_beta(pr, k):
-    """fold axis angle from the silhouette principal direction (ak_apex.beta_axis), relative to the pre-window strip direction"""
     iv = pr.roll_iv[k]
     if pr.int_face[iv] != 'window':
         return None
@@ -564,85 +646,68 @@ def sil_beta(pr, k):
     return float(b % np.pi)
 
 
-def apex_seed(pr):
-    """paper3 apex fold (beta, rho, phi) and its trace ring"""
-    s = np.load(P3_SOL)
-    m = json.load(open(P3_MET))
-    row = m['params']['table'][2]
-    ua = row['u_css']
-    ur = s['u_rings']
-    ring = 363.0 + float(np.interp(ua, ur, np.arange(len(ur))))     # section starts at fl_out - 25 = 363
-    return dict(beta=np.radians(row['beta_deg']), rho=row['rho_css'], phi=np.radians(row['phi_deg']), ring=ring)
-
-
 def rolls_candidates(pr, x, k):
-    """candidate (beta, rho, phi) for roll k given x with rolls < k set"""
-    xx = x.copy()
-    o = 6 + 4 * k
-    xx[o:o + 4] = [pr.roll_tau0[k], np.pi / 2, 3 * pr.W, 0.0]
-    eu, ev, n = local_frame(pr, xx, k)
-    t = target_dir(pr, k)
-    dl = np.array([t @ eu, t @ ev, t @ n])
+    """candidate (tag, beta, rho, phi) for roll k (x has the other active rolls set; roll k is made inert and active)"""
     W = pr.W
-    cands = []
-    if pr.rname[k] == 'S fold 2':
-        p_, b_ = x[6 + 4 * (k - 1) + 3], x[6 + 4 * (k - 1) + 1]
-        return [('twist2', float(b_), 0.4 * W, float(-p_)), ('twist2b', float(np.pi - b_), 0.4 * W, float(-p_))]
-    if pr.kind[k] == 'bend':
-        return [('bend', np.pi / 2, 3 * W, 0.0)]
-    b0, p0 = roll_from_dir(dl)
-    sb = sil_beta(pr, k)
-    pairs = [('cf', b0, p0)]
-    if sb is not None and pr.kind[k] == 'fold':
-        b1, p1 = roll_from_dir(dl, sb)
-        pairs.append(('sil', b1, p1))
     if pr.rname[k] == 'apex fold':
         a = apex_seed(pr)
-        pairs.append(('paper3', a['beta'], a['phi']))
+        return [('paper3', a['beta'], a['rho'], a['phi'])]
+    if pr.kind[k] == 'bend':
+        return [('bend', np.pi / 2, 3 * W, 0.0)]
+    reverse = k < pr.k_apex
+    xx = set_roll(x, k, pr.roll_tau0[k], np.pi / 2, 3 * W, 0.0)
+    pr._active = set(pr._active) | {k}
+    eu, ev, n = local_frame(pr, xx, k)
+    t = target_dir(pr, k, reverse)
+    dl = np.array([t @ eu, t @ ev, t @ n])
+    pairs = []
+    e1_ = np.array([1.0, 0, 0])
+    mk = (lambda bf=None: roll_from_vecs(e1_, dl, bf)) if not reverse else (lambda bf=None: roll_from_vecs(dl, -e1_, bf))
+    pairs.append(('cf',) + mk())
+    sb = sil_beta(pr, k)
+    if sb is not None:
+        pairs.append(('sil',) + mk(sb))
+    cands = []
     for tag, b, p in pairs:
         b = float(np.clip(b, 0.3, np.pi - 0.3))
-        if pr.kind[k] == 'bend':
-            cands.append((tag, b, 3 * W, float(np.clip(p, -0.5, 0.5))))
-            continue
         rho = 0.4 * W if pr.rname[k] != 'wrap curl' else 0.6 * W
-        if tag == 'paper3':
-            rho = apex_seed(pr)['rho']
-        cands.append((tag, b, rho, float(np.clip(p, -np.pi, np.pi))))
-        if abs(p) > 2.6 and tag != 'paper3':
-            cands.append((tag + '-flip', b, rho, -float(np.clip(p, -np.pi, np.pi))))
+        p = float(np.clip(p, -np.pi, np.pi))
+        cands.append((tag, b, rho, p))
+        if abs(p) > 2.6:
+            cands.append((tag + '-flip', b, rho, -p))
     return cands
 
 
-# ================================================================== stage driver
-def stage_groups(pr, s):
-    ks = [k for k in range(NR) if pr.roll_stage[k] == s]
+# ================================================================== stage driver (apex-rooted growth)
+ORDER = [5, 4, 3, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 0]
+GATE_NEW = {1: (12, 20)}
+
+
+def gate_for(iv):
+    return (20.0, 25.0) if iv in (0, 1) else (12.0, 20.0)
+
+
+def state_after(pr, n):
+    ivs = ORDER[:n]
+    lo = int(min(pr.i0[i] for i in ivs)); hi = int(max(pr.i1[i] for i in ivs))
+    act = [k for k in range(NR) if pr.roll_iv[k] in ivs]
+    return ivs, lo, hi, act
+
+
+def stage_groups_iv(pr, iv):
+    ks = [k for k in range(NR) if pr.roll_iv[k] == iv]
     groups = []
     for k in ks:
-        iv = pr.roll_iv[k]
-        if groups and pr.int_face[iv] == 'window' and pr.roll_iv[groups[-1][-1]] == iv:
+        if groups and pr.int_face[iv] == 'window':
             groups[-1].append(k)
         else:
             groups.append([k])
     return groups
 
 
-def stage_intervals(s):
-    return [0, 1] if s == 1 else [s]
-
-
-def group_range(pr, s, groups, gi):
-    if gi == len(groups) - 1:
-        return int(pr.i1[s])
-    return int(ROLLS[groups[gi + 1][0]][2] - 1)
-
-
-def free_for(pr, s, group, e):
-    prev = [k for k in range(NR) if k < group[0]][-2:]
-    free = list(range(6))
-    for k in prev + list(group):
-        free += list(range(6 + 4 * k, 6 + 4 * k + 4))
-    free += [6 + 4 * NR + j for j in stage_intervals(s) if pr.i0[j] <= e]
-    return np.array(sorted(set(free)))
+def nearest_prev(pr, act_prev, group, n=2):
+    c = np.mean([ROLLS[k][2] for k in group])
+    return sorted(act_prev, key=lambda k: abs(ROLLS[k][2] - c))[:n]
 
 
 def set_roll(x, k, tau, b, rho, phi):
@@ -677,12 +742,14 @@ def s_combos(pr, x, g):
 
 def pick_bk_bottom(pr, x):
     ks = [k for k in range(NR) if pr.rname[k].startswith('bottom-K fold')]
-    xp = pr.paper_x(x, max(ks) + 1)
     ys = []
+    act = list(range(NR))
+    cx = pr.ctx(x, act)
     for k in ks:
-        u0, b, rho, phi = xp[6 + 4 * k:6 + 4 * k + 4]
+        u0, b, rho, phi = pr.rolls(x)[k]
+        u0 = pr.F(x, np.array([u0]))[0]
         uc = u0 + 0.5 * rho * abs(phi) / max(np.sin(b), 0.2)
-        P3 = PM.surface(xp, np.array([uc]), np.array([0.0]), max(ks) + 1)
+        P3 = pr.surf(x, np.array([uc]), np.array([0.0]), act, cx)
         ys.append(AP.project(P3)[0, 1])
     return ks[int(np.argmax(ys))]
 
@@ -691,106 +758,155 @@ def block_costs(parts):
     return {k: round(0.5 * float(v @ v), 2) for k, v in parts.items() if len(v)}
 
 
-def data_rms(pr, x, K, e):
-    """rms / p95 / max of the visible-ring data distances (px): point-to-point outside windows, sliding inside"""
-    st = pr.stage_info(K, e)
-    PL, PR = pr.ring_edges(x, K=K, upto=e + 1)
+def ring_dists(pr, x, st, ring_sel=None):
+    """per-ring data distances (px) for visible rings: point-to-point outside windows, sliding inside. returns concatenated array over rings in ring_sel"""
+    lo, hi = st['lo'], st['hi']
+    PL, PR = pr.ring_edges(x, st['act'], lo, hi)
+    FL = np.zeros((pr.N, 3)); FR = np.zeros((pr.N, 3)); FL[lo:hi + 1] = PL; FR[lo:hi + 1] = PR
     d = []
-    for (P, e_, idx) in ((PL, pr.e1, st['idx1']), (PR, pr.e2, st['idx2'])):
-        d.append(np.hypot(*(AP.project(P)[idx] - e_[idx]).T))
-    FL = np.zeros((pr.N, 3)); FR = np.zeros((pr.N, 3)); FL[:e + 1] = PL; FR[:e + 1] = PR
+    sel = np.ones(pr.N, bool) if ring_sel is None else ring_sel
+    for (P, e_, idx) in ((FL, pr.e1, st['idx1']), (FR, pr.e2, st['idx2'])):
+        ii = idx[sel[idx]]
+        d.append(np.hypot(*(AP.project(P)[ii] - e_[ii]).T))
     for wi in st['wins']:
         for sd, F_ in ((pr.sd[wi][0], FL), (pr.sd[wi][1], FR)):
-            dd = sd.sliding_dist(F_)
-            d.append(dd[~np.isnan(dd)])
-    v = np.concatenate(d)
+            sl, _ = sd.resid(F_)
+            dd = np.abs(sl) / np.maximum(sd.amp[sd.sidx], 1e-9)       # normal distance to the run polyline (sliding along it)
+            d.append(dd[sel[sd.sidx]])
+    return np.concatenate(d) if d else np.zeros(0)
+
+
+def stats(v):
+    if len(v) == 0:
+        return dict(n=0, rms=None, p95=None, max=None)
     return dict(n=int(len(v)), rms=float(np.sqrt(np.mean(v ** 2))), p95=float(np.percentile(v, 95)), max=float(v.max()))
 
 
-def face_stat(pr, x, K, e):
-    PL, PR = pr.ring_edges(x, K=K, upto=e + 1)
+def face_stat(pr, x, st):
+    lo, hi = st['lo'], st['hi']
+    PL, PR = pr.ring_edges(x, st['act'], lo, hi)
     C = (PL + PR) / 2
     Tq = C[1:] - C[:-1]
     Dq = ((PR - PL)[1:] + (PR - PL)[:-1]) / 2
     n = np.cross(Tq, Dq)
     s_ = (n * (pr.cam - (C[1:] + C[:-1]) / 2)).sum(1)
     face = np.where(s_ < 0, 'A', 'B')
-    ok = pr.face_ok[:e]
-    ag = int((face[ok] == pr.face_exp[:e][ok]).sum())
-    return dict(checked=int(ok.sum()), agree=ag, frac=ag / max(int(ok.sum()), 1))
+    j = st['face_j']
+    ag = int((face[j - lo] == pr.face_exp[j]).sum())
+    return dict(checked=int(len(j)), agree=ag, frac=ag / max(len(j), 1))
 
 
-def ou_stat(pr, x, K, e):
-    st = pr.stage_info(K, e)
-    xp = pr.paper_x(x, K)
-    ou, wv, zr, (r, pts, sid, U) = pr.ou_blocks(x, st, xp)
+def ou_stat(pr, x, st):
+    cx = pr.ctx(x, st['act'])
+    ou, wv, zr, (r, pts, sid, U) = pr.ou_blocks(x, st, cx)
     if r is None:
         return dict(pairs=0, viol_lt_thk=0, viol_lt_2thk=0)
-    gap_def = r / (SC * W_OU)            # = 2thk - gap where positive
+    gap_def = r / (SC * W_OU)
     return dict(pairs=int(len(r)), viol_lt_2thk=int((r > 1e-9).sum()), viol_lt_thk=int((gap_def > pr.thk).sum()),
                 max_shortfall_css=float(gap_def.max()) if len(r) else 0.0, weave_violations=int((wv > 0).sum()))
 
 
-def stage_metrics(pr, x, K, e):
-    st = pr.stage_info(K, e)
+def stage_metrics(pr, x, st, new_iv=None):
     parts = pr.parts(x, st)
     allr = np.concatenate(list(parts.values()))
-    rolls = pr.rolls(x)[:K]
-    folds = [rolls[k, 2] / pr.W for k in range(K) if pr.kind[k] in ('fold', 'obl')]
-    return dict(K=K, e=e, cost=round(0.5 * float(allr @ allr), 1), blocks=block_costs(parts), data=data_rms(pr, x, K, e),
-                face=face_stat(pr, x, K, e), ou=ou_stat(pr, x, K, e),
-                min_fold_rho_over_W=float(min(folds)) if folds else None, lam=[round(float(v), 3) for v in pr.lam(x)[:st['nlam']]])
+    r = pr.rolls(x)[st['act']]
+    folds = [r[i, 2] / pr.W for i, k in enumerate(st['act']) if pr.kind[k] in ('fold', 'obl')]
+    m = dict(act=len(st['act']), lo=st['lo'], hi=st['hi'], cost=round(0.5 * float(allr @ allr), 1), blocks=block_costs(parts),
+             data_all=stats(ring_dists(pr, x, st)), face=face_stat(pr, x, st), ou=ou_stat(pr, x, st),
+             min_fold_rho_over_W=float(min(folds)) if folds else None)
+    if new_iv is not None:
+        sel = np.zeros(pr.N, bool); sel[pr.i0[new_iv]:pr.i1[new_iv] + 1] = True
+        m['new_interval'] = new_iv
+        m['data_new'] = stats(ring_dists(pr, x, st, sel))
+    return m
 
 
 def save_state(path, x, **kw):
     np.savez(path, x=x, **{k: np.asarray(v) for k, v in kw.items()})
 
 
-def stage_path(s):
-    return os.path.join(OUT, f'stage_{s}.npz')
+def stage_path(n):
+    return os.path.join(OUT, f'stage_{n}.npz')
 
 
-def run_stage(pr, s, secs_final=300.0, secs_group=90.0, ncand_fit=3):
+def init_chain(pr):
+    p = os.path.join(OUT, 'x0.npz')
+    pr.x0 = seed_x(pr)
+    np.savez(p, x0=pr.x0, tau_apex=pr.roll_tau0[pr.k_apex])
+    return pr.x0
+
+
+def load_chain(pr):
+    d = np.load(os.path.join(OUT, 'x0.npz'))
+    pr.roll_tau0[pr.k_apex] = float(d['tau_apex'])
+    pr.lo, pr.hi = pr.bounds()
+    pr.x0 = d['x0']
+
+
+def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
     t00 = time.time()
-    groups = stage_groups(pr, s)
-    start_g = 0
-    if s == 1:
-        x = init_pose(pr, pr.x0.copy())
-        np.savez(os.path.join(OUT, 'x0.npz'), x0=x)
+    iv = ORDER[n - 1]
+    if n == 1:
+        x = init_chain(pr)
     else:
-        x = np.load(stage_path(s - 1))['x']
-    pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
-    part = os.path.join(OUT, f'partial_{s}.npz')
+        load_chain(pr)
+        x = np.load(stage_path(n - 1))['x']
+    ivs_prev, lo_p, hi_p, act_prev = state_after(pr, n - 1) if n > 1 else ([], None, None, [])
+    ivs, lo, hi, act = state_after(pr, n)
+    reverse = iv < 5
+    groups = stage_groups_iv(pr, iv)
+    order = list(reversed(groups)) if reverse else groups
+    if pr.rname and any(r_ in ('bottom-K fold 2',) for r_ in [pr.rname[k] for k in act_prev]):
+        pr.bk_bottom = pick_bk_bottom(pr, x)
+    part = os.path.join(OUT, f'partial_{n}.npz')
+    start_g = 0
     if os.path.exists(part):
         d = np.load(part)
         x = d['x']; start_g = int(d['gi'])
-        log(f'  resuming stage {s} at group {start_g}')
-    if s > 7:
-        pr.bk_bottom = pick_bk_bottom(pr, x)
-    log(f'## stage {s}: intervals {stage_intervals(s)} rings to {pr.i1[s]}; groups {[[ROLLS[k][0] for k in g] for g in groups]}')
-    for gi in range(start_g, len(groups)):
-        g = groups[gi]
-        e = group_range(pr, s, groups, gi)
-        K = g[-1] + 1
-        st = pr.stage_info(K, e)
-        free = free_for(pr, s, g, e)
+        log(f'  resuming stage {n} at group {start_g}')
+    log(f'## stage {n}: interval {iv} ({pr.int_names[iv]}) rings {lo}..{hi}; groups {[[ROLLS[k][0] for k in g] for g in order]}')
+    done_new = [k for g in order[:start_g] for k in g]
+    for gi in range(start_g, len(order)):
+        g = order[gi]
+        pr._active = set(act_prev) | set(done_new) | set(g)
+        # sub-range of rings for this group
+        if iv == 5 or n == 1:
+            glo, ghi = lo, hi
+        elif not reverse:
+            ghi = (ROLLS[order[gi + 1][0]][2] - 1) if gi + 1 < len(order) else hi
+            glo, ghi = lo_p if lo_p is not None else lo, ghi
+            glo = lo_p
+        else:
+            glo = (ROLLS[order[gi + 1][-1]][2] + 1) if gi + 1 < len(order) else lo
+            ghi = hi_p
+        gact = sorted(pr._active)
+        st = pr.stage_info(gact, glo, ghi)
+        if n == 1:
+            free = np.array(sorted(list(range(6)) + [6 + 4 * k + j for k in g for j in range(4)] + [6 + 4 * NR + iv]))
+        else:
+            near = nearest_prev(pr, act_prev + done_new, g)
+            free = np.array(sorted([6 + 4 * k + j for k in list(g) + near for j in range(4)] + [6 + 4 * NR + iv]))
         if pr.rname[g[-1]] == 'S obl 4':
+            pr._active = set(act_prev) | set(g)
             combos = s_combos(pr, x, g)
+            ncf, gs = 6, max(secs_group, 360.0)
         else:
             combos = list(gen_combos(pr, x, g))
+            ncf, gs = ncand_fit, secs_group
         scored = []
         for tags, xc in combos:
             r = pr.res(xc, st)
             scored.append((0.5 * float(r @ r), tags, xc))
         scored.sort(key=lambda q: q[0])
-        log(f'  group {[ROLLS[k][0] for k in g]} e={e} K={K} free={len(free)} candidates={len(combos)} '
+        log(f'  group {[ROLLS[k][0] for k in g]} rings {glo}..{ghi} free={len(free)} candidates={len(combos)} '
             f'init costs {[(q[1], round(q[0])) for q in scored[:6]]}')
         best = None
-        for c0, tags, xc in scored[:ncand_fit]:
-            xo, cost, status = run_fit(pr, xc, st, free, secs_group, '/'.join(tags))
+        for c0, tags, xc in scored[:ncf]:
+            xo, cost, status = run_fit(pr, xc, st, free, gs, '/'.join(tags))
             if best is None or cost < best[0]:
                 best = (cost, tags, xo)
         x = best[2]
+        done_new += list(g)
         if any(pr.rname[k] == 'bottom-K fold 2' for k in g):
             pr.bk_bottom = pick_bk_bottom(pr, x)
             pr._stage.clear()
@@ -799,54 +915,59 @@ def run_stage(pr, s, secs_final=300.0, secs_group=90.0, ncand_fit=3):
             r_ = pr.rolls(x)[k]
             log(f'    roll {ROLLS[k][0]}: tau {r_[0]:.1f} beta {np.degrees(r_[1]):.1f} rho {r_[2]:.1f} ({r_[2] / pr.W:.2f}W) phi {np.degrees(r_[3]):.1f} [{best[1]}]')
         save_state(part, x, gi=gi + 1)
-    K = max(groups[-1]) + 1
-    e = int(pr.i1[s])
-    st = pr.stage_info(K, e)
+    pr._active = set(act)
+    st = pr.stage_info(act, lo, hi)
     new = [k for g in groups for k in g]
-    free = free_for(pr, s, new, e)
+    if n == 1:
+        free = np.array(sorted(list(range(6)) + [6 + 4 * k + j for k in new for j in range(4)] + [6 + 4 * NR + iv]))
+    else:
+        near = nearest_prev(pr, act_prev, new)
+        free = np.array(sorted([6 + 4 * k + j for k in new + near for j in range(4)] + [6 + 4 * NR + iv]))
     r = pr.res(x, st)
-    log(f'  stage fit: free {len(free)} rings 0..{e} cost0 {0.5 * float(r @ r):.1f}')
-    x, cost, status = run_fit(pr, x, st, free, secs_final, f'stage{s}')
-    m = stage_metrics(pr, x, K, e)
-    m.update(stage=s, status=status, seconds=time.time() - t00)
+    log(f'  stage fit: free {len(free)} rings {lo}..{hi} cost0 {0.5 * float(r @ r):.1f}')
+    x, cost, status = run_fit(pr, x, st, free, secs_final, f'stage{n}')
+    m = stage_metrics(pr, x, st, iv)
+    g_ok, g_stop = gate_for(iv)
+    m.update(stage=n, status=status, seconds=time.time() - t00, gate_target=g_ok, gate_stop=g_stop,
+             gate='PASS' if m['data_new']['rms'] is not None and m['data_new']['rms'] <= g_ok else 'FAIL')
     log('  METRICS ' + json.dumps(m, default=float))
-    save_state(stage_path(s), x, K=K, e=e)
+    save_state(stage_path(n), x, iv=iv)
     with open(os.path.join(OUT, 'stage_metrics.jsonl'), 'a') as fh:
         fh.write(json.dumps(m, default=float) + '\n')
     if os.path.exists(part):
         os.remove(part)
-    return x
+    return x, m
 
 
 # ================================================================== polish / report
 def final_x():
-    for nm in ('polished.npz',) + tuple(f'stage_{k}.npz' for k in range(NI - 1, 0, -1)):
+    for nm in ['polished.npz'] + [f'stage_{k}.npz' for k in range(len(ORDER), 0, -1)]:
         if os.path.exists(os.path.join(OUT, nm)):
             return np.load(os.path.join(OUT, nm))['x'], nm
     raise SystemExit('no solution')
 
 
 def run_polish(pr, secs):
-    x = np.load(stage_path(NI - 1))['x']
-    pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+    load_chain(pr)
+    x = np.load(stage_path(len(ORDER)))['x']
     pr.bk_bottom = pick_bk_bottom(pr, x)
-    st = pr.stage_info(NR, pr.N - 1)
+    pr._active = set(range(NR))
+    st = pr.stage_info(list(range(NR)), 0, pr.N - 1)
     free = np.arange(pr.nx)
     r = pr.res(x, st)
     log(f'## polish: all {len(free)} params, cost0 {0.5 * float(r @ r):.1f}')
     x, cost, status = run_fit(pr, x, st, free, secs, 'polish')
-    m = stage_metrics(pr, x, NR, pr.N - 1)
+    m = stage_metrics(pr, x, st)
     log('  POLISH METRICS ' + json.dumps(m, default=float))
     np.savez(os.path.join(OUT, 'polished.npz'), x=x)
 
 
 def raster_dense(pr, x, step=0.6):
-    xp = pr.paper_x(x, NR)
     ur = pr.u_ring(x)
     u = np.arange(ur[0], ur[-1], step)
     W = pr.W
-    L = PM.surface(xp, u, np.full(len(u), -W / 2), NR); R = PM.surface(xp, u, np.full(len(u), W / 2), NR)
-    return L, R
+    cx = pr.ctx(x, list(range(NR)))
+    return pr.surf(x, u, np.full(len(u), -W / 2), None, cx), pr.surf(x, u, np.full(len(u), W / 2), None, cx)
 
 
 def sil_window_metrics(pr, L, R):
@@ -873,27 +994,62 @@ def clearance_min(pr, L, R, W):
     return AKS.nonadjacent_min_clear(Ls, Rs, C, W)
 
 
+def isometry_check(pr, x):
+    """paper.py isometry test on the re-rooted model + C1 check at roll boundaries"""
+    act = list(range(NR))
+    cx = pr.ctx(x, act)
+    (G, E), r = cx
+    orig = PM.surface
+    PM.surface = lambda xx, u, v, K=3: chain_surface(G, r, u, v)
+    try:
+        xpap = np.concatenate([x[:6], r.ravel()])
+        iso = PM.isometry_test(xpap, pr.W, (pr.u_ring(x).min(), pr.u_ring(x).max()), n=3000, K=NR)
+    finally:
+        PM.surface = orig
+    # C1: unit normals just inside / outside every roll boundary line at v = 0 and v = +-W/4
+    worst = 0.0
+    for k in range(NR):
+        q0, a, ap, sg, L = PM.roll_frame(*r[k])
+        for lvl in (0.0, L):
+            if L < 1e-9:
+                continue
+            for v in (-pr.W / 4, 0.0, pr.W / 4):
+                Yp = (v) / np.sin(r[k, 1]) if False else 0.0
+                pts = []
+                for side in (-1e-4, 1e-4):
+                    Xp = lvl + side
+                    # flat point at (Xp, v): u = u0 + (Xp + v cos b)/sin b
+                    u = r[k, 0] + (Xp + v * np.cos(r[k, 1])) / np.sin(r[k, 1])
+                    pts.append((u, v))
+                nn = []
+                for (u, v_) in pts:
+                    P0 = chain_surface(G, r, np.array([u, u + 1e-3, u]), np.array([v_, v_, v_ + 1e-3]))
+                    n_ = np.cross(P0[1] - P0[0], P0[2] - P0[0]); nn.append(n_ / np.linalg.norm(n_))
+                worst = max(worst, float(np.linalg.norm(nn[0] - nn[1])))
+    iso['max_normal_jump_across_boundaries'] = worst
+    return iso
+
+
 def run_report(pr):
     x, nm = final_x()
-    pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+    load_chain(pr)
     pr.bk_bottom = pick_bk_bottom(pr, x)
-    K, e = NR, pr.N - 1
-    M = dict(solution=nm, stage_metrics=stage_metrics(pr, x, K, e))
+    pr._active = set(range(NR))
+    st = pr.stage_info(list(range(NR)), 0, pr.N - 1)
+    M = dict(solution=nm, stage_metrics=stage_metrics(pr, x, st))
     L, R = raster_dense(pr, x)
     M['windows'], ren = sil_window_metrics(pr, L, R)
     Image.fromarray((ren * 255).astype(np.uint8)).save(os.path.join(OUT, 'sil_render.png'))
-    PL, PR = pr.ring_edges(x, K=K)
+    PL, PR = pr.ring_edges(x)
     M['clearance_min_css'] = clearance_min(pr, PL, PR, pr.W)
     M['two_thk_css'] = 2 * pr.thk
-    st = pr.stage_info(K, e)
-    ei = st['end_idx']
-    p2 = AP.project((PL[ei] + PR[ei]) / 2)
     M['end_cost'] = float(0.5 * np.sum(pr.parts(x, st)['end'] ** 2))
     rolls = pr.rolls(x)
     M['rolls'] = [dict(name=pr.rname[k], kind=pr.kind[k], tau=float(rolls[k, 0]), beta_deg=float(np.degrees(rolls[k, 1])), rho_css=float(rolls[k, 2]),
                        rho_over_W=float(rolls[k, 2] / pr.W), phi_deg=float(np.degrees(rolls[k, 3]))) for k in range(NR)]
     M['lambda'] = pr.lam(x).tolist()
-    M['pose'] = dict(rotvec=x[:3].tolist(), t=x[3:6].tolist())
+    M['pose_root'] = dict(rotvec=x[:3].tolist(), t=x[3:6].tolist())
+    M['isometry'] = isometry_check(pr, x)
     mins = min(r['rho_over_W'] for r in M['rolls'] if r['kind'] != 'bend')
     sm = M['stage_metrics']
     gates = {
@@ -901,13 +1057,14 @@ def run_report(pr):
         'contour<=2px (all windows)': all(v['contour_px'] is not None and v['contour_px'] <= 2 for v in M['windows'].values()),
         'face>=0.95': sm['face']['frac'] >= 0.95,
         'overunder violations == 0': sm['ou']['viol_lt_thk'] == 0,
-        'end hidden (end cost < 1 and no ou violation)': M['end_cost'] < 1.0,
+        'end hidden (end cost < 1)': M['end_cost'] < 1.0,
         'min fold rho>=0.2W': mins >= 0.2 - 1e-6,
         'min clearance>=2thk': M['clearance_min_css'] >= 2 * pr.thk,
     }
     M['gates'] = {k: ('PASS' if v else 'FAIL') for k, v in gates.items()}
     json.dump(M, open(os.path.join(OUT, 'metrics.json'), 'w'), indent=2, default=float)
-    log('## REPORT ' + json.dumps(dict(windows=M['windows'], gates=M['gates'], data=sm['data'], face=sm['face'], ou=sm['ou'], clearance=M['clearance_min_css']), default=float))
+    log('## REPORT ' + json.dumps(dict(windows=M['windows'], gates=M['gates'], data=sm['data_all'], face=sm['face'], ou=sm['ou'], clearance=M['clearance_min_css'],
+                                       isometry=M['isometry']), default=float))
     return M
 
 
@@ -920,8 +1077,8 @@ def _seg_cross(a, b, c, d):
 
 def emit_chain(pr, x, path, max_rings=316):
     W = pr.W
-    xp = pr.paper_x(x, NR)
-    rolls = xp[6:].reshape(NR, 4)
+    cx = pr.ctx(x, list(range(NR)))
+    rolls = cx[1]
     ur = pr.u_ring(x)
     u_start, u_end = ur[0], ur[-1]
     # regions: list of (uc0, uc1, f) with f(uc) -> (uL, uR) flat coordinates of the ruling ends
@@ -999,8 +1156,8 @@ def emit_chain(pr, x, path, max_rings=316):
                 break
         else:
             raise RuntimeError(f'no region for uc={c}')
-    Lw = PM.surface(xp, UL, np.full(len(uc), -W / 2), NR)
-    Rw = PM.surface(xp, UR, np.full(len(uc), W / 2), NR)
+    Lw = pr.surf(x, UL, np.full(len(uc), -W / 2), None, cx)
+    Rw = pr.surf(x, UR, np.full(len(uc), W / 2), None, cx)
     # checks
     pl, pr_ = AP.project_css(Lw), AP.project_css(Rw)
     cross = int(_seg_cross(pl[:-1], pr_[:-1], pl[1:], pr_[1:]).sum())
@@ -1008,7 +1165,7 @@ def emit_chain(pr, x, path, max_rings=316):
     ts = np.linspace(0, 1, 21)[1:-1]
     for t in ts:
         Ut = UL + t * (UR - UL); Vt = -W / 2 + t * W
-        S3 = PM.surface(xp, Ut, np.full(len(uc), Vt), NR)
+        S3 = pr.surf(x, Ut, np.full(len(uc), Vt), None, cx)
         ch = Lw + t * (Rw - Lw)
         dev3 = max(dev3, float(np.linalg.norm(S3 - ch, axis=1).max()))
         dev = max(dev, float(np.linalg.norm(AP.project_css(S3) - AP.project_css(ch), axis=1).max()))
@@ -1028,26 +1185,31 @@ def main():
     cmd = sys.argv[1]
     arg = lambda n, f: (type(f)(sys.argv[sys.argv.index('--' + n) + 1]) if '--' + n in sys.argv else f)
     pr = Chain()
-    if cmd == 'prep':
-        print('W', pr.W, 'nx', pr.nx)
-    elif cmd == 'stage':
-        run_stage(pr, int(sys.argv[2]), secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0), ncand_fit=arg('nc', 3))
+    kw = dict(secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0), ncand_fit=arg('nc', 3))
+    if cmd == 'stage':
+        run_stage(pr, int(sys.argv[2]), **kw)
     elif cmd == 'all':
-        for st_ in range(int(sys.argv[2]), NI):
-            run_stage(pr, st_, secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0), ncand_fit=arg('nc', 3))
-            m = json.loads(open(os.path.join(OUT, 'stage_metrics.jsonl')).read().strip().splitlines()[-1])
-            if m['data']['rms'] > 15.0:
-                log(f'!! STOP: stage {st_} data rms {m["data"]["rms"]:.1f} px > 15')
+        n0 = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 1
+        for n in range(n0, len(ORDER) + 1):
+            if os.path.exists(stage_path(n)) and not os.path.exists(os.path.join(OUT, f'partial_{n}.npz')):
+                continue
+            x, m = run_stage(pr, n, **kw)
+            if m['data_new']['rms'] is None or m['data_new']['rms'] > m['gate_stop']:
+                log(f'!! STOP: stage {n} (interval {m["new_interval"]}) new-interval rms {m["data_new"]["rms"]} px > {m["gate_stop"]}')
                 return
         run_polish(pr, arg('psecs', 480.0))
         run_report(pr)
+        x, nm = final_x()
+        load_chain(pr)
+        chk = emit_chain(pr, x, os.path.join(OUT, 'ak_candidate.json'))
+        log('## EXPORT ' + json.dumps(chk))
     elif cmd == 'polish':
         run_polish(pr, arg('secs', 480.0))
     elif cmd == 'report':
         run_report(pr)
     elif cmd == 'export':
         x, nm = final_x()
-        pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+        load_chain(pr)
         chk = emit_chain(pr, x, os.path.join(OUT, 'ak_candidate.json'))
         log('## EXPORT ' + json.dumps(chk))
     else:

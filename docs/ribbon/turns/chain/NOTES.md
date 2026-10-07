@@ -76,3 +76,64 @@
     [stage1] ok cost 63112.3 evals 84 (4s)
   METRICS {"K": 7, "e": 225, "cost": 63112.3, "blocks": {"pt": 29669.51, "slide": 28824.37, "anchor": 148.37, "cov": 3933.16, "ou": 0.0, "zr": 0.0, "face": 0.0, "overlap": 243.79, "bend": 275.66, "lam": 17.47, "tailz": 0.0}, "data": {"n": 410, "rms": 58.41523188370097, "p95": 166.36878536996738, "max": 181.6499067874211}, "face": {"checked": 132, "agree": 132, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.2514800438972483, "lam": [0.773, 3.463], "stage": 1, "status": "ok", "seconds": 719.6508848667145}
 - Stage 1 (tail 2 bends + S bend + 4 oblique): best of 6 starts cost 63.1k (b+30/+-+-); starts: 63.1k,118.3k,71.7k,72.9k,69.4k,72.2k. data rms 58.4 px (p95 166, max 182) > 15 -> STOP. pt 29.7k slide 28.8k cov 3.9k. Roll obl rhos at 0.25-0.32W (bound), lam [0.77,3.46]. Note data rms metric mixes pt (tail) and sliding (S window). chain_fit.py now also has polish/report/export(emit_chain)/all commands and chain_sheets.py (untested).
+## stage 1: interval 5 (apex_in__apex_out) rings 484..554; groups [['apex fold']]
+  group ['apex fold'] rings 484..554 free=11 candidates=1 init costs [(['paper3'], 268270)]
+    [paper3] ok cost 111.5 evals 476 (7s)
+    roll apex fold: tau 854.7 beta 67.8 rho 34.3 (0.66W) phi -122.4 [['paper3']]
+  stage fit: free 11 rings 484..554 cost0 111.5
+    [stage1] ok cost 111.5 evals 19 (0s)
+  METRICS {"act": 1, "lo": 484, "hi": 554, "cost": 111.5, "blocks": {"slide": 66.03, "anchor": 37.77, "cov": 5.4, "ou": 0.0, "weave": 0.0, "seen": 0.0, "lam": 2.33}, "data_all": {"n": 114, "rms": 20.788644493284565, "p95": 24.705161185790644, "max": 92.39978187982155}, "face": {"checked": 0, "agree": 0, "frac": 0.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.6569237096398842, "new_interval": 5, "data_new": {"n": 114, "rms": 20.788644493284565, "p95": 24.705161185790644, "max": 92.39978187982155}, "stage": 1, "status": "ok", "seconds": 7.444286823272705, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+
+## Re-rooted at apex (coordinator decision). Order apex->left leg->far-left->sweep->right leg->bottom-K->k_return->back->crossbar->wrap->middle->topK front->tip->end->S->tail. Kinematics: chain_surface/build_frames (reverse frames for u<u_root), isometry max|JtJ-I| 1e-9, normal jump across roll boundaries 6e-6. Seed apex+root pose from paper3: apex ring-data rms 1.1 px. Resume: python chain_fit.py all (skips finished stage_N.npz; resumes partial_N.npz).
+## stage 1: interval 5 (apex_in__apex_out) rings 484..554; groups [['apex fold']]
+  group ['apex fold'] rings 484..554 free=11 candidates=1 init costs [(['paper3'], 268270)]
+    [paper3] ok cost 111.5 evals 476 (7s)
+    roll apex fold: tau 854.7 beta 67.8 rho 34.3 (0.66W) phi -122.4 [['paper3']]
+  stage fit: free 11 rings 484..554 cost0 111.5
+    [stage1] ok cost 111.5 evals 19 (0s)
+  METRICS {"act": 1, "lo": 484, "hi": 554, "cost": 111.5, "blocks": {"slide": 66.03, "anchor": 37.77, "cov": 5.4, "ou": 0.0, "weave": 0.0, "seen": 0.0, "lam": 2.33}, "data_all": {"n": 114, "rms": 1.0763281078112312, "p95": 2.3952268469458495, "max": 3.439646396600387}, "face": {"checked": 0, "agree": 0, "frac": 0.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.6569237096398842, "new_interval": 5, "data_new": {"n": 114, "rms": 1.0763281078112312, "p95": 2.3952268469458495, "max": 3.439646396600387}, "stage": 1, "status": "ok", "seconds": 7.0971519947052, "gate_target": 12.0, "gate_stop": 20.0, "gate": "PASS"}
+## stage 2: interval 4 (fl_out__apex_in) rings 388..554; groups [['left-leg bend 2'], ['left-leg bend 1']]
+  group ['left-leg bend 2'] rings 421..554 free=9 candidates=1 init costs [(['bend'], 815975)]
+    [bend] ok cost 185322.8 evals 345 (6s)
+    roll left-leg bend 2: tau 843.1 beta 87.3 rho 201.5 (3.86W) phi -28.6 [['bend']]
+  group ['left-leg bend 1'] rings 388..554 free=13 candidates=1 init costs [(['bend'], 957152)]
+    [bend] ok cost 191490.6 evals 289 (5s)
+    roll left-leg bend 1: tau 778.5 beta 79.5 rho 276.7 (5.30W) phi -28.5 [['bend']]
+  stage fit: free 13 rings 388..554 cost0 191490.6
+    [stage2] ok cost 191490.6 evals 63 (1s)
+  METRICS {"act": 3, "lo": 388, "hi": 554, "cost": 191490.6, "blocks": {"pt": 143270.06, "slide": 12654.18, "anchor": 19.01, "cov": 10620.04, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 0.0, "overlap": 24924.01, "bend": 0.0, "lam": 3.28}, "data_all": {"n": 221, "rms": 37.56433210239078, "p95": 76.41756784946118, "max": 86.79100116445105}, "face": {"checked": 40, "agree": 40, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 2.8846897631111577, "new_interval": 4, "data_new": {"n": 107, "rms": 51.74886486931735, "p95": 81.83658063017931, "max": 86.79100116445105}, "stage": 2, "status": "ok", "seconds": 12.096972942352295, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+!! STOP: stage 2 (interval 4) new-interval rms 51.74886486931735 px > 20.0
+- stage 2 (left leg) failed first try: new-interval rms 51.7 px; left-leg bend 2 hit its tau bound (+0.8W) toward the apex (paper3's entry segment is only ~15 css long, the plan's ring 455 is 118 css before the apex). Widened roll tau bounds to +-2W and re-ran.
+## stage 2: interval 4 (fl_out__apex_in) rings 388..554; groups [['left-leg bend 2'], ['left-leg bend 1']]
+  group ['left-leg bend 2'] rings 421..554 free=9 candidates=1 init costs [(['bend'], 815975)]
+    [bend] ok cost 185322.8 evals 345 (6s)
+    roll left-leg bend 2: tau 843.1 beta 87.3 rho 201.5 (3.86W) phi -28.6 [['bend']]
+  group ['left-leg bend 1'] rings 388..554 free=13 candidates=1 init costs [(['bend'], 957152)]
+    [bend] ok cost 191490.6 evals 289 (5s)
+    roll left-leg bend 1: tau 778.5 beta 79.5 rho 276.7 (5.30W) phi -28.5 [['bend']]
+  stage fit: free 13 rings 388..554 cost0 191490.6
+    [stage2] ok cost 191490.6 evals 63 (1s)
+  METRICS {"act": 3, "lo": 388, "hi": 554, "cost": 191490.6, "blocks": {"pt": 143270.06, "slide": 12654.18, "anchor": 19.01, "cov": 10620.04, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 0.0, "overlap": 24924.01, "bend": 0.0, "lam": 3.28}, "data_all": {"n": 221, "rms": 37.56433210239078, "p95": 76.41756784946118, "max": 86.79100116445105}, "face": {"checked": 40, "agree": 40, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 2.8846897631111577, "new_interval": 4, "data_new": {"n": 107, "rms": 51.74886486931735, "p95": 81.83658063017931, "max": 86.79100116445105}, "stage": 2, "status": "ok", "seconds": 12.084362030029297, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+!! STOP: stage 2 (interval 4) new-interval rms 51.74886486931735 px > 20.0
+## stage 2: interval 4 (fl_out__apex_in) rings 388..554; groups [['left-leg bend 2'], ['left-leg bend 1']]
+  group ['left-leg bend 2'] rings 421..554 free=9 candidates=1 init costs [(['bend'], 815975)]
+    [bend] ok cost 153692.6 evals 460 (8s)
+    roll left-leg bend 2: tau 905.8 beta 82.1 rho 85.2 (1.63W) phi -28.6 [['bend']]
+  group ['left-leg bend 1'] rings 388..554 free=13 candidates=1 init costs [(['bend'], 886654)]
+    [bend] ok cost 154648.9 evals 520 (10s)
+    roll left-leg bend 1: tau 838.1 beta 84.4 rho 103.1 (1.97W) phi -28.4 [['bend']]
+  stage fit: free 13 rings 388..554 cost0 154648.9
+    [stage2] ok cost 154648.9 evals 20 (0s)
+  METRICS {"act": 3, "lo": 388, "hi": 554, "cost": 154648.9, "blocks": {"pt": 116583.56, "slide": 19581.63, "anchor": 15.76, "cov": 12815.89, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 0.0, "overlap": 1796.95, "bend": 3852.21, "lam": 2.91}, "data_all": {"n": 221, "rms": 35.103620101452236, "p95": 73.83390436102155, "max": 85.53507718880991}, "face": {"checked": 40, "agree": 40, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 1.5447476356801833, "new_interval": 4, "data_new": {"n": 107, "rms": 46.68117293430793, "p95": 80.10705173868352, "max": 85.53507718880991}, "stage": 2, "status": "ok", "seconds": 17.855600118637085, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+!! STOP: stage 2 (interval 4) new-interval rms 46.68117293430793 px > 20.0
+## stage 2: interval 4 (fl_out__apex_in) rings 388..554; groups [['left-leg bend 2'], ['left-leg bend 1']]
+  group ['left-leg bend 2'] rings 421..554 free=9 candidates=1 init costs [(['bend'], 815975)]
+    [bend] ok cost 105390.2 evals 272 (5s)
+    roll left-leg bend 2: tau 861.9 beta 70.9 rho 52.2 (1.00W) phi -49.0 [['bend']]
+  group ['left-leg bend 1'] rings 388..554 free=13 candidates=1 init costs [(['bend'], 517458)]
+    [bend] ok cost 111769.7 evals 705 (12s)
+    roll left-leg bend 1: tau 809.5 beta 128.2 rho 52.2 (1.00W) phi 68.8 [['bend']]
+  stage fit: free 13 rings 388..554 cost0 111769.7
+    [stage2] ok cost 111769.7 evals 28 (0s)
+  METRICS {"act": 3, "lo": 388, "hi": 554, "cost": 111769.7, "blocks": {"pt": 93009.04, "slide": 12156.82, "anchor": 20.85, "cov": 4149.11, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 50.41, "overlap": 2372.64, "bend": 0.0, "lam": 10.84}, "data_all": {"n": 221, "rms": 30.850077360718764, "p95": 58.895069909529276, "max": 89.52193707941541}, "face": {"checked": 40, "agree": 40, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000010054, "new_interval": 4, "data_new": {"n": 107, "rms": 41.69516443926888, "p95": 71.1138099433811, "max": 89.52193707941541}, "stage": 2, "status": "ok", "seconds": 17.48418688774109, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+- Stage 2 (left leg, new-interval rms): 51.7 px (tau bound +-0.8W) -> 46.7 px (tau +-2W; both bends at |phi|=0.5 bound) -> 41.7 px diagnostic with BEND_PHI=1.2 env (bends rho 1W, phi -49/+69 deg, pt cost 93k). > 20 -> STOP. Stage 1 apex PASS 1.08 px. Pending: stages 3-16, polish, report/export/sheets/render (code present, untested except isometry: JtJ 1e-9, normal jump 6e-6).

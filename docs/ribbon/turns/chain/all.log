@@ -1,0 +1,11 @@
+## stage 2: interval 4 (fl_out__apex_in) rings 388..554; groups [['left-leg bend 2'], ['left-leg bend 1']]
+  group ['left-leg bend 2'] rings 421..554 free=9 candidates=1 init costs [(['bend'], 815975)]
+    [bend] ok cost 153692.6 evals 460 (8s)
+    roll left-leg bend 2: tau 905.8 beta 82.1 rho 85.2 (1.63W) phi -28.6 [['bend']]
+  group ['left-leg bend 1'] rings 388..554 free=13 candidates=1 init costs [(['bend'], 886654)]
+    [bend] ok cost 154648.9 evals 520 (10s)
+    roll left-leg bend 1: tau 838.1 beta 84.4 rho 103.1 (1.97W) phi -28.4 [['bend']]
+  stage fit: free 13 rings 388..554 cost0 154648.9
+    [stage2] ok cost 154648.9 evals 20 (0s)
+  METRICS {"act": 3, "lo": 388, "hi": 554, "cost": 154648.9, "blocks": {"pt": 116583.56, "slide": 19581.63, "anchor": 15.76, "cov": 12815.89, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 0.0, "overlap": 1796.95, "bend": 3852.21, "lam": 2.91}, "data_all": {"n": 221, "rms": 35.103620101452236, "p95": 73.83390436102155, "max": 85.53507718880991}, "face": {"checked": 40, "agree": 40, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 1.5447476356801833, "new_interval": 4, "data_new": {"n": 107, "rms": 46.68117293430793, "p95": 80.10705173868352, "max": 85.53507718880991}, "stage": 2, "status": "ok", "seconds": 17.855600118637085, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}
+!! STOP: stage 2 (interval 4) new-interval rms 46.68117293430793 px > 20.0
