@@ -140,3 +140,11 @@ Residuals:
   - 3 rolls: fold 1, a loop-bottom curl (φ0 ±π/2, ρ0 0.5W, β free), fold 2.
   - Multi-start over the fold signs.
   - Fold windows stop at > 35 px. The final polish (all parameters + pose free) and the gates judge.
+
+## Decision after stage 8 (crossbar 78.8 px; its bend never moved, cost 472595 → 472588)
+- A new bend seeded at φ = 0 sat where it had no effect (zero gradient), so the greedy stage was stuck.
+- **Generic fix for every new roll:**
+  1. Assert its flat position lies inside its interval's flat-u span (move it to the interval's arc midpoint if not).
+  2. Do a coarse grid pre-search before the LM: φ ∈ {−1.0, −0.5, −0.25, 0, 0.25, 0.5, 1.0} (fold-type rolls also ±π/2, ±π) × β ∈ {45°, 90°, 135°}. Evaluate the stage cost and start the LM from the best 2.
+- **The crossbar arches**, so give it 2 bends, plus 1 hidden bend in the back layer (the junction turn).
+- **No more hard stops.** Record each failure and continue through polish → report → export → render → sheets. We need a full candidate to judge visually. The exporter checks stay strict.

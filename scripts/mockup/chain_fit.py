@@ -39,7 +39,7 @@ NI = 16
 ROLLS = [
     ('tail bend 1', 'bend', 40), ('tail bend 2', 'bend', 95), ('S bend', 'bend', 138), ('S obl 1', 'obl', 152), ('S obl 2', 'obl', 168), ('S obl 3', 'obl', 184), ('S obl 4', 'obl', 200), ('sweep bend', 'bend', 257),
     ('far-left fold', 'fold', 338), ('left-leg bend 1', 'bend', 420), ('left-leg bend 2', 'bend', 455), ('apex fold', 'fold', 519),
-    ('right-leg bend 1', 'bend', 585), ('right-leg bend 2', 'bend', 625), ('bottom-K fold 1', 'fold', 690), ('bottom-K fold 2', 'fold', 735),
+    ('right-leg bend 1', 'bend', 585), ('right-leg bend 2', 'bend', 625), ('bottom-K fold 1', 'fold', 690), ('bottom-K curl', 'fold', 712), ('bottom-K fold 2', 'fold', 735),
     ('k_return bend', 'bend', 790), ('back-layer bend', 'bend', 836), ('crossbar bend', 'bend', 885), ('wrap curl', 'fold', 960),
     ('wrap twist 1', 'fold', 1010), ('wrap twist 2', 'fold', 1040), ('middle-layer bend', 'bend', 1085), ('top-K front bend', 'bend', 1120),
     ('top-K tip fold', 'fold', 1185), ('end bend', 'bend', 1265)]
@@ -58,7 +58,7 @@ W_TZ = 5.0
 W_COV = 20.0
 W_OVL = 1.0
 W_OU = 0.2
-W_WEAVE = 0.1
+W_WEAVE = 0.0    # weave dropped from the fit (CHAIN_PLAN status 2026-10-08)
 W_SEEN = 5.0
 W_FACE = 20.0
 W_END = 1.0
@@ -711,8 +711,12 @@ ORDER = ['P3', 3, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 0]
 GATE_NEW = {1: (12, 20)}
 
 
+FOLD_WINDOW_IV = {0, 1, 3, 5, 7, 11, 14}   # S, far-left, apex, bottom-K, wrap, top-K tip (+ tail): stop at 35 px
+
+
 def gate_for(iv):
-    return (20.0, 30.0) if iv in (0, 1) else (12.0, 25.0)
+    tgt = 20.0 if iv in (0, 1) else 12.0
+    return (tgt, 35.0 if iv in FOLD_WINDOW_IV else 25.0)
 
 
 def state_after(pr, n):
@@ -770,8 +774,28 @@ def s_combos(pr, x, g):
     return out
 
 
+def bk_combos(pr, x, g):
+    """bottom-K: fold 1, loop-bottom curl, fold 2. 4 starts = fold sign pattern x curl sign"""
+    W = pr.W
+    k1, kc, k2 = g
+    base = {}
+    for k in (k1, k2):
+        c = rolls_candidates(pr, x, k)[0]
+        base[k] = (c[1], max(abs(c[3]), np.pi / 2))
+    bc = sil_beta(pr, kc)
+    bc = float(np.clip(bc if bc is not None else np.pi / 2, 0.3, np.pi - 0.3))
+    out = []
+    for fs, fn in ((1, '+-'), (-1, '-+')):
+        for cs, cn in ((1, 'c+'), (-1, 'c-')):
+            xx = set_roll(x, k1, pr.roll_tau0[k1], base[k1][0], 0.4 * W, fs * base[k1][1])
+            xx = set_roll(xx, kc, pr.roll_tau0[kc], bc, 0.5 * W, cs * np.pi / 2)
+            xx = set_roll(xx, k2, pr.roll_tau0[k2], base[k2][0], 0.4 * W, -fs * base[k2][1])
+            out.append(([fn, cn], xx))
+    return out
+
+
 def pick_bk_bottom(pr, x):
-    ks = [k for k in range(NR) if pr.rname[k].startswith('bottom-K fold')]
+    ks = [k for k in range(NR) if pr.rname[k].startswith('bottom-K')]
     ys = []
     act = list(range(NR))
     cx = pr.ctx(x, act)
@@ -922,6 +946,9 @@ def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
             if pr.rname[g[-1]] == 'S obl 4':
                 combos = s_combos(pr, x, g)
                 ncf, gs = 6, max(secs_group, 360.0)
+            elif pr.rname[g[0]] == 'bottom-K fold 1':
+                combos = bk_combos(pr, x, g)
+                ncf, gs = 4, 360.0
             else:
                 combos = list(gen_combos(pr, x, g))
                 ncf, gs = ncand_fit, secs_group
