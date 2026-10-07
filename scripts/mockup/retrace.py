@@ -225,7 +225,7 @@ def smooth_edge(XY, kind, piece, lm_idx_raw, faces, lam_out):
     li = {k: int(cum[min(v, len(cum) - 1)]) for k, v in lm_idx_raw.items()}
     li['start'] = 0; li['end'] = n - 1
     wins = [(t[li[f['from']]], t[li[f['to']]]) for f in faces if f['face'] == 'window']
-    wt = np.array([{'hard': 1.0, 'gap': 0.8, 'hidden': 0.02, 'soft': 0.2}[k] for k in kind])
+    wt = np.array([{'hard': 1.0, 'gap': 0.8, 'hidden': 0.02, 'soft': 0.2, 'fixed': 1.0}[k] for k in kind])
     nint = max(1, int(round((t[-1] - t[0]) / 8.0)))
     br = np.linspace(t[0], t[-1], nint + 1)
     kn = np.r_[[br[0]] * 3, br, [br[-1]] * 3]
@@ -249,7 +249,7 @@ def smooth_edge(XY, kind, piece, lm_idx_raw, faces, lam_out):
     nearest = np.clip(np.searchsorted(t, tu), 1, n - 1)
     nearest = np.where(np.abs(t[nearest - 1] - tu) <= np.abs(t[nearest] - tu), nearest - 1, nearest)
     kind_o = [kind[i] for i in nearest]; piece_o = [int(piece[i]) for i in nearest]
-    vis = [k in ('hard', 'gap', 'soft') for k in kind_o]
+    vis = [k in ('hard', 'gap', 'soft', 'fixed') for k in kind_o]  # 'fixed' = hand-placed visible edge, not snapped
     return dict(R=R, kind=kind_o, piece=piece_o, vis=vis, n_knots=nint + 1,
                 D=Dn, XYraw=XY, kind_raw=kind, piece_raw=piece, keep=keep, tu=tu, wins=wins)
 
