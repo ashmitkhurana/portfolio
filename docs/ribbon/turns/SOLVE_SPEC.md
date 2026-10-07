@@ -122,3 +122,10 @@ Result: fold edges 0.90 px, fold outline 0.57 px, layer order 100%, silhouette I
 - Stage-3 clearance pairs exploded (60k at stride 2). Restrict them to strands that actually overlap in 2D (reuse the over/under overlap list) and refresh lazily.
 - Over/under pair counts with the overlap test (Sutherland–Hodgman, no shapely): right_leg 575, k_return 159, crossbar 118, left_leg 73, middle 57. The apex, sweep, topk_front and tail rules found 0 pairs; check whether their overlaps fall within the 1.5W flat-arc exclusion.
 - scripts/mockup/ak_solve.py is kept as scaffolding (load/stride, depth profile, over/under builder, AKProblem, metrics, emit).
+
+## synth14 (twist primitive): FAILED, and the decision
+- The synthetic GT built from hinge parameters (constant oblique offset plus small θ) is a cylinder-like half roll that flips the face at both window edges, not a helicoidal twist. The helicoid primitive could not fit it (25 px). The conversion found no developable ruling roots. Control C8: 2.95 px edges, 0.86 IoU.
+- Decision:
+  - The real S twist visibly rolls over its edge (TURNS §2.1), the same structure as the apex, so it uses the **fold primitive** recipe.
+  - The wrap's half twist is fully hidden, so any smooth developable path behind the left leg is acceptable. The generic init plus constraints handles it; no special primitive is needed.
+  - The twist primitive is parked.
