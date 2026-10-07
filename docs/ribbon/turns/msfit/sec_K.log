@@ -1,0 +1,11 @@
+## section K: rings 659..813 (data 644..828), intervals [7, 8], rolls ['bottom-K fold 1', 'bottom-K curl', 'bottom-K fold 2', 'k_return bend'], free 24
+  12 starts; best init costs [(['tilt-25', '-+', 'c-'], 21667523), (['tilt+25', '-+', 'c-'], 23602821), (['tilt+25', '-+', 'c+'], 25259977), (['tilt+0', '-+', 'c-'], 25312253), (['tilt+0', '-+', 'c+'], 28069127), (['tilt-25', '-+', 'c+'], 29795034), (['tilt-25', '+-', 'c+'], 62801329), (['tilt-25', '+-', 'c-'], 68956500)]
+    [tilt-25/-+/c-] ok cost 437133.6 evals 2275 (232s)
+    [tilt+25/-+/c-] ok cost 1192603.1 evals 2169 (224s)
+    [tilt+25/-+/c+] timeout cost 337067.7 evals 3354 (360s)
+    [tilt+0/-+/c-] ok cost 1203362.7 evals 1547 (124s)
+    [refine] ok cost 337067.4 evals 63 (5s)
+  v1-rules result: data 42.18 px, realism fails ['corners'], outline {'bottomk': {'mean_px': 6.675096428501832, 'max_px': 25.314984164736757, 'n': 150}}
+  RESEED pass for K: old score (fails, outline, rms) = (1, 6.675096428501832, 42.18081297674688)
+  window fit Kw7: rings 644..779, rolls ['right-leg bend 2', 'bottom-K fold 1', 'bottom-K curl', 'bottom-K fold 2', 'k_return bend']
+    [win/t0/-+/c-] timeout cost 2096284.6 evals 766 (60s)

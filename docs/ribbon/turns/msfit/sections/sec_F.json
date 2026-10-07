@@ -1,0 +1,76 @@
+{
+ "section": "F",
+ "cost": 16232.0,
+ "blocks": {
+  "pt": 12004.7,
+  "slide": 3806.64,
+  "anchor": 11.58,
+  "cov": 306.04,
+  "ou": 0.0,
+  "face": 0.0,
+  "seen": 101.73,
+  "overlap": 0.0,
+  "bend": 0.0,
+  "lam": 1.3,
+  "xing": 0.0
+ },
+ "data_own": {
+  "n": 306,
+  "rms": 8.760195624024261,
+  "p95": 16.59538646669227,
+  "max": 19.550113039654708
+ },
+ "ou": {
+  "pairs": 0,
+  "viol_lt_2thk": 0,
+  "viol_lt_thk": 0,
+  "max_shortfall_css": 0.0,
+  "weave_violations": 0
+ },
+ "tags": [
+  "reseed",
+  "as-is"
+ ],
+ "realism": {
+  "section": "F",
+  "roll_overlap_min_gap": 130.67243244186693,
+  "crossings": 0,
+  "sep_violations": 0,
+  "min_fold_rho_over_W": 0.30000000000000004,
+  "curv_oscillations": 0,
+  "corners": 0,
+  "outline": {
+   "farleft": {
+    "mean_px": 5.773791199447794,
+    "max_px": 19.72308292331602,
+    "n": 50
+   }
+  },
+  "fails": []
+ },
+ "gate_rms": 6.0,
+ "gate": "FAIL",
+ "rolls": [
+  {
+   "name": "sweep bend",
+   "tau": 446.78541713336654,
+   "beta_deg": 148.0804483459531,
+   "rho_css": 26.11476739378095,
+   "rho_over_W": 0.5000000000000001,
+   "phi_deg": 68.75493541569877
+  },
+  {
+   "name": "far-left fold",
+   "tau": 602.2257761748933,
+   "beta_deg": 121.83301210495851,
+   "rho_css": 15.66886043626857,
+   "rho_over_W": 0.30000000000000004,
+   "phi_deg": -197.18873385392467
+  }
+ ],
+ "lam": {
+  "2": 1.2373038154825609,
+  "3": 1.4906651279469594
+ },
+ "seconds": 802.5166509151459
+}

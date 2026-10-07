@@ -1,0 +1,18 @@
+## section P: rings 1102..1298 (data 1087..1298), intervals [13, 14, 15], rolls ['top-K front bend', 'top-K tip fold', 'end bend'], free 21
+  6 starts; best init costs [(['tilt+25', 'end bend', 'b135', 'p-0.25'], 939373), (['tilt+25', 'end bend', 'b135', 'p-0.50'], 939374), (['tilt+0', 'end bend', 'b135', 'p-0.25'], 1619164), (['tilt+0', 'end bend', 'b135', 'p-0.50'], 1619165), (['tilt-25', 'end bend', 'b135', 'p-0.25'], 1918534), (['tilt-25', 'end bend', 'b135', 'p-0.50'], 1918535)]
+    [tilt+25/end bend/b135/p-0.25] timeout cost 124761.9 evals 9918 (240s)
+    [tilt+25/end bend/b135/p-0.50] timeout cost 132513.2 evals 9779 (240s)
+    [tilt+0/end bend/b135/p-0.25] timeout cost 385110.7 evals 9389 (240s)
+    [refine] ok cost 105088.3 evals 2213 (54s)
+  v1-rules result: data 39.32 px, realism fails ['separation', 'corners'], outline {'topk': {'mean_px': 4.15420064509836, 'max_px': 11.212039196538953, 'n': 17}}
+  RESEED pass for P: old score (fails, outline, rms) = (2, 4.15420064509836, 39.3182378824667)
+  window fit Pw14: rings 1126..1245, rolls ['top-K front bend', 'top-K tip fold', 'end bend']
+    [win/s+1/m2.6/rho0.25/db0/t-25] ok cost 7879.2 evals 698 (17s)
+    [win/s-1/m2.6/rho0.25/db0/t25] ok cost 10988.8 evals 1920 (38s)
+    [win/s-1/m2.6/rho0.25/db0/t0] timeout cost 5836.8 evals 3414 (60s)
+    [win/s-1/m2.6/rho0.25/db0/t-25] ok cost 6716.2 evals 1539 (26s)
+    [win/s+1/m2.6/rho0.25/db30/t0] ok cost 7598.6 evals 670 (11s)
+    [win/s+1/m2.6/rho0.25/db30/t-25] ok cost 7613.0 evals 1061 (18s)
+  window Pw14 best cost 5836.8 tags ['s-1', 'm2.6', 'rho0.25', 'db0', 't0'] data 8.000953251341736
+    [reseed-as-is] ok cost 31408.5 evals 1704 (31s)
+    reseed P iv14 as-is: cost 31408.5 score (3, 4.884320234715707, 21.19529171077292) fails ['separation', 'curv-oscillation', 'corners']

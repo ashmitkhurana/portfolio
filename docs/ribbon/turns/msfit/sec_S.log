@@ -1,0 +1,5 @@
+## section S: rings 132..225 (data 117..240), intervals [1], rolls ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'], free 27
+  18 starts; best init costs [(['tilt+0', 'b+30', '-+-+'], 5782329), (['tilt+0', 'b-30', '-+-+'], 7871599), (['tilt+0', 'b+0', '-+-+'], 7946094), (['tilt+0', 'b+30', '+-+-'], 32374291), (['tilt+0', 'b+0', '+-+-'], 33844857), (['tilt+0', 'b-30', '+-+-'], 34075388), (['tilt+25', 'b+30', '-+-+'], 61310637), (['tilt-25', 'b-30', '+-+-'], 68043952)]
+    [tilt+0/b+30/-+-+] timeout cost 33385.5 evals 4075 (360s)
+    [tilt+0/b-30/-+-+] timeout cost 6873.4 evals 3905 (360s)
+    [tilt+0/b+0/-+-+] ok cost 24190.4 evals 3806 (282s)

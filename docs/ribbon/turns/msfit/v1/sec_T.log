@@ -1,0 +1,8 @@
+## section T: rings 0..131 (data 0..146), intervals [0], rolls ['tail bend 1', 'tail bend 2'], free 15
+  6 starts; best init costs [(['tilt+0', 'tail bend 1', 'b45', 'p0.00'], 4548), (['tilt+0', 'tail bend 1', 'b90', 'p0.00'], 4548), (['tilt+25', 'tail bend 2', 'b90', 'p-1.00'], 55978), (['tilt+25', 'tail bend 2', 'b90', 'p-0.50'], 55978), (['tilt-25', 'tail bend 2', 'b135', 'p0.50'], 56199), (['tilt-25', 'tail bend 2', 'b135', 'p1.00'], 56199)]
+    [tilt+0/tail bend 1/b45/p0.00] ok cost 1404.2 evals 16801 (24s)
+    [tilt+0/tail bend 1/b90/p0.00] ok cost 1404.2 evals 8602 (13s)
+    [tilt+25/tail bend 2/b90/p-1.00] ok cost 1164.4 evals 574 (1s)
+    [refine] ok cost 1164.4 evals 32 (0s)
+  SECTION T DONE: data rms 16.162086904359004 (p95 35.94271415100256, max 53.04823613214153) gate <= 12.0: FAIL; cost 1164.4; 39s
+  METRICS {"section": "T", "cost": 1164.4, "blocks": {"pt": 1162.53, "ou": 0.0, "face": 0.0, "overlap": 0.48, "bend": 0.0, "lam": 1.37}, "data_own": {"n": 264, "rms": 16.162086904359004, "p95": 35.94271415100256, "max": 53.04823613214153}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "tags": ["tilt+25", "tail bend 2", "b90", "p-1.00"], "gate_rms": 12.0, "gate": "FAIL", "rolls": [{"name": "tail bend 1", "tau": -30.652778490448217, "beta_deg": 23.131125217711595, "rho_css": 26.11476739378095, "rho_over_W": 0.5000000000000001, "phi_deg": 16.013600730345196}, {"name": "tail bend 2", "tau": 141.91881344933805, "beta_deg": 11.459155952942279, "rho_css": 26.11476739378095, "rho_over_W": 0.5000000000000001, "phi_deg": -68.75493541569877}], "lam": {"0": 0.6047526698676051}, "seconds": 38.702170848846436}

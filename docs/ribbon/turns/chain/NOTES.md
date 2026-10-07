@@ -224,3 +224,95 @@
   METRICS {"act": 13, "lo": 226, "hi": 910, "cost": 472588.3, "blocks": {"pt": 382489.15, "slide": 66847.79, "anchor": 62.33, "cov": 20727.98, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 1047.39, "overlap": 1193.27, "bend": 0.0, "lam": 198.42, "prior": 22.0}, "data_all": {"n": 1104, "rms": 28.530969017753367, "p95": 70.8882562042157, "max": 142.48509086876527}, "face": {"checked": 304, "agree": 304, "frac": 1.0}, "ou": {"pairs": 404, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 10, "data_new": {"n": 104, "rms": 78.83164641847556, "p95": 129.78042679188698, "max": 142.48509086876527}, "stage": 8, "status": "ok", "seconds": 24.00244402885437, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
 !! STOP: stage 8 (interval 10) new-interval rms 78.83164641847556 px > 25.0
 - Resume result: stage 5 bottom-K (3 rolls) 24.84 px (target FAIL, stop 35 not hit; fold1 phi 148 rho 0.2W, curl phi 89.5 rho 0.2W beta 11.5, fold2 phi -146 rho 0.21W); stage 6 k_return 18.97 (FAIL target, <25); stage 7 back layer 7.10 PASS; stage 8 crossbar 78.83 px > 25 STOP (crossbar bend init: tau 1583, beta 90, rho 3W, phi 0 = near-inert; fit moved only cost 472595->472588; data_all 28.5). Polish/report/export/sheets NOT run (stop rule). Log: all5b.log
+## 2026-10-08 coordinator decision after stage 8 applied: presearch (u-in-span check + coarse phi x beta grid, coordinate pass, best 2 LM starts) for every new-roll group except S/bottom-K/apex; crossbar = 2 bends (rings 876, 893; layout migrated +4 params, backups old_layout/pre8_*); back-layer bend kept free in stage 8; no hard stops. Resuming all 8.
+## stage 8: interval 10 (j1_out__wrap_in) rings 226..910; groups [['crossbar bend 1'], ['crossbar bend 2']]
+  group ['crossbar bend 1'] rings 226..892 free=13 candidates=2 init costs [(['crossbar bend 1', 45, -1.0], 287100), (['crossbar bend 1', 45, -0.5], 287100)]
+## stage 8: interval 10 (j1_out__wrap_in) rings 226..910; groups [['crossbar bend 1'], ['crossbar bend 2']]
+  group ['crossbar bend 1'] rings 226..892 free=13 candidates=2 init costs [(['crossbar bend 1', 'b45', 'p-1.00'], 287100), (['crossbar bend 1', 'b45', 'p-0.50'], 287100)]
+    [crossbar bend 1/b45/p-1.00] ok cost 152977.4 evals 365 (42s)
+    [crossbar bend 1/b45/p-0.50] ok cost 152977.5 evals 282 (33s)
+    roll crossbar bend 1: tau 1648.3 beta 29.9 rho 226.4 (4.34W) phi -57.3 [['crossbar bend 1', 'b45', 'p-1.00']]
+  group ['crossbar bend 2'] rings 226..910 free=13 candidates=2 init costs [(['crossbar bend 2', 'b45', 'p-1.00'], 19614351), (['crossbar bend 2', 'b45', 'p-0.50'], 19614351)]
+    [crossbar bend 2/b45/p-1.00] ok cost 312179.6 evals 268 (32s)
+    [crossbar bend 2/b45/p-0.50] ok cost 312179.6 evals 268 (31s)
+    roll crossbar bend 2: tau 1633.2 beta 32.5 rho 262.4 (5.02W) phi -28.6 [['crossbar bend 2', 'b45', 'p-0.50']]
+  stage fit: free 17 rings 226..910 cost0 312179.6
+    [stage8] ok cost 312178.4 evals 64 (8s)
+  METRICS {"act": 14, "lo": 226, "hi": 910, "cost": 312178.4, "blocks": {"pt": 215416.04, "slide": 66847.79, "anchor": 62.33, "cov": 20727.98, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 1047.39, "overlap": 2103.45, "bend": 5759.45, "lam": 199.64, "prior": 14.32}, "data_all": {"n": 1104, "rms": 22.612994576123103, "p95": 56.04515530720106, "max": 96.65066258677177}, "face": {"checked": 304, "agree": 304, "frac": 1.0}, "ou": {"pairs": 454, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 10, "data_new": {"n": 104, "rms": 54.07358001941285, "p95": 87.43807599049566, "max": 96.65066258677177}, "stage": 8, "status": "ok", "seconds": 150.68051409721375, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
+!! (no hard stop) stage 8 (interval 10) new-interval rms 54.07358001941285 px > 25.0; continuing
+## stage 9: interval 11 (wrap_in__j2_in) rings 226..1066; groups [['wrap curl', 'wrap twist 1', 'wrap twist 2']]
+  group ['wrap curl', 'wrap twist 1', 'wrap twist 2'] rings 226..1066 free=21 candidates=2 init costs [(['wrap twist 1', 'b45', 'p1.00'], 3024934), (['wrap twist 2', 'b135', 'p-1.00'], 3028688)]
+    [wrap twist 1/b45/p1.00] timeout cost 513946.5 evals 599 (90s)
+    [wrap twist 2/b135/p-1.00] timeout cost 327705.0 evals 599 (90s)
+    roll wrap curl: tau 1654.0 beta 55.5 rho 33.2 (0.64W) phi 136.3 [['wrap twist 2', 'b135', 'p-1.00']]
+    roll wrap twist 1: tau 1788.2 beta 87.3 rho 53.9 (1.03W) phi -31.9 [['wrap twist 2', 'b135', 'p-1.00']]
+    roll wrap twist 2: tau 1903.8 beta 104.4 rho 31.9 (0.61W) phi 32.1 [['wrap twist 2', 'b135', 'p-1.00']]
+  stage fit: free 21 rings 226..1066 cost0 327705.0
+    [stage9] ok cost 327530.7 evals 307 (46s)
+  METRICS {"act": 17, "lo": 226, "hi": 1066, "cost": 327530.7, "blocks": {"pt": 215146.37, "slide": 77004.29, "anchor": 10018.2, "cov": 22264.24, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 1047.39, "overlap": 1524.03, "bend": 256.33, "lam": 212.33, "prior": 57.5}, "data_all": {"n": 1286, "rms": 21.315618957174983, "p95": 51.498493326271856, "max": 96.65066258677177}, "face": {"checked": 305, "agree": 305, "frac": 1.0}, "ou": {"pairs": 758, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 11, "data_new": {"n": 182, "rms": 10.564557924577034, "p95": 20.965156141194004, "max": 27.574099508164707}, "stage": 9, "status": "ok", "seconds": 242.17575597763062, "gate_target": 12.0, "gate_stop": 35.0, "gate": "PASS"}
+## stage 10: interval 12 (j2_in__j2_out) rings 226..1101; groups [['middle-layer bend']]
+  group ['middle-layer bend'] rings 226..1101 free=13 candidates=2 init costs [(['middle-layer bend', 'b90', 'p0.00'], 327531), (['middle-layer bend', 'b90', 'p-0.25'], 327531)]
+    [middle-layer bend/b90/p0.00] ok cost 325235.4 evals 266 (41s)
+    [middle-layer bend/b90/p-0.25] ok cost 325235.4 evals 266 (41s)
+    roll middle-layer bend: tau 1946.9 beta 90.0 rho 156.7 (3.00W) phi 0.0 [['middle-layer bend', 'b90', 'p0.00']]
+  stage fit: free 13 rings 226..1101 cost0 325235.4
+    [stage10] ok cost 325235.4 evals 28 (4s)
+  METRICS {"act": 18, "lo": 226, "hi": 1101, "cost": 325235.4, "blocks": {"pt": 215146.37, "slide": 74487.14, "anchor": 10235.27, "cov": 22264.24, "ou": 0.0, "weave": 0.0, "face": 0.0, "seen": 1047.39, "overlap": 1524.03, "bend": 256.33, "lam": 212.33, "prior": 62.29}, "data_all": {"n": 1286, "rms": 21.2235935411408, "p95": 51.498493326271856, "max": 96.65066258677177}, "face": {"checked": 305, "agree": 305, "frac": 1.0}, "ou": {"pairs": 758, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 12, "data_new": {"n": 0, "rms": null, "p95": null, "max": null}, "stage": 10, "status": "ok", "seconds": 90.56708002090454, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
+!! (no hard stop) stage 10 (interval 12) new-interval rms None px > 25.0; continuing
+## stage 11: interval 13 (j2_out__tk_in) rings 226..1140; groups [['top-K front bend']]
+  group ['top-K front bend'] rings 226..1140 free=13 candidates=2 init costs [(['top-K front bend', 'b135', 'p-1.00'], 90054190), (['top-K front bend', 'b135', 'p-0.50'], 90054190)]
+    [top-K front bend/b135/p-1.00] ok cost 809257.4 evals 219 (34s)
+    [top-K front bend/b135/p-0.50] ok cost 814069.5 evals 205 (32s)
+    roll top-K front bend: tau 2112.8 beta 158.2 rho 278.4 (5.33W) phi 15.8 [['top-K front bend', 'b135', 'p-1.00']]
+  stage fit: free 13 rings 226..1140 cost0 809257.4
+    [stage11] ok cost 809069.1 evals 152 (24s)
+  METRICS {"act": 19, "lo": 226, "hi": 1140, "cost": 809069.1, "blocks": {"pt": 620629.84, "slide": 109136.64, "anchor": 1010.63, "cov": 22264.24, "ou": 44840.77, "weave": 0.0, "face": 0.0, "seen": 1047.39, "overlap": 3262.03, "bend": 6471.17, "lam": 249.09, "prior": 157.33}, "data_all": {"n": 1364, "rms": 32.71144794447068, "p95": 71.05166531051141, "max": 218.8988129858598}, "face": {"checked": 343, "agree": 343, "frac": 1.0}, "ou": {"pairs": 926, "viol_lt_2thk": 9, "viol_lt_thk": 9, "max_shortfall_css": 239.7251110815172, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 13, "data_new": {"n": 78, "rms": 101.96573966396376, "p95": 191.26796501009002, "max": 218.8988129858598}, "stage": 11, "status": "ok", "seconds": 94.35720109939575, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
+!! (no hard stop) stage 11 (interval 13) new-interval rms 101.96573966396376 px > 25.0; continuing
+## stage 12: interval 14 (tk_in__tk_out) rings 226..1230; groups [['top-K tip fold']]
+  group ['top-K tip fold'] rings 226..1230 free=13 candidates=2 init costs [(['top-K tip fold', 'b135', 'p-0.25'], 1617649), (['top-K tip fold', 'b135', 'p0.25'], 1617649)]
+    [top-K tip fold/b135/p-0.25] ok cost 849666.8 evals 298 (52s)
+    [top-K tip fold/b135/p0.25] ok cost 845292.3 evals 284 (50s)
+    roll top-K tip fold: tau 2101.3 beta 84.7 rho 16.0 (0.31W) phi 73.0 [['top-K tip fold', 'b135', 'p0.25']]
+  stage fit: free 13 rings 226..1230 cost0 845292.3
+    [stage12] ok cost 843860.5 evals 150 (26s)
+  METRICS {"act": 20, "lo": 226, "hi": 1230, "cost": 843860.5, "blocks": {"pt": 637597.43, "slide": 131740.71, "anchor": 1070.55, "cov": 23610.44, "ou": 37897.03, "weave": 0.0, "face": 0.0, "seen": 1415.76, "overlap": 3645.67, "bend": 6471.17, "lam": 250.28, "prior": 161.44}, "data_all": {"n": 1522, "rms": 31.795547251587585, "p95": 69.67993062862445, "max": 217.77869649708475}, "face": {"checked": 344, "agree": 344, "frac": 1.0}, "ou": {"pairs": 922, "viol_lt_2thk": 7, "viol_lt_thk": 7, "max_shortfall_css": 247.3428467624526, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 14, "data_new": {"n": 158, "rms": 15.129776245081619, "p95": 35.23649853950452, "max": 43.14339861839771}, "stage": 12, "status": "ok", "seconds": 134.80626702308655, "gate_target": 12.0, "gate_stop": 35.0, "gate": "FAIL"}
+## stage 13: interval 15 (tk_out__end) rings 226..1298; groups [['end bend']]
+  group ['end bend'] rings 226..1298 free=13 candidates=2 init costs [(['end bend', 'b90', 'p0.50'], 4100618), (['end bend', 'b90', 'p1.00'], 4100621)]
+    [end bend/b90/p0.50] ok cost 876505.6 evals 330 (60s)
+    [end bend/b90/p1.00] timeout cost 874507.8 evals 496 (90s)
+    roll end bend: tau 2198.9 beta 77.8 rho 45.8 (0.88W) phi 68.8 [['end bend', 'b90', 'p1.00']]
+  stage fit: free 13 rings 226..1298 cost0 874507.8
+    [stage13] ok cost 866990.4 evals 176 (32s)
+  METRICS {"act": 21, "lo": 226, "hi": 1298, "cost": 866990.4, "blocks": {"pt": 645002.02, "slide": 140086.79, "anchor": 1027.29, "cov": 23812.9, "ou": 41143.23, "weave": 0.0, "face": 0.0, "seen": 1495.35, "overlap": 7049.45, "bend": 6471.17, "end": 340.18, "lam": 360.45, "prior": 201.56}, "data_all": {"n": 1557, "rms": 31.75631372581791, "p95": 68.07178167100417, "max": 217.77869649708475}, "face": {"checked": 352, "agree": 352, "frac": 1.0}, "ou": {"pairs": 1279, "viol_lt_2thk": 42, "viol_lt_thk": 42, "max_shortfall_css": 247.3428467624526, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 15, "data_new": {"n": 35, "rms": 26.668748348379488, "p95": 60.335760859832575, "max": 72.56743925677225}, "stage": 13, "status": "ok", "seconds": 186.65645003318787, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
+!! (no hard stop) stage 13 (interval 15) new-interval rms 26.668748348379488 px > 25.0; continuing
+## stage 14: interval 1 (s_in__s_out) rings 132..1298; groups [['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4']]
+  group ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'] rings 132..1298 free=29 candidates=6 init costs [(['b+0', '-+-+'], 19057470), (['b+30', '-+-+'], 20070800), (['b-30', '-+-+'], 25819541), (['b+30', '+-+-'], 60836910), (['b+0', '+-+-'], 60909498), (['b-30', '+-+-'], 62858362)]
+    [b+0/-+-+] ok cost 916515.8 evals 968 (233s)
+    [b+30/-+-+] ok cost 896760.1 evals 1175 (283s)
+    [b-30/-+-+] timeout cost 903736.6 evals 1492 (360s)
+    [b+30/+-+-] timeout cost 900139.3 evals 1495 (360s)
+    [b+0/+-+-] timeout cost 896952.2 evals 1494 (360s)
+    [b-30/+-+-] timeout cost 904355.9 evals 1494 (360s)
+    roll S bend: tau 260.5 beta 147.9 rho 134.7 (2.58W) phi -11.4 [['b+30', '-+-+']]
+    roll S obl 1: tau 289.4 beta 50.0 rho 14.0 (0.27W) phi -33.3 [['b+30', '-+-+']]
+    roll S obl 2: tau 292.6 beta 95.6 rho 74.0 (1.42W) phi 54.9 [['b+30', '-+-+']]
+    roll S obl 3: tau 314.7 beta 113.2 rho 45.4 (0.87W) phi -27.9 [['b+30', '-+-+']]
+    roll S obl 4: tau 364.5 beta 154.1 rho 13.1 (0.25W) phi 65.6 [['b+30', '-+-+']]
+  stage fit: free 29 rings 132..1298 cost0 896760.1
+    [stage14] ok cost 896760.1 evals 35 (8s)
+  METRICS {"act": 26, "lo": 132, "hi": 1298, "cost": 896760.1, "blocks": {"pt": 649647.53, "slide": 162602.74, "anchor": 1054.98, "cov": 25124.12, "ou": 41143.23, "weave": 0.0, "face": 0.0, "seen": 1500.56, "overlap": 8303.45, "bend": 6471.17, "end": 340.18, "lam": 370.56, "prior": 201.56}, "data_all": {"n": 1703, "rms": 30.88535566757491, "p95": 64.91941239131913, "max": 217.77869649708188}, "face": {"checked": 352, "agree": 352, "frac": 1.0}, "ou": {"pairs": 1251, "viol_lt_2thk": 42, "viol_lt_thk": 42, "max_shortfall_css": 247.34284676245247, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000001173207, "new_interval": 1, "data_new": {"n": 146, "rms": 17.431924368989563, "p95": 35.39135840924164, "max": 43.25112660175719}, "stage": 14, "status": "ok", "seconds": 1967.5958459377289, "gate_target": 20.0, "gate_stop": 35.0, "gate": "PASS"}
+## stage 15: interval 0 (start__s_in) rings 0..1298; groups [['tail bend 2'], ['tail bend 1']]
+  group ['tail bend 2'] rings 41..1298 free=13 candidates=2 init costs [(['tail bend 2', 'b135', 'p1.00'], 1639237), (['tail bend 2', 'b90', 'p1.00'], 1788345)]
+    [tail bend 2/b135/p1.00] timeout cost 1016055.1 evals 362 (90s)
+    [tail bend 2/b90/p1.00] timeout cost 1016034.2 evals 362 (90s)
+    roll tail bend 2: tau 233.0 beta 168.5 rho 26.4 (0.50W) phi 26.1 [['tail bend 2', 'b90', 'p1.00']]
+  group ['tail bend 1'] rings 0..1298 free=13 candidates=2 init costs [(['tail bend 1', 'b45', 'p-0.25'], 1047775), (['tail bend 1', 'b90', 'p-0.25'], 1053933)]
+    [tail bend 1/b45/p-0.25] timeout cost 1012523.5 evals 329 (90s)
+    [tail bend 1/b90/p-0.25] timeout cost 1012580.6 evals 352 (90s)
+    roll tail bend 1: tau 138.2 beta 23.1 rho 214.1 (4.10W) phi -17.1 [['tail bend 1', 'b45', 'p-0.25']]
+  stage fit: free 17 rings 0..1298 cost0 1012523.5
+    [stage15] ok cost 990667.9 evals 761 (195s)
+  METRICS {"act": 28, "lo": 0, "hi": 1298, "cost": 990667.9, "blocks": {"pt": 733426.37, "slide": 166722.71, "anchor": 1058.8, "cov": 26938.03, "ou": 41143.23, "weave": 0.0, "face": 0.0, "seen": 1500.56, "overlap": 12469.65, "bend": 6494.43, "end": 340.18, "lam": 372.38, "tailz": 0.0, "prior": 201.56}, "data_all": {"n": 1967, "rms": 31.67042265757631, "p95": 66.42674437437172, "max": 217.77869649708475}, "face": {"checked": 484, "agree": 484, "frac": 1.0}, "ou": {"pairs": 1251, "viol_lt_2thk": 42, "viol_lt_thk": 42, "max_shortfall_css": 247.3428467624526, "weave_violations": 0}, "min_fold_rho_over_W": 0.20000000001173207, "new_interval": 0, "data_new": {"n": 264, "rms": 35.89712445852679, "p95": 70.26978045361011, "max": 95.8781333871796}, "stage": 15, "status": "ok", "seconds": 567.3909170627594, "gate_target": 20.0, "gate_stop": 35.0, "gate": "FAIL"}
+!! (no hard stop) stage 15 (interval 0) new-interval rms 35.89712445852679 px > 35.0; continuing
+## polish: all 134 params, cost0 990667.9
+stopped by coordinator after stage 15: switching to multiple-shooting

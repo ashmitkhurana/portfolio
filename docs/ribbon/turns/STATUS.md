@@ -99,3 +99,10 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
   - Swap the pose into ak-hero.json (after the owner OKs the renders).
   - Wire the intro reveal to `ribbon:intro-settled`.
   - Desktop placement, then the remaining audit fixes, then the PR.
+
+## Resume point (2026-10-08 02:50; owner asleep, wants autonomous continuation)
+- Approach: multiple shooting (MULTISHOOT_PLAN.md, scripts/mockup/msfit.py, docs/ribbon/turns/msfit/). Realism over exact overlap.
+- All 7 visible sections have had a first fit. A is good.
+- The overlays and realism checks used same-u chords instead of the true rulings, which gave false fan/crossing failures (A was flagged). The agent is switching to true rulings, dashed hidden edges and shaded renders, then re-evaluating every section and redoing only the genuinely failing folds (candidates: far-left corner too tight, top-K tip, S, bottom-K double fold, wrap).
+- Then joint (continuity ramp) → export → render → sheets → owner review.
+- A one-shot session cron resumes at 05:35.
