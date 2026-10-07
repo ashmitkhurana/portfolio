@@ -209,6 +209,9 @@ class HingeProblem:
                 out[n] = Jd
                 continue
             r, c, v = jb[n]
+            if len(r) == 0:          # block with no active rows
+                out[n] = np.zeros((ns, H.nx))
+                continue
             Jf = coo_matrix((np.concatenate([np.asarray(q, float) for q in v]),
                              (np.concatenate([np.asarray(q) for q in r]), np.concatenate([np.asarray(q) for q in c]))),
                             shape=(ns, 8 * N)).tocsr()
@@ -300,3 +303,40 @@ def lm_dense(fun, jac, x0, max_iter=300, mu0=1e-3):
                 break
     return x, dict(iterations=it, accepted=acc, cost0=cost0, cost=cost, reason=reason,
                    seconds=time.perf_counter() - t0)
+
+
+# ====================================================================== geometric init (synth8)
+def geometric_init(Hg, L0, R0):
+    """Build hinge parameters directly from init ring points. Returns (x, info)."""
+    N, m, W = Hg.N, Hg.m, Hg.W
+    L0, R0 = np.asarray(L0, float), np.asarray(R0, float)
+    sa = np.maximum(np.linalg.norm(np.diff(L0, axis=0), axis=1), 0.5)
+    sb = np.maximum(np.linalg.norm(np.diff(R0, axis=0), axis=1), 0.5)
+    a = np.concatenate([[0.0], np.cumsum(sa)])
+    b = np.concatenate([[0.0], np.cumsum(sb)])
+    C = (L0 + R0) / 2
+    tg = C[m + 1] - C[m - 1]
+    tg /= np.linalg.norm(tg)
+    obl = float((R0[m] - L0[m]) @ tg)
+    b = b + (obl + a[m]) - b[m]            # b_m - a_m = obl
+    sh = a[m]
+    a, b = a - sh, b - sh                  # gauge a_m = 0
+    th = np.zeros(N)
+    th[1:N - 1] = S.dihedral(L0, R0)
+    # root pose: Kabsch on the root quad
+    fp = np.array([[a[m], 0, 0], [a[m + 1], 0, 0], [b[m], W, 0], [b[m + 1], W, 0]])
+    tp = np.array([L0[m], L0[m + 1], R0[m], R0[m + 1]])
+    fc, tc = fp.mean(0), tp.mean(0)
+    Hm = (fp - fc).T @ (tp - tc)
+    U, _, Vt = np.linalg.svd(Hm)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    Rm = Vt.T @ np.diag([1, 1, d]) @ U.T
+    omega = Rotation.from_matrix(Rm).as_rotvec()
+    t = tc - Rm @ fc
+    x = Hg.pack(omega, t, th, a, b)
+    Lf, Rf = Hg.points(x)
+    dih = S.dihedral(Lf, Rf)
+    info = dict(max_dihedral_err_fk_vs_theta=float(np.abs(dih - th[1:N - 1]).max()),
+                root_kabsch_rms=float(np.sqrt(np.mean((np.einsum('ij,kj->ki', Rm, fp) + t - tp) ** 2))),
+                obliqueness_root=obl, flat_span_a=float(a[-1] - a[0]))
+    return x, info

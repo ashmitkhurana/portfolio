@@ -51,4 +51,11 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
 
 6. **The optimiser crawls because "paper can't stretch" is only a penalty (`synth6/`).** The next version builds it in: flat panels hinged along their creases, so stretching or warping is impossible by construction (see `SOLVE_SPEC.md`, "Next formulation").
 
+7. **The hinge solver with a geometric start (`synth8/`) is the best so far.**
+   - Exactly paper-like: stretch 0 and warp 0.
+   - Silhouette overlap 0.986, fold-outline error **1.3 px**, correct layer in front **93%**.
+   - Image fit is **0.9 px** outside the fold.
+   - Open issue: inside the fold window the edge data and the roll outline still conflict (8 px), and the run hadn't fully converged (300-iteration cap).
+   - Next: a longer run, then find out whether the conflict comes from too few panels in the roll (refine rings in windows) or from the coverage weights.
+
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
