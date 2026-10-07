@@ -108,3 +108,11 @@ Residuals:
   - Keep the S bend.
 - **Tail:** 2 bends (≥ 1.5W apart).
 - **Stage gates:** RMS ≤ 10 px per stage (the tail is soft/blurred data), with the window silhouette IoU as the shape gate. Continue through all stages. Stop only if a stage exceeds 15 px RMS. Report each stage.
+
+## Decision after the 4-oblique S attempt (stage 1: 58 px)
+- Growing from End 1 starts with the hardest, least reliable data: the tail is blurred, off-screen and perspective-extreme, and the S is an edge-on twist. Errors there poison everything downstream.
+- **Re-root the chain at the apex**, which is the most reliable part (paper3: IoU 0.96–0.97).
+  - Kinematics: the root segment is the flat run containing the apex fold's entry. Rolls with u > u_root are applied forward, rolls with u < u_root in reverse (inverse rigid transforms), so changing a tail roll moves only the tail.
+- **Growth order:** apex → left leg → far-left → sweep → right leg → bottom-K → k_return → back layer → crossbar → wrap → middle layer → top-K front → top-K tip → end strand → S → tail.
+- **Per-stage gate:** RMS of the NEW interval's rings ≤ 12 px (≤ 20 px for S and tail). Stop only if a new interval exceeds 20 px (25 px for S/tail).
+- The S keeps the S bend plus 4 oblique rolls. The tail keeps 2 bends.

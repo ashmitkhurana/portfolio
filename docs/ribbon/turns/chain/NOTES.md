@@ -44,3 +44,35 @@
     [stage1] ok cost 70588.9 evals 132 (6s)
   METRICS {"K": 4, "e": 225, "cost": 70588.9, "blocks": {"pt": 25879.79, "slide": 42816.3, "anchor": 10.49, "cov": 1029.99, "ou": 0.0, "zr": 0.0, "face": 0.0, "seen": 263.05, "overlap": 541.58, "bend": 0.0, "lam": 47.67, "tailz": 0.0}, "data": {"n": 410, "rms": 22.604518299608827, "p95": 44.802472162609504, "max": 67.7551802027116}, "face": {"checked": 132, "agree": 132, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.2000000000196374, "lam": [0.84, 2.157], "stage": 1, "status": "ok", "seconds": 236.4444122314453}
 - Stage 1 rerun (decisions applied): data rms 22.6 px (p95 44.8, max 67.8) > 8 -> STOP. cost 70.6k (pt 25.9k, slide 42.8k, cov 1.0k), face 132/132, lambda [0.84, 2.16]. S folds both at rho=0.2W bound (phi +180.2, -182.7), fold2 beta 146 deg; tail bend rho 2.57W phi 17.9. Tail-bend-only sub-fit (rings 0-149): cost 16.6k (~10 px rms). Candidates tried: cf/twist2b 208k, cf/twist2 70.9k (90s timeout), sil/twist2b 255k.
+- Applied 'Decisions after stage 1 re-run': tail 2 bends (rings 40,95), S bend 138 + 4 oblique rolls (152,168,184,200; rho [0.25W,3W], phi +-1.885), 6 starts x 360s. Gate: rms<=10 target, stop only >15.
+## stage 1: intervals [0, 1] rings to 225; groups [['tail bend 1'], ['tail bend 2'], ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4']]
+  group ['tail bend 1'] e=94 K=1 free=11 candidates=1 init costs [(['bend'], 451694)]
+    [bend] ok cost 4055.0 evals 414 (0s)
+    roll tail bend 1: tau 87.1 beta 134.9 rho 157.5 (3.02W) phi 18.3 [['bend']]
+  group ['tail bend 2'] e=137 K=2 free=16 candidates=1 init costs [(['bend'], 64861)]
+    [bend] ok cost 15358.0 evals 494 (1s)
+    roll tail bend 2: tau 190.8 beta 75.6 rho 52.2 (1.00W) phi -12.4 [['bend']]
+  group ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'] e=225 K=7 free=36 candidates=6 init costs [(['b+30', '+-+-'], 18114469), (['b+0', '+-+-'], 18502054), (['b-30', '+-+-'], 25173602), (['b+30', '-+-+'], 70878005), (['b+0', '-+-+'], 81790410), (['b-30', '-+-+'], 82347772)]
+## stage 1: intervals [0, 1] rings to 225; groups [['tail bend 1'], ['tail bend 2'], ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4']]
+  group ['tail bend 1'] e=94 K=1 free=11 candidates=1 init costs [(['bend'], 451694)]
+    [bend] ok cost 4055.0 evals 414 (0s)
+    roll tail bend 1: tau 87.1 beta 134.9 rho 157.5 (3.02W) phi 18.3 [['bend']]
+  group ['tail bend 2'] e=137 K=2 free=16 candidates=1 init costs [(['bend'], 64861)]
+    [bend] ok cost 15358.0 evals 494 (1s)
+    roll tail bend 2: tau 190.8 beta 75.6 rho 52.2 (1.00W) phi -12.4 [['bend']]
+  group ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'] e=225 K=7 free=36 candidates=6 init costs [(['b+30', '+-+-'], 18114469), (['b+0', '+-+-'], 18502054), (['b-30', '+-+-'], 25173602), (['b+30', '-+-+'], 70878005), (['b+0', '-+-+'], 81790410), (['b-30', '-+-+'], 82347772)]
+    [b+30/+-+-] ok cost 63112.3 evals 3681 (180s)
+    [b+0/+-+-] ok cost 118253.6 evals 904 (44s)
+    [b-30/+-+-] ok cost 71688.4 evals 3576 (175s)
+    [b+30/-+-+] ok cost 72912.2 evals 3791 (185s)
+    [b+0/-+-+] ok cost 69422.2 evals 1682 (82s)
+    [b-30/-+-+] ok cost 72246.4 evals 977 (48s)
+    roll S bend: tau 256.7 beta 131.8 rho 52.3 (1.00W) phi 5.4 [['b+30', '+-+-']]
+    roll S obl 1: tau 256.9 beta 126.6 rho 13.4 (0.26W) phi 56.5 [['b+30', '+-+-']]
+    roll S obl 2: tau 301.5 beta 110.4 rho 13.1 (0.25W) phi -1.2 [['b+30', '+-+-']]
+    roll S obl 3: tau 317.6 beta 158.5 rho 16.5 (0.32W) phi 21.7 [['b+30', '+-+-']]
+    roll S obl 4: tau 370.9 beta 154.9 rho 13.2 (0.25W) phi -27.1 [['b+30', '+-+-']]
+  stage fit: free 36 rings 0..225 cost0 63112.3
+    [stage1] ok cost 63112.3 evals 84 (4s)
+  METRICS {"K": 7, "e": 225, "cost": 63112.3, "blocks": {"pt": 29669.51, "slide": 28824.37, "anchor": 148.37, "cov": 3933.16, "ou": 0.0, "zr": 0.0, "face": 0.0, "overlap": 243.79, "bend": 275.66, "lam": 17.47, "tailz": 0.0}, "data": {"n": 410, "rms": 58.41523188370097, "p95": 166.36878536996738, "max": 181.6499067874211}, "face": {"checked": 132, "agree": 132, "frac": 1.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.2514800438972483, "lam": [0.773, 3.463], "stage": 1, "status": "ok", "seconds": 719.6508848667145}
+- Stage 1 (tail 2 bends + S bend + 4 oblique): best of 6 starts cost 63.1k (b+30/+-+-); starts: 63.1k,118.3k,71.7k,72.9k,69.4k,72.2k. data rms 58.4 px (p95 166, max 182) > 15 -> STOP. pt 29.7k slide 28.8k cov 3.9k. Roll obl rhos at 0.25-0.32W (bound), lam [0.77,3.46]. Note data rms metric mixes pt (tail) and sliding (S window). chain_fit.py now also has polish/report/export(emit_chain)/all commands and chain_sheets.py (untested).

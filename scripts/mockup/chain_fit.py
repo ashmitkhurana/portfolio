@@ -37,7 +37,7 @@ NI = 16
 
 # ---------------------------------------------------------------- roll table (CHAIN_PLAN) : name, kind, ring
 ROLLS = [
-    ('tail bend', 'bend', 66), ('S bend', 'bend', 150), ('S fold', 'fold', 178), ('S fold 2', 'fold', 195), ('sweep bend', 'bend', 257),
+    ('tail bend 1', 'bend', 40), ('tail bend 2', 'bend', 95), ('S bend', 'bend', 138), ('S obl 1', 'obl', 152), ('S obl 2', 'obl', 168), ('S obl 3', 'obl', 184), ('S obl 4', 'obl', 200), ('sweep bend', 'bend', 257),
     ('far-left fold', 'fold', 338), ('left-leg bend 1', 'bend', 420), ('left-leg bend 2', 'bend', 455), ('apex fold', 'fold', 519),
     ('right-leg bend 1', 'bend', 585), ('right-leg bend 2', 'bend', 625), ('bottom-K fold 1', 'fold', 690), ('bottom-K fold 2', 'fold', 735),
     ('k_return bend', 'bend', 790), ('back-layer bend', 'bend', 836), ('crossbar bend', 'bend', 885), ('wrap curl', 'fold', 960),
@@ -182,7 +182,10 @@ class Chain:
             o = 6 + 4 * k
             lo[o], hi[o] = self.roll_tau0[k] - 0.8 * W, self.roll_tau0[k] + 0.8 * W
             lo[o + 1], hi[o + 1] = PM.BETA_LO, PM.BETA_HI
-            if self.kind[k] == 'fold':
+            if self.kind[k] == 'obl':
+                lo[o + 2], hi[o + 2] = 0.25 * W, 3.0 * W
+                lo[o + 3], hi[o + 3] = -1.885, 1.885
+            elif self.kind[k] == 'fold':
                 lo[o + 2], hi[o + 2] = 0.2 * W, 3.0 * W
                 lo[o + 3], hi[o + 3] = -np.pi - 0.3, np.pi + 0.3
             else:
@@ -659,6 +662,19 @@ def gen_combos(pr, x, group, i=0, tags=()):
         yield from gen_combos(pr, x2, group, i + 1, tags + (tag,))
 
 
+def s_combos(pr, x, g):
+    sb = sil_beta(pr, g[1])
+    out = []
+    for dd in (0, 30, -30):
+        b = float(np.clip((sb + np.radians(dd)) % np.pi, 0.3, np.pi - 0.3))
+        for sg, nm in ((1, '+-+-'), (-1, '-+-+')):
+            xx = set_roll(x, g[0], pr.roll_tau0[g[0]], np.pi / 2, 3 * pr.W, 0.0)
+            for i, k in enumerate(g[1:]):
+                xx = set_roll(xx, k, pr.roll_tau0[k], b, 0.8 * pr.W, 0.8 * sg * (-1) ** i)
+            out.append(([f'b{dd:+d}', nm], xx))
+    return out
+
+
 def pick_bk_bottom(pr, x):
     ks = [k for k in range(NR) if pr.rname[k].startswith('bottom-K fold')]
     xp = pr.paper_x(x, max(ks) + 1)
@@ -720,7 +736,7 @@ def stage_metrics(pr, x, K, e):
     parts = pr.parts(x, st)
     allr = np.concatenate(list(parts.values()))
     rolls = pr.rolls(x)[:K]
-    folds = [rolls[k, 2] / pr.W for k in range(K) if pr.kind[k] == 'fold']
+    folds = [rolls[k, 2] / pr.W for k in range(K) if pr.kind[k] in ('fold', 'obl')]
     return dict(K=K, e=e, cost=round(0.5 * float(allr @ allr), 1), blocks=block_costs(parts), data=data_rms(pr, x, K, e),
                 face=face_stat(pr, x, K, e), ou=ou_stat(pr, x, K, e),
                 min_fold_rho_over_W=float(min(folds)) if folds else None, lam=[round(float(v), 3) for v in pr.lam(x)[:st['nlam']]])
@@ -758,7 +774,10 @@ def run_stage(pr, s, secs_final=300.0, secs_group=90.0, ncand_fit=3):
         K = g[-1] + 1
         st = pr.stage_info(K, e)
         free = free_for(pr, s, g, e)
-        combos = list(gen_combos(pr, x, g))
+        if pr.rname[g[-1]] == 'S obl 4':
+            combos = s_combos(pr, x, g)
+        else:
+            combos = list(gen_combos(pr, x, g))
         scored = []
         for tags, xc in combos:
             r = pr.res(xc, st)
@@ -799,6 +818,212 @@ def run_stage(pr, s, secs_final=300.0, secs_group=90.0, ncand_fit=3):
     return x
 
 
+# ================================================================== polish / report
+def final_x():
+    for nm in ('polished.npz',) + tuple(f'stage_{k}.npz' for k in range(NI - 1, 0, -1)):
+        if os.path.exists(os.path.join(OUT, nm)):
+            return np.load(os.path.join(OUT, nm))['x'], nm
+    raise SystemExit('no solution')
+
+
+def run_polish(pr, secs):
+    x = np.load(stage_path(NI - 1))['x']
+    pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+    pr.bk_bottom = pick_bk_bottom(pr, x)
+    st = pr.stage_info(NR, pr.N - 1)
+    free = np.arange(pr.nx)
+    r = pr.res(x, st)
+    log(f'## polish: all {len(free)} params, cost0 {0.5 * float(r @ r):.1f}')
+    x, cost, status = run_fit(pr, x, st, free, secs, 'polish')
+    m = stage_metrics(pr, x, NR, pr.N - 1)
+    log('  POLISH METRICS ' + json.dumps(m, default=float))
+    np.savez(os.path.join(OUT, 'polished.npz'), x=x)
+
+
+def raster_dense(pr, x, step=0.6):
+    xp = pr.paper_x(x, NR)
+    ur = pr.u_ring(x)
+    u = np.arange(ur[0], ur[-1], step)
+    W = pr.W
+    L = PM.surface(xp, u, np.full(len(u), -W / 2), NR); R = PM.surface(xp, u, np.full(len(u), W / 2), NR)
+    return L, R
+
+
+def sil_window_metrics(pr, L, R):
+    import cv2
+    alpha = pr.alpha > 0.5
+    ren = AA.sil_raster(L, R, alpha.shape)
+    out = {}
+    for nm, (x0, y0, x1, y1) in WINDOWS_BOX.items():
+        a, b = alpha[y0:y1, x0:x1], ren[y0:y1, x0:x1]
+        bnd = lambda m: m & ~ndi.binary_erosion(m, iterations=1)
+        ba, bb = bnd(a), bnd(b)
+        dta = cv2.distanceTransform((~ba).astype(np.uint8), cv2.DIST_L2, 5)
+        dtb = cv2.distanceTransform((~bb).astype(np.uint8), cv2.DIST_L2, 5)
+        inter, uni = float((a & b).sum()), float((a | b).sum())
+        out[nm] = dict(iou=inter / max(uni, 1), contour_px=float(0.5 * (dta[bb].mean() + dtb[ba].mean())) if bb.any() and ba.any() else None)
+    return out, ren
+
+
+def clearance_min(pr, L, R, W):
+    n = len(L)
+    sub = np.arange(0, n, 2)
+    Ls, Rs = L[sub], R[sub]
+    C = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff((Ls + Rs) / 2, axis=0), axis=1))]
+    return AKS.nonadjacent_min_clear(Ls, Rs, C, W)
+
+
+def run_report(pr):
+    x, nm = final_x()
+    pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+    pr.bk_bottom = pick_bk_bottom(pr, x)
+    K, e = NR, pr.N - 1
+    M = dict(solution=nm, stage_metrics=stage_metrics(pr, x, K, e))
+    L, R = raster_dense(pr, x)
+    M['windows'], ren = sil_window_metrics(pr, L, R)
+    Image.fromarray((ren * 255).astype(np.uint8)).save(os.path.join(OUT, 'sil_render.png'))
+    PL, PR = pr.ring_edges(x, K=K)
+    M['clearance_min_css'] = clearance_min(pr, PL, PR, pr.W)
+    M['two_thk_css'] = 2 * pr.thk
+    st = pr.stage_info(K, e)
+    ei = st['end_idx']
+    p2 = AP.project((PL[ei] + PR[ei]) / 2)
+    M['end_cost'] = float(0.5 * np.sum(pr.parts(x, st)['end'] ** 2))
+    rolls = pr.rolls(x)
+    M['rolls'] = [dict(name=pr.rname[k], kind=pr.kind[k], tau=float(rolls[k, 0]), beta_deg=float(np.degrees(rolls[k, 1])), rho_css=float(rolls[k, 2]),
+                       rho_over_W=float(rolls[k, 2] / pr.W), phi_deg=float(np.degrees(rolls[k, 3]))) for k in range(NR)]
+    M['lambda'] = pr.lam(x).tolist()
+    M['pose'] = dict(rotvec=x[:3].tolist(), t=x[3:6].tolist())
+    mins = min(r['rho_over_W'] for r in M['rolls'] if r['kind'] != 'bend')
+    sm = M['stage_metrics']
+    gates = {
+        'silhouette_iou>=0.97 (all windows)': all(v['iou'] >= 0.97 for v in M['windows'].values()),
+        'contour<=2px (all windows)': all(v['contour_px'] is not None and v['contour_px'] <= 2 for v in M['windows'].values()),
+        'face>=0.95': sm['face']['frac'] >= 0.95,
+        'overunder violations == 0': sm['ou']['viol_lt_thk'] == 0,
+        'end hidden (end cost < 1 and no ou violation)': M['end_cost'] < 1.0,
+        'min fold rho>=0.2W': mins >= 0.2 - 1e-6,
+        'min clearance>=2thk': M['clearance_min_css'] >= 2 * pr.thk,
+    }
+    M['gates'] = {k: ('PASS' if v else 'FAIL') for k, v in gates.items()}
+    json.dump(M, open(os.path.join(OUT, 'metrics.json'), 'w'), indent=2, default=float)
+    log('## REPORT ' + json.dumps(dict(windows=M['windows'], gates=M['gates'], data=sm['data'], face=sm['face'], ou=sm['ou'], clearance=M['clearance_min_css']), default=float))
+    return M
+
+
+# ================================================================== exporter
+def _seg_cross(a, b, c, d):
+    def o(p, q, r):
+        return (q[:, 0] - p[:, 0]) * (r[:, 1] - p[:, 1]) - (q[:, 1] - p[:, 1]) * (r[:, 0] - p[:, 0])
+    return (o(a, b, c) * o(a, b, d) < 0) & (o(c, d, a) * o(c, d, b) < 0)
+
+
+def emit_chain(pr, x, path, max_rings=316):
+    W = pr.W
+    xp = pr.paper_x(x, NR)
+    rolls = xp[6:].reshape(NR, 4)
+    ur = pr.u_ring(x)
+    u_start, u_end = ur[0], ur[-1]
+    # regions: list of (uc0, uc1, f) with f(uc) -> (uL, uR) flat coordinates of the ruling ends
+    def edges_roll(k):
+        u0, b, rho, phi = rolls[k]
+        cb, sb = np.cos(b), np.sin(b)
+        return (lambda Xp: (u0 + (Xp - W / 2 * cb) / sb, u0 + (Xp + W / 2 * cb) / sb)), rho * abs(phi), u0, sb
+    regs = []
+    infos = [edges_roll(k) for k in range(NR)]
+    gaps = []
+    for k in range(NR):
+        f, L, u0, sb = infos[k]
+        if k == 0:
+            regs.append(('flat', u_start, u0, lambda uc, f=f, u0=u0, sb=sb: f((uc - u0) * sb)))
+        regs.append(('roll', u0, u0 + L / sb, lambda uc, f=f, u0=u0, sb=sb: f((uc - u0) * sb), k))
+        if k + 1 < NR:
+            f2, L2, u02, sb2 = infos[k + 1]
+            a0, a1 = f(L), f2(0.0)
+            ca, cb_ = (a0[0] + a0[1]) / 2, (a1[0] + a1[1]) / 2
+            gaps.append(min(a1[0] - a0[0], a1[1] - a0[1]))
+            regs.append(('flat', ca, cb_, lambda uc, a0=a0, a1=a1, ca=ca, cb_=cb_: tuple(np.array(a0) + (np.array(a1) - np.array(a0)) * ((uc - ca) / max(cb_ - ca, 1e-9)))))
+        else:
+            regs.append(('flat', u0 + L / sb, u_end, lambda uc, f=f, u0=u0, sb=sb: f((uc - u0) * sb)))
+    if min(gaps) < 0:
+        raise RuntimeError(f'rolls overlap (min edge gap {min(gaps):.2f} css): refusing to export')
+    for r0, r1 in zip(regs[:-1], regs[1:]):
+        if r1[1] < r0[2] - 1e-6:
+            raise RuntimeError('region order violated: refusing')
+    # spacing profile (centre-line arc, css): d_t = min(b, 0.2 rho / sin beta in rolls), then d <= d_t(s') + 0.25|s - s'|
+    s_ = np.arange(u_start, u_end, 0.1)
+    dt = np.full(len(s_), 1e9)
+    for k in range(NR):
+        u0, b, rho, phi = rolls[k]
+        L = rho * abs(phi)
+        if L > 1e-3:
+            m = (s_ >= u0) & (s_ <= u0 + L / np.sin(b))
+            dt[m] = np.minimum(dt[m], max(0.2 * rho / np.sin(b), 0.8))
+
+    def build(bflat):
+        d = np.minimum(dt, bflat)
+        d = np.minimum.accumulate(d[::-1] + 0.25 * 0.1 * np.arange(len(d))[::-1])  # placeholder, replaced below
+        return None
+    def profile(bflat):
+        d = np.minimum(dt, bflat)
+        for _ in range(2):
+            d = np.minimum(d, np.r_[d[0], d[:-1]] + 0.25 * 0.1)
+            d = np.minimum(d, np.r_[d[1:], d[-1]] + 0.25 * 0.1)
+            # full propagation
+        fwd = d.copy()
+        for i in range(1, len(fwd)):
+            fwd[i] = min(fwd[i], fwd[i - 1] + 0.025)
+        for i in range(len(fwd) - 2, -1, -1):
+            fwd[i] = min(fwd[i], fwd[i + 1] + 0.025)
+        return fwd
+    lo, hi = 2.0, 200.0
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        n = np.sum(0.1 / profile(mid))
+        if n > max_rings - 1:
+            lo = mid
+        else:
+            hi = mid
+    d = profile(hi)
+    cum = np.r_[0.0, np.cumsum(0.1 / d)[:-1]]
+    nr = int(np.floor(cum[-1])) + 1
+    targets = np.linspace(0, cum[-1], nr)
+    uc = np.interp(targets, cum, s_)
+    uc[-1] = u_end
+    UL = np.zeros(len(uc)); UR = np.zeros(len(uc))
+    for i, c in enumerate(uc):
+        for rg in regs:
+            if rg[1] - 1e-9 <= c <= rg[2] + 1e-9 and rg[2] - rg[1] > 1e-9:
+                a, b2 = rg[3](c)
+                UL[i], UR[i] = a, b2
+                break
+        else:
+            raise RuntimeError(f'no region for uc={c}')
+    Lw = PM.surface(xp, UL, np.full(len(uc), -W / 2), NR)
+    Rw = PM.surface(xp, UR, np.full(len(uc), W / 2), NR)
+    # checks
+    pl, pr_ = AP.project_css(Lw), AP.project_css(Rw)
+    cross = int(_seg_cross(pl[:-1], pr_[:-1], pl[1:], pr_[1:]).sum())
+    dev = 0.0; dev3 = 0.0
+    ts = np.linspace(0, 1, 21)[1:-1]
+    for t in ts:
+        Ut = UL + t * (UR - UL); Vt = -W / 2 + t * W
+        S3 = PM.surface(xp, Ut, np.full(len(uc), Vt), NR)
+        ch = Lw + t * (Rw - Lw)
+        dev3 = max(dev3, float(np.linalg.norm(S3 - ch, axis=1).max()))
+        dev = max(dev, float(np.linalg.norm(AP.project_css(S3) - AP.project_css(ch), axis=1).max()))
+    sp = np.diff(uc)
+    chk = dict(n_rings=len(uc), cap=320, crossings=cross, max_ruling_dev_css_px=dev, max_ruling_dev_3d_css=dev3,
+               min_gap_between_rolls_css=float(min(gaps)), spacing_min=float(sp.min()), spacing_max=float(sp.max()),
+               max_neighbour_ratio=float(np.max(np.maximum(sp[1:] / sp[:-1], sp[:-1] / sp[1:]))), flat_spacing_css=float(hi))
+    json.dump(chk, open(os.path.join(OUT, 'export_checks.json'), 'w'), indent=2)
+    if cross or dev > 0.1 or len(uc) > 320:
+        raise RuntimeError('exporter refuses to write: ' + json.dumps(chk))
+    EP.emit(Lw, Rw, 'phone', path)
+    np.savez(os.path.join(OUT, 'export_rings.npz'), L=Lw, R=Rw, uc=uc)
+    return chk
+
+
 def main():
     cmd = sys.argv[1]
     arg = lambda n, f: (type(f)(sys.argv[sys.argv.index('--' + n) + 1]) if '--' + n in sys.argv else f)
@@ -806,7 +1031,25 @@ def main():
     if cmd == 'prep':
         print('W', pr.W, 'nx', pr.nx)
     elif cmd == 'stage':
-        run_stage(pr, int(sys.argv[2]), secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0))
+        run_stage(pr, int(sys.argv[2]), secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0), ncand_fit=arg('nc', 3))
+    elif cmd == 'all':
+        for st_ in range(int(sys.argv[2]), NI):
+            run_stage(pr, st_, secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 90.0), ncand_fit=arg('nc', 3))
+            m = json.loads(open(os.path.join(OUT, 'stage_metrics.jsonl')).read().strip().splitlines()[-1])
+            if m['data']['rms'] > 15.0:
+                log(f'!! STOP: stage {st_} data rms {m["data"]["rms"]:.1f} px > 15')
+                return
+        run_polish(pr, arg('psecs', 480.0))
+        run_report(pr)
+    elif cmd == 'polish':
+        run_polish(pr, arg('secs', 480.0))
+    elif cmd == 'report':
+        run_report(pr)
+    elif cmd == 'export':
+        x, nm = final_x()
+        pr.x0 = np.load(os.path.join(OUT, 'x0.npz'))['x0']
+        chk = emit_chain(pr, x, os.path.join(OUT, 'ak_candidate.json'))
+        log('## EXPORT ' + json.dumps(chk))
     else:
         raise SystemExit('unknown ' + cmd)
 
