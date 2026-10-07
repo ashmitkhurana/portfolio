@@ -58,4 +58,6 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
    - Open issue: inside the fold window the edge data and the roll outline still conflict (8 px), and the run hadn't fully converged (300-iteration cap).
    - Next: a longer run, then find out whether the conflict comes from too few panels in the roll (refine rings in windows) or from the coverage weights.
 
+8. **The diagnosis (`synth9/`): the solver gets stuck inside the fold because of how it starts there**, not because the model is too weak. More iterations, denser panels or lower data weight don't fix it. Next: start each fold with its creases along the roll-outline direction, which the yellow guides provide for every fold of the real AK.
+
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.

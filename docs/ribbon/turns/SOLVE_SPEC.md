@@ -36,6 +36,16 @@ The per-slice lift (`lift_sig.py`) computes depth from each ruling's projected l
   - Long chains amplify early-hinge errors. Mitigations: root the chain at the middle (two half-chains), and solve per section (window by window) before a global polish.
 - Keep: the coverage term, layer-aware init, clearance, and over/under between distinct strands.
 
+## Findings from synth8–9 (the hinge chain)
+- The exact hinge chain with a geometric init (synth8) reaches: isometry and planarity exact; silhouette IoU 0.986; fold-outline error 1.3 px; layer order 93%; image fit outside the fold 0.9 px.
+- In the fold window the solved edges stay about 9 px from the true edges (polyline distance). This holds for 5× more iterations (R1), lower window data weight (R3) and 3× ring refinement (R2, which also destabilised).
+  - The true fold is exactly representable: a cylinder roll with oblique rulings, at constant b − a across the roll.
+  - So this is a **local minimum caused by the init inside the window**, not model capacity.
+- **Next (synth10): contour-aware window init.**
+  - Inside each fold window, set the rulings parallel to the roll-outline (`sil`) direction. That gives the flat obliqueness b − a = W·cot(angle between strip and axis).
+  - Spread the half-turn uniformly: θ_i = ±π/n_roll over the rings of the roll arc, with the sign from the layer order.
+  - Then run stages 1–4 as in synth8. On the real AK the `sil` guides in TURNS.md provide the axis for every fold.
+
 ## Model (first version)
 - N rings (≈ 600, about 2 W/11 spacing), each with 3D points L_i (E1) and R_i (E2), in world space: CSS px, z toward the camera, the engine's camera (FOV, viewport 390×844 phone, anchor transform as in `lift_sig.py`).
 - Centre C_i = (L_i + R_i)/2, ruling r_i = (R_i − L_i)/|R_i − L_i|, tangent t_i = normalise(C_{i+1} − C_{i−1}), normal n_i = t_i × r_i.
