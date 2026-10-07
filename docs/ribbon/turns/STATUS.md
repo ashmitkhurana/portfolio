@@ -67,3 +67,18 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
 9. A first attempt at that fold start (`synth10/`) was worse. On-screen angles are distorted by perspective. Next: fit a tiny exact "paper fold" model (about 10 numbers) to each fold first, then hand it to the full solver. synth8 remains the best result.
 
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
+
+## Resume point (2026-10-07 ~19:25)
+- The synthetic FOLD solver passes all gates (synth13; recipe in SOLVE_SPEC).
+- Running when the session ended:
+  - synth14, the twist primitive (notes in synth14/NOTES.md)
+  - ak_v1, the first real-AK baseline solve with the older method (docs/ribbon/turns/ak_v1)
+  - the skeleton screenshot pass (docs/skeleton/qa)
+- Next:
+  1. Finish or verify synth14.
+  2. Real AK window by window with the recipe (fold windows: apex, far-left, top-K tip, bottom-K ×2; twist windows: S, wrap). Render via scripts/render-pose.mjs and show the owner the apex first.
+  3. Skeleton review vs the storyboard with the owner, using the screenshots.
+- Done this session:
+  - the terminal port (components/terminal)
+  - sections size to content (scroll room behind :root[data-ribbon-journey])
+  - the live dev config "site-live" on :3100 (stopped at the owner's request)
