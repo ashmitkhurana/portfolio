@@ -456,7 +456,7 @@ export class RibbonCore {
     this.sim.step(dt);
     const t1 = performance.now();
     st.cpu.sim = ema(st.cpu.sim, t1 - t);
-    this.ribbon.update(this.sim.outPos, this.sim.outTwist, this.sim.outWidth, this.sim.count, this.sim.ruled);
+    this.ribbon.update(this.sim.outPos, this.sim.outTwist, this.sim.outWidth, this.sim.count, this.sim.ruledOut);
     const t2 = performance.now();
     st.cpu.geometry = ema(st.cpu.geometry, t2 - t1);
     st.logicMs = t2 - t;

@@ -680,6 +680,12 @@ export class RibbonEngine {
     if (this.resumeSkip > 0) this.resumeSkip--;
     if (measure) this.adapt(dtMs);
     const t0 = performance.now();
+    const sim = this.core.sim;
+    if (sim.params.mode === "slide") {
+      sim.slideScrollY = window.__scrollState?.y ?? window.scrollY;
+      // the intro / the scroll follow-through must run at full rate and never be capped as "idle"
+      if (sim.slide.animating) this.markActive(ACTIVE_MS);
+    }
     this.core.frame(dtMs / 1000, now, this.proxies.update(), this.emit);
     const cpu = performance.now() - t0;
     if (measure) {

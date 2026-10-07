@@ -4,6 +4,7 @@
  */
 
 import { IDLE_PRESETS, type SimMode } from "./sim";
+import { DEFAULT_SLIDE_PARAMS, type SlideParams } from "./slide";
 
 export type ToneMapName =
   | "AgX"
@@ -213,6 +214,8 @@ export interface RibbonSettings {
     twistWobble: number;
     idleDetail: number;
     twistWobbleScale: number;
+    /** `slide` mode (sim.mode = "slide"): intro / scroll / sway, see slide.ts */
+    slide: SlideParams;
   };
   camera: {
     fov: number;
@@ -454,6 +457,7 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     damping: 1.0,
     followLag: 0.45,
     ...IDLE_PRESETS["idle.calm"],
+    slide: { ...DEFAULT_SLIDE_PARAMS },
   },
   camera: {
     fov: 28,

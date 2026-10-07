@@ -173,7 +173,7 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
   {
     title: "Sim / Idle",
     rows: [
-      ["sim.mode", { options: { live: "live", frozen: "frozen" } }],
+      ["sim.mode", { options: { live: "live", frozen: "frozen", slide: "slide" } }],
       ["sim.stiffness", num(2, 300, 1)],
       ["sim.damping", num(0.1, 2, 0.01)],
       ["sim.followLag", num(0, 0.95, 0.01)],

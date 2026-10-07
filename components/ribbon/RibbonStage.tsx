@@ -55,6 +55,8 @@ export interface RibbonRuntimeState {
   source: string;
   decision: TierDecision | null;
   engine: RibbonEngine | null;
+  /** slide motion (`?motion=slide`): the intro has settled (event also fired as `ribbon:intro-settled`) */
+  introSettled?: boolean;
   loseContext: () => void;
 }
 
@@ -142,6 +144,9 @@ export function RibbonStage({
     let decision: TierDecision | null = null;
     const url = new URLSearchParams(window.location.search);
     const capture = !lab && url.get("capture") === "1";
+    // `?motion=slide`: the slide motion (intro + scroll slide along the pose path), for testing; the site default stays frozen
+    const motionSlide = !lab && url.get("motion") === "slide";
+    let introSettled = false;
 
     const publish = (p: Phase) => {
       rlog("phase", { phase: p, tier: decision?.tier ?? null });
@@ -152,6 +157,7 @@ export function RibbonStage({
         decision,
         phase: p,
         engine,
+        introSettled,
         loseContext: () => engine?.debugLoseContext(),
       };
       if (decision) document.documentElement.dataset.ribbonTier = String(decision.tier);
@@ -251,7 +257,9 @@ export function RibbonStage({
         engine = new mod.RibbonEngine({
           back,
           front,
-          settings: settingsRef.current,
+          settings: motionSlide
+            ? { ...settingsRef.current, sim: { ...settingsRef.current?.sim, mode: "slide" } }
+            : settingsRef.current,
           controlPoints: controlPointsRef.current,
           tier,
           watchdog,
@@ -272,6 +280,14 @@ export function RibbonStage({
           },
         });
         publish("pending");
+        if (motionSlide) {
+          engine.sim.slide.onIntroSettled(() => {
+            introSettled = true;
+            document.documentElement.dataset.ribbonIntro = "settled";
+            window.dispatchEvent(new CustomEvent("ribbon:intro-settled"));
+            if (window.__ribbonState) window.__ribbonState.introSettled = true;
+          });
+        }
         onEngineRef.current?.(engine);
         if (capture) {
           // poster rendering (scripts/render-posters.mjs, `?capture=1`): frozen pose, both layers

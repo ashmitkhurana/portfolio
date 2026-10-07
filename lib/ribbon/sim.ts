@@ -8,9 +8,13 @@
 import { curl3, fbm3, snoise3 } from "./noise";
 import { rlog } from "./debugLog";
 import type { RuledData } from "./ruled";
+import { DEFAULT_SLIDE_PARAMS, SlideMotion, type SlideParams } from "./slide";
 
-/** `frozen`: output = target pose, exactly (no springs, no noise, no idle); `live`: springs + idle life */
-export type SimMode = "frozen" | "live";
+/**
+ * `frozen`: output = target pose, exactly (no springs, no noise, no idle); `live`: springs + idle life;
+ * `slide`: the ruled pose is a fixed path and the ribbon a window sliding along it (see slide.ts)
+ */
+export type SimMode = "frozen" | "live" | "slide";
 
 export interface SimParams {
   /** see SimMode */
@@ -35,6 +39,8 @@ export interface SimParams {
   idleDetail: number;
   /** spatial frequency of the twist wobble along the ribbon (per control point) */
   twistWobbleScale: number;
+  /** `slide` mode settings */
+  slide: SlideParams;
 }
 
 /** Idle presets (lab: `idle.calm`, `idle.lively`). Calm is the default. */
@@ -67,6 +73,7 @@ export const DEFAULT_SIM_PARAMS: SimParams = {
   damping: 1,
   followLag: 0.45,
   ...IDLE_PRESETS["idle.calm"],
+  slide: { ...DEFAULT_SLIDE_PARAMS },
 };
 
 export interface PoseInput {
@@ -103,6 +110,7 @@ export class RibbonSim {
     rlog("sim-mode", { from: this.lastMode, to: this.params.mode });
     this.lastMode = this.params.mode;
     this.snapToTarget();
+    if (this.params.mode === "slide" && this.slide.ready) this.slide.restart();
   }
 
   // targets
@@ -122,6 +130,17 @@ export class RibbonSim {
   readonly outWidth: Float32Array;
   /** ruled pose (bx, by, bz, half width per control point + face sign); null for ordinary poses. Not simulated: carried as authored. */
   ruled: RuledData | null = null;
+  /** slide mode: the window motion (always allocated; idle unless mode === "slide") */
+  readonly slide: SlideMotion;
+  /** css px of scroll, fed by the adapter every frame (slide mode) */
+  slideScrollY = 0;
+  private slideOut: RuledData | null = null;
+  private slideDirty = true;
+  /** the ruled data the geometry should use: the slide window's rings in slide mode, else the pose's */
+  get ruledOut(): RuledData | null {
+    if (this.params.mode === "slide" && this.ruled && this.slide.ready && this.slideOut) return this.slideOut;
+    return this.ruled;
+  }
 
   private readonly scratch = new Float32Array(3);
   private readonly scratch2 = new Float32Array(3);
@@ -141,6 +160,7 @@ export class RibbonSim {
     this.outPos = new Float32Array(n * 3);
     this.outTwist = new Float32Array(n);
     this.outWidth = new Float32Array(n).fill(1);
+    this.slide = new SlideMotion(n);
   }
 
   /**
@@ -149,6 +169,7 @@ export class RibbonSim {
    */
   setRuled(r: RuledData | null | undefined): void {
     this.ruled = r ?? null;
+    this.slideDirty = true;
   }
 
   setTargetPose(
@@ -170,10 +191,59 @@ export class RibbonSim {
       this.resample(src, m, twists, widths);
     }
     // a frozen sim has no springs to travel along: the target IS the pose
+    this.slideDirty = true;
     if (snap || this.params.mode === "frozen") this.snapToTarget();
   }
 
+  /** (re)build the slide path from the current pose when needed */
+  private prepareSlide(): void {
+    if (this.params.mode !== "slide") return;
+    if (this.slideDirty) {
+      this.slideDirty = false;
+      this.slide.params = this.params.slide;
+      if (this.ruled && this.ruled.data.length >= this.count * 4 && this.slide.setPath(this.targetPos, this.ruled.data, this.count)) {
+        this.slideOut = { data: this.slide.outRuled, sign: this.ruled.sign };
+      } else {
+        this.slideOut = null;
+        this.slide.ready = false;
+      }
+    }
+    this.slide.params = this.params.slide;
+  }
+
+  private stepSlide(dt: number): void {
+    this.prepareSlide();
+    if (!this.slide.ready) {
+      // no ruled pose to slide along: the pose as authored
+      this.pos.set(this.targetPos);
+      this.twist.set(this.targetTwist);
+      this.width.set(this.targetWidth);
+      this.compose();
+      return;
+    }
+    this.time += Math.min(Math.max(dt, 0), 0.1);
+    this.slide.step(dt, this.slideScrollY, this.idleScale01 === 0);
+    this.pos.set(this.slide.outPos);
+    this.twist.set(this.targetTwist);
+    this.width.set(this.targetWidth);
+    this.compose();
+  }
+
   snapToTarget(): void {
+    if (this.params.mode === "slide") {
+      // a (re)start of the slide: the intro begins from the off-screen end
+      this.slideDirty = true;
+      this.prepareSlide();
+      if (this.slide.ready) {
+        this.slide.step(0, this.slideScrollY, this.idleScale01 === 0);
+        this.pos.set(this.slide.outPos);
+        this.vel.fill(0);
+        this.twist.set(this.targetTwist);
+        this.width.set(this.targetWidth);
+        this.compose();
+        return;
+      }
+    }
     this.pos.set(this.targetPos);
     this.vel.fill(0);
     this.twist.set(this.targetTwist);
@@ -188,6 +258,10 @@ export class RibbonSim {
     if (this.params.mode === "frozen") {
       // exactly the target pose, every frame: no integration, no idle, no clock
       this.snapToTarget();
+      return;
+    }
+    if (this.params.mode === "slide") {
+      this.stepSlide(dtRaw);
       return;
     }
     const dt = Math.min(Math.max(dtRaw, 0), MAX_DT);
@@ -231,7 +305,7 @@ export class RibbonSim {
   private compose(): void {
     const n = this.count;
     const p = this.params;
-    const live = p.mode !== "frozen";
+    const live = p.mode === "live";
     const amp = live ? p.idleAmplitude * this.idleScale01 : 0;
     const wob = live ? p.twistWobble * this.idleScale01 : 0;
     const t = this.time * p.idleSpeed;
