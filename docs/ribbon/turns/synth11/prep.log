@@ -1,0 +1,17 @@
+fit rings 84..154 (71), beta_axis 19.22 deg, u0 start 45.0
+  beta   19.22 s +1 rho0  8.96 -> cost      34.49 rms  0.515 rho  13.63 beta   28.00 u0   -1.11 layer 0.999 nfev 20 (8s)
+  beta   19.22 s +1 rho0 16.80 -> cost      34.49 rms  0.515 rho  13.63 beta   28.00 u0   -1.11 layer 0.999 nfev 16 (5s)
+  beta   19.22 s +1 rho0 28.00 -> cost      34.49 rms  0.515 rho  13.63 beta   28.00 u0   -1.11 layer 0.999 nfev 18 (6s)
+  beta   19.22 s -1 rho0  8.96 -> cost     233.04 rms  1.339 rho  14.18 beta   27.72 u0   -2.32 layer 0.951 nfev 10 (4s)
+  beta   19.22 s -1 rho0 16.80 -> cost     233.04 rms  1.339 rho  14.18 beta   27.72 u0   -2.32 layer 0.951 nfev 11 (4s)
+  beta   19.22 s -1 rho0 28.00 -> cost     392.74 rms  1.706 rho   2.24 beta   27.35 u0   50.45 layer 0.926 nfev 17 (6s)
+  beta  199.22 s +1 rho0  8.96 -> cost      34.49 rms  0.515 rho  13.63 beta  208.00 u0   90.10 layer 0.999 nfev 11 (4s)
+  beta  199.22 s +1 rho0 16.80 -> cost      34.49 rms  0.515 rho  13.63 beta  208.00 u0   90.10 layer 0.999 nfev 10 (4s)
+  beta  199.22 s +1 rho0 28.00 -> cost      34.49 rms  0.515 rho  13.63 beta  208.00 u0   90.10 layer 0.999 nfev 10 (5s)
+  beta  199.22 s -1 rho0  8.96 -> cost     233.04 rms  1.339 rho  14.18 beta  207.72 u0   93.47 layer 0.951 nfev 19 (11s)
+  beta  199.22 s -1 rho0 16.80 -> cost     233.04 rms  1.339 rho  14.18 beta  207.72 u0   93.47 layer 0.951 nfev 31 (18s)
+  beta  199.22 s -1 rho0 28.00 -> cost     233.04 rms  1.339 rho  14.18 beta  207.72 u0   93.47 layer 0.951 nfev 12 (15s)
+selected {'beta_deg': 199.22399941942422, 's': 1, 'rho0': 28.0, 'cost': 34.48897717727543, 'nfev': 10, 'rms_reproj': 0.5150726399650639, 'cov_in_cost': 0.0, 'cov_out_cost': 0.0, 'layer_order_front': 0.9991726990692864, 'rho': 13.630967880685585, 'beta_fit_deg': 208.00377322934702, 'u0_fit': 90.09763875977477, 'secs': 5.332473039627075, 'status': 2} n_pass_layer 12
+stitch info (literal 5-ring blend, diagnostic only) {'fk_rms_vs_primitive_window': 68.05600740761125, 'fk_rms_vs_init_outside': 394.2243187365557, 'fk_rms_vs_init_outside_after': 129.90238745190334, 'fk_rms_vs_init_outside_before': 514.0663801050118, 'max_dihedral_err_fk_vs_theta_window': 3.141592653589793, 'obl_flat': 210.60790332603898, 'c0_init_obliqueness_at_r0': 47.298216191829965, 'n_roll_rings': 19, 'range': [84, 154], 'blend': 5, 'mono_viol_window_a': 0.08571428571428572, 'mono_viol_window_b': 0.08571428571428572}
+stitch info (adaptive blend, used) {'fk_rms_vs_primitive_window': 0.02343023602427476, 'fk_rms_vs_init_outside': 75.84682096821842, 'fk_rms_vs_init_outside_after': 79.81839497061503, 'fk_rms_vs_init_outside_before': 72.6077825534517, 'max_dihedral_err_fk_vs_theta_window': 2.0479302419959185e-14, 'obl_flat': 210.60790332603898, 'c0_init_obliqueness_at_r0': 46.15556807253307, 'n_roll_rings': 19, 'range': [81, 157], 'blend': 27, 'mono_viol_window_a': 0.0, 'mono_viol_window_b': 0.0}
+prep done 92.1s

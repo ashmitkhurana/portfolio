@@ -1,0 +1,9 @@
+H8 stage 1: {'iterations': 600, 'accepted': 502, 'cost0': 1680868.3760000765, 'cost': 254.11242437444832, 'reason': 'max_iter', 'seconds': 96.5081662919838, 'stage': 1, 'cost_before': 1680868.3760000763, 'n_pairs': 0, 'n_resid': 1981, 'wall': 96.50939011573792}
+   blocks {'data': 198.7259, 'mono': 0.1258, 'obl': 0.0, 'ruling': 1.211, 'bend': 54.0497}
+H8 stage 2: {'iterations': 600, 'accepted': 376, 'cost0': 329213.90473907173, 'cost': 3675.3920930570994, 'reason': 'max_iter', 'seconds': 167.70649483404122, 'stage': 2, 'cost_before': 329213.90473907173, 'n_pairs': 0, 'n_resid': 2147, 'wall': 167.71685814857483}
+   blocks {'data': 3290.9653, 'mono': 34.8983, 'obl': 0.0, 'ruling': 1.3365, 'bend': 59.3299, 'cov_in': 288.5167, 'cov_out': 0.3454}
+H8 stage 3: {'iterations': 600, 'accepted': 403, 'cost0': 221973.70809646897, 'cost': 2480.136377222619, 'reason': 'max_iter', 'seconds': 208.39211979100946, 'stage': 3, 'cost_before': 221973.70809646897, 'n_pairs': 10015, 'n_resid': 12162, 'wall': 208.41034507751465}
+   blocks {'data': 2336.938, 'mono': 0.4027, 'obl': 0.0, 'ruling': 0.6948, 'bend': 63.37, 'clear': 0.0, 'cov_in': 78.4316, 'cov_out': 0.2992}
+H8 stage 4: {'iterations': 600, 'accepted': 419, 'cost0': 2980.5225234918603, 'cost': 2484.391068536675, 'reason': 'max_iter', 'seconds': 162.10178391588852, 'stage': 4, 'cost_before': 2980.52252349186, 'n_pairs': 11252, 'n_resid': 13399, 'wall': 162.11155366897583}
+   blocks {'data': 2401.6978, 'mono': 0.4708, 'obl': 0.0, 'ruling': 0.6926, 'bend': 34.538, 'clear': 0.0, 'cov_in': 46.7968, 'cov_out': 0.1951}
+H8 done 635.1669070720673

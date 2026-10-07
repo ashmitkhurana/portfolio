@@ -100,3 +100,8 @@ The per-slice lift (`lift_sig.py`) computes depth from each ruling's projected l
 
 ## De-risk first
 Before the full strip, solve only the apex window (fl_out → apex_out) with its neighbours pinned, and confirm that a clean soft fold with the correct contour emerges. If it doesn't, fix the model there, not on the whole strip.
+
+## synth11 result: root cause of the fold-window error
+- The paper-fold primitive fits the GT fold exactly: 0.1 px to the GT edges, fold outline 0.07 px, correct layer order. Converting it to hinge parameters is also exact (0.02 px).
+- **Root cause of the persistent ~9–10 px window error in every hinge run:** the data term ties ring i's endpoints to observation sample i (the same flat u on both edges). At an oblique fold the true rulings join E1 at u with E2 at u + W·cot β (up to about 210 units away), so the per-ring data term drags the rulings back toward perpendicular.
+- **Fix (synth12):** a sliding point-to-curve data term. Each endpoint's residual is its distance to the observed edge polyline within its own visibility run, plus a weak anchor so it can't slide off the ends.

@@ -1,0 +1,24 @@
+metric                           primitive    stitched         H11          H8
+sil_iou                             0.9987      0.9971      0.9020      0.9853
+faceA_iou                           0.9985      0.9985      0.5687      0.9738
+faceB_iou                           0.9974      0.9925      0.4835      0.9309
+rms_reproj                          0.1316     48.1905      7.6399      4.3793
+max_iso_resid                      52.7643      0.0000      0.0000      0.0000
+max_planarity                       0.0302      0.0000      0.0000      0.0000
+min_clearance                     101.2489     27.3322     19.8159     20.3629
+n_overlap_px                     4835.0000   4835.0000   4835.0000   4835.0000
+rms_3d                              1.0114     41.9939    340.1250    913.0443
+layer_order_075W                    0.9994      0.0000      0.5299      0.9257
+layer_order_025W                    0.9994      0.0000      0.0002      0.9237
+fold_contour_err                    0.0663      0.2405      5.3996      1.3198
+rms_reproj_window                   0.1405     86.0316     13.3836      8.2637
+rms_reproj_outside                  0.1281     20.5197      3.6286      0.8913
+rms_reproj_window_gt_edges          0.0997      0.0904      9.7612     10.2818
+max_dist_window_gt_edges            0.2170      0.2079     24.8827     40.6523
+min_clearance_idx                 101.2489     27.3322     18.1748     20.3636
+flat_span_a                      1100.0000   1100.9026   1133.1089   1179.0650
+mono_viol_frac                      0.0000      0.0000      0.2545      0.0523
+coverage_in_frac                    0.0000      1.0000      0.8916      0.6265
+coverage_out_frac                   1.0000      1.0000      0.7470      0.9518
+gate {'primitive': {'rms_reproj_window_gt_edges': True, 'fold_contour_err': True, 'layer_order_025W': True, 'sil_iou': True, 'PASS': True}, 'stitched': {'rms_reproj_window_gt_edges': True, 'fold_contour_err': True, 'layer_order_025W': False, 'sil_iou': True, 'PASS': False}, 'H11': {'rms_reproj_window_gt_edges': False, 'fold_contour_err': False, 'layer_order_025W': False, 'sil_iou': False, 'PASS': False}, 'H8': {'rms_reproj_window_gt_edges': False, 'fold_contour_err': True, 'layer_order_025W': False, 'sil_iou': True, 'PASS': False}}
+runtimes {'H11': 557.65687084198, 'H8': 635.158182144165} prep 91.99555206298828
