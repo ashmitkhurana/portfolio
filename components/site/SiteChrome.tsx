@@ -2,7 +2,7 @@ import { SmoothScroll } from "@/components/scroll/SmoothScroll";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteRibbon } from "@/components/site/SiteRibbon";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { TerminalPlaceholder } from "@/components/site/TerminalPlaceholder";
+import { TerminalOverlay } from "@/components/terminal/TerminalOverlay";
 
 /**
  * The shared page chrome: skip link, Lenis provider, header, <main id="content">,
@@ -33,7 +33,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
           <SiteFooter />
         </SiteRibbon>
 
-        <TerminalPlaceholder />
+        <TerminalOverlay />
       </SmoothScroll>
     </>
   );

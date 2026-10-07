@@ -354,53 +354,6 @@
   box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.45);
 }
 
-.terminal-window__bar {
-  padding: var(--space-xs) var(--space-s);
-  border-bottom: 1px solid var(--line);
-}
-
-.terminal-window__body {
-  display: grid;
-  gap: var(--space-s);
-  padding: var(--space-s) var(--space-s) var(--space-m);
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
-  font-size: clamp(1rem, 0.9rem + 0.45vw, 1.375rem);
-}
-
-.terminal-window__prompt {
-  display: flex;
-  align-items: center;
-  gap: 0.9em;
-  color: var(--fg);
-}
-
-.terminal-window__prompt > span:first-child {
-  color: var(--accent);
-}
-
-.terminal-window__cursor {
-  width: 2px;
-  height: 1.15em;
-  background: var(--fg);
-}
-
-.terminal-window__list {
-  display: grid;
-  padding-left: 1.6em;
-  color: var(--fg-muted);
-}
-
-.terminal-window__list a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  transition: color var(--dur-fast) ease;
-}
-
-.terminal-window__list a:hover {
-  color: var(--accent);
-}
-
 .terminal__caption {
   text-align: right;
   letter-spacing: 0.14em;

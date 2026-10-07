@@ -1,17 +1,10 @@
-import Link from "next/link";
 import { terminal } from "@/data/site-content";
+import { Terminal } from "@/components/terminal/Terminal";
 import "./sections.css";
-import "../terminal-placeholder.css";
-
-const hrefs: Record<(typeof terminal.commands)[number], string> = {
-  work: "/work",
-  about: "/about",
-  contact: "/#contact",
-};
 
 /**
- * Static, styled terminal window. The working terminal is a later phase; this
- * is the visual (and a real navigation list) the ribbon's tail curls around.
+ * Section 05: the working terminal, inline. The window container keeps the
+ * ribbon proxy attributes the ribbon's tail curls around.
  */
 export function TerminalSection() {
   return (
@@ -31,27 +24,7 @@ export function TerminalSection() {
             data-ribbon-depth={0}
             data-ribbon-radius={16}
           >
-            <div className="terminal-window__bar">
-              <span className="terminal-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-            </div>
-            <div className="terminal-window__body">
-              <p className="terminal-window__prompt">
-                <span aria-hidden="true">&gt;</span>
-                <span className="terminal-window__cmd">{terminal.prompt}</span>
-                <span className="terminal-window__cursor" aria-hidden="true" />
-              </p>
-              <ul className="terminal-window__list">
-                {terminal.commands.map((c) => (
-                  <li key={c}>
-                    <Link href={hrefs[c]}>{c}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <Terminal variant="inline" />
           </div>
           <p className="terminal__caption label">{terminal.caption}</p>
         </div>
