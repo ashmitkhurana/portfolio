@@ -418,3 +418,89 @@ def solve_iso_fast(obs1, obs2, vis1, vis2, w1, w2, window_mask, init_L, init_R, 
                             seconds=time.perf_counter() - t0))
     L, R, a, b = S._unpack_iso(x, N)
     return dict(L=L.copy(), R=R.copy(), a=a.copy(), b=b.copy(), history=history)
+
+
+# ------------------------------------------------------------- sparse LM
+def lm_solve(fun, jac, x0, max_iter=400, mu0=1e-3):
+    """Sparse Levenberg-Marquardt with Marquardt scaling. Returns (x, info)."""
+    import scipy.sparse as sp
+    from scipy.sparse.linalg import spsolve
+    t0 = time.perf_counter()
+    x = np.asarray(x0, float).copy()
+    mu, nu = mu0, 2.0
+    r = fun(x)
+    cost = 0.5 * float(r @ r)
+    it = acc = small = 0
+    reason = 'max_iter'
+    while it < max_iter:
+        it += 1
+        J = jac(x)
+        g = J.T @ r
+        if np.abs(g).max() < 1e-9:
+            reason = 'gradient'
+            break
+        A = (J.T @ J).tocsc()
+        d = np.maximum(A.diagonal(), 1e-6)
+        D = sp.diags(d, format='csc')
+        try:
+            dx = spsolve((A + mu * D).tocsc(), -g, permc_spec='COLAMD')
+        except Exception:
+            dx = np.full_like(x, np.nan)
+        if not np.all(np.isfinite(dx)):
+            mu *= nu
+            nu *= 2
+            if mu > 1e12:
+                reason = 'mu'
+                break
+            continue
+        if np.linalg.norm(dx) <= 1e-10 * (np.linalg.norm(x) + 1e-10):
+            reason = 'step'
+            break
+        pred = -(float(g @ dx) + 0.5 * float(dx @ (A @ dx)))
+        rn = fun(x + dx)
+        cn = 0.5 * float(rn @ rn)
+        rho = (cost - cn) / pred if pred > 0 else -1.0
+        if rho > 0:
+            rel = (cost - cn) / max(cost, 1e-300)
+            x = x + dx
+            r, cost = rn, cn
+            acc += 1
+            mu *= max(1 / 3, 1 - (2 * rho - 1) ** 3)
+            nu = 2.0
+            small = small + 1 if rel < 1e-12 else 0
+            if small >= 5:
+                reason = 'ftol'
+                break
+        else:
+            mu *= nu
+            nu *= 2
+            if mu > 1e12:
+                reason = 'mu'
+                break
+    return x, dict(iterations=it, accepted=acc, cost=cost, reason=reason, seconds=time.perf_counter() - t0)
+
+
+def solve_iso_lm(obs1, obs2, vis1, vis2, w1, w2, window_mask, init_L, init_R, params):
+    """Same staging as solve_iso_fast but with lm_solve; records per-block cost at the end of each stage."""
+    N = len(init_L)
+    p = dict(params)
+    wbase = dict(ISO_WEIGHTS)
+    wbase.update(p.get('weights', {}))
+    max_iter = p.get('max_iter', 400)
+    ab0 = np.arange(N) * p['h']
+    x = np.concatenate([np.asarray(init_L, float).ravel(), np.asarray(init_R, float).ravel(), ab0, ab0])
+    history = []
+    for k in p.get('stages', (1, 2, 3, 4)):
+        wts = stage_weights(wbase, k)
+        prob = make_stage_problem(N, obs1, obs2, vis1, vis2, w1, w2, window_mask, p, wts, x,
+                                  p.get('overunder'), p.get('overunder_weight', 50.0), p.get('coverage'), k)
+        c0 = 0.5 * float(np.sum(prob.f(x) ** 2))
+        x, info = lm_solve(prob.f, prob.jac, x, max_iter=max_iter)
+        blocks = {n: 0.5 * float(np.sum(v ** 2)) for n, v in prob.resid_blocks(x).items()}
+        history.append(dict(stage=k, cost_before=c0, cost_after=info['cost'], iterations=info['iterations'],
+                            accepted=info['accepted'], reason=info['reason'], seconds=info['seconds'],
+                            n_pairs=int(len(prob.pairs)), n_resid=int(prob.nres), blocks=blocks))
+        print(f'  stage {k}: {history[-1]["iterations"]} it, {info["reason"]}, {info["seconds"]:.1f}s, '
+              f'cost {c0:.4g} -> {info["cost"]:.4g}', flush=True)
+    L, R, a, b = S._unpack_iso(x, N)
+    return dict(L=L.copy(), R=R.copy(), a=a.copy(), b=b.copy(), history=history)

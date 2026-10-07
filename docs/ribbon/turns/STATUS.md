@@ -49,4 +49,6 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
    - Next: a direct sparse Levenberg-Marquardt optimiser, with the target fold-outline error ≤ 1.5 px, image fit ≤ 1 px and correct layer ≥ 95%.
    - Only after that is it applied to the real AK, and only once you approve the trace.
 
+6. **The optimiser crawls because "paper can't stretch" is only a penalty (`synth6/`).** The next version builds it in: flat panels hinged along their creases, so stretching or warping is impossible by construction (see `SOLVE_SPEC.md`, "Next formulation").
+
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.

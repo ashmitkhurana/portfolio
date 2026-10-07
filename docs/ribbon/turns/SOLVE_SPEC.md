@@ -23,6 +23,19 @@ The per-slice lift (`lift_sig.py`) computes depth from each ruling's projected l
 - **Over/under constraints must be between distinct strands** (flat-arc distance ≫ W). In the test they were mostly between rings 1–3 apart at the fold itself, which conflicts with isometry. The fold's own layering must emerge from the init plus the coverage term, not from over/under pairs.
 - Finite-difference Jacobians are slow: 221 rings took about 9 min. The real strip has about 700 rings and needs analytic or block-vectorised Jacobians.
 
+## Findings from synth5–6 and the next formulation
+- With the vectorised solver (`solve3d_fast.py`), synth5's D reached silhouette IoU 0.987, fold-outline error 1.7 px and correct layer order of 91%. It was still not converged, with image fit 3.7 px.
+- A custom sparse LM (synth6) was worse. The problem is **stiff**: isometry and planarity are penalties weighted 200–4000 against data at 1. Every optimiser crawls along the constraint manifold, and the per-block costs show data and isometry fighting.
+- **Next formulation: an exact hinge chain.** Make developability exact by construction, not a penalty.
+  - The strip is a chain of flat quads, cut from a flat strip of width W along rulings. The ruling endpoints are (a_i, 0) and (b_i, W) in the flat domain.
+  - Consecutive quads are joined by a hinge about their shared ruling, with angle θ_i.
+  - Unknowns: a global rigid pose (6), plus θ_i, a_i and b_i per ring.
+  - Forward kinematics: place quad 0 by the pose. Each next quad is the previous one's flat continuation, rotated by θ_i about the shared ruling.
+  - Isometry and planarity then hold exactly, with no penalty.
+  - Jacobian: ∂p/∂θ_k = axis_k × (p − q_k) for every point downstream of hinge k (analytic). The a_i and b_i derivatives come from ring-local finite differences.
+  - Long chains amplify early-hinge errors. Mitigations: root the chain at the middle (two half-chains), and solve per section (window by window) before a global polish.
+- Keep: the coverage term, layer-aware init, clearance, and over/under between distinct strands.
+
 ## Model (first version)
 - N rings (≈ 600, about 2 W/11 spacing), each with 3D points L_i (E1) and R_i (E2), in world space: CSS px, z toward the camera, the engine's camera (FOV, viewport 390×844 phone, anchor transform as in `lift_sig.py`).
 - Centre C_i = (L_i + R_i)/2, ruling r_i = (R_i − L_i)/|R_i − L_i|, tangent t_i = normalise(C_{i+1} − C_{i−1}), normal n_i = t_i × r_i.
