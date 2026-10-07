@@ -14,6 +14,15 @@ The per-slice lift (`lift_sig.py`) computes depth from each ruling's projected l
   - Let priors pick the depth: the layer order, the floor, smoothness, and plausible lighting.
 - The table below describes the first model. The isometric model supersedes its width, ruling-perpendicularity and in-plane terms.
 
+## Findings from synthetic tests 2–3 (`synth2/`, `synth3/`)
+- The isometric planar-quad model fits the visible edges to noise level (0.62 px) and is exactly developable (isometry residual 0.0009). Oblique rulings emerge in the fold on their own.
+- **Edges alone do not define the roll.** The true fold's rolled surface projects beyond the edge lines, out to the roll outline. Without a silhouette term, every solver leaves that region empty: fold-contour error ≈ 8.5 px, and the init was no better.
+  - Required: a **silhouette coverage term** in every turn window.
+  - Points 2 px inside the roll outline (the yellow `sil` guides) must be covered by the projected strip.
+  - Points 2 px outside it must not be covered.
+- **Over/under constraints must be between distinct strands** (flat-arc distance ≫ W). In the test they were mostly between rings 1–3 apart at the fold itself, which conflicts with isometry. The fold's own layering must emerge from the init plus the coverage term, not from over/under pairs.
+- Finite-difference Jacobians are slow: 221 rings took about 9 min. The real strip has about 700 rings and needs analytic or block-vectorised Jacobians.
+
 ## Model (first version)
 - N rings (≈ 600, about 2 W/11 spacing), each with 3D points L_i (E1) and R_i (E2), in world space: CSS px, z toward the camera, the engine's camera (FOV, viewport 390×844 phone, anchor transform as in `lift_sig.py`).
 - Centre C_i = (L_i + R_i)/2, ruling r_i = (R_i − L_i)/|R_i − L_i|, tangent t_i = normalise(C_{i+1} − C_{i−1}), normal n_i = t_i × r_i.

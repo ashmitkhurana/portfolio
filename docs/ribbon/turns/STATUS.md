@@ -36,5 +36,12 @@ The blurred tail bottom (the mockup's depth of field) is used as low-confidence 
 ## Not started (waiting for your OK on the trace)
 - The 3D solve (design in `SOLVE_SPEC.md`). A synthetic test of the new solver, an exact paper fold reconstructed from its 2D edges only, was run to de-risk it. It does not touch your ribbon. Results are below once available.
 
-## Synthetic solver test
-(pending)
+## Synthetic solver tests (they do not touch your ribbon)
+I folded an exact paper strip with a soft roll, projected it through the site camera, and asked the solver to rebuild it from the 2D edges only.
+1. **The first model was wrong at diagonal folds.** It assumed the straight lines across the ribbon are always perpendicular to its length. At a diagonal fold (like the A's apex) they run along the fold axis instead. The new model is a chain of flat panels that unrolls exactly to a flat strip (`solve_iso`). It fits the edges to 0.6 px while staying exactly paper-like.
+2. **One camera cannot fix depth on its own.** Several depths give the identical image. So we judge the result by the render from your camera, and let physical rules choose the depth: layer order, floor and smoothness.
+3. **Edges alone don't shape the roll.** The rolled part of a fold bulges past the edge lines, out to the roll outline. The next solver version adds the roll outlines (the yellow guides) as a constraint. That test is running or queued in the next session.
+
+4. **With the roll outline added (`synth4/`), the fold starts forming correctly.** The fold-outline error fell from 8.7 px to 3.2 px, and the correct layer is in front 70–75% of the time, up from 14%. The run didn't fully converge because the solver is slow, so a speed-up and a converged re-run are next (`synth5/`).
+
+Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.

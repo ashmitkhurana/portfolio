@@ -1,0 +1,125 @@
+{
+  "metrics": {
+    "init": {
+      "sil_iou": 0.9202486012103812,
+      "faceA_iou": 0.9925998529772114,
+      "faceB_iou": 0.7738304093567251,
+      "rms_reproj": 0.7185489258698015,
+      "max_iso_resid": 67.7842800624077,
+      "max_planarity": 0.020040027813389205,
+      "min_clearance": 101.43422469477959,
+      "n_overlap_px": 4835,
+      "rms_3d": 72.94617257954899,
+      "layer_order_075W": 0.07631851085832471,
+      "layer_order_025W": 0.07507755946225439,
+      "fold_contour_err": 8.78648567199707,
+      "coverage_in_frac": 0.0,
+      "coverage_out_frac": 1.0
+    },
+    "A": {
+      "sil_iou": 0.9274586014305778,
+      "faceA_iou": 0.9950911813072184,
+      "faceB_iou": 0.7912339720150163,
+      "rms_reproj": 0.6244452264704474,
+      "max_iso_resid": 0.00449978698339959,
+      "max_planarity": 0.049013614691736235,
+      "min_clearance": 130.35628442929877,
+      "n_overlap_px": 4835,
+      "rms_3d": 64.72742607330353,
+      "layer_order_075W": 0.14457083764219233,
+      "layer_order_025W": 0.1439503619441572,
+      "fold_contour_err": 8.725845336914062,
+      "coverage_in_frac": 0.0,
+      "coverage_out_frac": 1.0
+    },
+    "D": {
+      "sil_iou": 0.9642197972994851,
+      "faceA_iou": 0.9609718950048786,
+      "faceB_iou": 0.8647884624598725,
+      "rms_reproj": 5.3981645187593115,
+      "max_iso_resid": 0.15429274858353725,
+      "max_planarity": 0.2866114123472265,
+      "min_clearance": 120.75416171444931,
+      "n_overlap_px": 4835,
+      "rms_3d": 70.6812448838655,
+      "layer_order_075W": 0.7530506721820062,
+      "layer_order_025W": 0.6870734229576009,
+      "fold_contour_err": 3.158325672149658,
+      "coverage_in_frac": 0.5060240963855421,
+      "coverage_out_frac": 1.0
+    }
+  },
+  "history": {
+    "A": [
+      {
+        "stage": 1,
+        "cost_before": 2250135.118581758,
+        "cost_after": 1026.4512129848347,
+        "nfev": 600,
+        "status": 0,
+        "n_pairs": 0,
+        "n_resid": 3082
+      },
+      {
+        "stage": 2,
+        "cost_before": 5130.907576976316,
+        "cost_after": 125.81259495344463,
+        "nfev": 600,
+        "status": 0,
+        "n_pairs": 6482,
+        "n_resid": 9564
+      },
+      {
+        "stage": 3,
+        "cost_before": 371.24145365969986,
+        "cost_after": 52.04335995375615,
+        "nfev": 600,
+        "status": 0,
+        "n_pairs": 6480,
+        "n_resid": 9562
+      }
+    ],
+    "D": [
+      {
+        "stage": 1,
+        "cost_before": 2683356.1610713406,
+        "cost_after": 9110.995217829062,
+        "nfev": 210,
+        "status": 3,
+        "n_pairs": 0,
+        "n_resid": 3248
+      },
+      {
+        "stage": 2,
+        "cost_before": 33426.27249111962,
+        "cost_after": 4816.140048797502,
+        "nfev": 600,
+        "status": 0,
+        "n_pairs": 6436,
+        "n_resid": 9684
+      },
+      {
+        "stage": 3,
+        "cost_before": 8888.518902149706,
+        "cost_after": 5610.008305271772,
+        "nfev": 600,
+        "status": 0,
+        "n_pairs": 6445,
+        "n_resid": 9693
+      }
+    ]
+  },
+  "n_inner": 83,
+  "n_outer": 83,
+  "box": [
+    67,
+    308,
+    269,
+    533
+  ],
+  "seconds": {
+    "A": 211.3706648349762,
+    "D": 836.4999899864197,
+    "total": 1048.1700522899628
+  }
+}
