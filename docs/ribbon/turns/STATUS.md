@@ -84,3 +84,18 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
   - the live dev config "site-live" on :3100 (stopped at the owner's request)
 
 - 2026-10-07: owner reviewed the skeleton screenshots (docs/skeleton/qa) and said they look good. Sections size to content for now.
+
+## Resume point (2026-10-07 ~22:20, session at 84%)
+- Done and committed:
+  - the trace (approved)
+  - the paper model (paper.py)
+  - apex fits v1–v3 (v3 offline matches the mockup's fold)
+  - the terminal, the motion engine (?motion=slide), OG/meta, the audit
+- In progress: the full-AK paper chain (scripts/mockup/chain_fit.py; plan and all decisions in CHAIN_PLAN.md; progress in docs/ribbon/turns/chain/NOTES.md with per-stage npz).
+  - Stage 1 (tail + S): S being re-fitted as 4 oblique rolls.
+  - Then all stages → polish → emit_chain (≤ 320 rings, weight-uniform, true rulings) → render → per-turn sheets → gates.
+- After the chain passes:
+  - Material/lighting step (the engine's top-of-roll dark band and the bright shoulder cap are lighting).
+  - Swap the pose into ak-hero.json (after the owner OKs the renders).
+  - Wire the intro reveal to `ribbon:intro-settled`.
+  - Desktop placement, then the remaining audit fixes, then the PR.
