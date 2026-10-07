@@ -82,3 +82,5 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
   - the terminal port (components/terminal)
   - sections size to content (scroll room behind :root[data-ribbon-journey])
   - the live dev config "site-live" on :3100 (stopped at the owner's request)
+
+- 2026-10-07: owner reviewed the skeleton screenshots (docs/skeleton/qa) and said they look good. Sections size to content for now.
