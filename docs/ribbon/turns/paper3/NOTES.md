@@ -1,0 +1,12 @@
+- started paper3 (fit via scripts/mockup/paper3_fit.py)
+  rho0 0.25W tilt -40    [ok] cost   15850.52 front 1.000 seen 1113.56 rho 44.23 phi -84.3 (329s)
+  rho0 0.25W tilt -20    [ok] cost   15850.82 front 1.000 seen 1115.50 rho 44.25 phi -84.3 (120s)
+  rho0 0.25W tilt +0     [ok] cost   52938.96 front 1.000 seen 7837.69 rho 19.76 phi -81.6 (32s)
+  rho0 0.25W tilt +20    [ok] cost   12208.18 front 1.000 seen 606.83 rho 33.80 phi -101.8 (122s)
+  rho0 0.25W tilt +40    [ok] cost   49147.22 front 1.000 seen 8574.65 rho 24.59 phi -85.7 (43s)
+  rho0 0.4W tilt -40     [ok] cost   16188.73 front nan seen 727.08 rho 40.89 phi -104.2 (35s)
+  rho0 0.4W tilt -20     [ok] cost   54719.30 front 1.000 seen 9039.70 rho 24.23 phi -79.6 (38s)
+  rho0 0.4W tilt +0      [ok] cost   59771.83 front 1.000 seen 8869.00 rho 24.48 phi -82.2 (16s)
+  rho0 0.4W tilt +20     [timeout] cost   16376.59 front 1.000 seen 1099.78 rho 42.85 phi -86.2 (360s)
+  rho0 0.4W tilt +40     [ok] cost 1043920.90 front nan seen 24202.93 rho 61.64 phi -57.8 (6s)
+- fit done (10 starts), selection fallback; report done

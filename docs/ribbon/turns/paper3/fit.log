@@ -1,0 +1,22 @@
+paper3 fit; paper2 selected: prev-apex rho0 0.3W; nx 28
+  rho0 0.25W tilt -40    [ok] cost   15850.52 front 1.000 seen 1113.56 rho 44.23 phi -84.3 (329s)
+      blocks {'pt_out': 11317.13, 'slide': 1142.44, 'anchor': 1.43, 'cov_in': 52.3, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 43.13, 'zpin': 2180.54, 'seen': 1113.56}
+  rho0 0.25W tilt -20    [ok] cost   15850.82 front 1.000 seen 1115.50 rho 44.25 phi -84.3 (120s)
+      blocks {'pt_out': 11316.94, 'slide': 1143.17, 'anchor': 1.43, 'cov_in': 52.37, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 43.03, 'zpin': 2178.38, 'seen': 1115.5}
+  rho0 0.25W tilt +0     [ok] cost   52938.96 front 1.000 seen 7837.69 rho 19.76 phi -81.6 (32s)
+      blocks {'pt_out': 16866.42, 'slide': 2542.65, 'anchor': 1.05, 'cov_in': 204.57, 'cov_out': 0.58, 'layer': 0.0, 'overlap': 3605.4, 'zpin': 21880.6, 'seen': 7837.69}
+  rho0 0.25W tilt +20    [ok] cost   12208.18 front 1.000 seen 606.83 rho 33.80 phi -101.8 (122s)
+      blocks {'pt_out': 9713.39, 'slide': 398.73, 'anchor': 2.13, 'cov_in': 52.33, 'cov_out': 3.61, 'layer': 0.0, 'overlap': 99.93, 'zpin': 1331.24, 'seen': 606.83}
+  rho0 0.25W tilt +40    [ok] cost   49147.22 front 1.000 seen 8574.65 rho 24.59 phi -85.7 (43s)
+      blocks {'pt_out': 24910.31, 'slide': 2180.48, 'anchor': 1.42, 'cov_in': 165.88, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 4431.89, 'zpin': 8882.6, 'seen': 8574.65}
+  rho0 0.4W tilt -40     [ok] cost   16188.73 front nan seen 727.08 rho 40.89 phi -104.2 (35s)
+      blocks {'pt_out': 11505.91, 'slide': 1442.45, 'anchor': 1.29, 'cov_in': 70.58, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 227.68, 'zpin': 2213.75, 'seen': 727.08}
+  rho0 0.4W tilt -20     [ok] cost   54719.30 front 1.000 seen 9039.70 rho 24.23 phi -79.6 (38s)
+      blocks {'pt_out': 14771.95, 'slide': 2198.58, 'anchor': 1.24, 'cov_in': 119.01, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 8803.83, 'zpin': 19784.99, 'seen': 9039.7}
+  rho0 0.4W tilt +0      [ok] cost   59771.83 front 1.000 seen 8869.00 rho 24.48 phi -82.2 (16s)
+      blocks {'pt_out': 18434.63, 'slide': 4097.46, 'anchor': 1.55, 'cov_in': 498.78, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 6202.21, 'zpin': 21668.22, 'seen': 8869.0}
+  rho0 0.4W tilt +20     [timeout] cost   16376.59 front 1.000 seen 1099.78 rho 42.85 phi -86.2 (360s)
+      blocks {'pt_out': 11817.62, 'slide': 1045.64, 'anchor': 1.34, 'cov_in': 78.39, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 4.81, 'zpin': 2329.01, 'seen': 1099.78}
+  rho0 0.4W tilt +40     [ok] cost 1043920.90 front nan seen 24202.93 rho 61.64 phi -57.8 (6s)
+      blocks {'pt_out': 944362.36, 'slide': 50840.8, 'anchor': 3.68, 'cov_in': 18824.31, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 3740.3, 'zpin': 1946.52, 'seen': 24202.93}
+selected 3 rho0 0.25W tilt +20 cost 12208.180563938313 NO start met right_front & seen<1; fallback = lowest seen cost among right_front

@@ -1,0 +1,203 @@
+{
+ "reproj": {
+  "apex_window": {
+   "n": 114,
+   "rms_px": 4.297007308385828,
+   "p95_px": 7.145916416678334,
+   "max_px": 21.728784286584315,
+   "rms_css": 1.9657754062162505,
+   "p95_css": 3.2690814184488985
+  },
+  "section": {
+   "n": 323,
+   "rms_px": 5.978830166269256,
+   "p95_px": 13.787279936111275,
+   "max_px": 21.728784286584315,
+   "rms_css": 2.7351680961443257,
+   "p95_css": 6.30734226682231
+  }
+ },
+ "face": {
+  "all_vis_required": {
+   "checked": 65,
+   "agree": 65,
+   "frac": 1.0
+  },
+  "left_leg_A": {
+   "n_all": 96,
+   "agree_all": 96,
+   "frac_all": 1.0,
+   "n_vis": 40,
+   "agree_vis": 40,
+   "frac_vis": 1.0
+  },
+  "right_leg_B": {
+   "n_all": 25,
+   "agree_all": 25,
+   "frac_all": 1.0,
+   "n_vis": 25,
+   "agree_vis": 25,
+   "frac_vis": 1.0
+  }
+ },
+ "silhouette_rings": {
+  "contour_err_sym": 1.5218777656555176,
+  "render_to_alpha_mean": 1.5302807092666626,
+  "render_to_alpha_rms": 2.2286908626556396,
+  "render_to_alpha_p95": 4.393798828125,
+  "alpha_to_render_mean": 1.513474941253662,
+  "alpha_to_render_rms": 2.206615447998047,
+  "alpha_to_render_p95": 4.393798828125,
+  "alpha_to_render_near_footprint_mean": 1.4850331544876099,
+  "alpha_to_render_near_footprint_p95": 4.1968994140625,
+  "iou_in_box": 0.9621500913540704,
+  "alpha_px_in_box": 43868,
+  "render_px_in_box": 43120,
+  "box": [
+   180,
+   530,
+   480,
+   760
+  ]
+ },
+ "right_leg_in_front_dense": {
+  "frac_post_in_front": 1.0,
+  "n_cells": 6,
+  "mean_gap": 76.1133192627327
+ },
+ "z_range_rings": [
+  -72.33217963275581,
+  143.76640181503694
+ ],
+ "z_mean_rings": 51.59923436070114,
+ "lambda_runs": [
+  1.1499999999999997,
+  1.1499999999999997
+ ],
+ "run_sizes": [
+  92,
+  126
+ ],
+ "overlap_gaps_css": [
+  -0.08778774047609517,
+  152.623019424765,
+  -1.2732215540626584,
+  -1.5006076681082305,
+  -3.486847674138488,
+  31.85527787140424,
+  -5.078229402211235,
+  5.250737860217754
+ ],
+ "cost_blocks": {
+  "pt_out": 9713.390943875162,
+  "slide": 398.7283759433604,
+  "anchor": 2.126887618665738,
+  "cov_in": 52.32865403569107,
+  "cov_out": 3.6055159866012816,
+  "layer": 0.0,
+  "overlap": 99.92924434124323,
+  "zpin": 1331.2404933052806,
+  "seen": 606.8304488323101
+ },
+ "silhouette_refined": {
+  "contour_err_sym": 1.502678394317627,
+  "render_to_alpha_mean": 1.510785698890686,
+  "render_to_alpha_rms": 2.1960649490356445,
+  "render_to_alpha_p95": 4.199673652648926,
+  "alpha_to_render_mean": 1.4945709705352783,
+  "alpha_to_render_rms": 2.1776087284088135,
+  "alpha_to_render_p95": 4.1979780197143555,
+  "alpha_to_render_near_footprint_mean": 1.4656157493591309,
+  "alpha_to_render_near_footprint_p95": 4.1968994140625,
+  "iou_in_box": 0.9627357213750789,
+  "alpha_px_in_box": 43868,
+  "render_px_in_box": 43144,
+  "box": [
+   180,
+   530,
+   480,
+   760
+  ]
+ },
+ "z_range_refined": [
+  -72.33217963298733,
+  143.76625487460493
+ ],
+ "n_rings_emitted": 301,
+ "apex_rho_css": 33.80074506836346,
+ "apex_rho_over_W": 0.64715768972181,
+ "apex_phi_deg": -101.75106495642423,
+ "isometry_fitted": {
+  "max_abs_JtJ_minus_I": 1.0945377937332523e-10,
+  "max_abs_len_err_GL": 0.12836853115749136,
+  "n_pts": 3994,
+  "n_segments": 40
+ },
+ "params": {
+  "table": [
+   {
+    "roll": "left bend 1",
+    "u_css": -65.01338069568864,
+    "beta_deg": 159.76620805606572,
+    "rho_css": 139.7455257969775,
+    "rho_over_W": 2.6756034945625617,
+    "phi_deg": 7.1304273580108015,
+    "arc_css": 17.3912516553659
+   },
+   {
+    "roll": "left bend 2",
+    "u_css": 61.5395293144137,
+    "beta_deg": 78.09312926921113,
+    "rho_css": 26.157197469177742,
+    "rho_over_W": 0.5008123770500613,
+    "phi_deg": -34.37746770734313,
+    "arc_css": 15.694318481275522
+   },
+   {
+    "roll": "apex fold",
+    "u_css": 76.19203329383544,
+    "beta_deg": 78.33216204225148,
+    "rho_css": 33.80074506836346,
+    "rho_over_W": 0.64715768972181,
+    "phi_deg": -101.75106495642423,
+    "arc_css": 60.02644237070378
+   },
+   {
+    "roll": "right bend 1",
+    "u_css": 151.66921881444503,
+    "beta_deg": 48.549892884765626,
+    "rho_css": 26.11476739378095,
+    "rho_over_W": 0.5000000000000001,
+    "phi_deg": -34.195324229712156,
+    "arc_css": 15.585841501815256
+   },
+   {
+    "roll": "right bend 2",
+    "u_css": 172.5495582711557,
+    "beta_deg": 42.77268229577943,
+    "rho_css": 26.11476739378095,
+    "rho_over_W": 0.5000000000000001,
+    "phi_deg": -34.37574568173761,
+    "arc_css": 15.668075556269777
+   }
+  ],
+  "pose": {
+   "rotvec": [
+    -1.927298476980901,
+    -1.428013672705859,
+    -0.22158954938924952
+   ],
+   "t": [
+    -69.86740826373928,
+    97.4048045599529,
+    60.39776305384006
+   ]
+  },
+  "W_css": 52.229534787561896,
+  "H_css": 1.8599640425890414,
+  "N": 218
+ },
+ "selected_index": 3
+}
+emitted /Users/ashmitkhurana/Development/studio/portfolio/docs/ribbon/turns/paper3/apex_candidate.json
+IoU 0.9627357213750789 contour 1.502678394317627 z [-72.33217963298733, 143.76625487460493] rho 33.80074506836346 0.64715768972181 phi -101.75106495642423 seen 606.8304488323101
