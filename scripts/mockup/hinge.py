@@ -340,3 +340,160 @@ def geometric_init(Hg, L0, R0):
                 root_kabsch_rms=float(np.sqrt(np.mean((np.einsum('ij,kj->ki', Rm, fp) + t - tp) ** 2))),
                 obliqueness_root=obl, flat_span_a=float(a[-1] - a[0]))
     return x, info
+
+
+# ====================================================================== sliding data term (synth12)
+def vis_runs(vis):
+    """List of (start, end_inclusive) index runs where vis is True."""
+    v = np.asarray(vis, bool)
+    out, i, n = [], 0, len(v)
+    while i < n:
+        if v[i]:
+            j = i
+            while j + 1 < n and v[j + 1]:
+                j += 1
+            out.append((i, j))
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+
+class SlidingData:
+    """Point-to-polyline data term for one edge. Per visible ring: n_q . (project(P_i) - q), q = closest point on the
+    polyline of the ring's own visibility run; plus weak anchor 0.05 * (project(P_i) - obs_i) (2 components)."""
+
+    def __init__(self, obs, vis, anchor=0.05):
+        self.obs, self.vis, self.anchor = np.asarray(obs, float), np.asarray(vis, bool), anchor
+        self.idx = np.where(self.vis)[0]
+        self.run_of = {}
+        self.runs = vis_runs(self.vis)
+        for r in self.runs:
+            for i in range(r[0], r[1] + 1):
+                self.run_of[i] = r
+        # sliding residual only for rings in runs with >= 2 samples
+        self.sidx = np.array([i for i in self.idx if self.run_of[i][1] > self.run_of[i][0]], int)
+
+    def closest(self, p2):
+        """p2 (n,2) projected points of rings self.sidx -> q (n,2), nq (n,2)."""
+        q = np.zeros_like(p2); nq = np.zeros_like(p2)
+        for k, i in enumerate(self.sidx):
+            a0, a1 = self.run_of[i]
+            A = self.obs[a0:a1]; B = self.obs[a0 + 1:a1 + 1]
+            d = B - A
+            l2 = np.maximum((d * d).sum(1), 1e-12)
+            t = np.clip(((p2[k] - A) * d).sum(1) / l2, 0.0, 1.0)
+            Q = A + t[:, None] * d
+            j = int(np.argmin(((Q - p2[k]) ** 2).sum(1)))
+            q[k] = Q[j]
+            tg = d[j] / np.sqrt(l2[j])
+            nq[k] = (-tg[1], tg[0])
+        return q, nq
+
+    def size(self):
+        return len(self.sidx) + 2 * len(self.idx)
+
+    def resid(self, P):
+        p2 = S.project(P)
+        q, nq = self.closest(p2[self.sidx])
+        slide = (nq * (p2[self.sidx] - q)).sum(1)
+        anc = self.anchor * (p2[self.idx] - self.obs[self.idx])
+        return slide, anc.ravel()
+
+    def jac(self, P):
+        """rows (size, 3N) wrt the N points P (sliding rows first, then anchor rows)."""
+        N = len(P)
+        pj = S.project_jac(P)                                   # (N,2,3)
+        p2 = S.project(P)
+        q, nq = self.closest(p2[self.sidx])
+        J = np.zeros((self.size(), 3 * N))
+        for k, i in enumerate(self.sidx):
+            J[k, 3 * i:3 * i + 3] = nq[k] @ pj[i]
+        o = len(self.sidx)
+        for k, i in enumerate(self.idx):
+            J[o + 2 * k:o + 2 * k + 2, 3 * i:3 * i + 3] = self.anchor * pj[i]
+        return J
+
+
+class SlidingHingeProblem(HingeProblem):
+    """HingeProblem whose 'data' block is replaced by the sliding term (E1 then E2: sliding rows, then anchor rows)."""
+
+    def __init__(self, H, iso_prob, obs1, obs2, vis1, vis2):
+        self.sd1, self.sd2 = SlidingData(obs1, vis1), SlidingData(obs2, vis2)
+        super().__init__(H, iso_prob)
+
+    def data_parts(self, x):
+        L, R = self.H.points(x)
+        s1, a1 = self.sd1.resid(L)
+        s2, a2 = self.sd2.resid(R)
+        return s1, s2, a1, a2
+
+    def blocks(self, x):
+        out = {}
+        H = self.H
+        xf = None
+        for n in self.names:
+            if n == 'data':
+                out[n] = np.concatenate(self.data_parts(x))
+            elif n == 'bend':
+                th = x[H.i_th:H.i_th + H.N - 2]
+                out[n] = (th[2:] - 2 * th[1:-1] + th[:-2]) * self.ip.sb
+            else:
+                if xf is None:
+                    xf = H.full(x)
+                out[n] = self.ip.block(n, xf)
+        return out
+
+    def data_jac(self, x, P=None):
+        H, N = self.H, self.H.N
+        L, R = H.points(x)
+        if P is None:
+            P = H.point_jac(x)
+        J1, J2 = self.sd1.jac(L), self.sd2.jac(R)
+        n1s, n2s = len(self.sd1.sidx), len(self.sd2.sidx)
+        Jf = np.zeros((self.sd1.size() + self.sd2.size(), 6 * N))
+        # row order matches data_parts: s1, s2, a1, a2
+        r = 0
+        Jf[r:r + n1s, :3 * N] = J1[:n1s]; r += n1s
+        Jf[r:r + n2s, 3 * N:] = J2[:n2s]; r += n2s
+        Jf[r:r + J1.shape[0] - n1s, :3 * N] = J1[n1s:]; r += J1.shape[0] - n1s
+        Jf[r:r + J2.shape[0] - n2s, 3 * N:] = J2[n2s:]
+        return Jf @ P
+
+    def jac_blocks(self, x):
+        H, N = self.H, self.H.N
+        P = H.point_jac(x)
+        xf = H.full(x)
+        jb = self.ip.jac_blocks(xf)
+        from scipy.sparse import coo_matrix
+        out, m = {}, H.m
+        for n in self.names:
+            ns = self.sizes[n]
+            if n == 'data':
+                out[n] = self.data_jac(x, P)
+                continue
+            if n == 'bend':
+                Jd = np.zeros((ns, H.nx))
+                k = np.arange(ns)
+                for off, co in ((0, 1.0), (1, -2.0), (2, 1.0)):
+                    Jd[k, H.i_th + k + off] = co * self.ip.sb
+                out[n] = Jd
+                continue
+            r, c, v = jb[n]
+            if len(r) == 0:
+                out[n] = np.zeros((ns, H.nx))
+                continue
+            Jf = coo_matrix((np.concatenate([np.asarray(q, float) for q in v]),
+                             (np.concatenate([np.asarray(q) for q in r]), np.concatenate([np.asarray(q) for q in c]))),
+                            shape=(ns, 8 * N)).tocsr()
+            Jd = np.asarray(Jf[:, :6 * N] @ P)
+            Ab = Jf[:, 6 * N:].toarray()
+            Jd[:, H.i_a:H.i_a + m] += Ab[:, :m]
+            Jd[:, H.i_a + m:H.i_a + N - 1] += Ab[:, m + 1:N]
+            Jd[:, H.i_b:H.i_b + N] += Ab[:, N:2 * N]
+            out[n] = Jd
+        return out
+
+    def jac(self, x):
+        jb = self.jac_blocks(x)
+        return np.concatenate([jb[n] for n in self.names], 0)
