@@ -64,13 +64,15 @@
   --label-size: clamp(0.6875rem, 0.66rem + 0.14vw, 0.8125rem);
   --label-tracking: 0.12em;
 
-  /* section heights: the ribbon needs scroll room. Tune per section. */
+  /* section heights. The ribbon's scroll journey needs extra room; until the
+     choreography exists the sections size to their content (the "room" values are
+     restored by setting data-ribbon-journey on <html>, see below). */
   --h-hero: 100svh;
-  --h-unravel: 120svh;
-  --h-work: 150svh;
-  --h-build: 140svh;
-  --h-terminal: 130svh;
-  --h-contact: 100svh;
+  --h-unravel: auto;
+  --h-work: auto;
+  --h-build: auto;
+  --h-terminal: auto;
+  --h-contact: auto;
 
   /* z layers (the ribbon stage owns 0..3 internally) */
   --z-header: 50;
@@ -131,4 +133,13 @@
     --hero-span: 0.75;
     --hero-cap: 27svh;
   }
+}
+
+/* ribbon scroll room, switched on together with the scroll choreography */
+:root[data-ribbon-journey] {
+  --h-unravel: 120svh;
+  --h-work: 150svh;
+  --h-build: 140svh;
+  --h-terminal: 130svh;
+  --h-contact: 100svh;
 }
