@@ -44,4 +44,9 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
 
 4. **With the roll outline added (`synth4/`), the fold starts forming correctly.** The fold-outline error fell from 8.7 px to 3.2 px, and the correct layer is in front 70–75% of the time, up from 14%. The run didn't fully converge because the solver is slow, so a speed-up and a converged re-run are next (`synth5/`).
 
+5. **A faster solver (`synth5/`, 20× faster Jacobian) gets the fold mostly right.** The silhouette matches the true fold at 0.987 overlap, the fold-outline error is 1.7 px, and the correct layer is in front 91% of the time.
+   - It still hasn't converged, and the image fit is 3.7 px where the target is under 1.
+   - Next: a direct sparse Levenberg-Marquardt optimiser, with the target fold-outline error ≤ 1.5 px, image fit ≤ 1 px and correct layer ≥ 95%.
+   - Only after that is it applied to the real AK, and only once you approve the trace.
+
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.

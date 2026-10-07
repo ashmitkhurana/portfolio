@@ -4,7 +4,8 @@ World: +x right, +y up, +z toward camera; camera at (0,0,D) looking down -z.
 """
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.sparse import coo_matrix
+from scipy.optimize._numdiff import approx_derivative
+from scipy.sparse import coo_matrix, csr_matrix, vstack
 
 VIEW_W, VIEW_H = 390, 844
 CX, CY = 195.0, 422.0
@@ -263,7 +264,130 @@ def pair_list_iso(L, R, a, b, W, reach=3.0, sep=1.5):
     return np.stack([I[m], J[m]], axis=1)
 
 
-def _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, win, p, wts, pairs, ou=None, ou_w=0.0):
+def coverage_candidates(L, R, pts, W, reach=2.5):
+    """Per point, quad indices whose projected centre lies within reach*W. Returns (P,K) int, -1 padded."""
+    pl, pr = project(L), project(R)
+    qc = (pl[:-1] + pl[1:] + pr[:-1] + pr[1:]) / 4
+    d = _norm(pts[:, None] - qc[None])
+    m = d < reach * W
+    K = max(int(m.sum(1).max()), 1) if len(pts) else 1
+    cand = np.full((len(pts), K), -1, int)
+    for i in range(len(pts)):
+        j = np.nonzero(m[i])[0]
+        cand[i, :len(j)] = j
+    return cand
+
+
+def _pt_seg(p, a, b):
+    ab = b - a
+    t = np.clip(((p - a) * ab).sum(-1) / ((ab * ab).sum(-1) + 1e-12), 0, 1)
+    return _norm(p - (a + ab * t[..., None]))
+
+
+def _tri_info(p, a, b, c):
+    """p,a,b,c (...,2): inside flag and distance to the triangle boundary."""
+    def cr(u, v, w):
+        return (v[..., 0] - u[..., 0]) * (w[..., 1] - u[..., 1]) - (v[..., 1] - u[..., 1]) * (w[..., 0] - u[..., 0])
+    s1, s2, s3 = cr(a, b, p), cr(b, c, p), cr(c, a, p)
+    inside = ((s1 >= 0) & (s2 >= 0) & (s3 >= 0)) | ((s1 <= 0) & (s2 <= 0) & (s3 <= 0))
+    d = np.minimum(np.minimum(_pt_seg(p, a, b), _pt_seg(p, b, c)), _pt_seg(p, c, a))
+    return inside, d
+
+
+def coverage_resid(L, R, pts, cand, W, kind):
+    """kind 'in': 0 if inside any candidate triangle else distance to nearest; 'out': 0 if outside all
+    else smallest boundary distance among containing triangles. Points without candidates: in -> 2.5W, out -> 0."""
+    if len(pts) == 0:
+        return np.zeros(0)
+    pl, pr = project(L), project(R)
+    valid = cand >= 0
+    j = np.where(valid, cand, 0)
+    p = pts[:, None, :]
+    Lj, Lk, Rk, Rj = pl[j], pl[j + 1], pr[j + 1], pr[j]
+    i1, d1 = _tri_info(p, Lj, Lk, Rk)
+    i2, d2 = _tri_info(p, Lj, Rk, Rj)
+    ins = np.concatenate([i1, i2], 1)
+    dd = np.concatenate([d1, d2], 1)
+    v2 = np.concatenate([valid, valid], 1)
+    if kind == 'in':
+        anyin = (ins & v2).any(1)
+        dmin = np.where(v2, dd, np.inf).min(1)
+        r = np.where(anyin, 0.0, dmin)
+        return np.where(np.isfinite(r), r, 2.5 * W)
+    r = np.where(ins & v2, dd, np.inf).min(1)
+    return np.where(np.isfinite(r), r, 0.0)
+
+
+def _cov_tables(pl, pr, pts, cand):
+    valid = cand >= 0
+    j = np.where(valid, cand, 0)
+    p = pts[:, None, :]
+    i1, d1 = _tri_info(p, pl[j], pl[j + 1], pr[j + 1])
+    i2, d2 = _tri_info(p, pl[j], pr[j + 1], pr[j])
+    return np.concatenate([i1, i2], 1), np.concatenate([d1, d2], 1), np.concatenate([valid, valid], 1)
+
+
+def _cov_reduce(ins, dd, v2, W, kind):
+    if kind == 'in':
+        anyin = (ins & v2).any(1)
+        dmin = np.where(v2, dd, np.inf).min(1)
+        r = np.where(anyin, 0.0, dmin)
+        return np.where(np.isfinite(r), r, 2.5 * W)
+    r = np.where(ins & v2, dd, np.inf).min(1)
+    return np.where(np.isfinite(r), r, 0.0)
+
+
+def coverage_jac(L, R, pts, cand, W, kind, scale, col0, ncols, eps=1e-6):
+    """Finite-difference Jacobian (P, ncols) of scale*coverage_resid wrt L,R (ring-local recomputation).
+    Columns: L ring i coord c -> 3i+c ; R -> 3N+3i+c."""
+    N = len(L)
+    P, K = cand.shape
+    pl, pr = project(L), project(R)
+    ins, dd, v2 = _cov_tables(pl, pr, pts, cand)
+    base = _cov_reduce(ins, dd, v2, W, kind)
+    rows, cols, vals = [], [], []
+    for side in (0, 1):
+        X = (L, R)[side]
+        pp = (pl, pr)[side]
+        for i in range(N):
+            qs = [q for q in (i - 1, i) if 0 <= q <= N - 2]
+            hit = np.zeros(P, bool)
+            for q in qs:
+                hit |= (cand == q).any(1)
+            ps = np.nonzero(hit)[0]
+            if len(ps) == 0:
+                continue
+            for c in range(3):
+                Xp = X[i].copy()
+                Xp[c] += eps
+                newp = project(Xp[None])[0]
+                ins2, dd2 = ins[ps].copy(), dd[ps].copy()
+                for q in qs:
+                    m = cand[ps] == q                                  # (n,K)
+                    r_, k_ = np.nonzero(m)
+                    if len(r_) == 0:
+                        continue
+                    a, b = pl.copy(), pr.copy()
+                    (a, b)[side][i] = newp
+                    pt = pts[ps[r_]]
+                    i1, d1 = _tri_info(pt, a[q][None].repeat(len(r_), 0), a[q + 1][None].repeat(len(r_), 0),
+                                       b[q + 1][None].repeat(len(r_), 0))
+                    i2, d2 = _tri_info(pt, a[q][None].repeat(len(r_), 0), b[q + 1][None].repeat(len(r_), 0),
+                                       b[q][None].repeat(len(r_), 0))
+                    ins2[r_, k_], dd2[r_, k_] = i1, d1
+                    ins2[r_, K + k_], dd2[r_, K + k_] = i2, d2
+                new = _cov_reduce(ins2, dd2, v2[ps], W, kind)
+                dv = (new - base[ps]) / eps * scale
+                nz = dv != 0
+                rows.append(ps[nz])
+                cols.append(np.full(nz.sum(), col0 + side * 3 * N + 3 * i + c))
+                vals.append(dv[nz])
+    if not rows:
+        return coo_matrix((P, ncols)).tocsr()
+    return coo_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(P, ncols)).tocsr()
+
+
+def _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, win, p, wts, pairs, ou=None, ou_w=0.0, cov=None):
     W, thk = p['W'], p['thk']
     use_ou = ou is not None and len(ou) > 0 and ou_w > 0
     if use_ou:
@@ -276,8 +400,11 @@ def _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, win, p, wts, pairs, ou=
     use_clear = wts['clear'] > 0 and len(pairs) > 0
     if use_clear:
         pi, pj = pairs[:, 0], pairs[:, 1]
+    use_cov = cov is not None and cov['w'] > 0 and (len(cov['p_in']) + len(cov['p_out'])) > 0
+    if use_cov:
+        sq_cov = np.sqrt(cov['w'])
 
-    def f(x):
+    def fb(x):
         L, R, a, b = _unpack_iso(x, N)
         d1 = (project(L) - obs1) * dw1[:, None]
         d2 = (project(R) - obs2) * dw2[:, None]
@@ -298,6 +425,14 @@ def _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, win, p, wts, pairs, ou=
             zc = (L[:, 2] + R[:, 2]) / 2
             out.append(np.maximum(0.0, 2 * thk - (zc[ou[:, 0]] - zc[ou[:, 1]])) * sq_ou)
         return np.concatenate(out)
+
+    def fc(x):
+        L, R, a, b = _unpack_iso(x, N)
+        return np.concatenate([coverage_resid(L, R, cov['p_in'], cov['c_in'], W, 'in') * sq_cov,
+                               coverage_resid(L, R, cov['p_out'], cov['c_out'], W, 'out') * sq_cov])
+
+    def f(x):
+        return np.concatenate([fb(x), fc(x)]) if use_cov else fb(x)
 
     idx = np.arange(N)
     rows, cols = [], []
@@ -346,9 +481,29 @@ def _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, win, p, wts, pairs, ou=
         put(row + np.arange(m), ou[:, 0])
         put(row + np.arange(m), ou[:, 1])
         row += m
+    if use_cov:
+        for key in ('in', 'out'):
+            cd = cov['c_' + key]
+            for kk in range(cd.shape[1]):
+                ok = cd[:, kk] >= 0
+                rr = row + np.nonzero(ok)[0]
+                put(rr, cd[ok, kk])
+                put(rr, cd[ok, kk] + 1)
+            row += len(cd)
     Sp = coo_matrix((np.ones(sum(len(r) for r in rows), bool),
                      (np.concatenate(rows), np.concatenate(cols))), shape=(row, 8 * N)).tocsr()
-    return f, Sp
+    if not use_cov:
+        return f, Sp, None
+    nb = row - len(cov['p_in']) - len(cov['p_out'])
+    Sb = Sp[:nb]
+
+    def jac(x):
+        L, R, a, b = _unpack_iso(x, N)
+        Jb = approx_derivative(fb, x, sparsity=Sb, method='2-point')
+        Ji = coverage_jac(L, R, cov['p_in'], cov['c_in'], W, 'in', sq_cov, 0, 8 * N)
+        Jo = coverage_jac(L, R, cov['p_out'], cov['c_out'], W, 'out', sq_cov, 0, 8 * N)
+        return vstack([csr_matrix(Jb), Ji, Jo]).tocsr()
+    return f, Sp, jac
 
 
 def solve_iso(obs1, obs2, vis1, vis2, w1, w2, window_mask, init_L, init_R, params):
@@ -361,6 +516,7 @@ def solve_iso(obs1, obs2, vis1, vis2, w1, w2, window_mask, init_L, init_R, param
     overunder = p.get('overunder')
     ou_weight = p.get('overunder_weight', 50.0)
     tol = p.get('tol', {})
+    coverage = p.get('coverage')
 
     def stage_w(k):
         w = dict(wbase)
@@ -381,10 +537,16 @@ def solve_iso(obs1, obs2, vis1, vis2, w1, w2, window_mask, init_L, init_R, param
         L, R, a, b = _unpack_iso(x, N)
         pairs = (pair_list_iso(L, R, a, b, p['W']) if wts['clear'] > 0 else np.zeros((0, 2), int))
         ou_k = overunder if (k >= 2 and overunder is not None) else None
-        f, Sp = _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, window_mask, p, wts, pairs, ou_k, ou_weight)
+        cov_k = None
+        if coverage is not None:
+            cov_k = dict(p_in=np.asarray(coverage['p_in'], float), p_out=np.asarray(coverage['p_out'], float),
+                         w=coverage.get('weight', 20.0))
+            cov_k['c_in'] = coverage_candidates(L, R, cov_k['p_in'], p['W'])
+            cov_k['c_out'] = coverage_candidates(L, R, cov_k['p_out'], p['W'])
+        f, Sp, jac = _make_problem_iso(N, obs1, obs2, vis1, vis2, w1, w2, window_mask, p, wts, pairs, ou_k, ou_weight, cov_k)
         c0 = 0.5 * float(np.sum(f(x) ** 2))
-        res = least_squares(f, x, jac_sparsity=Sp, method='trf', x_scale='jac',
-                            loss='linear', max_nfev=max_nfev, verbose=verbose, **tol)
+        res = least_squares(f, x, jac=(jac if jac is not None else '2-point'), jac_sparsity=Sp, method='trf',
+                            x_scale='jac', loss='linear', max_nfev=max_nfev, verbose=verbose, **tol)
         x = res.x
         history.append(dict(stage=k, cost_before=c0, cost_after=float(res.cost),
                             nfev=int(res.nfev), status=int(res.status),

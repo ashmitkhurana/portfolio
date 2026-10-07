@@ -1,0 +1,159 @@
+{
+  "metrics": {
+    "init": {
+      "sil_iou": 0.9202486012103812,
+      "faceA_iou": 0.9925998529772114,
+      "faceB_iou": 0.7738304093567251,
+      "rms_reproj": 0.7185489258698015,
+      "max_iso_resid": 67.7842800624077,
+      "max_planarity": 0.020040027813389205,
+      "min_clearance": 101.43422469477959,
+      "n_overlap_px": 4835,
+      "rms_3d": 72.94617257954899,
+      "layer_order_075W": 0.07631851085832471,
+      "layer_order_025W": 0.07507755946225439,
+      "fold_contour_err": 8.78648567199707,
+      "coverage_in_frac": 0.0,
+      "coverage_out_frac": 1.0
+    },
+    "A": {
+      "sil_iou": 0.9234022402926096,
+      "faceA_iou": 0.9940644085256678,
+      "faceB_iou": 0.779625475470594,
+      "rms_reproj": 0.6583810624878883,
+      "max_iso_resid": 0.0002454766038795242,
+      "max_planarity": 0.03531946840535319,
+      "min_clearance": 78.48220431930832,
+      "n_overlap_px": 4835,
+      "rms_3d": 66.48111818746503,
+      "layer_order_075W": 0.09927611168562564,
+      "layer_order_025W": 0.09803516028955532,
+      "fold_contour_err": 8.782429695129395,
+      "coverage_in_frac": 0.0,
+      "coverage_out_frac": 1.0
+    },
+    "D": {
+      "sil_iou": 0.9874334954466821,
+      "faceA_iou": 0.9780044859272122,
+      "faceB_iou": 0.9354587490873691,
+      "rms_reproj": 3.7187325281904045,
+      "max_iso_resid": 0.0012252125762586275,
+      "max_planarity": 0.0363690326244202,
+      "min_clearance": 69.83356835769384,
+      "n_overlap_px": 4835,
+      "rms_3d": 61.62004034056604,
+      "layer_order_075W": 0.9118924508790073,
+      "layer_order_025W": 0.5563598759048604,
+      "fold_contour_err": 1.6813992261886597,
+      "coverage_in_frac": 0.5903614457831325,
+      "coverage_out_frac": 0.9518072289156626
+    }
+  },
+  "history": {
+    "A": [
+      {
+        "stage": 1,
+        "cost_before": 2250135.118581758,
+        "cost_after": 418.29860151999577,
+        "nfev": 3000,
+        "njev": 2913,
+        "status": 0,
+        "n_pairs": 0,
+        "n_resid": 3082,
+        "seconds": 34.99716295796679
+      },
+      {
+        "stage": 2,
+        "cost_before": 1375.8205018705346,
+        "cost_after": 15.559792796240904,
+        "nfev": 3000,
+        "njev": 2682,
+        "status": 0,
+        "n_pairs": 6591,
+        "n_resid": 9673,
+        "seconds": 109.36223329196218
+      },
+      {
+        "stage": 3,
+        "cost_before": 42.17305104526222,
+        "cost_after": 31.783372876816365,
+        "nfev": 3000,
+        "njev": 2180,
+        "status": 0,
+        "n_pairs": 6887,
+        "n_resid": 9969,
+        "seconds": 119.09249995899154
+      },
+      {
+        "stage": 4,
+        "cost_before": 89.27563922447429,
+        "cost_after": 78.04900814636862,
+        "nfev": 3000,
+        "njev": 2138,
+        "status": 0,
+        "n_pairs": 7006,
+        "n_resid": 10088,
+        "seconds": 89.11800983396824
+      }
+    ],
+    "D": [
+      {
+        "stage": 1,
+        "cost_before": 2683356.1610713406,
+        "cost_after": 9432.439964670584,
+        "nfev": 239,
+        "njev": 213,
+        "status": 3,
+        "n_pairs": 0,
+        "n_resid": 3248,
+        "seconds": 5.08205975004239
+      },
+      {
+        "stage": 2,
+        "cost_before": 35831.04329754206,
+        "cost_after": 2565.8405651177004,
+        "nfev": 3000,
+        "njev": 2987,
+        "status": 0,
+        "n_pairs": 6445,
+        "n_resid": 9693,
+        "seconds": 103.44027104100678
+      },
+      {
+        "stage": 3,
+        "cost_before": 3157.2697971618336,
+        "cost_after": 2380.661816283189,
+        "nfev": 3000,
+        "njev": 2966,
+        "status": 0,
+        "n_pairs": 6597,
+        "n_resid": 9845,
+        "seconds": 112.67545966699254
+      },
+      {
+        "stage": 4,
+        "cost_before": 2669.4615376956713,
+        "cost_after": 1875.5829353077063,
+        "nfev": 3000,
+        "njev": 2312,
+        "status": 0,
+        "n_pairs": 6693,
+        "n_resid": 9941,
+        "seconds": 190.66676691698376
+      }
+    ]
+  },
+  "n_inner": 83,
+  "n_outer": 83,
+  "box": [
+    67,
+    308,
+    269,
+    533
+  ],
+  "seconds": {
+    "A": 352.57187509536743,
+    "D": 411.86961793899536,
+    "total": 764.73171210289
+  }
+}
