@@ -22,6 +22,21 @@ export const metadata: Metadata = {
   description:
     "Ashmit Khurana is a full-stack developer building across interfaces, systems and AI. Experience, skills and education.",
   alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About — Ashmit Khurana",
+    description: "Ashmit Khurana is a full-stack developer building across interfaces, systems and AI. Experience, skills and education.",
+    url: "/about",
+    siteName: "Ashmit Khurana",
+    type: "website",
+    locale: "en_US",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Ashmit Khurana — Full-Stack Developer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About — Ashmit Khurana",
+    description: "Ashmit Khurana is a full-stack developer building across interfaces, systems and AI. Experience, skills and education.",
+    images: ["/twitter-image"],
+  },
 };
 
 export default function AboutPage() {

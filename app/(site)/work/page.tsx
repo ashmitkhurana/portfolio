@@ -9,6 +9,21 @@ export const metadata: Metadata = {
   description:
     "Selected projects by Ashmit Khurana: products, platforms and sites built across interfaces, systems and AI.",
   alternates: { canonical: "/work" },
+  openGraph: {
+    title: "Work — Ashmit Khurana",
+    description: "Selected projects by Ashmit Khurana: products, platforms and sites built across interfaces, systems and AI.",
+    url: "/work",
+    siteName: "Ashmit Khurana",
+    type: "website",
+    locale: "en_US",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Ashmit Khurana — Full-Stack Developer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Work — Ashmit Khurana",
+    description: "Selected projects by Ashmit Khurana: products, platforms and sites built across interfaces, systems and AI.",
+    images: ["/twitter-image"],
+  },
 };
 
 const DEPTHS = [0, -40, 20];
