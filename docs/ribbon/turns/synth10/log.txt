@@ -1,0 +1,39 @@
+synth8 geometric init: {'max_dihedral_err_fk_vs_theta': 1.8382457448941472e-14, 'root_kabsch_rms': 15.72385063593796, 'obliqueness_root': 45.651937634826226, 'flat_span_a': 1095.2959127801646}
+phi = 160.78 deg, n_window_hinges 41
+s_o s_th  layer_order(ii)  rms_outside(i)
++1  +1   0.0000   116.289
++1  -1   0.0000   114.730
+-1  +1   0.0153   48.499
+-1  -1   0.0153   45.862
+selected s_o=-1 s_th=-1
+stage 1: {'iterations': 600, 'accepted': 448, 'cost0': 4384612.25134439, 'cost': 18401.087224531366, 'reason': 'max_iter', 'seconds': 55.53001424996182, 'stage': 1, 'cost_before': 4384612.25134439, 'n_pairs': 0, 'n_resid': 1981, 'wall': 55.53099083900452}
+   blocks {'data': 9808.298, 'mono': 8316.1602, 'obl': 0.089, 'ruling': 4.5329, 'bend': 272.0071}
+stage 2: {'iterations': 600, 'accepted': 397, 'cost0': 243544.62566828594, 'cost': 13647.323596538852, 'reason': 'max_iter', 'seconds': 65.28311279200716, 'stage': 2, 'cost_before': 243544.62566828594, 'n_pairs': 0, 'n_resid': 2147, 'wall': 65.29071569442749}
+   blocks {'data': 10440.2316, 'mono': 2869.0537, 'obl': 0.0, 'ruling': 3.7561, 'bend': 165.3998, 'cov_in': 167.392, 'cov_out': 1.4904}
+stage 3: {'iterations': 600, 'accepted': 387, 'cost0': 1143112.2558737216, 'cost': 11385.999908417325, 'reason': 'max_iter', 'seconds': 92.32937879202655, 'stage': 3, 'cost_before': 1143112.2558737218, 'n_pairs': 7494, 'n_resid': 9641, 'wall': 92.3375391960144}
+   blocks {'data': 8871.5701, 'mono': 2225.6586, 'obl': 0.0, 'ruling': 3.3918, 'bend': 148.7003, 'clear': 0.0, 'cov_in': 136.6792, 'cov_out': 0.0}
+stage 4: {'iterations': 600, 'accepted': 394, 'cost0': 11448.328909457325, 'cost': 10333.017630510445, 'reason': 'max_iter', 'seconds': 93.77389754203614, 'stage': 4, 'cost_before': 11448.328909457327, 'n_pairs': 7507, 'n_resid': 9654, 'wall': 93.78221392631531}
+   blocks {'data': 8234.6065, 'mono': 1918.6061, 'obl': 0.0, 'ruling': 3.3271, 'bend': 73.7422, 'clear': 0.0, 'cov_in': 102.7357, 'cov_out': 0.0}
+metric                                init         H10          H8          R1
+sil_iou                             0.5234      0.8382      0.9857      0.9854
+faceA_iou                           0.4899      0.7384      0.9691      0.9742
+faceB_iou                           0.3785      0.7438      0.9235      0.9314
+rms_reproj                        108.5905      7.9776      4.4569      4.2775
+max_iso_resid                      86.5490      1.1294      0.0000      0.0000
+max_planarity                       0.0000      0.0000      0.0000      0.0000
+min_clearance                      21.9808     20.3635     20.3637     20.3636
+n_overlap_px                     4835.0000   4835.0000   4835.0000   4835.0000
+rms_3d                            122.6521   1214.0813    832.4088   1012.3133
+layer_order_075W                    0.0153      0.7336      0.9342      0.9340
+layer_order_025W                    0.0153      0.3191      0.9322      0.9324
+fold_contour_err                   35.6754      3.2149      1.2877      1.3421
+rms_reproj_window                 189.1259     12.8962      8.4145      8.0661
+rms_reproj_outside                 53.0723      5.0209      0.8918      0.8897
+rms_reproj_window_gt_edges         44.1848      9.2409     10.4031      8.8924
+max_dist_window_gt_edges           96.1962     26.5908     37.2185     34.6678
+min_clearance_idx                   0.0000      2.3752     20.3637     20.3636
+flat_span_a                      1095.2959   1087.7475   1284.3908   1226.3818
+mono_viol_frac                      0.0136      0.2318      0.0568      0.0523
+coverage_in_frac                    0.0000      0.7831      0.7229      0.6386
+coverage_out_frac                   1.0000      1.0000      0.9398      0.8795
+runtime total 307.7s; stage walls 1:55.5s, 2:65.3s, 3:92.3s, 4:93.8s

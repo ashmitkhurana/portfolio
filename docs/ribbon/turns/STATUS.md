@@ -60,4 +60,6 @@ I folded an exact paper strip with a soft roll, projected it through the site ca
 
 8. **The diagnosis (`synth9/`): the solver gets stuck inside the fold because of how it starts there**, not because the model is too weak. More iterations, denser panels or lower data weight don't fix it. Next: start each fold with its creases along the roll-outline direction, which the yellow guides provide for every fold of the real AK.
 
+9. A first attempt at that fold start (`synth10/`) was worse. On-screen angles are distorted by perspective. Next: fit a tiny exact "paper fold" model (about 10 numbers) to each fold first, then hand it to the full solver. synth8 remains the best result.
+
 Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.

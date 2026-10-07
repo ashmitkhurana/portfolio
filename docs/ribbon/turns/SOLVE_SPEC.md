@@ -46,6 +46,16 @@ The per-slice lift (`lift_sig.py`) computes depth from each ruling's projected l
   - Spread the half-turn uniformly: θ_i = ±π/n_roll over the rings of the roll arc, with the sign from the layer order.
   - Then run stages 1–4 as in synth8. On the real AK the `sil` guides in TURNS.md provide the axis for every fold.
 
+## synth10 result and the next approach
+- Contour-aware init v1 failed: everything got worse than H8.
+  - The 2D angle between the strip and the roll outline is not the 3D angle, because perspective and tilt distort it. The obliqueness came out about 1.5× too large.
+  - A uniform π/n hinge spread plus an outside-only Kabsch fit gave a 46 px init with the wrong layer order.
+- **Next (synth11): a low-dimensional fold-primitive fit per window, then convert to hinge parameters.**
+  - Model each fold window as an exact paper fold primitive: two flat layers joined by a half-cylinder roll. The parameters are the 3D axis direction (2), roll radius ρ (1), the 3D pose of the entry layer (6) and the flat obliqueness (1), about 10 in total.
+  - Fit them by LM to the window's visible edge samples plus the roll-outline coverage points, from a handful of starts (axis sign × layer order). Pick the lowest cost that has the required layer order.
+  - Convert the primitive analytically to hinge parameters (a, b, θ) for the window rings, and stitch them to the outside geometric init.
+  - Then run synth8's stages. H8 stays the baseline to beat.
+
 ## Model (first version)
 - N rings (≈ 600, about 2 W/11 spacing), each with 3D points L_i (E1) and R_i (E2), in world space: CSS px, z toward the camera, the engine's camera (FOV, viewport 390×844 phone, anchor transform as in `lift_sig.py`).
 - Centre C_i = (L_i + R_i)/2, ruling r_i = (R_i − L_i)/|R_i − L_i|, tangent t_i = normalise(C_{i+1} − C_{i−1}), normal n_i = t_i × r_i.
