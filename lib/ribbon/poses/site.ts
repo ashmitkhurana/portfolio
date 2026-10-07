@@ -4,9 +4,15 @@
  */
 import type { RibbonPose } from "../types";
 import { findAnchor, measureAnchor } from "./anchors";
-import { loadPose } from "./index";
+import { loadPose, parsePoseFile } from "./index";
 import { resolvePose, resolveRuled, screenClassFor, variantFor } from "./resolve";
 import type { AnchorRect } from "./types";
+
+/**
+ * QA only (scripts/render-pose.mjs): a build with NEXT_PUBLIC_POSE_OVERRIDE set reads the pose from
+ * `window.__poseOverride` (a pose JSON injected before load) instead of the bundled file. Unset: dead code.
+ */
+const POSE_OVERRIDE = !!process.env.NEXT_PUBLIC_POSE_OVERRIDE;
 
 /** route -> authored pose; everything else keeps the interim lab sweep */
 export function poseNameForRoute(pathname: string): string {
@@ -31,7 +37,8 @@ export interface ResolvedNamedPose {
 export function resolveNamedPose(name: string, e: PoseTarget): ResolvedNamedPose | null {
   let file;
   try {
-    file = loadPose(name);
+    const ov = POSE_OVERRIDE ? (window as unknown as { __poseOverride?: unknown }).__poseOverride : undefined;
+    file = ov ? parsePoseFile(ov) : loadPose(name);
   } catch {
     return null;
   }

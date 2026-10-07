@@ -1,0 +1,41 @@
+{
+  "note": "Over/under rules for the real AK solve (HANDOFF §5/§5a, TURNS §3, owner review 2026-10-07). Strands are landmark intervals of the approved trace (route_v8). Each rule: wherever the FRONT strand's projected quads overlap the BACK strand's projected quads, the front must be nearer the camera by >= 2*thickness. Overlaps between rings within 1.5W of flat arc of each other are ignored (folds handle their own layering).",
+  "strands": {
+    "tail":        ["start",    "s_in"],
+    "s_twist":     ["s_in",     "s_out"],
+    "sweep":       ["s_out",    "fl_in"],
+    "farleft":     ["fl_in",    "fl_out"],
+    "left_leg":    ["fl_out",   "apex_in"],
+    "apex":        ["apex_in",  "apex_out"],
+    "right_leg":   ["apex_out", "bk_in"],
+    "bottom_k":    ["bk_in",    "bk_out"],
+    "k_return":    ["bk_out",   "j1_in"],
+    "back_layer":  ["j1_in",    "j1_out"],
+    "crossbar":    ["j1_out",   "wrap_in"],
+    "wrap":        ["wrap_in",  "j2_in"],
+    "middle_layer":["j2_in",    "j2_out"],
+    "topk_front":  ["j2_out",   "tk_in"],
+    "topk_tip":    ["tk_in",    "tk_out"],
+    "end_strand":  ["tk_out",   "end"]
+  },
+  "rules": [
+    {"front": "right_leg",    "back": ["back_layer", "middle_layer", "end_strand", "k_return", "crossbar", "wrap", "topk_front", "topk_tip", "bottom_k"], "why": "A right leg is the frontmost strand of all"},
+    {"front": "apex",         "back": ["left_leg"], "why": "apex roll over the left leg top"},
+    {"front": "middle_layer", "back": ["back_layer"], "why": "junction X: middle layer in front of back layer"},
+    {"front": "wrap",         "back": ["crossbar"], "why": "return runs over the crossbar's lower corner at the V"},
+    {"front": "crossbar",     "back": ["left_leg"], "why": "crossbar goes over the front of the left leg"},
+    {"front": "left_leg",     "back": ["wrap"], "why": "wrap curls down and goes behind the left leg (half twist hidden there)"},
+    {"front": "sweep",        "back": ["right_leg", "bottom_k", "left_leg"], "why": "sweep in front of the right-leg bottom / bottom-K start and the left-leg bottom"},
+    {"front": "topk_front",   "back": ["topk_tip", "end_strand"], "why": "top-K back section behind the top-K front"},
+    {"front": "k_return",     "back": ["end_strand"], "why": "end strand passes behind the bottom-K return band"},
+    {"front": "bottom_k",     "back": ["end_strand"], "why": "end strand visible behind, through the loop opening"},
+    {"front": "tail",         "back": ["sweep", "s_twist"], "why": "tail nearest the camera"}
+  ],
+  "text": {
+    "phone": [
+      {"strand": ["apex", "left_leg", "right_leg"], "plane": "KHURANA", "side": "behind", "why": "apex and leg tops behind KHURANA where they overlap"},
+      {"strand": ["tail"], "plane": "tagline", "side": "behind", "why": "tagline in front of the tail"}
+    ]
+  },
+  "end_hidden": {"strand": "end_strand", "behind": "right_leg", "why": "tip fully hidden behind the A right leg"}
+}
