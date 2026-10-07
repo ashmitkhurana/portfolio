@@ -37,7 +37,7 @@ NI = 16
 
 # ---------------------------------------------------------------- roll table (CHAIN_PLAN) : name, kind, ring
 ROLLS = [
-    ('tail bend', 'bend', 66), ('S bend', 'bend', 150), ('S fold', 'fold', 178), ('sweep bend', 'bend', 257),
+    ('tail bend', 'bend', 66), ('S bend', 'bend', 150), ('S fold', 'fold', 178), ('S fold 2', 'fold', 195), ('sweep bend', 'bend', 257),
     ('far-left fold', 'fold', 338), ('left-leg bend 1', 'bend', 420), ('left-leg bend 2', 'bend', 455), ('apex fold', 'fold', 519),
     ('right-leg bend 1', 'bend', 585), ('right-leg bend 2', 'bend', 625), ('bottom-K fold 1', 'fold', 690), ('bottom-K fold 2', 'fold', 735),
     ('k_return bend', 'bend', 790), ('back-layer bend', 'bend', 836), ('crossbar bend', 'bend', 885), ('wrap curl', 'fold', 960),
@@ -53,7 +53,8 @@ WINDOWS_BOX = {   # guides_overlay.WINDOWS (cutout px)
     'wrap': (20, 740, 470, 1090), 'junction': (380, 780, 650, 1010), 'topk': (540, 640, 852, 930), 'endstrand': (480, 880, 720, 1260)}
 KHURANA = dict(x=20.0, y=195.25, w=347.21875, h=77.09375, z=17.0)   # css rect of the proxy, plane depth (render __ribbonState proxies, cap +0.25)
 
-LAM_LO, LAM_HI = 0.8, 1.25
+LAM_LO, LAM_HI = 0.3, 6.0
+W_TZ = 5.0
 W_COV = 20.0
 W_OVL = 1.0
 W_OU = 0.2
@@ -164,6 +165,9 @@ class Chain:
         self.rname = [n for n, _, _ in ROLLS]
         self.cam = np.array([0.0, 0.0, AP.D])
         self._stage = {}
+        arc3 = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(self.T0, axis=0), axis=1))]
+        a3 = np.r_[arc3[self.i0], arc3[-1]]
+        self.lam0 = np.clip(np.diff(a3) / np.diff(self.tau_b), 0.35, 5.5)
         # parameter layout and bounds
         self.nx = 6 + 4 * NR + NI
         self.lo, self.hi = self.bounds()
@@ -192,7 +196,7 @@ class Chain:
         for k in range(NR):
             o = 6 + 4 * k
             x[o:o + 4] = [self.roll_tau0[k], np.pi / 2, (3.0 if self.kind[k] == 'bend' else 0.4) * self.W, 0.0]
-        x[6 + 4 * NR:] = 1.0
+        x[6 + 4 * NR:] = self.lam0
         return x
 
     def lam(self, x):
@@ -403,7 +407,11 @@ class Chain:
             out['end'] = np.zeros(0)
         # lambda prior
         lam_all = self.lam(x)
-        out['lam'] = (lam_all[:st['nlam']] - 1.0) * W_LAM
+        out['lam'] = (lam_all[:st['nlam']] - self.lam0[:st['nlam']]) * W_LAM * 0.3
+        # tail toward the camera: z of the centre line decreases from ring 0 to the S window
+        nz = min(nR, int(self.i0[1]) + 1)
+        zc = (PL[:nz, 2] + PR[:nz, 2]) / 2
+        out['tailz'] = np.maximum(0.0, np.diff(zc)) * W_TZ
         # weak prior of hidden rolls toward the init
         pr = []
         for k in st['hidden_rolls']:
@@ -574,6 +582,9 @@ def rolls_candidates(pr, x, k):
     dl = np.array([t @ eu, t @ ev, t @ n])
     W = pr.W
     cands = []
+    if pr.rname[k] == 'S fold 2':
+        p_, b_ = x[6 + 4 * (k - 1) + 3], x[6 + 4 * (k - 1) + 1]
+        return [('twist2', float(b_), 0.4 * W, float(-p_)), ('twist2b', float(np.pi - b_), 0.4 * W, float(-p_))]
     if pr.kind[k] == 'bend':
         return [('bend', np.pi / 2, 3 * W, 0.0)]
     b0, p0 = roll_from_dir(dl)

@@ -99,3 +99,12 @@ Residuals:
 - **λ bounds were wrong.** When the strip travels along the view direction, its 2D arc is foreshortened, so flat arc ≫ 2D arc. Use per-interval λ ∈ [0.3, 6], with monotone flat u enforced by construction.
 - **The S window is an edge-on twist** (width ratio 0.22). A paper half twist is two oblique folds, so model the S with 2 fold-type rolls (same fold bounds; β free) plus one bend. Initialise the second fold 0.6W after the first, with φ of opposite sign.
 - The z cap stays off. Depth is set by the width under perspective plus the relative constraints.
+
+## Decisions after stage 1 re-run (data RMS 45.8 → 22.6 px; the tail alone ≈ 10 px)
+- Two full folds (φ ≈ ±π, ρ at its minimum) are an accordion, not a twist. A paper twist is a fan of rulings. With cylindrical rolls it is approximated by **several moderate oblique rolls**.
+- **S window:**
+  - 4 oblique rolls with ρ ∈ [0.25W, 3W], φ ∈ [−π/2·1.2, π/2·1.2], β free.
+  - Multi-start: β from the S roll-outline direction ±{0°, 30°}; alternating φ signs ± (2 sign patterns).
+  - Keep the S bend.
+- **Tail:** 2 bends (≥ 1.5W apart).
+- **Stage gates:** RMS ≤ 10 px per stage (the tail is soft/blurred data), with the window silhouette IoU as the shape gate. Continue through all stages. Stop only if a stage exceeds 15 px RMS. Report each stage.
