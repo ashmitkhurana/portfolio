@@ -91,3 +91,11 @@ Residuals:
   - Respect the engine limits (320 control points per variant; check `lib/ribbon` for the exact cap and report it).
   - Rulings are taken as the TRUE rulings (axis-parallel in rolls).
 - **The top-of-roll dark band and the bright shoulder cap in the engine** are a lighting/material matter (Step C), not geometry: the offline render is correct.
+
+## Decisions after chain stage 1 (2026-10-07)
+- **The tail flares by perspective only.** The owner confirmed constant width: the tail swings toward the camera. A width ratio of 2.75 implies z ≈ 1150 (camera at z ≈ 1800), which is physically fine.
+  - Allow z up to 1350 on the tail.
+  - Add a soft "tail toward camera" rule: z decreasing monotonically from ring 0 to the S window.
+- **λ bounds were wrong.** When the strip travels along the view direction, its 2D arc is foreshortened, so flat arc ≫ 2D arc. Use per-interval λ ∈ [0.3, 6], with monotone flat u enforced by construction.
+- **The S window is an edge-on twist** (width ratio 0.22). A paper half twist is two oblique folds, so model the S with 2 fold-type rolls (same fold bounds; β free) plus one bend. Initialise the second fold 0.6W after the first, with φ of opposite sign.
+- The z cap stays off. Depth is set by the width under perspective plus the relative constraints.
