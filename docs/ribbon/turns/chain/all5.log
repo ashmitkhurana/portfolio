@@ -1,0 +1,14 @@
+## stage 5: interval 7 (bk_in__bk_out) rings 226..764; groups [['bottom-K fold 1', 'bottom-K fold 2']]
+  group ['bottom-K fold 1', 'bottom-K fold 2'] rings 226..764 free=17 candidates=5 init costs [(['cf', 'sil'], 17390549), (['cf', 'cf'], 21450629), (['sil', 'sil'], 34564832), (['sil', 'cf-flip'], 34922679), (['sil', 'cf'], 35457214)]
+    [cf/sil] ok cost 357598.6 evals 843 (86s)
+    [cf/cf] ok cost 357122.6 evals 772 (79s)
+    [sil/sil] ok cost 350586.6 evals 1131 (116s)
+    [sil/cf-flip] ok cost 370993.8 evals 521 (53s)
+    [sil/cf] timeout cost 335583.4 evals 1468 (150s)
+    bottom-K loop bottom (inner side toward camera) = bottom-K fold 1
+    roll bottom-K fold 1: tau 1212.8 beta 52.0 rho 10.4 (0.20W) phi -144.3 [['sil', 'cf']]
+    roll bottom-K fold 2: tau 1228.2 beta 118.7 rho 10.5 (0.20W) phi -90.5 [['sil', 'cf']]
+  stage fit: free 17 rings 226..764 cost0 335600.4
+    [stage5] ok cost 331192.1 evals 553 (57s)
+  METRICS {"act": 9, "lo": 226, "hi": 764, "cost": 331192.1, "blocks": {"pt": 42467.13, "slide": 70878.55, "anchor": 53.77, "cov": 8178.7, "ou": 0.0, "weave": 207143.37, "face": 0.0, "seen": 816.29, "overlap": 1615.37, "bend": 0.0, "lam": 38.93}, "data_all": {"n": 902, "rms": 15.853100749399573, "p95": 34.39994960369574, "max": 84.57730284412236}, "face": {"checked": 207, "agree": 207, "frac": 1.0}, "ou": {"pairs": 105, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 896}, "min_fold_rho_over_W": 0.20000000000000004, "new_interval": 7, "data_new": {"n": 167, "rms": 27.30535236756421, "p95": 60.24458931077067, "max": 84.57730284412236}, "stage": 5, "status": "ok", "seconds": 541.6886940002441, "gate_target": 12.0, "gate_stop": 25.0, "gate": "FAIL"}
+!! STOP: stage 5 (interval 7) new-interval rms 27.30535236756421 px > 25.0

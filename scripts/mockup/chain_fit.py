@@ -71,11 +71,26 @@ NVZ = 25
 DU_Z = 1.7
 OU_PAD = 6000
 NV_COV = 9
-BEND_MIN_ARC = 1.5
-BEND_PHI = float(os.environ.get('BEND_PHI', '0.5'))
+BEND_MIN_ARC = 1.5      # over/under pairs closer than this in flat arc are ignored
+BEND_SP = 1.0           # bends at least this far apart (flat u, in W)
+BEND_PHI = float(os.environ.get('BEND_PHI', '1.2'))
 Z_LO, Z_HI = -140.0, 220.0
 P3_SOL = os.path.join(ROOT, 'docs/ribbon/turns/paper3/solution.npz')
 P3_MET = os.path.join(ROOT, 'docs/ribbon/turns/paper3/metrics.json')
+
+
+ROLLS_IDX = {n: i for i, (n, _, _) in enumerate(ROLLS)}
+P3_NAMES = ['left-leg bend 1', 'left-leg bend 2', 'apex fold', 'right-leg bend 1', 'right-leg bend 2']
+
+
+def p3_mapping(tau, N):
+    s = np.load(P3_SOL)
+    m = json.load(open(P3_MET))
+    ur = s['u_rings']
+    rings = []
+    for row in m['params']['table']:
+        rings.append(363.0 + float(np.interp(row['u_css'], ur, np.arange(len(ur)))))
+    return dict(rings=rings, table=m['params']['table'], pose=np.array(m['params']['pose']['rotvec'] + m['params']['pose']['t']), u_rings=ur)
 
 
 class Timeout(Exception):
@@ -158,8 +173,14 @@ class Chain:
         self.face_exp = P['ring_face'][:-1]
         visq = P['vis1'][1:] & P['vis1'][:-1] & P['vis2'][1:] & P['vis2'][:-1]
         self.face_ok = visq & np.isin(self.face_exp, ['A', 'B'])
-        # rolls
+        # rolls: the 5 paper3 rolls (left bends, apex, right bends) take paper3's positions
+        self.p3 = p3_mapping(self.tau, N)
+        self.p3_rolls = [ROLLS_IDX[n] for n in P3_NAMES]
+        for n, ring in zip(P3_NAMES, self.p3['rings']):
+            ROLLS[ROLLS_IDX[n]] = (n, ROLLS[ROLLS_IDX[n]][1], int(round(ring)))
         self.roll_tau0 = np.array([self.tau[r] for _, _, r in ROLLS])
+        for n, ring in zip(P3_NAMES, self.p3['rings']):
+            self.roll_tau0[ROLLS_IDX[n]] = float(np.interp(ring, np.arange(N), self.tau))
         self.roll_iv = np.array([self.iv[r] for _, _, r in ROLLS])
         self.roll_stage = np.maximum(self.roll_iv, 1)
         self.kind = [k for _, k, _ in ROLLS]
@@ -193,7 +214,7 @@ class Chain:
                 lo[o + 2], hi[o + 2] = 0.2 * W, 3.0 * W
                 lo[o + 3], hi[o + 3] = -np.pi - 0.3, np.pi + 0.3
             else:
-                lo[o + 2], hi[o + 2] = 1.0 * W, 6.0 * W
+                lo[o + 2], hi[o + 2] = 0.5 * W, 6.0 * W
                 lo[o + 3], hi[o + 3] = -BEND_PHI, BEND_PHI
         lo[6 + 4 * NR:], hi[6 + 4 * NR:] = LAM_LO, LAM_HI
         return lo, hi
@@ -420,7 +441,7 @@ class Chain:
                     g.append(start_n - end_k)
             og = -np.array(g)
         out['overlap'] = np.maximum(0.0, og) * SC * W_OVL
-        bp = [max(0.0, BEND_MIN_ARC * W - (r[b, 0] - r[a, 0])) * SC * W_BEND for a, b in st['bend_pairs']]
+        bp = [max(0.0, BEND_SP * W - (r[b, 0] - r[a, 0])) * SC * W_BEND for a, b in st['bend_pairs']]
         order = [max(0.0, 2.0 - (r[k + 1, 0] - r[k, 0])) * SC * 5 for k in range(K - 1)]
         out['bend'] = np.array(bp + order)
         if 'end_idx' in st:
@@ -540,32 +561,39 @@ def run_fit(pr, x0, st, free, secs, label, max_nfev=2000, quiet=False):
 
 # ---------------------------------------------------------------- seeding from paper3 (apex root)
 def apex_seed(pr):
-    s = np.load(P3_SOL)
-    m = json.load(open(P3_MET))
-    row = m['params']['table'][2]
-    ur = s['u_rings']
-    ring = 363.0 + float(np.interp(row['u_css'], ur, np.arange(len(ur))))
-    return dict(beta=np.radians(row['beta_deg']), rho=row['rho_css'], phi=np.radians(row['phi_deg']), ring=ring, u=row['u_css'],
-                x=np.array(m['params']['pose']['rotvec'] + m['params']['pose']['t']), table=m['params']['table'])
+    t = pr.p3['table'][2]
+    return dict(beta=np.radians(t['beta_deg']), rho=t['rho_css'], phi=np.radians(t['phi_deg']))
 
 
 def seed_x(pr):
-    """root pose = frame of paper3's entry segment (after its two left bends), shifted into the chain flat u; apex fold from paper3"""
-    a = apex_seed(pr)
+    """all five paper3 rolls and the root pose (frame of paper3's entry segment after its two left bends) mapped into the chain flat u"""
+    p3 = pr.p3
+    tab = p3['table']
     x = pr.x0.copy()
-    k = pr.k_apex
-    o = 6 + 4 * k
-    tau_a = float(np.interp(a['ring'], np.arange(pr.N), pr.tau))
-    pr.roll_tau0[k] = tau_a
-    pr.lo, pr.hi = pr.bounds()
-    x[o:o + 4] = [tau_a, a['beta'], a['rho'], a['phi']]
-    u_chain = float(pr.F(x, np.array([tau_a]))[0])
-    shift = u_chain - a['u']
-    tab = a['table']
-    rv, t0 = a['x'][:3], a['x'][3:6]
+    # lambdas of the covered intervals: paper3 flat-u per ring vs the trace coordinate
+    ur = p3['u_rings']
+    rings = 363 + np.arange(len(ur))
+    ratio = float(np.polyfit(pr.tau[rings], ur, 1)[0])
+    for j in (3, 4, 5, 6):
+        x[6 + 4 * NR + j] = ratio
+        pr.lam0[j] = ratio
+    ka = ROLLS_IDX['apex fold']
+    for n, row, ring in zip(P3_NAMES, tab, p3['rings']):
+        k = ROLLS_IDX[n]
+        o = 6 + 4 * k
+        x[o:o + 4] = [pr.roll_tau0[k], np.radians(row['beta_deg']), row['rho_css'], np.radians(row['phi_deg'])]
+    u_chain_apex = float(pr.F(x, np.array([x[6 + 4 * ka]]))[0])
+    shift = u_chain_apex - tab[2]['u_css']
+    # put every paper3 roll at u_p3 + shift: invert F
+    tg = np.linspace(pr.tau[0], pr.tau[-1], 20001)
+    ug = pr.F(x, tg)
+    for n, row in zip(P3_NAMES, tab):
+        k = ROLLS_IDX[n]
+        x[6 + 4 * k] = float(np.interp(row['u_css'] + shift, ug, tg))
+    rv, t0 = p3['pose'][:3], p3['pose'][3:6]
     Rp = Rotation.from_rotvec(rv).as_matrix()
     Rc = np.eye(3); tc = np.zeros(3)
-    for row in tab[:2]:                               # paper3 left bends 1, 2 -> entry segment frame
+    for row in tab[:2]:
         u, b, rho, phi = row['u_css'], np.radians(row['beta_deg']), row['rho_css'], np.radians(row['phi_deg'])
         q0, aa, ap, sg, L = PM.roll_frame(u, b, rho, phi)
         RE, tE = PM.roll_E(q0, aa, ap, sg, rho, phi)
@@ -679,23 +707,25 @@ def rolls_candidates(pr, x, k):
 
 
 # ================================================================== stage driver (apex-rooted growth)
-ORDER = [5, 4, 3, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 0]
+ORDER = ['P3', 3, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 0]
 GATE_NEW = {1: (12, 20)}
 
 
 def gate_for(iv):
-    return (20.0, 25.0) if iv in (0, 1) else (12.0, 20.0)
+    return (20.0, 30.0) if iv in (0, 1) else (12.0, 25.0)
 
 
 def state_after(pr, n):
-    ivs = ORDER[:n]
-    lo = int(min(pr.i0[i] for i in ivs)); hi = int(max(pr.i1[i] for i in ivs))
-    act = [k for k in range(NR) if pr.roll_iv[k] in ivs]
-    return ivs, lo, hi, act
+    ivs = [4, 5] + [o for o in ORDER[1:n]]
+    lo, hi = 363, 580
+    for i in ivs[2:]:
+        lo = min(lo, int(pr.i0[i])); hi = max(hi, int(pr.i1[i]))
+    act = [k for k in range(NR) if pr.roll_iv[k] in ivs or k in pr.p3_rolls]
+    return ivs, lo, hi, sorted(set(act))
 
 
 def stage_groups_iv(pr, iv):
-    ks = [k for k in range(NR) if pr.roll_iv[k] == iv]
+    ks = [k for k in range(NR) if pr.roll_iv[k] == iv and k not in pr.p3_rolls]
     groups = []
     for k in ks:
         if groups and pr.int_face[iv] == 'window':
@@ -830,17 +860,15 @@ def stage_path(n):
 
 
 def init_chain(pr):
-    p = os.path.join(OUT, 'x0.npz')
     pr.x0 = seed_x(pr)
-    np.savez(p, x0=pr.x0, tau_apex=pr.roll_tau0[pr.k_apex])
+    np.savez(os.path.join(OUT, 'x0.npz'), x0=pr.x0, tau_apex=pr.roll_tau0[pr.k_apex], lam0=pr.lam0)
     return pr.x0
 
 
 def load_chain(pr):
     d = np.load(os.path.join(OUT, 'x0.npz'))
-    pr.roll_tau0[pr.k_apex] = float(d['tau_apex'])
-    pr.lo, pr.hi = pr.bounds()
     pr.x0 = d['x0']
+    pr.lam0 = d['lam0']
 
 
 def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
@@ -853,89 +881,90 @@ def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
         x = np.load(stage_path(n - 1))['x']
     ivs_prev, lo_p, hi_p, act_prev = state_after(pr, n - 1) if n > 1 else ([], None, None, [])
     ivs, lo, hi, act = state_after(pr, n)
-    reverse = iv < 5
-    groups = stage_groups_iv(pr, iv)
-    order = list(reversed(groups)) if reverse else groups
-    if pr.rname and any(r_ in ('bottom-K fold 2',) for r_ in [pr.rname[k] for k in act_prev]):
-        pr.bk_bottom = pick_bk_bottom(pr, x)
-    part = os.path.join(OUT, f'partial_{n}.npz')
-    start_g = 0
-    if os.path.exists(part):
-        d = np.load(part)
-        x = d['x']; start_g = int(d['gi'])
-        log(f'  resuming stage {n} at group {start_g}')
-    log(f'## stage {n}: interval {iv} ({pr.int_names[iv]}) rings {lo}..{hi}; groups {[[ROLLS[k][0] for k in g] for g in order]}')
-    done_new = [k for g in order[:start_g] for k in g]
-    for gi in range(start_g, len(order)):
-        g = order[gi]
-        pr._active = set(act_prev) | set(done_new) | set(g)
-        # sub-range of rings for this group
-        if iv == 5 or n == 1:
-            glo, ghi = lo, hi
-        elif not reverse:
-            ghi = (ROLLS[order[gi + 1][0]][2] - 1) if gi + 1 < len(order) else hi
-            glo, ghi = lo_p if lo_p is not None else lo, ghi
-            glo = lo_p
-        else:
-            glo = (ROLLS[order[gi + 1][-1]][2] + 1) if gi + 1 < len(order) else lo
-            ghi = hi_p
-        gact = sorted(pr._active)
-        st = pr.stage_info(gact, glo, ghi)
-        if n == 1:
-            free = np.array(sorted(list(range(6)) + [6 + 4 * k + j for k in g for j in range(4)] + [6 + 4 * NR + iv]))
-        else:
+    if n == 1:
+        pr._active = set(act)
+        st = pr.stage_info(act, lo, hi)
+        m0 = stage_metrics(pr, x, st, None)
+        log(f'## stage 1 (paper3 section, rings {lo}..{hi}, 5 seeded rolls): seed cost {m0["cost"]} data_all {m0["data_all"]} (paper3 section rms 5.98 px)')
+        free = np.array(sorted(list(range(6)) + [6 + 4 * k + j for k in act for j in range(4)] + [6 + 4 * NR + j for j in (3, 4, 5, 6)]))
+        x, cost, status = run_fit(pr, x, st, free, secs_final, 'stage1')
+        m = stage_metrics(pr, x, st, None)
+        sel = np.zeros(pr.N, bool); sel[lo:hi + 1] = True
+        m['data_new'] = stats(ring_dists(pr, x, st, sel)); m['new_interval'] = 'P3'
+        g_ok, g_stop = 12.0, 25.0
+    else:
+        reverse = isinstance(iv, int) and iv < 5
+        groups = stage_groups_iv(pr, iv)
+        order = list(reversed(groups)) if reverse else groups
+        if any(pr.rname[k] == 'bottom-K fold 2' for k in act_prev):
+            pr.bk_bottom = pick_bk_bottom(pr, x)
+        part = os.path.join(OUT, f'partial_{n}.npz')
+        start_g = 0
+        if os.path.exists(part):
+            d = np.load(part)
+            x = d['x']; start_g = int(d['gi'])
+            log(f'  resuming stage {n} at group {start_g}')
+        log(f'## stage {n}: interval {iv} ({pr.int_names[iv]}) rings {lo}..{hi}; groups {[[ROLLS[k][0] for k in g] for g in order]}')
+        done_new = [k for g in order[:start_g] for k in g]
+        for gi in range(start_g, len(order)):
+            g = order[gi]
+            pr._active = set(act_prev) | set(done_new) | set(g)
+            if not reverse:
+                ghi = (ROLLS[order[gi + 1][0]][2] - 1) if gi + 1 < len(order) else hi
+                glo = lo_p
+            else:
+                glo = (ROLLS[order[gi + 1][-1]][2] + 1) if gi + 1 < len(order) else lo
+                ghi = hi_p
+            gact = sorted(pr._active)
+            st = pr.stage_info(gact, glo, ghi)
             near = nearest_prev(pr, act_prev + done_new, g)
             free = np.array(sorted([6 + 4 * k + j for k in list(g) + near for j in range(4)] + [6 + 4 * NR + iv]))
-        if pr.rname[g[-1]] == 'S obl 4':
-            pr._active = set(act_prev) | set(g)
-            combos = s_combos(pr, x, g)
-            ncf, gs = 6, max(secs_group, 360.0)
-        else:
-            combos = list(gen_combos(pr, x, g))
-            ncf, gs = ncand_fit, secs_group
-        scored = []
-        for tags, xc in combos:
-            r = pr.res(xc, st)
-            scored.append((0.5 * float(r @ r), tags, xc))
-        scored.sort(key=lambda q: q[0])
-        log(f'  group {[ROLLS[k][0] for k in g]} rings {glo}..{ghi} free={len(free)} candidates={len(combos)} '
-            f'init costs {[(q[1], round(q[0])) for q in scored[:6]]}')
-        best = None
-        for c0, tags, xc in scored[:ncf]:
-            xo, cost, status = run_fit(pr, xc, st, free, gs, '/'.join(tags))
-            if best is None or cost < best[0]:
-                best = (cost, tags, xo)
-        x = best[2]
-        done_new += list(g)
-        if any(pr.rname[k] == 'bottom-K fold 2' for k in g):
-            pr.bk_bottom = pick_bk_bottom(pr, x)
-            pr._stage.clear()
-            log(f'    bottom-K loop bottom (inner side toward camera) = {ROLLS[pr.bk_bottom][0]}')
-        for k in g:
-            r_ = pr.rolls(x)[k]
-            log(f'    roll {ROLLS[k][0]}: tau {r_[0]:.1f} beta {np.degrees(r_[1]):.1f} rho {r_[2]:.1f} ({r_[2] / pr.W:.2f}W) phi {np.degrees(r_[3]):.1f} [{best[1]}]')
-        save_state(part, x, gi=gi + 1)
-    pr._active = set(act)
-    st = pr.stage_info(act, lo, hi)
-    new = [k for g in groups for k in g]
-    if n == 1:
-        free = np.array(sorted(list(range(6)) + [6 + 4 * k + j for k in new for j in range(4)] + [6 + 4 * NR + iv]))
-    else:
-        near = nearest_prev(pr, act_prev, new)
+            if pr.rname[g[-1]] == 'S obl 4':
+                combos = s_combos(pr, x, g)
+                ncf, gs = 6, max(secs_group, 360.0)
+            else:
+                combos = list(gen_combos(pr, x, g))
+                ncf, gs = ncand_fit, secs_group
+            scored = []
+            for tags, xc in combos:
+                r = pr.res(xc, st)
+                scored.append((0.5 * float(r @ r), tags, xc))
+            scored.sort(key=lambda q: q[0])
+            log(f'  group {[ROLLS[k][0] for k in g]} rings {glo}..{ghi} free={len(free)} candidates={len(combos)} '
+                f'init costs {[(q[1], round(q[0])) for q in scored[:6]]}')
+            best = None
+            for c0, tags, xc in scored[:ncf]:
+                xo, cost, status = run_fit(pr, xc, st, free, gs, '/'.join(tags))
+                if best is None or cost < best[0]:
+                    best = (cost, tags, xo)
+            x = best[2]
+            done_new += list(g)
+            if any(pr.rname[k] == 'bottom-K fold 2' for k in g):
+                pr.bk_bottom = pick_bk_bottom(pr, x)
+                pr._stage.clear()
+                log(f'    bottom-K loop bottom (inner side toward camera) = {ROLLS[pr.bk_bottom][0]}')
+            for k in g:
+                r_ = pr.rolls(x)[k]
+                log(f'    roll {ROLLS[k][0]}: tau {r_[0]:.1f} beta {np.degrees(r_[1]):.1f} rho {r_[2]:.1f} ({r_[2] / pr.W:.2f}W) phi {np.degrees(r_[3]):.1f} [{best[1]}]')
+            save_state(part, x, gi=gi + 1)
+        pr._active = set(act)
+        st = pr.stage_info(act, lo, hi)
+        new = [k for g in groups for k in g]
+        near = nearest_prev(pr, act_prev, new if new else [int(np.mean([pr.i0[iv], pr.i1[iv]]))] and [min(act_prev, key=lambda k: abs(ROLLS[k][2] - (pr.i0[iv] + pr.i1[iv]) / 2))])
         free = np.array(sorted([6 + 4 * k + j for k in new + near for j in range(4)] + [6 + 4 * NR + iv]))
-    r = pr.res(x, st)
-    log(f'  stage fit: free {len(free)} rings {lo}..{hi} cost0 {0.5 * float(r @ r):.1f}')
-    x, cost, status = run_fit(pr, x, st, free, secs_final, f'stage{n}')
-    m = stage_metrics(pr, x, st, iv)
-    g_ok, g_stop = gate_for(iv)
+        r = pr.res(x, st)
+        log(f'  stage fit: free {len(free)} rings {lo}..{hi} cost0 {0.5 * float(r @ r):.1f}')
+        x, cost, status = run_fit(pr, x, st, free, secs_final, f'stage{n}')
+        m = stage_metrics(pr, x, st, iv)
+        g_ok, g_stop = gate_for(iv)
+        if os.path.exists(part):
+            os.remove(part)
     m.update(stage=n, status=status, seconds=time.time() - t00, gate_target=g_ok, gate_stop=g_stop,
              gate='PASS' if m['data_new']['rms'] is not None and m['data_new']['rms'] <= g_ok else 'FAIL')
     log('  METRICS ' + json.dumps(m, default=float))
-    save_state(stage_path(n), x, iv=iv)
+    save_state(stage_path(n), x, iv=str(iv))
     with open(os.path.join(OUT, 'stage_metrics.jsonl'), 'a') as fh:
         fh.write(json.dumps(m, default=float) + '\n')
-    if os.path.exists(part):
-        os.remove(part)
     return x, m
 
 

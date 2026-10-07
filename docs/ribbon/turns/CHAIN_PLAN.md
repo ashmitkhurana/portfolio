@@ -125,3 +125,18 @@ Residuals:
   - Bends at least 1W apart.
 - Then grow outward in the same order, skipping intervals already covered by stage 1.
 - **Gates:** new-interval target 12 px; stop at > 25 px (> 30 px for S/tail).
+
+## Status after the session limit (2026-10-08)
+- Stages 1–4 done:
+  - stage 1 = paper3 section
+  - far-left 9.3 px PASS
+  - sweep 16.9 px (above target, below stop)
+  - right leg 8.1 px PASS
+- Stage 5, bottom-K (double fold): 27.3 px, STOP. Both folds sit at ρ = 0.2W, only 15 css apart.
+- **The weave block is constant at about 207k from stage 1 onward.** The apex and leg tops sit in front of the KHURANA plane (+17), the pose is frozen after stage 1, so the term can't change and only blocks the stage-1 pose.
+  - **Decision:** drop the weave from the fit (W_WEAVE = 0).
+  - The text weave is a design choice of the proxy depth, set at integration: the KHURANA proxy depth sits just in front of the solved apex depth. Alternatively, a uniform scale about the camera centre preserves the 2D image exactly.
+- **Bottom-K decision:**
+  - 3 rolls: fold 1, a loop-bottom curl (φ0 ±π/2, ρ0 0.5W, β free), fold 2.
+  - Multi-start over the fold signs.
+  - Fold windows stop at > 35 px. The final polish (all parameters + pose free) and the gates judge.
