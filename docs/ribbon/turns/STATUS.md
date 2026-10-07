@@ -1,4 +1,8 @@
-# Status for Ashmit (overnight 2026-10-07)
+# Status for Ashmit
+
+**2026-10-07: 2D trace APPROVED by the owner: `out_v9` (route_v8.json, guides_v5.json).** Their review fixes are included: the wrap's hidden half twist, the bottom-K double fold (from their sketch), and the full-width end strand with an angled hidden tip. Next: Step B, the 3D solve.
+
+(Overnight notes below.)
 
 ## For you to review: the new 2D edge trace
 Open these side-by-side sheets: the mockup is on the left, the trace on the right.
