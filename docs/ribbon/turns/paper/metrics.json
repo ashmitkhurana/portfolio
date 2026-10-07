@@ -1,0 +1,339 @@
+{
+  "reproj": {
+    "apex_window": {
+      "n": 114,
+      "rms_px": 4.5517858219993,
+      "p95_px": 9.837257935698897,
+      "max_px": 11.523222602427118,
+      "rms_css": 2.082330324593114,
+      "p95_css": 4.500304124887979
+    },
+    "section": {
+      "n": 323,
+      "rms_px": 4.725432226548198,
+      "p95_px": 10.074648178717485,
+      "max_px": 17.56787246647624,
+      "rms_css": 2.161769293843629,
+      "p95_css": 4.608904336130566
+    }
+  },
+  "face": {
+    "all_vis_required": {
+      "checked": 65,
+      "agree": 65,
+      "frac": 1.0
+    },
+    "left_leg_A": {
+      "n_all": 96,
+      "agree_all": 96,
+      "frac_all": 1.0,
+      "n_vis": 40,
+      "agree_vis": 40,
+      "frac_vis": 1.0
+    },
+    "right_leg_B": {
+      "n_all": 25,
+      "agree_all": 25,
+      "frac_all": 1.0,
+      "n_vis": 25,
+      "agree_vis": 25,
+      "frac_vis": 1.0
+    }
+  },
+  "silhouette_rings": {
+    "contour_err_sym": 1.7800770998001099,
+    "render_to_alpha_mean": 1.7972216606140137,
+    "render_to_alpha_rms": 2.6475727558135986,
+    "render_to_alpha_p95": 5.793792724609375,
+    "alpha_to_render_mean": 1.762932538986206,
+    "alpha_to_render_rms": 2.5892066955566406,
+    "alpha_to_render_p95": 5.793792724609375,
+    "alpha_to_render_near_footprint_mean": 1.762932538986206,
+    "alpha_to_render_near_footprint_p95": 5.793792724609375,
+    "iou_in_box": 0.9557261051837721,
+    "alpha_px_in_box": 43868,
+    "render_px_in_box": 44302,
+    "box": [
+      180,
+      530,
+      480,
+      760
+    ]
+  },
+  "right_leg_in_front_rings": {
+    "frac_post_in_front": NaN,
+    "n_cells": 0,
+    "mean_gap": NaN
+  },
+  "right_leg_in_front_dense": {
+    "frac_post_in_front": 1.0,
+    "n_cells": 48,
+    "mean_gap": 74.92268076534049
+  },
+  "z_range_rings": [
+    172.53535669000084,
+    407.2169097454808
+  ],
+  "roll_radius_css_fitted": {
+    "left bend": 5.22295347875632,
+    "apex fold": 28.514760023201482,
+    "right bend": 57.37626669511269
+  },
+  "overlap_gaps_css": [
+    28.223600633800352,
+    155.71608808717406,
+    7.043976190936277,
+    10.16362352873908
+  ],
+  "cost_blocks": {
+    "pt_out": 5359.008648576395,
+    "slide": 1082.1864915394021,
+    "anchor": 0.8127498822553023,
+    "cov_in": 47.72534413572986,
+    "cov_out": 0.02735316035151237,
+    "layer": 0.0,
+    "overlap": 0.0
+  },
+  "silhouette_refined": {
+    "contour_err_sym": 1.788698673248291,
+    "render_to_alpha_mean": 1.807227373123169,
+    "render_to_alpha_rms": 2.6517751216888428,
+    "render_to_alpha_p95": 5.793792724609375,
+    "alpha_to_render_mean": 1.7701698541641235,
+    "alpha_to_render_rms": 2.5909039974212646,
+    "alpha_to_render_p95": 5.465960502624512,
+    "alpha_to_render_near_footprint_mean": 1.7701698541641235,
+    "alpha_to_render_near_footprint_p95": 5.465960502624512,
+    "iou_in_box": 0.9555190917557319,
+    "alpha_px_in_box": 43868,
+    "render_px_in_box": 44322,
+    "box": [
+      180,
+      530,
+      480,
+      760
+    ]
+  },
+  "z_range_refined": [
+    172.53535668979794,
+    407.21690974540866
+  ],
+  "n_rings_emitted": 230,
+  "roll_spans_u": [
+    {
+      "roll": "left bend",
+      "lo": -105.61563736301966,
+      "hi": 22.85057378307401,
+      "arc": 0.619183310528205,
+      "n_rings_in_span": 71
+    },
+    {
+      "roll": "apex fold",
+      "lo": 51.07417441687436,
+      "hi": 96.80404530660765,
+      "arc": 45.07389107818586,
+      "n_rings_in_span": 26
+    },
+    {
+      "roll": "right bend",
+      "lo": 103.19555856546611,
+      "hi": 132.82641772061294,
+      "arc": 25.791572125741265,
+      "n_rings_in_span": 25
+    }
+  ],
+  "rings_per_arc": [
+    71,
+    26,
+    25
+  ],
+  "isometry_fitted": {
+    "max_abs_JtJ_minus_I": 1.0766898483893783e-10,
+    "max_abs_len_err_GL": 8.350014013558393e-10,
+    "n_pts": 3999,
+    "n_segments": 40
+  },
+  "normal_jump_across_roll_boundaries_max": 1.45811604744605e-05,
+  "params": {
+    "table": [
+      {
+        "roll": "left bend",
+        "u_css": -42.195625102371686,
+        "u_ring": 85.31374148306867,
+        "beta_deg": 157.61936694456907,
+        "rho_css": 5.22295347875632,
+        "rho_over_W": 0.1000000000000025,
+        "phi_deg": 6.792438527836943,
+        "arc_css": 0.619183310528205
+      },
+      {
+        "roll": "apex fold",
+        "u_css": 51.40040588291326,
+        "u_ring": 135.6351610600841,
+        "beta_deg": 89.2842856440779,
+        "rho_css": 28.514760023201482,
+        "rho_over_W": 0.5459508712681866,
+        "phi_deg": -90.56866419044377,
+        "arc_css": 45.07389107818586
+      },
+      {
+        "roll": "right bend",
+        "u_css": 105.08161370040642,
+        "u_ring": 164.49658342541636,
+        "beta_deg": 85.86916864646822,
+        "rho_css": 57.37626669511269,
+        "rho_over_W": 1.0985406423489044,
+        "phi_deg": -25.755391818445133,
+        "arc_css": 25.791572125741265
+      }
+    ],
+    "pose": {
+      "rotvec": [
+        -1.863592822826099,
+        -1.407776964400239,
+        -0.16957530322155862
+      ],
+      "t": [
+        -60.14815999547203,
+        83.80224970541248,
+        291.7764755476349
+      ]
+    },
+    "W_css": 52.229534787561896,
+    "H_css": 1.8599640425890414,
+    "N": 218,
+    "section": {
+      "i0": 363,
+      "i1": 580
+    }
+  },
+  "starts": [
+    {
+      "phi0_deg": 180.0,
+      "rho0_over_W": 0.12,
+      "cost": 197784.407814232,
+      "nfev": 87,
+      "status": 3,
+      "right_front_frac": 0.0,
+      "right_front": false,
+      "rho_apex": 5.228051377712372,
+      "phi_apex_deg": 37.93257650210693,
+      "min_overlap_gap": -8.018843066409929,
+      "blocks": {
+        "pt_out": 150030.48835089602,
+        "slide": 31410.46798553926,
+        "anchor": 17.058839387345504,
+        "cov_in": 14022.825506385143,
+        "cov_out": 0.0,
+        "layer": 2024.8736799732626,
+        "overlap": 278.69345205094174
+      }
+    },
+    {
+      "phi0_deg": 180.0,
+      "rho0_over_W": 0.2,
+      "cost": 85865.54973847876,
+      "nfev": 99,
+      "status": 3,
+      "right_front_frac": 0.6807692307692308,
+      "right_front": true,
+      "rho_apex": 5.222953478794503,
+      "phi_apex_deg": 73.75507144281153,
+      "min_overlap_gap": -27.271570466710585,
+      "blocks": {
+        "pt_out": 71092.76890369352,
+        "slide": 12832.765019028948,
+        "anchor": 5.9945323800350305,
+        "cov_in": 0.0,
+        "cov_out": 71.79534012094204,
+        "layer": 85.35988939848362,
+        "overlap": 1776.866053856841
+      }
+    },
+    {
+      "phi0_deg": 180.0,
+      "rho0_over_W": 0.3,
+      "cost": 14895.49307618216,
+      "nfev": 62,
+      "status": 3,
+      "right_front_frac": 0.0,
+      "right_front": false,
+      "rho_apex": 27.99443410987957,
+      "phi_apex_deg": 134.76515519729824,
+      "min_overlap_gap": 17.566532458271794,
+      "blocks": {
+        "pt_out": 12386.69205684868,
+        "slide": 1604.1923649784248,
+        "anchor": 4.445279258679825,
+        "cov_in": 578.2508372672453,
+        "cov_out": 16.665281654097818,
+        "layer": 305.2472561750317,
+        "overlap": 0.0
+      }
+    },
+    {
+      "phi0_deg": -180.0,
+      "rho0_over_W": 0.12,
+      "cost": 6489.760587294134,
+      "nfev": 337,
+      "status": 2,
+      "right_front_frac": 1.0,
+      "right_front": true,
+      "rho_apex": 28.514760023201482,
+      "phi_apex_deg": -90.56866419044377,
+      "min_overlap_gap": 7.043976190936277,
+      "blocks": {
+        "pt_out": 5359.008648576395,
+        "slide": 1082.1864915394021,
+        "anchor": 0.8127498822553023,
+        "cov_in": 47.72534413572986,
+        "cov_out": 0.02735316035151237,
+        "layer": 0.0,
+        "overlap": 0.0
+      }
+    },
+    {
+      "phi0_deg": -180.0,
+      "rho0_over_W": 0.2,
+      "cost": 7189.028047139141,
+      "nfev": 64,
+      "status": 2,
+      "right_front_frac": 1.0,
+      "right_front": true,
+      "rho_apex": 29.43736278211592,
+      "phi_apex_deg": -101.08843774307563,
+      "min_overlap_gap": -0.03611337179301444,
+      "blocks": {
+        "pt_out": 5878.66784006526,
+        "slide": 1237.2430183422352,
+        "anchor": 0.8335050647024025,
+        "cov_in": 72.2805678604894,
+        "cov_out": 0.0,
+        "layer": 0.0,
+        "overlap": 0.0031158064532724626
+      }
+    },
+    {
+      "phi0_deg": -180.0,
+      "rho0_over_W": 0.3,
+      "cost": 6709.902055604988,
+      "nfev": 73,
+      "status": 2,
+      "right_front_frac": 1.0,
+      "right_front": true,
+      "rho_apex": 34.349065585516264,
+      "phi_apex_deg": -115.0816338548609,
+      "min_overlap_gap": 38.25949393652988,
+      "blocks": {
+        "pt_out": 5376.240982952778,
+        "slide": 1257.0159082555144,
+        "anchor": 0.833935951342845,
+        "cov_in": 75.81122844535216,
+        "cov_out": 0.0,
+        "layer": 0.0,
+        "overlap": 0.0
+      }
+    }
+  ],
+  "selected_index": 3
+}

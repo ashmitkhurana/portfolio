@@ -1,0 +1,7 @@
+jac validation {'cols': 40, 'max_rel': 0.010089569401007742, 'p90_rel': 0.000344139547624287}
+AP stage 1: {'iterations': 600, 'accepted': 359, 'cost0': 7583.526893554103, 'cost': 404.53689809902005, 'reason': 'max_iter', 'seconds': 62.243066249997355, 'stage': 1, 'cost_before': 7583.526893554103, 'n_pairs': 0, 'n_resid': 1465, 'wall': 62.245919942855835}
+   blocks {'data': 377.9666, 'mono': 15.4413, 'obl': 0.0001, 'ruling': 3.8757, 'bend': 7.2532}
+AP stage 2: {'iterations': 600, 'accepted': 341, 'cost0': 407.01378753006657, 'cost': 342.43514697203335, 'reason': 'max_iter', 'seconds': 93.90278491703793, 'stage': 2, 'cost_before': 407.0137875300665, 'n_pairs': 0, 'n_resid': 1538, 'wall': 93.90973281860352}
+   blocks {'data': 328.5083, 'mono': 2.9794, 'obl': 0.0, 'ruling': 3.5427, 'bend': 7.1992, 'cov_in': 0.1825, 'cov_out': 0.0231}
+AP stage 3: {'iterations': 600, 'accepted': 373, 'cost0': 24658.845710390848, 'cost': 272.6363485701271, 'reason': 'max_iter', 'seconds': 118.49045770906378, 'stage': 3, 'cost_before': 24658.845710390844, 'n_pairs': 13451, 'n_resid': 14989, 'wall': 118.50473523139954}
+   blocks {'data': 260.136, 'mono': 1.5049, 'obl': 0.0, 'ruling': 3.3473, 'bend': 7.4123, 'clear': 0.0002, 'cov_in': 0.1559, 'cov_out': 0.0798}

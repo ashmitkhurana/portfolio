@@ -1,0 +1,4 @@
+- started paper2: Part A diagnosis (offline_render.py), then Part B
+- Part A: offline render + engine debug views done (paper2_render.py, scripts/paper2-debug.mjs). Findings: material FrontSide (material.ts:221) on closed solid; mask shows text composited over apex top. Starting Part B.
+- fit: 8 of 10 starts done; 9th (rho0 0.5W) ran >25 min, killed by PID; selection among 8
+- Part B done (8/10 starts), render+sheets done, server stopped

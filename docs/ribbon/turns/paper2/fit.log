@@ -1,0 +1,17 @@
+section N 218 runs [ 92 126] W 52.230 H 1.860 nx 28
+  prev                         cost    6063.60 nfev 73 status 3 front 1.000 (53) rho_apex 24.39 phi_apex -83.0 lam [0.99  0.958] (29s)
+      blocks {'pt_out': 5156.79, 'slide': 746.17, 'anchor': 0.98, 'cov_in': 39.14, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 0.97, 'zpin': 119.55}
+  grid phi +180 rho 0.12W      cost   17240.65 nfev 75 status 3 front 1.000 (176) rho_apex 5.27 phi_apex 197.1 lam [1.071 1.   ] (38s)
+      blocks {'pt_out': 6894.94, 'slide': 4312.09, 'anchor': 4.68, 'cov_in': 0.0, 'cov_out': 56.99, 'layer': 0.0, 'overlap': 5850.52, 'zpin': 121.44}
+  grid phi +180 rho 0.2W       cost    9988.70 nfev 43 status 3 front 0.000 (190) rho_apex 5.22 phi_apex 149.2 lam [1.074 1.089] (20s)
+      blocks {'pt_out': 6145.8, 'slide': 2230.51, 'anchor': 1.71, 'cov_in': 0.0, 'cov_out': 10.84, 'layer': 970.09, 'overlap': 561.84, 'zpin': 67.91}
+  grid phi +180 rho 0.3W       cost   29200.92 nfev 39 status 3 front 0.000 (231) rho_apex 11.31 phi_apex 118.5 lam [1.032 1.149] (18s)
+      blocks {'pt_out': 19590.61, 'slide': 6970.62, 'anchor': 4.11, 'cov_in': 0.0, 'cov_out': 39.2, 'layer': 2568.14, 'overlap': 19.06, 'zpin': 9.17}
+  grid phi -180 rho 0.12W      cost    6931.95 nfev 52 status 3 front 1.000 (74) rho_apex 21.30 phi_apex -109.6 lam [0.88  0.876] (21s)
+      blocks {'pt_out': 5323.5, 'slide': 1327.29, 'anchor': 0.77, 'cov_in': 84.32, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 0.0, 'zpin': 196.07}
+  grid phi -180 rho 0.2W       cost    5886.83 nfev 86 status 2 front 1.000 (224) rho_apex 5.22 phi_apex -69.3 lam [0.85 0.85] (45s)
+      blocks {'pt_out': 4969.45, 'slide': 662.18, 'anchor': 0.66, 'cov_in': 32.45, 'cov_out': 0.01, 'layer': 0.02, 'overlap': 2.25, 'zpin': 219.8}
+  grid phi -180 rho 0.3W       cost    5958.82 nfev 159 status 2 front 1.000 (218) rho_apex 5.22 phi_apex -70.2 lam [0.855 0.85 ] (92s)
+      blocks {'pt_out': 5011.89, 'slide': 681.4, 'anchor': 0.63, 'cov_in': 41.32, 'cov_out': 5.79, 'layer': 0.09, 'overlap': 0.0, 'zpin': 217.7}
+  prev-apex rho0 0.3W          cost    4569.02 nfev 95 status 3 front 1.000 (211) rho_apex 5.22 phi_apex -73.5 lam [0.867 0.85 ] (55s)
+      blocks {'pt_out': 3779.09, 'slide': 531.33, 'anchor': 0.38, 'cov_in': 35.93, 'cov_out': 5.17, 'layer': 0.04, 'overlap': 0.01, 'zpin': 217.08}

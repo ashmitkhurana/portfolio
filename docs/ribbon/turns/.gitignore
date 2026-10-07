@@ -2,3 +2,4 @@ out_*/review_*.png
 out_*/edgemap.png
 render_baseline/
 */render/
+paper*/render/

@@ -1,0 +1,23 @@
+section global rings 363..580 N 218 window local 121..191 W_css 52.230 H 1.860 SC 2.1859; cov {'apex_in_total': 42, 'apex_in_kept': 42, 'apex_out_kept': 31}; vis1 165 vis2 158
+geometric init {'max_dihedral_err_fk_vs_theta': 2.4202861936828413e-14, 'root_kabsch_rms': 1.0699412191514444, 'obliqueness_root': 12.133123129731405, 'flat_span_a': 398.81266119558893}
+fit rings 106..206 (101) (section-local; global 469..569); beta_axis -70.58 deg; d_sil [-0.99973289 -0.02311181], d_strip [ 0.35425207 -0.93511955]; u0 start 89.3; H 1.860
+  beta0  -70.58 s +1 rho0  6.27 -> cost    1429.36 slide_rms  3.575 rho   5.22 beta  -97.62 u0  116.10 front nan (0 cells) nfev 43 (7s)
+  beta0  -70.58 s +1 rho0  9.40 -> cost     854.47 slide_rms  2.596 rho   5.22 beta  -99.04 u0   76.60 front nan (0 cells) nfev 54 (9s)
+  beta0  -70.58 s +1 rho0 13.06 -> cost     889.45 slide_rms  2.582 rho   5.22 beta  -99.56 u0   64.02 front nan (0 cells) nfev 45 (8s)
+  beta0  -70.58 s -1 rho0  6.27 -> cost     114.51 slide_rms  0.831 rho  18.28 beta   -4.56 u0  -96.13 front nan (0 cells) nfev 240 (41s)
+  beta0  -70.58 s -1 rho0  9.40 -> cost     114.51 slide_rms  0.831 rho  18.28 beta   -4.56 u0  -96.13 front nan (0 cells) nfev 228 (40s)
+  beta0  -70.58 s -1 rho0 13.06 -> cost     114.51 slide_rms  0.831 rho  18.28 beta   -4.56 u0  -96.13 front nan (0 cells) nfev 181 (31s)
+  beta0  109.42 s +1 rho0  6.27 -> cost    1575.46 slide_rms  3.303 rho   5.22 beta   96.68 u0   97.08 front 1.000 (650 cells) nfev 44 (8s)
+  beta0  109.42 s +1 rho0  9.40 -> cost    1609.21 slide_rms  3.319 rho   5.22 beta   96.48 u0   94.80 front 1.000 (671 cells) nfev 52 (9s)
+  beta0  109.42 s +1 rho0 13.06 -> cost     601.87 slide_rms  2.026 rho   8.79 beta  114.37 u0  236.02 front nan (0 cells) nfev 53 (7s)
+  beta0  109.42 s -1 rho0  6.27 -> cost    1665.78 slide_rms  3.791 rho   5.22 beta   81.87 u0  115.07 front nan (0 cells) nfev 31 (5s)
+  beta0  109.42 s -1 rho0  9.40 -> cost    1388.39 slide_rms  3.820 rho   5.22 beta   79.28 u0  122.27 front nan (0 cells) nfev 41 (7s)
+  beta0  109.42 s -1 rho0 13.06 -> cost     430.27 slide_rms  1.587 rho   8.49 beta   10.34 u0  290.14 front nan (0 cells) nfev 83 (12s)
+selected {'beta0_deg': 109.42390278080128, 's': 1, 'rho0': 6.267544174507427, 'cost': 1575.4569313409302, 'nfev': 44, 'rms_slide_px': 3.3026350537543894, 'cov_in_cost': 13.429828287944183, 'cov_out_cost': 3.5400718404191696, 'front': {'frac_post_in_front': 1.0, 'n_cells': 650, 'mean_gap': 47.39981440232997}, 'right_front': True, 'rho': 5.222953478756191, 'beta_fit_deg': 96.68451524454728, 'u0_fit': 97.0849755858424, 'secs': 7.6541008949279785, 'status': 2} n_right_front 2
+cand sgn +1 swap False: {'rms3d_window': 0.026360360217737817, 'rms2d_window_px': 0.04447217936326215, 'front': {'frac_post_in_front': 1.0, 'n_cells': 375, 'mean_gap': 47.95637305775307}, 'theta_sign': 1, 'swapped': False}
+cand sgn +1 swap True : {'rms3d_window': 12.929065170626895, 'rms2d_window_px': 20.095530047437556, 'front': {'frac_post_in_front': nan, 'n_cells': 0, 'mean_gap': nan}, 'theta_sign': 1, 'swapped': True}
+cand sgn -1 swap False: {'rms3d_window': 9.01723196751839, 'rms2d_window_px': 15.674930159466246, 'front': {'frac_post_in_front': nan, 'n_cells': 0, 'mean_gap': nan}, 'theta_sign': -1, 'swapped': False}
+cand sgn -1 swap True : {'rms3d_window': 9.117470333806214, 'rms2d_window_px': 12.618714181887736, 'front': {'frac_post_in_front': 1.0, 'n_cells': 229, 'mean_gap': 46.27617238706627}, 'theta_sign': -1, 'swapped': True}
+tied on 3D rms: [0] with right leg in front: [0]
+SELECTED cand 0 {'rms3d_window': 0.026360360217737817, 'rms2d_window_px': 0.04447217936326215, 'front': {'frac_post_in_front': 1.0, 'n_cells': 375, 'mean_gap': 47.95637305775307}, 'theta_sign': 1, 'swapped': False} range (np.int64(106), np.int64(206)) blend 5
+prep done 182.76007390022278

@@ -1,0 +1,53 @@
+
+> ashmit-portfolio@0.0.0 build
+> next build
+
+   ▲ Next.js 15.5.27
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 2.2s
+   Linting and checking validity of types ...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- include was updated to add '.next-ak/types/**/*.ts'
+
+   Collecting page data ...
+   Generating static pages (0/19) ...
+   Generating static pages (4/19) 
+   Generating static pages (9/19) 
+   Generating static pages (14/19) 
+ ✓ Generating static pages (19/19)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      923 B         128 kB
+├ ○ /_not-found                            201 B         103 kB
+├ ○ /about                                4.5 kB         111 kB
+├ ƒ /api/lab/poses                         134 B         103 kB
+├ ○ /lab                                 5.09 kB         288 kB
+├ ○ /lab/editor                          20.2 kB         131 kB
+├ ○ /lab/editor/stage                    4.75 kB         132 kB
+├ ○ /lab/fit                             26.3 kB         305 kB
+├ ○ /lab/fonts                           3.85 kB         107 kB
+├ ○ /robots.txt                            134 B         103 kB
+├ ○ /sitemap.xml                           134 B         103 kB
+├ ○ /work                                  217 B         112 kB
+└ ● /work/[slug]                           217 B         112 kB
+    ├ /work/alpha-block
+    ├ /work/sleepara
+    ├ /work/arcadia-design
+    └ [+3 more paths]
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-5cd2fe06309409a0.js      46.5 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  └ other shared chunks (total)          2.27 kB
+
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+
+BUILD_EXIT 0

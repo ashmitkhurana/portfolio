@@ -1,0 +1,15 @@
+section 363..580 N 218 window local 121..191 W 52.230 H 1.860 SC 2.1859; fit rings 106..206
+  phi0 +180.0 rho0 0.12W -> cost  197784.41 nfev 87 status 3 front 0.000 (377 cells) rho_apex 5.23 phi_apex 37.9 ovl_gap_min -8.02 (26s)
+      blocks {'pt_out': 150030.49, 'slide': 31410.47, 'anchor': 17.06, 'cov_in': 14022.83, 'cov_out': 0.0, 'layer': 2024.87, 'overlap': 278.69}
+  phi0 +180.0 rho0 0.20W -> cost   85865.55 nfev 99 status 3 front 0.681 (260 cells) rho_apex 5.22 phi_apex 73.8 ovl_gap_min -27.27 (27s)
+      blocks {'pt_out': 71092.77, 'slide': 12832.77, 'anchor': 5.99, 'cov_in': 0.0, 'cov_out': 71.8, 'layer': 85.36, 'overlap': 1776.87}
+  phi0 +180.0 rho0 0.30W -> cost   14895.49 nfev 62 status 3 front 0.000 (18 cells) rho_apex 27.99 phi_apex 134.8 ovl_gap_min 17.57 (15s)
+      blocks {'pt_out': 12386.69, 'slide': 1604.19, 'anchor': 4.45, 'cov_in': 578.25, 'cov_out': 16.67, 'layer': 305.25, 'overlap': 0.0}
+  phi0 -180.0 rho0 0.12W -> cost    6489.76 nfev 337 status 2 front 1.000 (48 cells) rho_apex 28.51 phi_apex -90.6 ovl_gap_min 7.04 (123s)
+      blocks {'pt_out': 5359.01, 'slide': 1082.19, 'anchor': 0.81, 'cov_in': 47.73, 'cov_out': 0.03, 'layer': 0.0, 'overlap': 0.0}
+  phi0 -180.0 rho0 0.20W -> cost    7189.03 nfev 64 status 2 front 1.000 (64 cells) rho_apex 29.44 phi_apex -101.1 ovl_gap_min -0.04 (24s)
+      blocks {'pt_out': 5878.67, 'slide': 1237.24, 'anchor': 0.83, 'cov_in': 72.28, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 0.0}
+  phi0 -180.0 rho0 0.30W -> cost    6709.90 nfev 73 status 2 front 1.000 (33 cells) rho_apex 34.35 phi_apex -115.1 ovl_gap_min 38.26 (23s)
+      blocks {'pt_out': 5376.24, 'slide': 1257.02, 'anchor': 0.83, 'cov_in': 75.81, 'cov_out': 0.0, 'layer': 0.0, 'overlap': 0.0}
+selected 3 cost 6489.760587294134 n_right_front 4 total secs 238.68668961524963
+done
