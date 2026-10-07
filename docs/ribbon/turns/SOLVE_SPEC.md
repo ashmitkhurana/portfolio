@@ -115,3 +115,10 @@ Result: fold edges 0.90 px, fold outline 0.57 px, layer order 100%, silhouette I
 - The generic geometric init with the same solver fails (S8b), so the per-fold primitive init is essential.
 - The "layer order 0.0" in synth11–12 was a label-gauge artifact (a[m] = 0 pinned inside the roll), not a mirror. The layer metric is now gauge-invariant (median label offset over non-window rings).
 - **For the real AK:** the apex, far-left fold, top-K tip and the two bottom-K folds are "fold" windows that fit this primitive. The S twist (a twisting band) and the wrap (curl plus hidden half twist) need a twist primitive: a helicoidal band segment with a linear twist rate along a straight or circular axis. Design it the same way, test it synthetically, then apply.
+
+## ak_v1 (real AK, old method) stopped: lessons for the real solve
+- The geometric init from layered depth anchors is far from isometric (FK RMS 263 px). Use the synth13 recipe per window instead: a primitive fit, then hinge conversion.
+- Units: data and coverage residuals are in cutout px, while mono/iso tolerances are in css (×852/390 ≈ 2.18). Rebalance weights or work in one unit system.
+- Stage-3 clearance pairs exploded (60k at stride 2). Restrict them to strands that actually overlap in 2D (reuse the over/under overlap list) and refresh lazily.
+- Over/under pair counts with the overlap test (Sutherland–Hodgman, no shapely): right_leg 575, k_return 159, crossbar 118, left_leg 73, middle 57. The apex, sweep, topk_front and tail rules found 0 pairs; check whether their overlaps fall within the 1.5W flat-arc exclusion.
+- scripts/mockup/ak_solve.py is kept as scaffolding (load/stride, depth profile, over/under builder, AKProblem, metrics, emit).
