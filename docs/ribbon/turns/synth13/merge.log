@@ -1,0 +1,33 @@
+metric                                init         S13         S8b         S11          H8
+sil_iou                             0.9970      0.9938      0.5244      0.9935      0.9853
+faceA_iou                           0.9983      0.9965      0.7032      0.9938      0.9738
+faceB_iou                           0.9924      0.9872      0.0077      0.9877      0.9309
+rms_reproj                         48.1911     46.3547     83.9439     39.8848      4.3793
+max_iso_resid                       0.0000      0.0000      0.0000      0.0000      0.0000
+max_planarity                       0.0000      0.0000      0.0000      0.0000      0.0000
+min_clearance                      27.3322     34.1936     20.1202     39.9169     20.3629
+n_overlap_px                     4835.0000   4835.0000   4835.0000   4835.0000   4835.0000
+rms_3d                             41.9950     42.2220    199.6174     44.5693    913.0443
+layer_order_075W                    1.0000      1.0000      0.2296      0.9996      0.9253
+layer_order_025W                    1.0000      1.0000      0.0283      0.9996      0.1727
+fold_contour_err                    0.2405      0.5646     13.0439      0.4427      1.3198
+rms_reproj_window                  86.0323     82.2434     78.4062     72.5802      8.2637
+rms_reproj_outside                 20.5204     20.5217     85.9251     14.6405      0.8913
+rms_reproj_window_gt_edges          0.0891      0.9043     28.7149      0.7823     10.2818
+max_dist_window_gt_edges            0.2090      2.2483    108.2697      1.7314     40.6523
+min_clearance_idx                  27.3322     33.1898     18.6955     40.9834     20.3636
+flat_span_a                      1100.9026   1100.9026   1095.2951   1100.9026   1179.0650
+mono_viol_frac                      0.0000      0.1886      0.3591      0.2159      0.0523
+coverage_in_frac                    1.0000      1.0000      0.9277      1.0000      0.6265
+coverage_out_frac                   1.0000      0.9639      0.3253      1.0000      0.9518
+layer_order_025W_dense              1.0000      1.0000      0.0283      0.9996      0.1727
+layer_order_075W_dense              1.0000      1.0000      0.2296      0.9996      0.9253
+sil_iou_dense                       0.9970      0.9938      0.5244      0.9935      0.9853
+fold_contour_err_dense              0.2405      0.5646     13.0439      0.4427      1.3198
+layer_order_025W_raw                0.0000      0.0000      0.0457      0.0000      0.9237
+layer_order_075W_raw                0.0000      0.0000      0.2335      0.0010      0.9257
+layer_order_025W_dense_raw          0.0000      0.0000      0.0457      0.0000      0.9237
+layer_order_075W_dense_raw          0.0000      0.0000      0.2335      0.0010      0.9257
+label_offset                      101.3786    100.6976     -3.6126     99.5742     35.7922
+gate {'init': {'rms_reproj_window_gt_edges': True, 'fold_contour_err': True, 'layer_order_025W_dense': True, 'sil_iou': True, 'PASS': True}, 'S13': {'rms_reproj_window_gt_edges': True, 'fold_contour_err': True, 'layer_order_025W_dense': True, 'sil_iou': True, 'PASS': True}, 'S8b': {'rms_reproj_window_gt_edges': False, 'fold_contour_err': False, 'layer_order_025W_dense': False, 'sil_iou': False, 'PASS': False}}
+runtimes {'S13': 48.31052112579346, 'S8b': 166.62353372573853}

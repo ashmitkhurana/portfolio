@@ -105,3 +105,13 @@ Before the full strip, solve only the apex window (fl_out → apex_out) with its
 - The paper-fold primitive fits the GT fold exactly: 0.1 px to the GT edges, fold outline 0.07 px, correct layer order. Converting it to hinge parameters is also exact (0.02 px).
 - **Root cause of the persistent ~9–10 px window error in every hinge run:** the data term ties ring i's endpoints to observation sample i (the same flat u on both edges). At an oblique fold the true rulings join E1 at u with E2 at u + W·cot β (up to about 210 units away), so the per-ring data term drags the rulings back toward perpendicular.
 - **Fix (synth12):** a sliding point-to-curve data term. Each endpoint's residual is its distance to the observed edge polyline within its own visibility run, plus a weak anchor so it can't slide off the ends.
+
+## synth13: GATE PASSED (the recipe)
+Result: fold edges 0.90 px, fold outline 0.57 px, layer order 100%, silhouette IoU 0.994. All four gates pass.
+- Recipe:
+  1. Fit an exact paper-fold primitive per fold window (fold_primitive.py, multi-start).
+  2. Convert it to hinge parameters with oblique rulings and stitch it to the geometric init outside the window.
+  3. Run the hinge solver with the **sliding point-to-curve data term**, anchored only at the first and last 3 rings of each visibility run.
+- The generic geometric init with the same solver fails (S8b), so the per-fold primitive init is essential.
+- The "layer order 0.0" in synth11–12 was a label-gauge artifact (a[m] = 0 pinned inside the roll), not a mirror. The layer metric is now gauge-invariant (median label offset over non-window rings).
+- **For the real AK:** the apex, far-left fold, top-K tip and the two bottom-K folds are "fold" windows that fit this primitive. The S twist (a twisting band) and the wrap (curl plus hidden half twist) need a twist primitive: a helicoidal band segment with a linear twist rate along a straight or circular axis. Design it the same way, test it synthetically, then apply.
