@@ -247,7 +247,11 @@ if APPROVED:
         # ALIGN: locate the source's ends on the trace by position, resample the source onto those rings by arclength
         r0, r1 = int(sec.r0), int(sec.r1)
         Ct = (Lraw + Rraw) / 2  # trace midline (stage a: Lraw/Rraw are still the pure trace here)
-        st_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(Ct, axis=0), axis=1))])  # zero-length steps add zero
+        dst_ = np.linalg.norm(np.diff(Ct, axis=0), axis=1)
+        if os.environ.get("ALIGN_DEDUP", "0") == "1":  # a zero-length step (the duplicate ring at an interval boundary) stalls the resampled source one ring: z (not smoothed later) then kinks; give it the mean of its neighbours' length
+            for j_ in np.where(dst_ < 1e-6)[0]:
+                dst_[j_] = 0.5 * (dst_[max(j_ - 1, 0)] + dst_[min(j_ + 1, len(dst_) - 1)])
+        st_ = np.concatenate([[0], np.cumsum(dst_)])  # zero-length steps add zero
         Cs = (pL + pR) / 2
         ss_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(Cs, axis=0), axis=1))])
 
@@ -456,6 +460,14 @@ if APPROVED:
         accZL[idx] += (zl + ramp) * w_
         accZR[idx] += (zr + ramp) * w_
     zL, zR = accZL / tot, accZR / tot
+    if os.environ.get("ZSM"):  # "a:b:sigma": gaussian-smooth the ring depths over rings a..b (the S relief's slope kinks), blended in/out over 8 rings
+        za, zb, zs_ = os.environ["ZSM"].split(":")
+        za, zb, zs_ = int(za), int(zb), float(zs_)
+        k_ = np.arange(zb - za + 1)
+        zw = np.clip(np.minimum(k_, (zb - za) - k_) / 8.0, 0, 1); zw = zw * zw * (3 - 2 * zw)
+        zLs, zRs = gsmooth(zL, zs_), gsmooth(zR, zs_)
+        zL[za:zb + 1] += zw * (zLs[za:zb + 1] - zL[za:zb + 1])
+        zR[za:zb + 1] += zw * (zRs[za:zb + 1] - zR[za:zb + 1])
 
 def _unused():
     pass

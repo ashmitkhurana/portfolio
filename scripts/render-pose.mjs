@@ -25,6 +25,7 @@ const arg = (n, f) => {
   const i = process.argv.indexOf(`--${n}`);
   return i > -1 ? process.argv[i + 1] : f;
 };
+const matPatch = JSON.parse(arg("material", "null"));
 const base = arg("base", "http://localhost:4100").replace(/\/$/, "");
 const poseFile = path.resolve(arg("pose", path.join(root, "lib/ribbon/poses/ak-hero.json")));
 const outDir = path.resolve(arg("out", path.join(root, "docs/ribbon/turns/render_baseline")));
@@ -62,6 +63,14 @@ async function open(dpr) {
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(1500); // crossfade + pose snap settle
+  if (matPatch) {
+    await page.evaluate((m) => {
+      const e = window.__ribbonState.engine;
+      e.patchSettings({ material: m });
+      e.applySettings(true);
+    }, matPatch);
+    await page.waitForTimeout(1500);
+  }
   if (dpr > 2) {
     // tier 4 caps the pixel ratio at 2: lift the cap through the engine's own settings API so the 3x crops are real 3x pixels
     await page.evaluate((d) => {
