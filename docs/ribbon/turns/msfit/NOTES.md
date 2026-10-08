@@ -281,3 +281,309 @@ REVIEW S ['scurve', 'bottomk', 'endstrand']
   v1-rules result: data 32.26 px, realism fails ['corners'], outline {'bottomk': {'mean_px': 21.541649410852983, 'max_px': 61.239114970566945, 'n': 150}}
   RESEED pass for K: old score (fails, outline, rms) = (1, 21.541649410852983, 32.26469723483846)
   window fit Kw7: rings 644..779, rolls ['right-leg bend 2', 'bottom-K fold 1', 'bottom-K curl', 'bottom-K fold 2', 'k_return bend']
+## WARM REDO S_v4: previous score (fails, outline, rms) (1, 45.86669881510649, 488.776752902518), fails ['separation']
+## WARM REDO K_v4: previous score (fails, outline, rms) (5, 3.17647926610116, 13.603562700513331), fails ['crossing', 'separation', 'rho<0.3W', 'corners', 'roll-overlap']
+## WARM REDO P_v4: previous score (fails, outline, rms) (5, 2.191250723057535, 8.893229744747465), fails ['crossing', 'separation', 'curv-oscillation', 'corners', 'roll-overlap']
+## WARM REDO X_v4: previous score (fails, outline, rms) (1, 7.292644919682647, 7.84265894437473), fails ['surface-dip']
+    [warm rw0.25] ok cost 30171.5 evals 1436 (26s)
+    [warm rw0.25] ok cost 325564.6 evals 636 (36s)
+    [warm rw1.0] ok cost 325564.6 evals 24 (1s)
+    [warm rw4.0] ok cost 325564.6 evals 24 (1s)
+    start warm: score (2, 17.9951345951193, 22.790803507265377) fails ['separation', 'corners']
+    [warm rw1.0] ok cost 14088.2 evals 1316 (26s)
+    [warm rw4.0] ok cost 13181.1 evals 555 (11s)
+    start warm: score (3, 9.11304491855348, 12.244733740751984) fails ['separation', 'curv-oscillation', 'corners']
+  WARM REDO P_v4: best start warm score (3, 9.11304491855348, 12.244733740751984) fails ['separation', 'curv-oscillation', 'corners'] -> ACCEPTED
+REVIEW P_v4 ['bottomk', 'junction', 'topk', 'endstrand']
+    [warm rw0.25] ok cost 245659.2 evals 3376 (129s)
+    [new:S obl 4/b90/p1.57 rw0.25] ok cost 71081.7 evals 1647 (96s)
+    [warm rw1.0] ok cost 211455.1 evals 941 (36s)
+    [new:S obl 4/b90/p1.57 rw1.0] ok cost 58480.1 evals 845 (48s)
+    [warm rw4.0] ok cost 203884.3 evals 922 (35s)
+    start warm: score (3, 4.24945749841398, 33.522302975542324) fails ['crossing', 'surface-dip', 'roll-overlap']
+    [warm rw0.25] ok cost 131283.0 evals 3259 (230s)
+    [warm rw1.0] ok cost 131282.9 evals 51 (4s)
+    [new:S obl 4/b90/p1.57 rw4.0] ok cost 50579.0 evals 859 (50s)
+    start new:S obl 4/b90/p1.57: score (2, 22.45005412120784, 29.96940142670956) fails ['separation', 'corners']
+    [warm rw4.0] ok cost 131282.9 evals 51 (4s)
+    start warm: score (1, 7.788810720033695, 35.260152634931984) fails ['surface-dip']
+    [alt0 rw0.25] ok cost 153736.8 evals 1734 (66s)
+    [alt0 rw0.25] ok cost 303873.7 evals 866 (62s)
+    [alt0 rw1.0] ok cost 152145.0 evals 863 (33s)
+    [alt0 rw1.0] ok cost 303873.7 evals 62 (4s)
+    [alt0 rw4.0] ok cost 303873.6 evals 62 (4s)
+    start alt0: score (1, 21.680443822531252, 32.063382263758356) fails ['corners']
+  WARM REDO K_v4: best start warm score (1, 7.788810720033695, 35.260152634931984) fails ['surface-dip'] -> REJECTED (keeping previous)
+REVIEW K_v4_rejected ['scurve', 'bottomk', 'wrap', 'junction', 'topk', 'endstrand']
+    [alt0 rw4.0] ok cost 152136.1 evals 396 (15s)
+    start alt0: score (0, 8.24698024139808, 33.99843343353751) fails []
+    [alt1 rw0.25] ok cost 69245.0 evals 1472 (52s)
+    [alt1 rw1.0] ok cost 66387.4 evals 559 (19s)
+    [new:S obl 4/b90/p1.00 rw0.25] ok cost 47727.4 evals 2711 (151s)
+    [new:S obl 4/b90/p1.00 rw1.0] ok cost 47727.4 evals 40 (2s)
+    [new:S obl 4/b90/p1.00 rw4.0] ok cost 47727.4 evals 40 (2s)
+    start new:S obl 4/b90/p1.00: score (2, 23.027210500014352, 29.17349805927464) fails ['separation', 'corners']
+  WARM REDO S_v4: best start warm score (2, 17.9951345951193, 22.790803507265377) fails ['separation', 'corners'] -> REJECTED (keeping previous)
+REVIEW S_v4_rejected ['scurve', 'bottomk', 'endstrand']
+    [alt1 rw4.0] ok cost 65685.2 evals 475 (16s)
+    start alt1: score (1, 16.850659929527627, 23.33587635190299) fails ['corners']
+  WARM REDO X_v4: best start alt0 score (0, 8.24698024139808, 33.99843343353751) fails [] -> REJECTED (keeping previous)
+REVIEW X_v4_rejected ['farleft', 'wrap', 'junction']
+## WARM REDO S_v5: previous score (fails, outline, rms) (1, 45.86669881510649, 488.776752902518), fails ['separation']
+## V5 K: previous (fails, outline, rms) (5, 105.14087923609756, 425.5156258889649) ['crossing', 'separation', 'rho<0.3W', 'corners', 'roll-overlap']
+## V5 P: previous (fails, outline, rms) (2, 97.78431051694521, 122.78054909282419) ['separation', 'corners']
+## WARM REDO X_v5: previous score (fails, outline, rms) (1, 7.292644919682647, 7.84265894437473), fails ['surface-dip']
+    [tNone/db25/s+1 rw0.25] ok cost 41682.3 evals 567 (13s)
+    [tNone/db25/s+1 rw1.0] ok cost 38206.9 evals 455 (11s)
+    [tNone/db25/s+1 rw4.0] ok cost 36245.6 evals 882 (22s)
+    start ['tNone', 'db25', 's+1']: score (1, 2.091456883156454, 16.81923121011513) fails ['corners']
+    [t25/db25/s-1 rw0.25] ok cost 56546.9 evals 481 (12s)
+    [warm rw0.25] ok cost 285866.7 evals 1228 (63s)
+    [tNone/m01/d15/s-1 rw0.25] ok cost 523612.9 evals 774 (64s)
+    [t25/db25/s-1 rw1.0] ok cost 44080.4 evals 521 (13s)
+    [t25/db25/s-1 rw4.0] ok cost 40837.0 evals 391 (10s)
+    start ['t25', 'db25', 's-1']: score (2, 2.1998488382258654, 18.26676244474288) fails ['separation', 'corners']
+    [tNone/db25/s-1 rw0.25] ok cost 77055.8 evals 416 (11s)
+    [tNone/db25/s-1 rw1.0] ok cost 77055.4 evals 79 (2s)
+    [tNone/db25/s-1 rw4.0] ok cost 77055.4 evals 36 (1s)
+    start ['tNone', 'db25', 's-1']: score (2, 2.1220488100480206, 25.69326892189737) fails ['separation', 'corners']
+    [tNone/m01/d15/s-1 rw1.0] ok cost 442024.2 evals 282 (24s)
+    [warm rw1.0] ok cost 212027.7 evals 747 (41s)
+    [warm rw0.25] ok cost 311178.3 evals 1526 (106s)
+    [tNone/db0/s+1 rw0.25] ok cost 71540.4 evals 863 (23s)
+    [warm rw1.0] ok cost 310530.5 evals 158 (11s)
+    [tNone/m01/d15/s-1 rw4.0] ok cost 426175.2 evals 284 (25s)
+    start ['tNone', 'm01', 'd15', 's-1']: score (2, 14.459972113758687, 48.85328373845128) fails ['separation', 'corners']
+    [tNone/db0/s+1 rw1.0] ok cost 56323.3 evals 323 (8s)
+    [warm rw4.0] ok cost 310509.2 evals 110 (8s)
+    start warm: score (2, 24.719863913395386, 14.088380008784528) fails ['separation', 'corners']
+    [tNone/db0/s+1 rw4.0] ok cost 35571.0 evals 339 (9s)
+    start ['tNone', 'db0', 's+1']: score (1, 2.1561319406682355, 16.653675248854448) fails ['corners']
+    [tNone/db0/s-1 rw0.25] ok cost 203046.6 evals 352 (9s)
+    [tNone/db0/s-1 rw1.0] ok cost 203046.5 evals 59 (2s)
+    [warm rw4.0] ok cost 181874.6 evals 744 (41s)
+    start warm: score (1, 4.839592943160133, 30.61833342309933) fails ['surface-dip']
+    [tNone/db0/s-1 rw4.0] ok cost 203046.5 evals 47 (1s)
+    start ['tNone', 'db0', 's-1']: score (2, 13.825918111074817, 41.66173990622956) fails ['separation', 'corners']
+    [t25/db0/s-1 rw0.25] ok cost 486281.1 evals 417 (11s)
+    [t25/db0/s-1 rw1.0] ok cost 41704.0 evals 938 (24s)
+    [tNone/m00/d15/s-1 rw0.25] ok cost 842022.2 evals 770 (69s)
+    [t25/db0/s-1 rw4.0] ok cost 41688.0 evals 740 (19s)
+    start ['t25', 'db0', 's-1']: score (2, 2.1574092850544693, 18.248852740215053) fails ['separation', 'corners']
+    [t25/db25/s+1 rw0.25] ok cost 45578.4 evals 584 (16s)
+    [t25/db25/s+1 rw1.0] ok cost 45578.4 evals 24 (1s)
+    [t25/db25/s+1 rw4.0] ok cost 45578.4 evals 24 (1s)
+    start ['t25', 'db25', 's+1']: score (0, 2.1602327935534182, 18.20550586107348) fails []
+    [t0/db25/s-1 rw0.25] ok cost 59341.4 evals 924 (24s)
+    [t0/db25/s-1 rw1.0] ok cost 57601.1 evals 434 (11s)
+    [t0/db25/s-1 rw4.0] ok cost 57594.8 evals 215 (6s)
+    start ['t0', 'db25', 's-1']: score (2, 2.097926244097842, 23.149672238595) fails ['separation', 'corners']
+  V5 P: best ['t25', 'db25', 's+1'] score (0, 2.1602327935534182, 18.20550586107348) fails [] -> ACCEPTED
+REVIEW P_v5 ['bottomk', 'junction', 'topk', 'endstrand']
+    [tNone/m00/d15/s-1 rw1.0] ok cost 770231.9 evals 1002 (89s)
+    [alt0 rw0.25] ok cost 210423.7 evals 2698 (150s)
+    [new:S obl 4/b90/p1.57 rw0.25] ok cost 63186.9 evals 2353 (173s)
+    [alt0 rw1.0] ok cost 150898.5 evals 1265 (67s)
+    [new:S obl 4/b90/p1.57 rw1.0] ok cost 52991.3 evals 1157 (81s)
+    [alt0 rw4.0] ok cost 127353.8 evals 513 (27s)
+    start alt0: score (2, 12.003170357836098, 27.77218627875249) fails ['corners', 'surface-dip']
+    [new:S obl 4/b90/p1.57 rw4.0] ok cost 52276.6 evals 332 (23s)
+    start new:S obl 4/b90/p1.57: score (2, 21.992179329404838, 29.733371891555255) fails ['separation', 'corners']
+    [tNone/m00/d15/s-1 rw4.0] ok cost 583402.3 evals 1513 (129s)
+    start ['tNone', 'm00', 'd15', 's-1']: score (2, 30.798335809764747, 58.47763877917208) fails ['separation', 'corners']
+    [new:S obl 4/b90/p1.00 rw0.25] ok cost 65759.7 evals 1221 (86s)
+    [alt1 rw0.25] ok cost 126813.9 evals 2038 (108s)
+    [new:S obl 4/b90/p1.00 rw1.0] ok cost 64462.9 evals 209 (15s)
+    [new:S obl 4/b90/p1.00 rw4.0] ok cost 64462.8 evals 42 (3s)
+    start new:S obl 4/b90/p1.00: score (2, 24.47128204622638, 29.766221196326715) fails ['separation', 'corners']
+  WARM REDO S_v5: best start new:S obl 4/b90/p1.57 score (2, 21.992179329404838, 29.733371891555255) fails ['separation', 'corners'] -> REJECTED (keeping previous)
+REVIEW S_v5_rejected ['scurve', 'bottomk', 'endstrand']
+    [alt1 rw1.0] ok cost 74860.0 evals 446 (22s)
+    [alt1 rw4.0] ok cost 74860.0 evals 64 (3s)
+    start alt1: score (0, 12.051871567629984, 19.27710320270978) fails []
+  WARM REDO X_v5: best start alt1 score (0, 12.051871567629984, 19.27710320270978) fails [] -> REJECTED (keeping previous)
+REVIEW X_v5_rejected ['farleft', 'wrap', 'junction']
+    [tNone/m01/d-15/s-1 rw0.25] ok cost 688813.5 evals 1494 (124s)
+    [tNone/m01/d-15/s-1 rw1.0] ok cost 653976.1 evals 521 (36s)
+    [tNone/m01/d-15/s-1 rw4.0] ok cost 653975.3 evals 117 (8s)
+    start ['tNone', 'm01', 'd-15', 's-1']: score (2, 7.771678253017478, 79.0152867528733) fails ['separation', 'corners']
+    [tNone/m01/d0/s-1 rw0.25] ok cost 709535.4 evals 697 (48s)
+    [tNone/m01/d0/s-1 rw1.0] ok cost 709532.7 evals 147 (10s)
+    [tNone/m01/d0/s-1 rw4.0] ok cost 709532.7 evals 28 (2s)
+    start ['tNone', 'm01', 'd0', 's-1']: score (2, 11.587264414381764, 60.61104691715383) fails ['separation', 'corners']
+    [tNone/m01/d15/s+1 rw0.25] ok cost 1589483.3 evals 1078 (74s)
+S v6 roll list: ['S bend', 'S obl 4'] (all other S rolls removed)
+## WARM REDO X_v6: previous score (fails, outline, rms) (0, 12.051871567629984, 19.27710320270978), fails []
+## WARM REDO P_v6: previous score (fails, outline, rms) (2, 80.64828647934844, 102.90157058258077), fails ['separation', 'corners']
+    [tNone/m01/d15/s+1 rw1.0] ok cost 1576889.8 evals 288 (20s)
+## WARM REDO S_v6: previous score (fails, outline, rms) (2, 26.82619468139001, 598.9036323704076), fails ['separation', 'corners']
+    [tNone/m01/d15/s+1 rw4.0] ok cost 1570838.0 evals 236 (19s)
+    start ['tNone', 'm01', 'd15', 's+1']: score (4, 12.0390812186445, 117.17945259778074) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [warm rw0.25] ok cost 27269.3 evals 1144 (28s)
+    [warm rw1.0] ok cost 26202.5 evals 401 (10s)
+    [warm rw4.0] ok cost 26156.7 evals 224 (6s)
+    start warm: score (3, 2.14442352069939, 12.091039535151369) fails ['separation', 'curv-oscillation', 'corners']
+  WARM REDO P_v6: best start warm score (3, 2.14442352069939, 12.091039535151369) fails ['separation', 'curv-oscillation', 'corners'] -> REJECTED (keeping previous)
+REVIEW P_v6_rejected ['bottomk', 'junction', 'topk', 'endstrand']
+    [warm rw0.25] ok cost 33223.2 evals 680 (47s)
+    [warm rw0.25] ok cost 82955.8 evals 853 (50s)
+    [warm rw1.0] ok cost 33221.7 evals 69 (5s)
+    [warm rw4.0] ok cost 33220.1 evals 85 (6s)
+    start warm: score (0, 7.98187906591326, 13.233106858703849) fails []
+    [warm rw1.0] ok cost 76576.9 evals 393 (22s)
+    [warm rw4.0] ok cost 76354.5 evals 184 (11s)
+    start warm: score (2, 12.504244579919206, 16.73618044461581) fails ['curv-oscillation', 'surface-dip']
+P v7: x loaded from /Users/ashmitkhurana/Development/studio/portfolio/docs/ribbon/turns/msfit/sections/sec_P_v5.npz; roll list ['top-K front bend a', 'top-K tip fold', 'end bend']; tip fold (loop) rho 0.35W phi 3.44
+P v7: section rings 1102..1298 (data 1087..1298); last ring 1298 projected midpoint [ 536.2 1057.6] (target (540,1060), dist 4.5 px)
+## WARM REDO P_v7: previous score (fails, outline, rms) (0, 2.1602327935534182, 18.20550586107348), fails []
+    [warm rw0.25] ok cost 47672.6 evals 234 (6s)
+    [warm rw1.0] ok cost 47672.3 evals 121 (3s)
+    [warm rw4.0] ok cost 47671.0 evals 141 (4s)
+    start warm: score (0, 2.187004234825367, 18.685672764337735) fails []
+  WARM REDO P_v7: best start warm score (0, 2.187004234825367, 18.685672764337735) fails [] -> REJECTED (keeping previous)
+REVIEW P_v7_rejected ['bottomk', 'junction', 'topk', 'endstrand']
+    [alt0 rw0.25] ok cost 512672.6 evals 803 (46s)
+    [alt0 rw1.0] ok cost 157126.6 evals 1008 (58s)
+    [tNone/m11/d-15/s-1 rw0.25] timeout cost 1816020.0 evals 2347 (200s)
+    [alt0 rw0.25] ok cost 7877.9 evals 2375 (168s)
+    [alt0 rw4.0] ok cost 89415.6 evals 712 (46s)
+    start alt0: score (3, 8.899479528081631, 17.608552982023323) fails ['curv-oscillation', 'corners', 'surface-dip']
+    [alt0 rw1.0] ok cost 7877.9 evals 65 (6s)
+    [alt0 rw4.0] ok cost 7877.9 evals 23 (2s)
+    start alt0: score (0, 3.0771324761265393, 12.234987791447782) fails []
+    [tNone/m11/d-15/s-1 rw1.0] ok cost 1757224.9 evals 333 (35s)
+    [alt1 rw0.25] ok cost 3391657.4 evals 812 (56s)
+    [alt1 rw1.0] ok cost 3391657.4 evals 55 (4s)
+    [alt1 rw4.0] ok cost 3391657.4 evals 55 (4s)
+    start alt1: score (3, 33.772203778531676, 119.96935435533386) fails ['separation', 'corners', 'surface-dip']
+  WARM REDO X_v6: best start warm score (2, 12.504244579919206, 16.73618044461581) fails ['curv-oscillation', 'surface-dip'] -> REJECTED (keeping previous)
+REVIEW X_v6_rejected ['farleft', 'wrap', 'junction']
+    [alt1 rw0.25] ok cost 70564.6 evals 1340 (108s)
+    [tNone/m11/d-15/s-1 rw4.0] ok cost 1669049.6 evals 986 (93s)
+    start ['tNone', 'm11', 'd-15', 's-1']: score (2, 19.08942342150908, 100.57265342682135) fails ['separation', 'corners']
+    [alt1 rw1.0] ok cost 70304.3 evals 98 (7s)
+    [alt1 rw4.0] ok cost 68567.4 evals 149 (10s)
+    start alt1: score (1, 13.992951954448596, 11.199817500772717) fails ['corners']
+    [tNone/m10/d15/s-1 rw0.25] ok cost 1734790.4 evals 373 (31s)
+    [tNone/m10/d15/s-1 rw1.0] ok cost 1734789.5 evals 56 (5s)
+    [tNone/m10/d15/s-1 rw4.0] ok cost 1734789.5 evals 39 (3s)
+    start ['tNone', 'm10', 'd15', 's-1']: score (2, 14.190448703458166, 75.61714129129366) fails ['separation', 'corners']
+    [alt2 rw0.25] ok cost 56628.1 evals 1892 (125s)
+    [alt2 rw1.0] ok cost 56628.1 evals 23 (2s)
+    [alt2 rw4.0] ok cost 56628.1 evals 23 (2s)
+    start alt2: score (1, 11.393521962302193, 22.50926066218675) fails ['corners']
+    [alt3 rw0.25] ok cost 456726.2 evals 849 (57s)
+    [alt3 rw1.0] ok cost 456726.2 evals 31 (2s)
+    [alt3 rw4.0] ok cost 456726.2 evals 31 (2s)
+    start alt3: score (2, 14.321825617675476, 25.030082877114157) fails ['separation', 'corners']
+    [tNone/m01/d0/s+1 rw0.25] ok cost 611899.9 evals 2440 (198s)
+    [tNone/m01/d0/s+1 rw1.0] ok cost 608104.7 evals 343 (28s)
+    [tNone/m01/d0/s+1 rw4.0] ok cost 599614.4 evals 368 (30s)
+    start ['tNone', 'm01', 'd0', 's+1']: score (2, 9.65886327178325, 52.52427130794008) fails ['corners', 'surface-dip']
+  V5 K: best ['tNone', 'm01', 'd-15', 's-1'] score (2, 7.771678253017478, 79.0152867528733) fails ['separation', 'corners'] -> ACCEPTED
+REVIEW K_v5 ['bottomk', 'junction', 'topk', 'endstrand']
+    [alt4 rw0.25] ok cost 161352.4 evals 1454 (97s)
+    [alt4 rw1.0] ok cost 145366.2 evals 305 (17s)
+    [alt4 rw4.0] ok cost 130538.3 evals 1085 (62s)
+    start alt4: score (0, 14.975651834426353, 36.17484975960089) fails []
+  WARM REDO S_v6: best start alt0 score (0, 3.0771324761265393, 12.234987791447782) fails [] -> ACCEPTED
+REVIEW S_v6 ['scurve', 'bottomk', 'endstrand']
+K v6 roll list: ['bottom-K fold 1', 'k_return bend'] loop roll tau0 ring-equivalent 1272.0
+## WARM REDO X_v7: previous score (fails, outline, rms) (0, 12.051871567629984, 19.27710320270978), fails []
+## WARM REDO K_v6: previous score (fails, outline, rms) (5, 79.89550564794135, 13.6), fails ['x', 'x', 'x', 'x', 'x']
+REVIEW T ['scurve']
+  REALISM T: {"section": "T", "roll_overlap_min_gap": 14.994926271541207, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": null, "curv_oscillations": 0, "corners": 0, "dips": 0, "outline": {}, "fails": [], "data_rms": 18.603813835776787}
+    [warm rw0.25] ok cost 82955.8 evals 853 (41s)
+    [warm rw0.25] ok cost 775703.8 evals 616 (43s)
+    [warm rw1.0] ok cost 76576.9 evals 393 (19s)
+    [warm rw1.0] ok cost 743534.0 evals 299 (21s)
+    [warm rw4.0] ok cost 76354.5 evals 184 (9s)
+    start warm: score (2, 12.504244579919206, 16.73618044461581) fails ['curv-oscillation', 'surface-dip']
+    [warm rw4.0] ok cost 721114.9 evals 299 (21s)
+    start warm: score (1, 7.534174123190178, 68.44298063009995) fails ['corners']
+    [alt0 rw0.25] ok cost 220194.0 evals 1028 (51s)
+    [alt0 rw1.0] ok cost 220194.0 evals 46 (2s)
+    [alt0 rw4.0] ok cost 220194.0 evals 46 (2s)
+    start alt0: score (1, 8.644570701849005, 33.34288340349045) fails ['surface-dip']
+    [alt0 rw0.25] ok cost 809879.2 evals 697 (50s)
+    [alt0 rw1.0] ok cost 809868.1 evals 197 (14s)
+    [alt0 rw4.0] ok cost 809440.5 evals 366 (27s)
+    start alt0: score (2, 22.74287889783934, 75.49828796316876) fails ['separation', 'corners']
+  DECISION numbers: candidate fails 1 rms 68.4 | previous best fails 5 rms 13.6 | limit rms 20.4
+  WARM REDO K_v6: best start warm score (1, 7.534174123190178, 68.44298063009995) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW K_v6_rejected ['scurve', 'bottomk', 'junction', 'endstrand']
+    [alt1 rw0.25] ok cost 2481277.8 evals 1130 (55s)
+    [alt1 rw1.0] ok cost 2481090.6 evals 194 (9s)
+    [alt1 rw4.0] ok cost 2481088.4 evals 135 (6s)
+    start alt1: score (3, 46.984133021596485, 84.03333432159639) fails ['separation', 'curv-oscillation', 'corners']
+    [alt2 rw0.25] ok cost 104749.1 evals 1184 (55s)
+    [alt2 rw1.0] ok cost 82013.7 evals 423 (20s)
+    [alt2 rw4.0] ok cost 82012.0 evals 100 (5s)
+    start alt2: score (1, 11.668776364921042, 17.722087413706316) fails ['surface-dip']
+    [alt3 rw0.25] ok cost 2071672.8 evals 484 (22s)
+    [alt3 rw1.0] ok cost 1770148.8 evals 424 (19s)
+    [alt3 rw4.0] ok cost 1770148.8 evals 52 (2s)
+    start alt3: score (6, 52.80036571812283, 53.02098519940938) fails ['crossing', 'separation', 'curv-oscillation', 'corners', 'surface-dip', 'roll-overlap']
+    [alt4 rw0.25] ok cost 246366.9 evals 2137 (99s)
+    [alt4 rw1.0] ok cost 245293.8 evals 244 (11s)
+    [alt4 rw4.0] ok cost 188570.4 evals 978 (46s)
+    start alt4: score (2, 6.628681143577064, 29.65727485585621) fails ['curv-oscillation', 'surface-dip']
+    [alt5 rw0.25] ok cost 1879132.2 evals 1045 (47s)
+    [alt5 rw1.0] ok cost 1879075.2 evals 188 (8s)
+    [alt5 rw4.0] ok cost 1772650.9 evals 715 (32s)
+    start alt5: score (3, 65.78736582854606, 65.53625805132866) fails ['separation', 'curv-oscillation', 'corners']
+  DECISION numbers: candidate fails 1 rms 33.3 | previous best fails 0 rms 19.3 | limit rms 28.9
+  WARM REDO X_v7: best start alt0 score (1, 8.644570701849005, 33.34288340349045) fails ['surface-dip'] -> REJECTED (keeping previous)
+REVIEW X_v7_rejected ['farleft', 'wrap', 'junction']
+K v7: base = v6 loop candidate sec_K_v6_cand.npz; roll list ['bottom-K fold 1', 'k_return bend']; continuity to locked A (weight 200), return pt x2
+K v7 start init costs: [(['Apose', 'db0', 's-1'], 107534032), (['Apose', 'db25', 's-1'], 200773925), (['Apose', 'db0', 's+1'], 223230551), (['v6pose', 'db0', 's-1'], 224161173), (['v6pose', 'db0', 's+1'], 225977682), (['v6pose', 'db25', 's+1'], 246084992), (['v6pose', 'db25', 's-1'], 247170157), (['v6pose', 'db-25', 's-1'], 249677118)]
+## WARM REDO K_v7: previous score (fails, outline, rms) (1, 29.77762812149814, 13.6), fails ['x']
+    [warm rw0.25] ok cost 773248.9 evals 687 (47s)
+    [warm rw1.0] ok cost 773239.2 evals 140 (9s)
+    [warm rw4.0] ok cost 773239.2 evals 21 (1s)
+    start warm: score (1, 14.423448913665283, 69.45640596946852) fails ['corners']
+X v8: base sec_X_best.npz (X_v5); roll list ['crossbar bend 1', 'wrap curl', 'wrap twist 1', 'wrap twist 2']; curl tau0 at ring 897 (arch peak (240,783)) - 0.3W
+X v8 start init costs: [(['db0', 's+1'], 23298578), (['db-20', 's+1'], 43480186), (['db20', 's+1'], 48961000), (['db20', 's-1'], 213817569), (['db0', 's-1'], 229924459), (['db-20', 's-1'], 243527021)]
+## WARM REDO X_v8: previous score (fails, outline, rms) (3, 97.24442836027914, 189.48603552443257), fails ['separation', 'curv-oscillation', 'corners']
+    [warm rw0.25] ok cost 1857685.8 evals 799 (36s)
+    [warm rw1.0] ok cost 1678000.7 evals 910 (42s)
+    [warm rw4.0] ok cost 1496782.9 evals 672 (31s)
+    start warm: score (4, 69.62434043058806, 60.60516192624825) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt0 rw0.25] ok cost 2714695.3 evals 2190 (157s)
+    [alt0 rw1.0] ok cost 2604145.6 evals 301 (22s)
+    [alt0 rw0.25] ok cost 783316.7 evals 2549 (122s)
+    [alt0 rw4.0] ok cost 2512521.4 evals 1030 (75s)
+    start alt0: score (1, 29.4667986501409, 104.55440425269494) fails ['corners']
+  DECISION numbers: candidate fails 1 rms 69.5 | previous best fails 1 rms 13.6 | limit rms 20.4
+  WARM REDO K_v7: best start warm score (1, 14.423448913665283, 69.45640596946852) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW K_v7_rejected ['scurve', 'bottomk', 'junction', 'topk', 'endstrand']
+    [alt0 rw1.0] ok cost 782264.5 evals 288 (13s)
+    [alt0 rw4.0] ok cost 779471.3 evals 464 (21s)
+    start alt0: score (4, 4.991893823467959, 60.462168778166166) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt1 rw0.25] ok cost 347864.5 evals 1902 (85s)
+    [alt1 rw1.0] ok cost 343851.1 evals 715 (32s)
+    [alt1 rw4.0] ok cost 339580.9 evals 311 (14s)
+    start alt1: score (1, 19.523418278290848, 39.24855973143245) fails ['corners']
+    [alt2 rw0.25] ok cost 276878.0 evals 1673 (74s)
+    [alt2 rw1.0] ok cost 276631.8 evals 339 (15s)
+    [alt2 rw4.0] ok cost 267768.5 evals 295 (13s)
+    start alt2: score (4, 6.300064812854239, 34.797170775603355) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt3 rw0.25] ok cost 228790613.5 evals 287 (11s)
+K v7: base = v6 loop candidate sec_K_v6_cand.npz; roll list ['bottom-K fold 1', 'k_return bend']; continuity to locked A (weight 200), return pt x2
+  K v8 reflection seed: d_in [0.26 0.97] d_out [-0.75 -0.66] a [-0.85  0.53] beta0 106.8 deg
+K v7 start init costs: [(['Apose', 'rho1.0', 's-1', 'db-15'], 106654935), (['Apose', 'rho0.6', 's-1', 'db-15'], 106691562), (['Apose', 'rho1.4', 's-1', 'db-15'], 138463134), (['Apose', 'rho0.6', 's-1', 'db0'], 190925423), (['Apose', 'rho1.0', 's-1', 'db0'], 192433745), (['Apose', 'rho1.4', 's-1', 'db0'], 194055350), (['Apose', 'rho0.6', 's+1', 'db-15'], 207791785), (['Apose', 'rho1.4', 's-1', 'db15'], 214003588)]
+## WARM REDO K_v8: previous score (fails, outline, rms) (1, 45.60844069808869, 13.6), fails ['x']
+    [alt3 rw1.0] ok cost 941664.4 evals 3877 (176s)
+    [alt3 rw4.0] ok cost 918338.8 evals 268 (13s)
+    start alt3: score (2, 19.735673428416, 72.62219147087893) fails ['separation', 'corners']
+    [warm rw0.25] ok cost 713983.0 evals 1144 (88s)
+    [alt4 rw0.25] ok cost 1422930.6 evals 1586 (86s)
+    [warm rw1.0] ok cost 711537.8 evals 536 (47s)
+    [warm rw4.0] ok cost 711537.8 evals 55 (5s)
+    start warm: score (1, 14.513561013564916, 68.29225574275391) fails ['corners']
+    [alt4 rw1.0] ok cost 1293128.2 evals 541 (30s)
+    [alt4 rw4.0] ok cost 1293127.6 evals 64 (4s)
+    start alt4: score (2, 101.1466557444751, 67.5363028056988) fails ['separation', 'corners']
+  DECISION numbers: candidate fails 1 rms 39.2 | previous best fails 3 rms 189.5 | limit rms 284.2
+  WARM REDO X_v8: best start alt1 score (1, 19.523418278290848, 39.24855973143245) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW X_v8_rejected ['farleft', 'wrap', 'junction']

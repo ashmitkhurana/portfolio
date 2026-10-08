@@ -28,6 +28,7 @@
   "min_fold_rho_over_W": null,
   "curv_oscillations": 0,
   "corners": 0,
+  "dips": 0,
   "outline": {},
   "fails": [],
   "data_rms": 18.603813835776787

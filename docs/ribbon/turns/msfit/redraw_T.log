@@ -1,0 +1,2 @@
+REVIEW T ['scurve']
+  REALISM T: {"section": "T", "roll_overlap_min_gap": 14.994926271541207, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": null, "curv_oscillations": 0, "corners": 0, "dips": 0, "outline": {}, "fails": [], "data_rms": 18.603813835776787}

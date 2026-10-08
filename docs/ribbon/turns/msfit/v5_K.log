@@ -1,0 +1,35 @@
+## V5 K: previous (fails, outline, rms) (5, 105.14087923609756, 425.5156258889649) ['crossing', 'separation', 'rho<0.3W', 'corners', 'roll-overlap']
+    [tNone/m01/d15/s-1 rw0.25] ok cost 523612.9 evals 774 (64s)
+    [tNone/m01/d15/s-1 rw1.0] ok cost 442024.2 evals 282 (24s)
+    [tNone/m01/d15/s-1 rw4.0] ok cost 426175.2 evals 284 (25s)
+    start ['tNone', 'm01', 'd15', 's-1']: score (2, 14.459972113758687, 48.85328373845128) fails ['separation', 'corners']
+    [tNone/m00/d15/s-1 rw0.25] ok cost 842022.2 evals 770 (69s)
+    [tNone/m00/d15/s-1 rw1.0] ok cost 770231.9 evals 1002 (89s)
+    [tNone/m00/d15/s-1 rw4.0] ok cost 583402.3 evals 1513 (129s)
+    start ['tNone', 'm00', 'd15', 's-1']: score (2, 30.798335809764747, 58.47763877917208) fails ['separation', 'corners']
+    [tNone/m01/d-15/s-1 rw0.25] ok cost 688813.5 evals 1494 (124s)
+    [tNone/m01/d-15/s-1 rw1.0] ok cost 653976.1 evals 521 (36s)
+    [tNone/m01/d-15/s-1 rw4.0] ok cost 653975.3 evals 117 (8s)
+    start ['tNone', 'm01', 'd-15', 's-1']: score (2, 7.771678253017478, 79.0152867528733) fails ['separation', 'corners']
+    [tNone/m01/d0/s-1 rw0.25] ok cost 709535.4 evals 697 (48s)
+    [tNone/m01/d0/s-1 rw1.0] ok cost 709532.7 evals 147 (10s)
+    [tNone/m01/d0/s-1 rw4.0] ok cost 709532.7 evals 28 (2s)
+    start ['tNone', 'm01', 'd0', 's-1']: score (2, 11.587264414381764, 60.61104691715383) fails ['separation', 'corners']
+    [tNone/m01/d15/s+1 rw0.25] ok cost 1589483.3 evals 1078 (74s)
+    [tNone/m01/d15/s+1 rw1.0] ok cost 1576889.8 evals 288 (20s)
+    [tNone/m01/d15/s+1 rw4.0] ok cost 1570838.0 evals 236 (19s)
+    start ['tNone', 'm01', 'd15', 's+1']: score (4, 12.0390812186445, 117.17945259778074) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [tNone/m11/d-15/s-1 rw0.25] timeout cost 1816020.0 evals 2347 (200s)
+    [tNone/m11/d-15/s-1 rw1.0] ok cost 1757224.9 evals 333 (35s)
+    [tNone/m11/d-15/s-1 rw4.0] ok cost 1669049.6 evals 986 (93s)
+    start ['tNone', 'm11', 'd-15', 's-1']: score (2, 19.08942342150908, 100.57265342682135) fails ['separation', 'corners']
+    [tNone/m10/d15/s-1 rw0.25] ok cost 1734790.4 evals 373 (31s)
+    [tNone/m10/d15/s-1 rw1.0] ok cost 1734789.5 evals 56 (5s)
+    [tNone/m10/d15/s-1 rw4.0] ok cost 1734789.5 evals 39 (3s)
+    start ['tNone', 'm10', 'd15', 's-1']: score (2, 14.190448703458166, 75.61714129129366) fails ['separation', 'corners']
+    [tNone/m01/d0/s+1 rw0.25] ok cost 611899.9 evals 2440 (198s)
+    [tNone/m01/d0/s+1 rw1.0] ok cost 608104.7 evals 343 (28s)
+    [tNone/m01/d0/s+1 rw4.0] ok cost 599614.4 evals 368 (30s)
+    start ['tNone', 'm01', 'd0', 's+1']: score (2, 9.65886327178325, 52.52427130794008) fails ['corners', 'surface-dip']
+  V5 K: best ['tNone', 'm01', 'd-15', 's-1'] score (2, 7.771678253017478, 79.0152867528733) fails ['separation', 'corners'] -> ACCEPTED
+REVIEW K_v5 ['bottomk', 'junction', 'topk', 'endstrand']

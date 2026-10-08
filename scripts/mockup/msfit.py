@@ -52,6 +52,8 @@ ROLLS_RING = {n: r for n, _, r in C.ROLLS}
 C.W_OVL = 20.0           # roll regions must not overlap (the exporter refuses overlapping rolls)
 C.W_COV = 60.0           # owner priority: window coverage x3 (realism over overlap)
 DATA_HALF = math.sqrt(0.5)   # data weight halved relative to coverage / realism terms
+W_ALPHA = 3.0
+CONT_A = False
 W_X = 5.0
 W_VISW = 20.0
 W_TWIST = 25.0
@@ -65,14 +67,14 @@ WINNAME = {1: 's', 3: 'farleft', 5: 'apex', 7: 'bottomk', 11: 'wrap', 14: 'topk'
 # (name, intervals, roll names, data weight, rms gate, hidden)
 SEC_DEF = [
     ('T', [0], ['tail bend 1', 'tail bend 2'], 0.3, 12.0, False),
-    ('S', [1], ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'], 1.0, 6.0, False),
+    ('S', [1], ['S bend', 'S obl 4'], 1.0, 6.0, False),
     ('F', [2, 3], ['sweep bend', 'far-left fold'], 1.0, 6.0, False),
     ('A', [4, 5, 6], list(C.P3_NAMES), 1.0, 6.0, False),
-    ('K', [7, 8], ['bottom-K fold 1', 'bottom-K curl', 'bottom-K fold 2', 'k_return bend'], 1.0, 6.0, False),
+    ('K', [7, 8], ['bottom-K fold 1', 'k_return bend'], 1.0, 6.0, False),
     ('B', [9], ['back-layer bend'], 1.0, None, True),
-    ('X', [10, 11], ['crossbar bend 1', 'crossbar bend 2', 'wrap curl', 'wrap twist 1', 'wrap twist 2'], 1.0, 6.0, False),
+    ('X', [10, 11], ['crossbar bend 1', 'wrap curl', 'wrap twist 1', 'wrap twist 2'], 1.0, 6.0, False),
     ('M', [12], ['middle-layer bend'], 1.0, None, True),
-    ('P', [13, 14, 15], ['top-K front bend a', 'top-K front bend', 'top-K front bend c', 'top-K tip fold', 'end bend'], 1.0, 6.0, False),
+    ('P', [13, 14, 15], ['top-K front bend a', 'top-K tip fold', 'end bend'], 1.0, 6.0, False),
 ]
 OU_PAD = 8000
 CLR_PAD = 4000
@@ -104,9 +106,18 @@ class SecPrb(C.Chain):
         for pair in self.sd:
             for o in pair:
                 o.scale = DATA_HALF
+        Cc_ = (self.e1 + self.e2) / 2
+        i_low = int(np.argmin(np.hypot(*(Cc_[659:765] - np.array([700.0, 1240.0])).T))) + 659
+        self.roll_tau0[ROLLS_IDX['bottom-K fold 1']] = float(self.tau[i_low])
+        i_arch = int(np.argmin(np.hypot(*(Cc_[859:1067] - np.array([240.0, 783.0])).T))) + 859
+        self.arch_ring = i_arch
+        self.roll_tau0[ROLLS_IDX['wrap curl']] = float(self.tau[i_arch]) - 0.3 * self.W
+        k_ = ROLLS_IDX['S obl 4']
+        self.roll_tau0[k_] = float(self.tau[218])
         self.lo, self.hi = self.bounds()
         self.x0 = self.x_init()
         self._foot = None
+        self.rw = 1.0
         m = Image.new('L', (852, 1846), 0)
         ImageDraw.Draw(m).polygon(LOOP_POLY, fill=255)
         self.loop_mask = np.array(m) > 0
@@ -121,12 +132,20 @@ class SecPrb(C.Chain):
             if self.kind[k] in ('fold', 'obl'):
                 lo[6 + 4 * k + 2] = 0.3 * W
                 hi[6 + 4 * k + 2] = max(hi[6 + 4 * k + 2], 3.0 * W)
-            if self.rname[k].startswith('top-K front bend'):
+            if self.rname[k] in ('top-K front bend a', 'top-K front bend'):
                 lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 2.0 * W, 6.0 * W
-            if self.rname[k] in ('crossbar bend 1', 'crossbar bend 2'):
-                lo[6 + 4 * k + 2] = 2.0 * W
+            if self.rname[k] == 'S bend':
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 1.2 * W
+                lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -np.pi - 0.3, np.pi + 0.3
+            if self.rname[k] == 'S obl 4':
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 1.5 * W, 6.0 * W
+                lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -0.6, 0.6
+            if self.rname[k] == 'crossbar bend 1':
+                lo[6 + 4 * k + 2] = 3.0 * W
+                lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -0.4, 0.4
             if self.rname[k] == 'wrap curl':
-                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 0.8 * W
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.8 * W, 2.0 * W
+                lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -np.pi - 0.8, np.pi + 0.8
             if self.rname[k] == 'top-K tip fold':
                 lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.35 * W, 1.0 * W
         return lo, hi
@@ -189,8 +208,9 @@ class SecPrb(C.Chain):
         st['face_sign'] = np.where(self.face_exp[st['face_j']] == 'A', 1.0, -1.0)
         st['tailz'] = False
         st.pop('end_idx', None)
-        st['amp1'] = st['amp1'] * sec.weight * DATA_HALF
-        st['amp2'] = st['amp2'] * sec.weight * DATA_HALF
+        xm = math.sqrt(2.0) if sec.name == 'X' else 1.0
+        st['amp1'] = st['amp1'] * sec.weight * DATA_HALF * xm
+        st['amp2'] = st['amp2'] * sec.weight * DATA_HALF * xm
         self._stage[key] = st
         return st
 
@@ -267,9 +287,15 @@ class SecPrb(C.Chain):
         W = self.W
         d['xing'] = self.xing_block(cx, st)
         d['ovm'] = self.ovm_block(r)
+        d['alpha'] = self.alpha_block(x, st, cx)
         d['smooth'] = self.smooth_block(x, cx)
         act = st['act']
         names = [self.rname[k] for k in act]
+        if 'crossbar bend 1' in names:
+            iic = np.array([i for i in range(int(self.i0[10]), int(self.i1[10]) + 1) if self.v1[i] and st['lo'] <= i <= st['hi']], int)
+            uc_ = self.u_ring(x)[iic]
+            pc_ = AP.project(C.chain_surface(G, r, uc_, np.full(len(iic), -W / 2)))
+            d['bar1'] = ((pc_ - self.e1[iic]) * 1.0).ravel()
         if 'wrap curl' in names:
             ring0 = ROLLS_RING['wrap curl']
             idx = np.array([i for i in range(ring0, int(self.i1[11]) + 1) if (self.v1[i] or self.v2[i]) and st['lo'] <= i <= st['hi']], int)
@@ -290,7 +316,7 @@ class SecPrb(C.Chain):
             d['twist'] = np.concatenate(tw) if tw else np.zeros(0)
             ic = names.index('wrap curl')
             u_in = float(self.F(x, np.array([self.sec.tau_in]))[0])
-            d['curlstart'] = np.array([max(0.0, 1.5 * W - (r[ic, 0] - u_in)) * SC * 20.0])
+            d['curlstart'] = np.array([max(0.0, 0.3 * W - (r[ic, 0] - u_in)) * SC * 20.0])
             d['curlface'] = self.curlface(x, st, cx, ic)
             idx2 = np.array([i for i in range(ring0, int(self.i1[11]) + 1) if (self.v1[i] or self.v2[i]) and st['lo'] <= i <= st['hi']], int)
             n2 = len(idx2)
@@ -304,7 +330,25 @@ class SecPrb(C.Chain):
                 ii = np.array([i for i in range(int(self.i0[15]), int(self.i1[15]) + 1) if not v_[i] and st['lo'] <= i <= st['hi']], int)
                 u = self.u_ring(x)[ii]
                 p_ = AP.project(C.chain_surface(G, r, u, np.full(len(ii), sg_ * W_ / 2)))
-                d['hidend' + str(sg_)] = ((p_ - e_[ii]) * math.sqrt(0.2)).ravel()
+                d['hidend' + str(sg_)] = ((p_ - e_[ii]) * math.sqrt(0.3)).ravel()
+        if 'top-K tip fold' in names:
+            iif = np.array([i for i in range(int(self.i0[13]), int(self.i1[13]) + 1) if self.v2[i] and st['lo'] <= i <= st['hi']], int)
+            uf = self.u_ring(x)[iif]
+            pf = AP.project(C.chain_surface(G, r, uf, np.full(len(iif), W / 2)))
+            d['front2'] = ((pf - self.e2[iif]) * 1.0).ravel()
+            ii = np.array([i for i in range(int(self.i0[13]), int(self.i1[14]) + 1) if self.v2[i] and st['lo'] <= i <= st['hi']], int)
+            u = self.u_ring(x)[ii]
+            p_ = AP.project(C.chain_surface(G, r, u, np.full(len(ii), W / 2)))
+            d['topedge2'] = ((p_ - self.e2[ii]) * DATA_HALF).ravel()
+        if 'bottom-K fold 1' in names and CONT_A:
+            d['contA'] = self.a_cont(x, cx)
+            ir = np.array([i for i in range(765, 814) if st['lo'] <= i <= st['hi']], int)
+            ur = self.u_ring(x)[ir]
+            q1 = AP.project(C.chain_surface(G, r, ur, np.full(len(ir), -W / 2))); q2 = AP.project(C.chain_surface(G, r, ur, np.full(len(ir), W / 2)))
+            wm_ = np.hypot(*(q2 - q1).T); wt_ = np.hypot(*(self.e2[ir] - self.e1[ir]).T)
+            vis_ = (self.v1[ir] | self.v2[ir]).astype(float)
+            d['retw'] = np.maximum(0.0, 0.75 * wt_ - wm_) * vis_ * math.sqrt(20.0)
+            d['ret2'] = np.concatenate([((q1 - self.e1[ir]) * self.v1[ir][:, None]).ravel(), ((q2 - self.e2[ir]) * self.v2[ir][:, None]).ravel()]) * DATA_HALF
         if 'bottom-K fold 1' in names:
             ii = np.array([i for i in range(706, 724) if st['lo'] <= i <= st['hi'] and self.v1[i]], int)
             u = self.u_ring(x)[ii]
@@ -312,6 +356,131 @@ class SecPrb(C.Chain):
             d['fixed1'] = ((p1 - self.e1[ii]) * math.sqrt(W_FIXED)).ravel()
             d['loopface'] = self.loopface(x, st, cx)
         return d
+
+    def others_mask(self, name):
+        key = ('om', name)
+        if key not in self._stage:
+            m = Image.new('L', (852, 1846), 0)
+            dr = ImageDraw.Draw(m)
+            keep = (self.sec, self.bk_bottom)
+            for nm in SECN:
+                if nm == name or not os.path.exists(sec_path(nm)):
+                    continue
+                sec = self.secs[nm]
+                xo = ldx(self, sec_path(nm))
+                self.bind(nm)
+                self.bk_bottom = None
+                L, R = sec_edges(self, xo, sec)
+                pl, pr_ = AP.project(L), AP.project(R)
+                for i in range(len(pl) - 1):
+                    dr.polygon([tuple(pl[i]), tuple(pl[i + 1]), tuple(pr_[i + 1]), tuple(pr_[i])], fill=255)
+            self.sec, self.bk_bottom = keep
+            self._active = set(self.sec.act) if self.sec is not None else set()
+            self._stage[key] = np.array(m) > 0
+        return self._stage[key]
+
+    def alpha_cells(self, wi, name):
+        key = ('ac', wi, name)
+        if key not in self._stage:
+            nm = C.WIN_NAMES[wi]
+            x0, y0, x1, y1 = C.WINDOWS_BOX['scurve' if nm == 's' else nm]
+            ys, xs = np.mgrid[y0 + 2:y1:4, x0 + 2:x1:4]
+            ys, xs = ys.ravel(), xs.ravel()
+            a = self.alpha[ys, xs]
+            oth = self.others_mask(name)[ys, xs]
+            kind = np.where((a > 0.8) & ~oth, 1, np.where(a < 0.1, 0, -1))
+            m = kind >= 0
+            self._stage[key] = (xs[m] - x0, ys[m] - y0, kind[m], (x0, y0, x1, y1))
+        return self._stage[key]
+
+    def alpha_block(self, x, st, cx):
+        from scipy import ndimage as ndi
+        (G, E), r = cx
+        W = self.W
+        out = []
+        for wi in st['wins']:
+            k = self.win_iv[wi]
+            xs, ys, kind, (x0, y0, x1, y1) = self.alpha_cells(wi, self.sec.name)
+            idx = np.arange(max(self.i0[k] - 15, st['lo']), min(self.i1[k] + 15, st['hi']) + 1)
+            u = self.u_ring(x)[idx]; n = len(idx)
+            pl = AP.project(C.chain_surface(G, r, u, np.full(n, -W / 2))) - np.array([x0, y0])
+            pr_ = AP.project(C.chain_surface(G, r, u, np.full(n, W / 2))) - np.array([x0, y0])
+            im = Image.new('L', (x1 - x0, y1 - y0), 0)
+            dr = ImageDraw.Draw(im)
+            for i in range(n - 1):
+                dr.polygon([tuple(pl[i]), tuple(pl[i + 1]), tuple(pr_[i + 1]), tuple(pr_[i])], fill=255)
+            m = np.array(im) > 0
+            d_out = ndi.distance_transform_edt(~m) if (~m).any() else np.zeros(m.shape)
+            d_in = ndi.distance_transform_edt(m) if m.any() else np.zeros(m.shape)
+            res = np.where(kind == 1, d_out[ys, xs], d_in[ys, xs])
+            out.append(np.minimum(res, 25.0) * math.sqrt(W_ALPHA) * 0.1)
+        if self.sec.name == 'X':
+            out.append(self.alpha_extra(x, st, G, r, 'bar', (859, 910)))
+        return np.concatenate(out) if out else np.zeros(0)
+
+    def alpha_extra(self, x, st, G, r, tag, rr):
+        from scipy import ndimage as ndi
+        W = self.W
+        key = ('ae', tag)
+        if key not in self._stage:
+            ii = np.arange(rr[0], rr[1] + 1)
+            p = np.concatenate([self.e1[ii], self.e2[ii]])
+            x0, y0 = np.maximum(0, p.min(0) - 30).astype(int); x1, y1 = np.minimum([852, 1846], p.max(0) + 30).astype(int)
+            ys, xs = np.mgrid[y0 + 2:y1:4, x0 + 2:x1:4]
+            ys, xs = ys.ravel(), xs.ravel()
+            a = self.alpha[ys, xs]
+            oth = self.others_mask(self.sec.name)[ys, xs]
+            kind = np.where((a > 0.8) & ~oth, 1, np.where(a < 0.1, 0, -1))
+            m = kind >= 0
+            self._stage[key] = (xs[m] - x0, ys[m] - y0, kind[m], (int(x0), int(y0), int(x1), int(y1)))
+        xs, ys, kind, (x0, y0, x1, y1) = self._stage[key]
+        idx = np.arange(max(rr[0] - 10, st['lo']), min(rr[1] + 10, st['hi']) + 1)
+        u = self.u_ring(x)[idx]; n = len(idx)
+        pl = AP.project(C.chain_surface(G, r, u, np.full(n, -W / 2))) - np.array([x0, y0])
+        pr_ = AP.project(C.chain_surface(G, r, u, np.full(n, W / 2))) - np.array([x0, y0])
+        im = Image.new('L', (x1 - x0, y1 - y0), 0)
+        dr = ImageDraw.Draw(im)
+        for i in range(n - 1):
+            dr.polygon([tuple(pl[i]), tuple(pl[i + 1]), tuple(pr_[i + 1]), tuple(pr_[i])], fill=255)
+        m = np.array(im) > 0
+        d_out = ndi.distance_transform_edt(~m) if (~m).any() else np.zeros(m.shape)
+        d_in = ndi.distance_transform_edt(m) if m.any() else np.zeros(m.shape)
+        res = np.where(kind == 1, d_out[ys, xs], d_in[ys, xs])
+        return np.minimum(res, 25.0) * math.sqrt(W_ALPHA) * 0.1
+
+    def a_ref(self):
+        """locked A: 5 v-samples at A's last ring and 0.3 W before it (positions) + normals at the last ring"""
+        key = ('aref',)
+        if key not in self._stage:
+            keep = (self.sec, self.bk_bottom)
+            sa = self.bind('A')
+            xa = ldx(self, os.path.join(DIRS['sections'], 'sec_A_APPROVED.npz'))
+            cx = self.ctx(xa, sa.act)
+            tj = self.secs['K'].tau_in
+            u0 = float(self.F(xa, np.array([tj]))[0])
+            W = self.W
+            vv = np.array([-0.5, -0.25, 0.0, 0.25, 0.5]) * W
+            P = np.concatenate([C.chain_surface(cx[0][0], cx[1], np.full(5, u0 + d * W), vv) for d in (0.0, -0.3)])
+            h = 0.05
+            a = C.chain_surface(cx[0][0], cx[1], np.full(5, u0 + h), vv); b = C.chain_surface(cx[0][0], cx[1], np.full(5, u0 - h), vv)
+            c_ = C.chain_surface(cx[0][0], cx[1], np.full(5, u0), vv + h); e = C.chain_surface(cx[0][0], cx[1], np.full(5, u0), vv - h)
+            N = np.cross(a - b, c_ - e); N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+            self.sec, self.bk_bottom = keep
+            self._active = set(self.sec.act) if self.sec is not None else set()
+            self._stage[key] = (P, N, vv)
+        return self._stage[key]
+
+    def a_cont(self, x, cx):
+        (G, E), r = cx
+        W = self.W
+        P0, N0, vv = self.a_ref()
+        u0 = float(self.F(x, np.array([self.sec.tau_in]))[0])
+        P = np.concatenate([C.chain_surface(G, r, np.full(5, u0 + d * W), vv) for d in (0.0, -0.3)])
+        h = 0.05
+        a = C.chain_surface(G, r, np.full(5, u0 + h), vv); b = C.chain_surface(G, r, np.full(5, u0 - h), vv)
+        c_ = C.chain_surface(G, r, np.full(5, u0), vv + h); e = C.chain_surface(G, r, np.full(5, u0), vv - h)
+        N = np.cross(a - b, c_ - e); N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+        return np.concatenate([(P - P0).ravel(), ((N - N0) * W).ravel()]) * math.sqrt(200.0) * 0.5
 
     def curlface(self, x, st, cx, ic):
         """the visible (front-most) surface of the curl roll must show face A (dark): hinge on n.view over the curl's samples that are front-most in their cell"""
@@ -591,11 +760,71 @@ def overlay_png(path, pieces, every=12, rings=None, box=(0, 450, 852, 1846), sca
     return path
 
 
-def shaded_img(pr, pc, box, scale):
+KEY = np.array([0.25, 0.85, 0.45]); KEY = KEY / np.linalg.norm(KEY)
+
+
+def offline_lit(L, R, box, scale):
+    """z-buffer render of the ruled strip: face A #5a1c04 / face B #ff7a12; Lambert key light normalize(0.25, 0.85, 0.45) x 0.75, camera fill x 0.25, ambient 0.12, Blinn specular (shininess 40, strength 0.25)"""
     import chain_sheets as CS
+    x0, y0, x1, y1 = box
+    w, h = int((x1 - x0) * scale), int((y1 - y0) * scale)
+    img = np.zeros((h, w, 3)); img[:] = CS.BG
+    zb = np.full((h, w), -np.inf)
+    cam = np.array([0, 0, AP.D])
+    nv = 9
+    ts = np.linspace(0, 1, nv)
+    G = L[:, None, :] + ts[None, :, None] * (R - L)[:, None, :]
+    p2 = AP.project(G.reshape(-1, 3)).reshape(len(L), nv, 2)
+    sx = (p2[..., 0] - x0) * scale; sy = (p2[..., 1] - y0) * scale
+    for i in range(len(L) - 1):
+        bx0 = min(sx[i].min(), sx[i + 1].min()); bx1 = max(sx[i].max(), sx[i + 1].max())
+        by0 = min(sy[i].min(), sy[i + 1].min()); by1 = max(sy[i].max(), sy[i + 1].max())
+        if bx1 < 0 or by1 < 0 or bx0 > w or by0 > h:
+            continue
+        for j in range(nv - 1):
+            q = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
+            pts3 = np.array([G[a, b] for a, b in q])
+            Pu = (pts3[1] + pts3[2]) / 2 - (pts3[0] + pts3[3]) / 2
+            Pv = (pts3[3] + pts3[2]) / 2 - (pts3[0] + pts3[1]) / 2
+            n = np.cross(Pu, Pv); nn = np.linalg.norm(n)
+            if nn < 1e-12:
+                continue
+            n /= nn
+            vd = cam - pts3.mean(0); vd /= np.linalg.norm(vd)
+            d = float(n @ vd)
+            nf = n if d > 0 else -n
+            hv = KEY + vd; hv /= np.linalg.norm(hv)
+            shade = 0.12 + 0.75 * max(0.0, float(nf @ KEY)) + 0.25 * max(0.0, float(nf @ vd))
+            spec = 0.25 * max(0.0, float(nf @ hv)) ** 40
+            col = (CS.COL_A if d < 0 else CS.COL_B) * shade + 255.0 * spec
+            for tri in ((0, 1, 2), (0, 2, 3)):
+                X = np.array([sx[q[t]] for t in tri]); Y = np.array([sy[q[t]] for t in tri]); Z = pts3[list(tri), 2]
+                xmin, xmax = int(max(np.floor(X.min()), 0)), int(min(np.ceil(X.max()), w - 1))
+                ymin, ymax = int(max(np.floor(Y.min()), 0)), int(min(np.ceil(Y.max()), h - 1))
+                if xmin > xmax or ymin > ymax:
+                    continue
+                gx, gy = np.meshgrid(np.arange(xmin, xmax + 1) + 0.5, np.arange(ymin, ymax + 1) + 0.5)
+                den = (Y[1] - Y[2]) * (X[0] - X[2]) + (X[2] - X[1]) * (Y[0] - Y[2])
+                if abs(den) < 1e-12:
+                    continue
+                l0 = ((Y[1] - Y[2]) * (gx - X[2]) + (X[2] - X[1]) * (gy - Y[2])) / den
+                l1 = ((Y[2] - Y[0]) * (gx - X[2]) + (X[0] - X[2]) * (gy - Y[2])) / den
+                l2 = 1 - l0 - l1
+                m = (l0 >= -1e-9) & (l1 >= -1e-9) & (l2 >= -1e-9)
+                if not m.any():
+                    continue
+                z = l0 * Z[0] + l1 * Z[1] + l2 * Z[2]
+                sub = zb[ymin:ymax + 1, xmin:xmax + 1]
+                upd = m & (z > sub)
+                sub[upd] = z[upd]
+                img[ymin:ymax + 1, xmin:xmax + 1][upd] = col
+    return Image.fromarray(img.clip(0, 255).astype(np.uint8))
+
+
+def shaded_img(pr, pc, box, scale):
     L, R = pc['L'], pc['R']
     m = max(1, int(len(L) / 700))
-    return CS.offline(L[::m], R[::m], box, scale)
+    return offline_lit(L[::m], R[::m], box, scale)
 
 
 def shaded_png(pr, pc, path):
@@ -799,6 +1028,101 @@ def reseed_pass(pr, sec, x_old, tags_old, rep_old, secs_final):
     return best[1], best[2]
 
 
+LOCKED = {'A': 'sec_A_APPROVED.npz', 'F': 'sec_F_APPROVED.npz', 'P': 'sec_P_APPROVED.npz', 'S': 'sec_S_APPROVED.npz'}
+
+
+def warm_redo(pr, name, x_prev, new_rolls=(), alts=(), secs=240.0, tag='_v4', baseline=None):
+    """warm-start redo: previous best x, new rolls inert + presearch on them only, then realism continuation x0.25 -> x1 -> x4 (3 LM runs);
+    accepted only if realism failures do not increase and data rms <= max(1.5 x previous, 10 px)"""
+    sec = pr.bind(name)
+    pr.bk_bottom = pick_bk_bottom_sec(pr, x_prev, sec) if name == 'K' else None
+    st = pr.stage_info(sec.act, sec.lo, sec.hi)
+    pr._active = set(sec.act)
+    pr.rw = 1.0
+    sc0, rep0 = score_x(pr, sec, x_prev)
+    rms0 = data_stats(pr, x_prev, sec)['rms']
+    if baseline is not None:
+        rep0 = dict(rep0, fails=['x'] * baseline[0]); rms0 = baseline[1]; sc0 = (baseline[0], sc0[1], baseline[1])
+    log(f'## WARM REDO {name}{tag}: previous score (fails, outline, rms) {sc0}, fails {rep0["fails"]}')
+    starts = [('warm', x_prev)]
+    if new_rolls:
+        for tg, xc in C.presearch(pr, x_prev, list(new_rolls), st):
+            starts.append(('new:' + '/'.join(tg), xc))
+    for i, xa in enumerate(alts):
+        starts.append((f'alt{i}', xa))
+    best = None
+    for tg, xs_ in starts:
+        xx = xs_.copy()
+        for rw in (0.25, 1.0, 4.0):
+            pr.rw = rw
+            xx, cost, status = C.run_fit(pr, xx, st, sec.free, secs, f'{tg} rw{rw}')
+        pr.rw = 1.0
+        sc, rp = score_x(pr, sec, xx)
+        log(f'    start {tg}: score {sc} fails {rp["fails"]}')
+        if best is None or sc < best[0]:
+            best = (sc, xx, tg, rp)
+    sc, xx, tg, rp = best
+    np.savez(os.path.join(DIRS['sections'], f'sec_{name}{tag}_cand.npz'), x=xx)
+    rms = sc[2]
+    ok = len(rp['fails']) <= len(rep0['fails']) and rms <= max(1.5 * rms0, 10.0)
+    if name == 'X':
+        ok = len(rp['fails']) == 0 and rms <= 10.0
+    if name == 'S':
+        ok = True
+    log(f'  DECISION numbers: candidate fails {len(rp["fails"])} rms {rms:.1f} | previous best fails {len(rep0["fails"])} rms {rms0:.1f} | limit rms {max(1.5 * rms0, 10.0):.1f}')
+    log(f'  WARM REDO {name}{tag}: best start {tg} score {sc} fails {rp["fails"]} -> {"ACCEPTED" if ok else "REJECTED (keeping previous)"}')
+    if ok:
+        np.savez(sec_path(name), x=xx, bk_bottom=-1)
+        draw_section(pr, sec, xx, tag)
+        return xx, True
+    draw_section(pr, sec, xx, tag + '_rejected')
+    return x_prev, False
+
+
+def _ang(d):
+    return math.atan2(-d[1], d[0])
+
+
+def k2_combos(pr, xp, nb=3):
+    """K v5: two oblique folds (paper-fold reflection rule from the trace's 2D directions) + k_return bend. beta0 = angle(a) - angle(d_in), a = normalize(d_in + d_out); starts: beta +- 15 deg, mirrors, phi signs"""
+    W = pr.W
+    k1, k2, k4 = ROLLS_IDX['bottom-K fold 1'], ROLLS_IDX['bottom-K fold 2'], ROLLS_IDX['k_return bend']
+    Cc = (pr.e1 + pr.e2) / 2
+    nz = lambda v: v / np.linalg.norm(v)
+    d1in = nz(Cc[655] - Cc[645]); d_l2 = nz(np.array([710.0, 1144.0]) - np.array([638.0, 1185.0])); d2out = nz(Cc[800] - Cc[770])
+    folds = []
+    for din, dout in ((d1in, d_l2), (d_l2, d2out)):
+        a = nz(din + dout)
+        b0 = (_ang(a) - _ang(din)) % np.pi
+        folds.append(b0)
+    out = []
+    for m1 in (0, 1):
+        for m2 in (0, 1):
+            for d1 in (-15, 0, 15):
+                for sg in (1, -1):
+                    b1 = folds[0] if not m1 else np.pi - folds[0]
+                    b2 = folds[1] if not m2 else np.pi - folds[1]
+                    b1 = float(np.clip(b1 + np.radians(d1), 0.3, np.pi - 0.3)); b2 = float(np.clip(b2 + np.radians(d1), 0.3, np.pi - 0.3))
+                    xx = C.set_roll(xp, k1, pr.roll_tau0[k1], b1, 0.5 * W, sg * 3.0)
+                    xx = C.set_roll(xx, k2, pr.roll_tau0[k2], b2, 0.5 * W, -sg * 3.0)
+                    out.append(([f'm{m1}{m2}', f'd{d1}', f's{sg:+d}'], xx))
+    return out
+
+
+def loop_P_combos(pr, xp):
+    """P v5: ONE loop roll (tip fold slot), rho 1.3 W, phi ~ +-pi, beta from the topk sil direction +-25 deg"""
+    W = pr.W
+    k = ROLLS_IDX['top-K tip fold']
+    sb = C.sil_beta(pr, k)
+    sb = np.pi / 2 if sb is None else sb
+    out = []
+    for db in (-25, 0, 25):
+        for sg in (1, -1):
+            b = float(np.clip(sb + np.radians(db), 0.3, np.pi - 0.3))
+            out.append(([f'db{db}', f's{sg:+d}'], C.set_roll(xp, k, pr.roll_tau0[k], b, 1.3 * W, sg * 3.0)))
+    return out
+
+
 def seed_P(pr):
     """v1 P solution (pose, lambdas, tip fold, end bend) with the three gentle front bends re-seeded (rho 3W, phi 0.3-0.4)"""
     p = os.path.join(DIRS['sections'], '..', 'v1', 'sections', 'sec_P.npz')
@@ -853,6 +1177,146 @@ def section_combos(pr, name, xp, g, st):
     if name == 'X':
         return x_combos(pr, xp)
     return C.presearch(pr, xp, g, st)
+
+
+def s_fold_combos(pr, xp):
+    """S v6: ONE fold (reflection rule, d_in = tail dir rings 115-131, d_out = sweep dir rings 226-245; rho 0.5W; phi +-pi; beta +-15 deg, mirrors) + ONE gentle bend (inert start)"""
+    W = pr.W
+    k1, k2 = ROLLS_IDX['S bend'], ROLLS_IDX['S obl 4']
+    Cc = (pr.e1 + pr.e2) / 2
+    nz = lambda v: v / np.linalg.norm(v)
+    din = nz(Cc[131] - Cc[115]); dout = nz(Cc[245] - Cc[226])
+    a = nz(din + dout)
+    b0 = (_ang(a) - _ang(din)) % np.pi
+    out = []
+    for m in (0, 1):
+        for d in (-15, 0, 15):
+            for sg in (1, -1):
+                b = float(np.clip((b0 if not m else np.pi - b0) + np.radians(d), 0.3, np.pi - 0.3))
+                xx = C.set_roll(xp, k1, pr.roll_tau0[k1], b, 0.5 * W, sg * 3.0)
+                xx = C.set_roll(xx, k2, pr.roll_tau0[k2], np.pi / 2, 3 * W, 0.0)
+                out.append(([f'm{m}', f'd{d}', f's{sg:+d}'], xx))
+    return out
+
+
+def loop_K_refl(pr, xp):
+    """K v8: ONE loop roll, beta from the paper-fold reflection rule a = normalize(d_in + d_out): d_in = locked A's right-leg direction at its last rings (projected), d_out = k_return trace direction (rings 770-800, 2D);
+    rho {0.6, 1.0, 1.4} W x phi sign x beta +- {0, 15}; gentle return bend inert"""
+    W = pr.W
+    k = ROLLS_IDX['bottom-K fold 1']; k4 = ROLLS_IDX['k_return bend']
+    keep = pr.sec
+    sa = pr.bind('A')
+    xa = ldx(pr, os.path.join(DIRS['sections'], 'sec_A_APPROVED.npz'))
+    La, Ra = sec_edges(pr, xa, sa, np.arange(645, 659))
+    pm = AP.project((La + Ra) / 2)
+    pr.bind(keep)
+    nz = lambda v: v / np.linalg.norm(v)
+    din = nz(pm[-1] - pm[0])
+    Cc = (pr.e1 + pr.e2) / 2
+    dout = nz(Cc[800] - Cc[770])
+    a = nz(din + dout)
+    b0 = (_ang(a) - _ang(din)) % np.pi
+    log(f'  K v8 reflection seed: d_in {np.round(din, 2)} d_out {np.round(dout, 2)} a {np.round(a, 2)} beta0 {np.degrees(b0):.1f} deg')
+    out = []
+    for rf in (0.6, 1.0, 1.4):
+        for sg in (1, -1):
+            for db in (-15, 0, 15):
+                b = float(np.clip(b0 + np.radians(db), 0.3, np.pi - 0.3))
+                xx = C.set_roll(xp, k, pr.roll_tau0[k], b, rf * W, sg * 3.0)
+                xx = C.set_roll(xx, k4, pr.roll_tau0[k4], np.pi / 2, 3 * W, 0.0)
+                out.append(([f'rho{rf}', f's{sg:+d}', f'db{db}'], xx))
+    return out
+
+
+def loop_K_combos(pr, xp):
+    """K v6: ONE loop roll at the loop's lowest point (rho 1.0 W, phi +-pi, beta from the bottomk sil direction +- {0, 25}) + gentle return bend (inert start)"""
+    W = pr.W
+    k = ROLLS_IDX['bottom-K fold 1']; k4 = ROLLS_IDX['k_return bend']
+    sb = C.sil_beta(pr, k)
+    sb = np.pi / 2 if sb is None else sb
+    out = []
+    for db in (-25, 0, 25):
+        for sg in (1, -1):
+            b = float(np.clip(sb + np.radians(db), 0.3, np.pi - 0.3))
+            xx = C.set_roll(xp, k, pr.roll_tau0[k], b, 1.0 * W, sg * 3.0)
+            xx = C.set_roll(xx, k4, pr.roll_tau0[k4], np.pi / 2, 3 * W, 0.0)
+            out.append(([f'db{db}', f's{sg:+d}'], xx))
+    return out
+
+
+def x_tilt_starts(pr, xp):
+    """X v7: rotate the section pose about the crossbar's long axis (mid-ring centreline tangent) by {45, 60, 70} x both signs, 2D Procrustes to the trace;
+    crossbar bends beta 90, phi = 2D turning / sin(tilt) (|phi| <= 1.2)"""
+    sec = pr.secs['X']
+    pr.bind(sec)
+    W = pr.W
+    cx = pr.ctx(xp, sec.act)
+    ii = np.arange(859, 911)
+    u = pr.F(xp, pr.tau[ii])
+    Cm = (C.chain_surface(cx[0][0], cx[1], u, np.full(len(ii), -W / 2)) + C.chain_surface(cx[0][0], cx[1], u, np.full(len(ii), W / 2))) / 2
+    tdir = Cm[30] - Cm[20]; tdir /= np.linalg.norm(tdir)
+    Cc = (pr.e1 + pr.e2) / 2
+    nz = lambda v: v / np.linalg.norm(v)
+    turn = ((_ang(nz(Cc[910] - Cc[898])) - _ang(nz(Cc[870] - Cc[859])) + np.pi) % (2 * np.pi)) - np.pi
+    idx = np.arange(sec.lo, sec.hi + 1)
+    Q = np.concatenate([pr.L0[idx], pr.R0[idx]])
+    u2 = pr.F(xp, pr.tau[idx]); n2 = len(idx)
+    Pm = np.concatenate([C.chain_surface(cx[0][0], cx[1], u2, np.full(n2, -W / 2)), C.chain_surface(cx[0][0], cx[1], u2, np.full(n2, W / 2))])
+    R0 = Rotation.from_rotvec(xp[:3]).as_matrix(); t0 = xp[3:6]
+    # xp[:6] pose maps the flat/chain frame to the world; Pm is already posed (ctx used the pose)
+    cen = Pm.mean(0)
+    k1, k2 = ROLLS_IDX['crossbar bend 1'], ROLLS_IDX['crossbar bend 2']
+    out = []
+    for ang in (45, 60, 70):
+        for sg in (1, -1):
+            Rt = Rotation.from_rotvec(tdir * np.radians(sg * ang)).as_matrix()
+            Pt = (Pm - cen) @ Rt.T + cen
+            pc, qc = Pt.mean(0), Q.mean(0)
+            H = (Pt[:, :2] - pc[:2]).T @ (Q[:, :2] - qc[:2])
+            U_, _, Vt = np.linalg.svd(H)
+            dd = np.sign(np.linalg.det(Vt.T @ U_.T))
+            Rz = np.eye(3); Rz[:2, :2] = Vt.T @ np.diag([1, dd]) @ U_.T
+            tz = qc - Rz @ pc
+            Rn = Rz @ Rt @ R0
+            tn = Rz @ (Rt @ (t0 - cen) + cen) + tz
+            xx = xp.copy(); xx[:3] = Rotation.from_matrix(Rn).as_rotvec(); xx[3:6] = tn
+            ph = float(np.clip(abs(turn) / max(np.sin(np.radians(ang)), 0.3), 0.15, 1.2))
+            for kk in (k1, k2):
+                xx = C.set_roll(xx, kk, pr.roll_tau0[kk], np.pi / 2, 1.5 * W, sg * ph)
+            out.append(([f'tilt{sg * ang:+d}'], xx))
+    return out
+
+
+def curl_starts(pr, xp):
+    """X v8: crossbar = flat run (+ one gentle bend rho >= 3W, inert start); ONE large curl roll (rho 1.1 W, |phi| ~ pi, beta from the wrap sil +- {0, 20}), sign multi-start"""
+    W = pr.W
+    kc = ROLLS_IDX['wrap curl']; kb = ROLLS_IDX['crossbar bend 1']
+    sb = C.sil_beta(pr, kc)
+    sb = np.pi / 2 if sb is None else sb
+    out = []
+    for db in (-20, 0, 20):
+        for sg in (1, -1):
+            b = float(np.clip(sb + np.radians(db), 0.3, np.pi - 0.3))
+            xx = C.set_roll(xp, kc, pr.roll_tau0[kc], b, 1.1 * W, sg * np.pi)
+            xx = C.set_roll(xx, kb, pr.roll_tau0[kb], np.pi / 2, 3 * W, 0.0)
+            out.append(([f'db{db}', f's{sg:+d}'], xx))
+    return out
+
+
+def x_bar_starts(pr, xp):
+    """X v6: crossbar bends seeded with phi from the trace's 2D turning angle over the span (both signs)"""
+    Cc = (pr.e1 + pr.e2) / 2
+    nz = lambda v: v / np.linalg.norm(v)
+    d0 = nz(Cc[870] - Cc[859]); d1 = nz(Cc[910] - Cc[898])
+    turn = (_ang(d1) - _ang(d0) + np.pi) % (2 * np.pi) - np.pi
+    ph = float(np.clip(abs(turn) / 2, 0.15, 0.9))
+    k1, k2 = ROLLS_IDX['crossbar bend 1'], ROLLS_IDX['crossbar bend 2']
+    out = []
+    for sg in (1, -1):
+        xx = C.set_roll(xp, k1, pr.roll_tau0[k1], np.pi / 2, 1.5 * pr.W, sg * ph)
+        xx = C.set_roll(xx, k2, pr.roll_tau0[k2], np.pi / 2, 1.5 * pr.W, sg * ph)
+        out.append(xx)
+    return out
 
 
 def x_combos(pr, x):
@@ -1784,9 +2248,9 @@ def cmd_sheets(pr):
     Lw, Rw, _, _ = build_rings(pr, XS, delta, 1100, strict=False)
     os.makedirs(DIRS['offline'], exist_ok=True)
     for nm, box in C.WINDOWS_BOX.items():
-        CS.offline(Lw, Rw, box, 2).save(os.path.join(DIRS['offline'], f'{nm}.png'))
+        offline_lit(Lw, Rw, box, 2).save(os.path.join(DIRS['offline'], f'{nm}.png'))
         print('offline', nm, flush=True)
-    CS.offline(Lw, Rw, (0, 0, 852, 1846), 0.5).save(os.path.join(DIRS['offline'], 'full.png'))
+    offline_lit(Lw, Rw, (0, 0, 852, 1846), 0.5).save(os.path.join(DIRS['offline'], 'full.png'))
     H = 700
     for nm, box in C.WINDOWS_BOX.items():
         panels = [CS.mockup_crop(box), Image.open(os.path.join(DIRS['render'], f'ribbon_crop_{nm}.png')).convert('RGB'),
@@ -1840,6 +2304,7 @@ def main():
     if cmd == 'section':
         pr = SecPrb()
         for nm in sys.argv[2].split(','):
+            assert nm not in LOCKED, 'approved sections are LOCKED (use redraw)'
             if os.path.exists(sec_path(nm)) and 'partial' not in np.load(sec_path(nm)).files and '--force' not in sys.argv:
                 log(f'section {nm}: done already (skip; --force to redo)')
                 continue
@@ -1851,6 +2316,171 @@ def main():
         old = json.load(open(p)) if os.path.exists(p) else {}
         old.update(t)
         json.dump(old, open(p, 'w'), indent=1, default=float)
+    elif cmd == 'warm':
+        pr = SecPrb()
+        nm = sys.argv[2]
+        assert nm not in LOCKED, 'approved sections are LOCKED'
+        xp = ldx(pr, sec_path(nm))
+        tag = arg('tag', '_v4')
+        new, alts = (), []
+        kbase = None
+        if nm == 'P':
+            pth = os.path.join(DIRS['sections'], 'sec_P_v5.npz')
+            xp = ldx(pr, pth)
+            secp = pr.bind('P')
+            log(f'P v7: x loaded from {pth}; roll list {[pr.rname[k] for k in secp.act]}; tip fold (loop) rho {xp[6 + 4 * ROLLS_IDX["top-K tip fold"] + 2] / pr.W:.2f}W phi {xp[6 + 4 * ROLLS_IDX["top-K tip fold"] + 3]:.2f}')
+            assert 'top-K tip fold' in [pr.rname[k] for k in secp.act] and abs(xp[6 + 4 * ROLLS_IDX['top-K tip fold'] + 3]) > 2.0, 'loop roll missing'
+            xl = AP.project(np.stack([ ]))[0:0] if False else None
+            Lh, Rh = sec_edges(pr, xp, secp, np.array([pr.N - 1]))
+            mid = AP.project((Lh + Rh) / 2)[0]
+            log(f'P v7: section rings {secp.r0}..{secp.r1} (data {secp.lo}..{secp.hi}); last ring {pr.N - 1} projected midpoint {np.round(mid, 1)} (target (540,1060), dist {np.hypot(mid[0] - 540, mid[1] - 1060):.1f} px)')
+            assert secp.hi == 1298 and secp.r1 == 1298
+        if nm == 'S':
+            new = [ROLLS_IDX['S obl 4']]
+            k = ROLLS_IDX['S obl 4']
+            xp = C.set_roll(xp, k, pr.roll_tau0[k], np.pi / 2, 3 * pr.W, 0.0)
+        if nm == 'X' and arg('mode', 'old') == 'curl':
+            sec_ = pr.bind('X')
+            xp = ldx(pr, os.path.join(DIRS['sections'], 'sec_X_best.npz'))
+            log(f'X v8: base sec_X_best.npz (X_v5); roll list {[pr.rname[k] for k in sec_.act]}; curl tau0 at ring {pr.arch_ring} (arch peak (240,783)) - 0.3W')
+            pr._active = set(sec_.act)
+            st_ = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+            cs = curl_starts(pr, xp)
+            sc_ = []
+            for tg, xc in cs:
+                r = pr.res(xc, st_); sc_.append((0.5 * float(r @ r), xc, tg))
+            sc_.sort(key=lambda q: q[0])
+            log('X v8 start init costs: ' + str([(q[2], round(q[0])) for q in sc_]))
+            xp = sc_[0][1]; alts = [q[1] for q in sc_[1:]]
+        if nm == 'X' and arg('mode', 'old') == 'tilt':
+            pr.bind('X')
+            cs = x_tilt_starts(pr, xp)
+            sec_ = pr.secs['X']
+            st_ = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+            sc_ = []
+            for tg, xc in cs:
+                r = pr.res(xc, st_); sc_.append((0.5 * float(r @ r), xc))
+            alts = [q[1] for q in sc_]
+        if nm == 'K' and arg('mode', 'v6') == 'k7':
+            global CONT_A
+            CONT_A = True
+            sec_ = pr.bind('K')
+            xv6 = ldx(pr, os.path.join(DIRS['sections'], 'sec_K_v6_cand.npz'))
+            log('K v7: base = v6 loop candidate sec_K_v6_cand.npz; roll list ' + str([pr.rname[k] for k in sec_.act]) + '; continuity to locked A (weight 200), return pt x2')
+            pr.bk_bottom = None
+            st_ = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+            pr._active = set(sec_.act)
+            P0, N0, vv = pr.a_ref()
+            cs = []
+            for tg, xc in (loop_K_refl(pr, xv6) if arg('k8', 0) else loop_K_combos(pr, xv6)):
+                cs.append((['v6pose'] + tg, xc))
+                xi = xc.copy(); xi[:6] = 0
+                o = pr.ctx(xi, sec_.act)
+                u0 = float(pr.F(xi, np.array([sec_.tau_in]))[0])
+                Pk = np.concatenate([C.chain_surface(o[0][0], o[1], np.full(5, u0 + d * pr.W), vv) for d in (0.0, -0.3)])
+                R_, t_ = AA.kabsch(Pk, P0)
+                xi[:3] = Rotation.from_matrix(R_).as_rotvec(); xi[3:6] = t_
+                cs.append((['Apose'] + tg, xi))
+            sc_ = []
+            for tg, xc in cs:
+                pr.bk_bottom = pick_bk_bottom_sec(pr, xc, sec_)
+                st2 = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+                r = pr.res(xc, st2); sc_.append((0.5 * float(r @ r), xc, tg))
+            sc_.sort(key=lambda q: q[0])
+            log('K v7 start init costs: ' + str([(q[2], round(q[0])) for q in sc_[:8]]))
+            nkeep = 18 if arg('k8', 0) else 6
+            xp = sc_[0][1]; alts = [q[1] for q in sc_[1:nkeep]]
+            kbase = (1, 13.6)
+        elif nm == 'K':
+            sec_ = pr.bind('K')
+            xo = ldx(pr, os.path.join(OUT, 'v1', 'sections', 'sec_K.npz'))
+            pr.bk_bottom = None
+            st_ = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+            pr._active = set(sec_.act)
+            log('K v6 roll list: ' + str([pr.rname[k] for k in sec_.act]) + f' loop roll tau0 ring-equivalent {pr.roll_tau0[ROLLS_IDX["bottom-K fold 1"]]:.1f}')
+            cs = loop_K_combos(pr, xo)
+            sc_ = []
+            for tg, xc in cs:
+                pr.bk_bottom = pick_bk_bottom_sec(pr, xc, sec_)
+                st2 = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+                r = pr.res(xc, st2); sc_.append((0.5 * float(r @ r), xc))
+            sc_.sort(key=lambda q: q[0])
+            xp = sc_[0][1]; alts = [q[1] for q in sc_[1:]]
+            kbase = (5, 13.6)
+        if nm == 'X' and arg('mode', 'old') == 'bar':
+            pr.bind('X')
+            alts = x_bar_starts(pr, xp)
+        if nm == 'S' and arg('mode', 'old') == 'fold':
+            sec_ = pr.bind('S')
+            xo = ldx(pr, os.path.join(DIRS['..'] if False else OUT, 'v1', 'sections', 'sec_S.npz'))
+            st_ = pr.stage_info(sec_.act, sec_.lo, sec_.hi)
+            pr._active = set(sec_.act)
+            log('S v6 roll list: ' + str([pr.rname[k] for k in sec_.act]) + ' (all other S rolls removed)')
+            cs = s_fold_combos(pr, xo)
+            sc_ = []
+            for tg, xc in cs:
+                r = pr.res(xc, st_); sc_.append((0.5 * float(r @ r), tg, xc))
+            sc_.sort(key=lambda q: q[0])
+            xp = sc_[0][2]
+            alts = [q[2] for q in sc_[1:6]]
+            new = ()
+        if nm == 'X' and arg('mode', 'old') == 'old':
+            pr.bind('X')
+            cs = x_combos(pr, xp)
+            sc_ = []
+            st_ = pr.stage_info(pr.secs['X'].act, pr.secs['X'].lo, pr.secs['X'].hi)
+            for tg, xc in cs:
+                r = pr.res(xc, st_); sc_.append((0.5 * float(r @ r), xc))
+            sc_.sort(key=lambda q: q[0])
+            alts = [q[1] for q in sc_[:2]]
+        if nm == 'K':
+            alts = [ldx(pr, os.path.join(DIRS['sections'], 'sec_K_v3run.npz'))]
+        warm_redo(pr, nm, xp, new, alts, secs=arg('secs', 240.0), tag=tag, baseline=(kbase if nm == 'K' else None))
+    elif cmd == 'v5':
+        pr = SecPrb()
+        nm = sys.argv[2]
+        sec = pr.bind(nm)
+        xp = ldx(pr, sec_path(nm))
+        pr.bk_bottom = None
+        st = pr.stage_info(sec.act, sec.lo, sec.hi)
+        pr._active = set(sec.act)
+        sc0, rep0 = score_x(pr, sec, xp)
+        rms0 = data_stats(pr, xp, sec)['rms']
+        log(f'## V5 {nm}: previous (fails, outline, rms) {sc0} {rep0["fails"]}')
+        starts = []
+        for tilt in (None, 0, 25, -25):
+            xb = xp if tilt is None else kabsch_pose(pr, sec, xp, tilt)
+            for tg, xc in (k2_combos(pr, xb) if nm == 'K' else loop_P_combos(pr, xb)):
+                if nm == 'K':
+                    pr.bk_bottom = pick_bk_bottom_sec(pr, xc, sec)
+                    st = pr.stage_info(sec.act, sec.lo, sec.hi)
+                r = pr.res(xc, st)
+                starts.append((0.5 * float(r @ r), [f't{tilt}'] + tg, xc))
+        starts.sort(key=lambda q: q[0])
+        best = None
+        for c0, tg, xc in starts[:arg('ns', 8)]:
+            xx = xc.copy()
+            if nm == 'K':
+                pr.bk_bottom = pick_bk_bottom_sec(pr, xx, sec)
+                st = pr.stage_info(sec.act, sec.lo, sec.hi)
+            for rw in (0.25, 1.0, 4.0):
+                pr.rw = rw
+                xx, cost, status = C.run_fit(pr, xx, st, sec.free, arg('secs', 150.0), '/'.join(tg) + f' rw{rw}')
+            pr.rw = 1.0
+            if nm == 'K':
+                pr.bk_bottom = pick_bk_bottom_sec(pr, xx, sec)
+            sc, rp = score_x(pr, sec, xx)
+            log(f'    start {tg}: score {sc} fails {rp["fails"]}')
+            if best is None or sc < best[0]:
+                best = (sc, xx, tg, rp)
+        sc, xx, tg, rp = best
+        ok = len(rp['fails']) <= len(rep0['fails']) and sc[2] <= max(1.5 * rms0, 10.0)
+        log(f'  V5 {nm}: best {tg} score {sc} fails {rp["fails"]} -> {"ACCEPTED" if ok else "REJECTED (kept previous, candidate saved _v5 files)"}')
+        np.savez(os.path.join(DIRS['sections'], f'sec_{nm}_v5.npz'), x=xx)
+        if ok:
+            np.savez(sec_path(nm), x=xx, bk_bottom=-1)
+        pr.bk_bottom = pick_bk_bottom_sec(pr, xx, sec) if nm == 'K' else None
+        draw_section(pr, sec, xx, '_v5' if ok else '_v5_rejected')
     elif cmd == 'bridges':
         run_bridges(SecPrb())
     elif cmd == 'joint':

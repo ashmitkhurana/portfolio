@@ -1,0 +1,11 @@
+## WARM REDO K_v4: previous score (fails, outline, rms) (5, 3.17647926610116, 13.603562700513331), fails ['crossing', 'separation', 'rho<0.3W', 'corners', 'roll-overlap']
+    [warm rw0.25] ok cost 131283.0 evals 3259 (230s)
+    [warm rw1.0] ok cost 131282.9 evals 51 (4s)
+    [warm rw4.0] ok cost 131282.9 evals 51 (4s)
+    start warm: score (1, 7.788810720033695, 35.260152634931984) fails ['surface-dip']
+    [alt0 rw0.25] ok cost 303873.7 evals 866 (62s)
+    [alt0 rw1.0] ok cost 303873.7 evals 62 (4s)
+    [alt0 rw4.0] ok cost 303873.6 evals 62 (4s)
+    start alt0: score (1, 21.680443822531252, 32.063382263758356) fails ['corners']
+  WARM REDO K_v4: best start warm score (1, 7.788810720033695, 35.260152634931984) fails ['surface-dip'] -> REJECTED (keeping previous)
+REVIEW K_v4_rejected ['scurve', 'bottomk', 'wrap', 'junction', 'topk', 'endstrand']

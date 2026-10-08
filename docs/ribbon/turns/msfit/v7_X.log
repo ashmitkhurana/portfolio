@@ -1,0 +1,32 @@
+## WARM REDO X_v7: previous score (fails, outline, rms) (0, 12.051871567629984, 19.27710320270978), fails []
+    [warm rw0.25] ok cost 82955.8 evals 853 (41s)
+    [warm rw1.0] ok cost 76576.9 evals 393 (19s)
+    [warm rw4.0] ok cost 76354.5 evals 184 (9s)
+    start warm: score (2, 12.504244579919206, 16.73618044461581) fails ['curv-oscillation', 'surface-dip']
+    [alt0 rw0.25] ok cost 220194.0 evals 1028 (51s)
+    [alt0 rw1.0] ok cost 220194.0 evals 46 (2s)
+    [alt0 rw4.0] ok cost 220194.0 evals 46 (2s)
+    start alt0: score (1, 8.644570701849005, 33.34288340349045) fails ['surface-dip']
+    [alt1 rw0.25] ok cost 2481277.8 evals 1130 (55s)
+    [alt1 rw1.0] ok cost 2481090.6 evals 194 (9s)
+    [alt1 rw4.0] ok cost 2481088.4 evals 135 (6s)
+    start alt1: score (3, 46.984133021596485, 84.03333432159639) fails ['separation', 'curv-oscillation', 'corners']
+    [alt2 rw0.25] ok cost 104749.1 evals 1184 (55s)
+    [alt2 rw1.0] ok cost 82013.7 evals 423 (20s)
+    [alt2 rw4.0] ok cost 82012.0 evals 100 (5s)
+    start alt2: score (1, 11.668776364921042, 17.722087413706316) fails ['surface-dip']
+    [alt3 rw0.25] ok cost 2071672.8 evals 484 (22s)
+    [alt3 rw1.0] ok cost 1770148.8 evals 424 (19s)
+    [alt3 rw4.0] ok cost 1770148.8 evals 52 (2s)
+    start alt3: score (6, 52.80036571812283, 53.02098519940938) fails ['crossing', 'separation', 'curv-oscillation', 'corners', 'surface-dip', 'roll-overlap']
+    [alt4 rw0.25] ok cost 246366.9 evals 2137 (99s)
+    [alt4 rw1.0] ok cost 245293.8 evals 244 (11s)
+    [alt4 rw4.0] ok cost 188570.4 evals 978 (46s)
+    start alt4: score (2, 6.628681143577064, 29.65727485585621) fails ['curv-oscillation', 'surface-dip']
+    [alt5 rw0.25] ok cost 1879132.2 evals 1045 (47s)
+    [alt5 rw1.0] ok cost 1879075.2 evals 188 (8s)
+    [alt5 rw4.0] ok cost 1772650.9 evals 715 (32s)
+    start alt5: score (3, 65.78736582854606, 65.53625805132866) fails ['separation', 'curv-oscillation', 'corners']
+  DECISION numbers: candidate fails 1 rms 33.3 | previous best fails 0 rms 19.3 | limit rms 28.9
+  WARM REDO X_v7: best start alt0 score (1, 8.644570701849005, 33.34288340349045) fails ['surface-dip'] -> REJECTED (keeping previous)
+REVIEW X_v7_rejected ['farleft', 'wrap', 'junction']

@@ -1,0 +1,15 @@
+## WARM REDO X_v4: previous score (fails, outline, rms) (1, 7.292644919682647, 7.84265894437473), fails ['surface-dip']
+    [warm rw0.25] ok cost 245659.2 evals 3376 (129s)
+    [warm rw1.0] ok cost 211455.1 evals 941 (36s)
+    [warm rw4.0] ok cost 203884.3 evals 922 (35s)
+    start warm: score (3, 4.24945749841398, 33.522302975542324) fails ['crossing', 'surface-dip', 'roll-overlap']
+    [alt0 rw0.25] ok cost 153736.8 evals 1734 (66s)
+    [alt0 rw1.0] ok cost 152145.0 evals 863 (33s)
+    [alt0 rw4.0] ok cost 152136.1 evals 396 (15s)
+    start alt0: score (0, 8.24698024139808, 33.99843343353751) fails []
+    [alt1 rw0.25] ok cost 69245.0 evals 1472 (52s)
+    [alt1 rw1.0] ok cost 66387.4 evals 559 (19s)
+    [alt1 rw4.0] ok cost 65685.2 evals 475 (16s)
+    start alt1: score (1, 16.850659929527627, 23.33587635190299) fails ['corners']
+  WARM REDO X_v4: best start alt0 score (0, 8.24698024139808, 33.99843343353751) fails [] -> REJECTED (keeping previous)
+REVIEW X_v4_rejected ['farleft', 'wrap', 'junction']

@@ -1,0 +1,35 @@
+## V5 P: previous (fails, outline, rms) (2, 97.78431051694521, 122.78054909282419) ['separation', 'corners']
+    [tNone/db25/s+1 rw0.25] ok cost 41682.3 evals 567 (13s)
+    [tNone/db25/s+1 rw1.0] ok cost 38206.9 evals 455 (11s)
+    [tNone/db25/s+1 rw4.0] ok cost 36245.6 evals 882 (22s)
+    start ['tNone', 'db25', 's+1']: score (1, 2.091456883156454, 16.81923121011513) fails ['corners']
+    [t25/db25/s-1 rw0.25] ok cost 56546.9 evals 481 (12s)
+    [t25/db25/s-1 rw1.0] ok cost 44080.4 evals 521 (13s)
+    [t25/db25/s-1 rw4.0] ok cost 40837.0 evals 391 (10s)
+    start ['t25', 'db25', 's-1']: score (2, 2.1998488382258654, 18.26676244474288) fails ['separation', 'corners']
+    [tNone/db25/s-1 rw0.25] ok cost 77055.8 evals 416 (11s)
+    [tNone/db25/s-1 rw1.0] ok cost 77055.4 evals 79 (2s)
+    [tNone/db25/s-1 rw4.0] ok cost 77055.4 evals 36 (1s)
+    start ['tNone', 'db25', 's-1']: score (2, 2.1220488100480206, 25.69326892189737) fails ['separation', 'corners']
+    [tNone/db0/s+1 rw0.25] ok cost 71540.4 evals 863 (23s)
+    [tNone/db0/s+1 rw1.0] ok cost 56323.3 evals 323 (8s)
+    [tNone/db0/s+1 rw4.0] ok cost 35571.0 evals 339 (9s)
+    start ['tNone', 'db0', 's+1']: score (1, 2.1561319406682355, 16.653675248854448) fails ['corners']
+    [tNone/db0/s-1 rw0.25] ok cost 203046.6 evals 352 (9s)
+    [tNone/db0/s-1 rw1.0] ok cost 203046.5 evals 59 (2s)
+    [tNone/db0/s-1 rw4.0] ok cost 203046.5 evals 47 (1s)
+    start ['tNone', 'db0', 's-1']: score (2, 13.825918111074817, 41.66173990622956) fails ['separation', 'corners']
+    [t25/db0/s-1 rw0.25] ok cost 486281.1 evals 417 (11s)
+    [t25/db0/s-1 rw1.0] ok cost 41704.0 evals 938 (24s)
+    [t25/db0/s-1 rw4.0] ok cost 41688.0 evals 740 (19s)
+    start ['t25', 'db0', 's-1']: score (2, 2.1574092850544693, 18.248852740215053) fails ['separation', 'corners']
+    [t25/db25/s+1 rw0.25] ok cost 45578.4 evals 584 (16s)
+    [t25/db25/s+1 rw1.0] ok cost 45578.4 evals 24 (1s)
+    [t25/db25/s+1 rw4.0] ok cost 45578.4 evals 24 (1s)
+    start ['t25', 'db25', 's+1']: score (0, 2.1602327935534182, 18.20550586107348) fails []
+    [t0/db25/s-1 rw0.25] ok cost 59341.4 evals 924 (24s)
+    [t0/db25/s-1 rw1.0] ok cost 57601.1 evals 434 (11s)
+    [t0/db25/s-1 rw4.0] ok cost 57594.8 evals 215 (6s)
+    start ['t0', 'db25', 's-1']: score (2, 2.097926244097842, 23.149672238595) fails ['separation', 'corners']
+  V5 P: best ['t25', 'db25', 's+1'] score (0, 2.1602327935534182, 18.20550586107348) fails [] -> ACCEPTED
+REVIEW P_v5 ['bottomk', 'junction', 'topk', 'endstrand']

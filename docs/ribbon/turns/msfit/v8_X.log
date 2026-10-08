@@ -1,0 +1,30 @@
+X v8: base sec_X_best.npz (X_v5); roll list ['crossbar bend 1', 'wrap curl', 'wrap twist 1', 'wrap twist 2']; curl tau0 at ring 897 (arch peak (240,783)) - 0.3W
+X v8 start init costs: [(['db0', 's+1'], 23298578), (['db-20', 's+1'], 43480186), (['db20', 's+1'], 48961000), (['db20', 's-1'], 213817569), (['db0', 's-1'], 229924459), (['db-20', 's-1'], 243527021)]
+## WARM REDO X_v8: previous score (fails, outline, rms) (3, 97.24442836027914, 189.48603552443257), fails ['separation', 'curv-oscillation', 'corners']
+    [warm rw0.25] ok cost 1857685.8 evals 799 (36s)
+    [warm rw1.0] ok cost 1678000.7 evals 910 (42s)
+    [warm rw4.0] ok cost 1496782.9 evals 672 (31s)
+    start warm: score (4, 69.62434043058806, 60.60516192624825) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt0 rw0.25] ok cost 783316.7 evals 2549 (122s)
+    [alt0 rw1.0] ok cost 782264.5 evals 288 (13s)
+    [alt0 rw4.0] ok cost 779471.3 evals 464 (21s)
+    start alt0: score (4, 4.991893823467959, 60.462168778166166) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt1 rw0.25] ok cost 347864.5 evals 1902 (85s)
+    [alt1 rw1.0] ok cost 343851.1 evals 715 (32s)
+    [alt1 rw4.0] ok cost 339580.9 evals 311 (14s)
+    start alt1: score (1, 19.523418278290848, 39.24855973143245) fails ['corners']
+    [alt2 rw0.25] ok cost 276878.0 evals 1673 (74s)
+    [alt2 rw1.0] ok cost 276631.8 evals 339 (15s)
+    [alt2 rw4.0] ok cost 267768.5 evals 295 (13s)
+    start alt2: score (4, 6.300064812854239, 34.797170775603355) fails ['separation', 'curv-oscillation', 'corners', 'surface-dip']
+    [alt3 rw0.25] ok cost 228790613.5 evals 287 (11s)
+    [alt3 rw1.0] ok cost 941664.4 evals 3877 (176s)
+    [alt3 rw4.0] ok cost 918338.8 evals 268 (13s)
+    start alt3: score (2, 19.735673428416, 72.62219147087893) fails ['separation', 'corners']
+    [alt4 rw0.25] ok cost 1422930.6 evals 1586 (86s)
+    [alt4 rw1.0] ok cost 1293128.2 evals 541 (30s)
+    [alt4 rw4.0] ok cost 1293127.6 evals 64 (4s)
+    start alt4: score (2, 101.1466557444751, 67.5363028056988) fails ['separation', 'corners']
+  DECISION numbers: candidate fails 1 rms 39.2 | previous best fails 3 rms 189.5 | limit rms 284.2
+  WARM REDO X_v8: best start alt1 score (1, 19.523418278290848, 39.24855973143245) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW X_v8_rejected ['farleft', 'wrap', 'junction']

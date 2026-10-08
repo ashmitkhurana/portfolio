@@ -1,0 +1,8 @@
+K v7: base = v6 loop candidate sec_K_v6_cand.npz; roll list ['bottom-K fold 1', 'k_return bend']; continuity to locked A (weight 200), return pt x2
+  K v8 reflection seed: d_in [0.26 0.97] d_out [-0.75 -0.66] a [-0.85  0.53] beta0 106.8 deg
+K v7 start init costs: [(['Apose', 'rho1.0', 's-1', 'db-15'], 106654935), (['Apose', 'rho0.6', 's-1', 'db-15'], 106691562), (['Apose', 'rho1.4', 's-1', 'db-15'], 138463134), (['Apose', 'rho0.6', 's-1', 'db0'], 190925423), (['Apose', 'rho1.0', 's-1', 'db0'], 192433745), (['Apose', 'rho1.4', 's-1', 'db0'], 194055350), (['Apose', 'rho0.6', 's+1', 'db-15'], 207791785), (['Apose', 'rho1.4', 's-1', 'db15'], 214003588)]
+## WARM REDO K_v8: previous score (fails, outline, rms) (1, 45.60844069808869, 13.6), fails ['x']
+    [warm rw0.25] ok cost 713983.0 evals 1144 (88s)
+    [warm rw1.0] ok cost 711537.8 evals 536 (47s)
+    [warm rw4.0] ok cost 711537.8 evals 55 (5s)
+    start warm: score (1, 14.513561013564916, 68.29225574275391) fails ['corners']

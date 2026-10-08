@@ -1,0 +1,14 @@
+K v7: base = v6 loop candidate sec_K_v6_cand.npz; roll list ['bottom-K fold 1', 'k_return bend']; continuity to locked A (weight 200), return pt x2
+K v7 start init costs: [(['Apose', 'db0', 's-1'], 107534032), (['Apose', 'db25', 's-1'], 200773925), (['Apose', 'db0', 's+1'], 223230551), (['v6pose', 'db0', 's-1'], 224161173), (['v6pose', 'db0', 's+1'], 225977682), (['v6pose', 'db25', 's+1'], 246084992), (['v6pose', 'db25', 's-1'], 247170157), (['v6pose', 'db-25', 's-1'], 249677118)]
+## WARM REDO K_v7: previous score (fails, outline, rms) (1, 29.77762812149814, 13.6), fails ['x']
+    [warm rw0.25] ok cost 773248.9 evals 687 (47s)
+    [warm rw1.0] ok cost 773239.2 evals 140 (9s)
+    [warm rw4.0] ok cost 773239.2 evals 21 (1s)
+    start warm: score (1, 14.423448913665283, 69.45640596946852) fails ['corners']
+    [alt0 rw0.25] ok cost 2714695.3 evals 2190 (157s)
+    [alt0 rw1.0] ok cost 2604145.6 evals 301 (22s)
+    [alt0 rw4.0] ok cost 2512521.4 evals 1030 (75s)
+    start alt0: score (1, 29.4667986501409, 104.55440425269494) fails ['corners']
+  DECISION numbers: candidate fails 1 rms 69.5 | previous best fails 1 rms 13.6 | limit rms 20.4
+  WARM REDO K_v7: best start warm score (1, 14.423448913665283, 69.45640596946852) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW K_v7_rejected ['scurve', 'bottomk', 'junction', 'topk', 'endstrand']

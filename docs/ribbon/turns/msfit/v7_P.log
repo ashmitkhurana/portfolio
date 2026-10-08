@@ -1,0 +1,9 @@
+P v7: x loaded from /Users/ashmitkhurana/Development/studio/portfolio/docs/ribbon/turns/msfit/sections/sec_P_v5.npz; roll list ['top-K front bend a', 'top-K tip fold', 'end bend']; tip fold (loop) rho 0.35W phi 3.44
+P v7: section rings 1102..1298 (data 1087..1298); last ring 1298 projected midpoint [ 536.2 1057.6] (target (540,1060), dist 4.5 px)
+## WARM REDO P_v7: previous score (fails, outline, rms) (0, 2.1602327935534182, 18.20550586107348), fails []
+    [warm rw0.25] ok cost 47672.6 evals 234 (6s)
+    [warm rw1.0] ok cost 47672.3 evals 121 (3s)
+    [warm rw4.0] ok cost 47671.0 evals 141 (4s)
+    start warm: score (0, 2.187004234825367, 18.685672764337735) fails []
+  WARM REDO P_v7: best start warm score (0, 2.187004234825367, 18.685672764337735) fails [] -> REJECTED (keeping previous)
+REVIEW P_v7_rejected ['bottomk', 'junction', 'topk', 'endstrand']

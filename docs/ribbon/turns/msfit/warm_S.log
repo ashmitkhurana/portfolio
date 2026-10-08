@@ -1,0 +1,15 @@
+## WARM REDO S_v4: previous score (fails, outline, rms) (1, 45.86669881510649, 488.776752902518), fails ['separation']
+    [warm rw0.25] ok cost 325564.6 evals 636 (36s)
+    [warm rw1.0] ok cost 325564.6 evals 24 (1s)
+    [warm rw4.0] ok cost 325564.6 evals 24 (1s)
+    start warm: score (2, 17.9951345951193, 22.790803507265377) fails ['separation', 'corners']
+    [new:S obl 4/b90/p1.57 rw0.25] ok cost 71081.7 evals 1647 (96s)
+    [new:S obl 4/b90/p1.57 rw1.0] ok cost 58480.1 evals 845 (48s)
+    [new:S obl 4/b90/p1.57 rw4.0] ok cost 50579.0 evals 859 (50s)
+    start new:S obl 4/b90/p1.57: score (2, 22.45005412120784, 29.96940142670956) fails ['separation', 'corners']
+    [new:S obl 4/b90/p1.00 rw0.25] ok cost 47727.4 evals 2711 (151s)
+    [new:S obl 4/b90/p1.00 rw1.0] ok cost 47727.4 evals 40 (2s)
+    [new:S obl 4/b90/p1.00 rw4.0] ok cost 47727.4 evals 40 (2s)
+    start new:S obl 4/b90/p1.00: score (2, 23.027210500014352, 29.17349805927464) fails ['separation', 'corners']
+  WARM REDO S_v4: best start warm score (2, 17.9951345951193, 22.790803507265377) fails ['separation', 'corners'] -> REJECTED (keeping previous)
+REVIEW S_v4_rejected ['scurve', 'bottomk', 'endstrand']

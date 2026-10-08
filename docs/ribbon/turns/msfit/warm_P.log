@@ -1,0 +1,7 @@
+## WARM REDO P_v4: previous score (fails, outline, rms) (5, 2.191250723057535, 8.893229744747465), fails ['crossing', 'separation', 'curv-oscillation', 'corners', 'roll-overlap']
+    [warm rw0.25] ok cost 30171.5 evals 1436 (26s)
+    [warm rw1.0] ok cost 14088.2 evals 1316 (26s)
+    [warm rw4.0] ok cost 13181.1 evals 555 (11s)
+    start warm: score (3, 9.11304491855348, 12.244733740751984) fails ['separation', 'curv-oscillation', 'corners']
+  WARM REDO P_v4: best start warm score (3, 9.11304491855348, 12.244733740751984) fails ['separation', 'curv-oscillation', 'corners'] -> ACCEPTED
+REVIEW P_v4 ['bottomk', 'junction', 'topk', 'endstrand']

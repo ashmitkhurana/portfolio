@@ -1,0 +1,13 @@
+K v6 roll list: ['bottom-K fold 1', 'k_return bend'] loop roll tau0 ring-equivalent 1272.0
+## WARM REDO K_v6: previous score (fails, outline, rms) (5, 79.89550564794135, 13.6), fails ['x', 'x', 'x', 'x', 'x']
+    [warm rw0.25] ok cost 775703.8 evals 616 (43s)
+    [warm rw1.0] ok cost 743534.0 evals 299 (21s)
+    [warm rw4.0] ok cost 721114.9 evals 299 (21s)
+    start warm: score (1, 7.534174123190178, 68.44298063009995) fails ['corners']
+    [alt0 rw0.25] ok cost 809879.2 evals 697 (50s)
+    [alt0 rw1.0] ok cost 809868.1 evals 197 (14s)
+    [alt0 rw4.0] ok cost 809440.5 evals 366 (27s)
+    start alt0: score (2, 22.74287889783934, 75.49828796316876) fails ['separation', 'corners']
+  DECISION numbers: candidate fails 1 rms 68.4 | previous best fails 5 rms 13.6 | limit rms 20.4
+  WARM REDO K_v6: best start warm score (1, 7.534174123190178, 68.44298063009995) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW K_v6_rejected ['scurve', 'bottomk', 'junction', 'endstrand']

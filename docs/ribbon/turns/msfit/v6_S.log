@@ -1,0 +1,28 @@
+S v6 roll list: ['S bend', 'S obl 4'] (all other S rolls removed)
+## WARM REDO S_v6: previous score (fails, outline, rms) (2, 26.82619468139001, 598.9036323704076), fails ['separation', 'corners']
+    [warm rw0.25] ok cost 33223.2 evals 680 (47s)
+    [warm rw1.0] ok cost 33221.7 evals 69 (5s)
+    [warm rw4.0] ok cost 33220.1 evals 85 (6s)
+    start warm: score (0, 7.98187906591326, 13.233106858703849) fails []
+    [alt0 rw0.25] ok cost 7877.9 evals 2375 (168s)
+    [alt0 rw1.0] ok cost 7877.9 evals 65 (6s)
+    [alt0 rw4.0] ok cost 7877.9 evals 23 (2s)
+    start alt0: score (0, 3.0771324761265393, 12.234987791447782) fails []
+    [alt1 rw0.25] ok cost 70564.6 evals 1340 (108s)
+    [alt1 rw1.0] ok cost 70304.3 evals 98 (7s)
+    [alt1 rw4.0] ok cost 68567.4 evals 149 (10s)
+    start alt1: score (1, 13.992951954448596, 11.199817500772717) fails ['corners']
+    [alt2 rw0.25] ok cost 56628.1 evals 1892 (125s)
+    [alt2 rw1.0] ok cost 56628.1 evals 23 (2s)
+    [alt2 rw4.0] ok cost 56628.1 evals 23 (2s)
+    start alt2: score (1, 11.393521962302193, 22.50926066218675) fails ['corners']
+    [alt3 rw0.25] ok cost 456726.2 evals 849 (57s)
+    [alt3 rw1.0] ok cost 456726.2 evals 31 (2s)
+    [alt3 rw4.0] ok cost 456726.2 evals 31 (2s)
+    start alt3: score (2, 14.321825617675476, 25.030082877114157) fails ['separation', 'corners']
+    [alt4 rw0.25] ok cost 161352.4 evals 1454 (97s)
+    [alt4 rw1.0] ok cost 145366.2 evals 305 (17s)
+    [alt4 rw4.0] ok cost 130538.3 evals 1085 (62s)
+    start alt4: score (0, 14.975651834426353, 36.17484975960089) fails []
+  WARM REDO S_v6: best start alt0 score (0, 3.0771324761265393, 12.234987791447782) fails [] -> ACCEPTED
+REVIEW S_v6 ['scurve', 'bottomk', 'endstrand']
