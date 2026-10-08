@@ -216,6 +216,9 @@ for name, kiv in (("bottomk", 7), ("wrap", 11)):
 #      re-seated on the layering below. Cross-faded into the neighbouring rings over a few rings at each end.
 RELZ = np.full((n, 2), np.nan)
 SECS = []
+ALIGN = os.environ.get("ALIGN", "1") == "1"  # 1: resample each approved section onto the trace's rings by ARCLENGTH (not ring index) and map its ends/own range onto the trace (default on for S only = r31; aligning F/A/P adds seams, r28)
+ALIGN_SECS = set(os.environ.get("ALIGN_SECS", "S").split(","))  # sections ALIGN applies to
+Lraw_a, Rraw_a = Lraw.copy(), Rraw.copy()  # stage a: the trace rings before the sections are crossfaded in
 FADE = float(os.environ.get("FADE", 14))
 APPROVED = [s_ for s_ in os.environ.get("APPROVED", "S:S_APPROVED,F:F_APPROVED,A:A_APPROVED,P:P_APPROVED").split(",") if s_]
 if APPROVED:
@@ -238,7 +241,42 @@ if APPROVED:
         m = hi_ - lo_ + 1
         tt = np.linspace(0, 1, len(L3)); tq = np.linspace(0, 1, m)
         res = lambda A: np.stack([np.interp(tq, tt, A[:, k]) for k in range(A.shape[1])], 1)  # noqa: E731
-        srcs.append((lo_, hi_, int(sec.r0), int(sec.r1), res(pL), res(pR), res(L3[:, 2:3])[:, 0], res(R3[:, 2:3])[:, 0], nm))
+        if not ALIGN or nm not in ALIGN_SECS:
+            srcs.append((lo_, hi_, int(sec.r0), int(sec.r1), res(pL), res(pR), res(L3[:, 2:3])[:, 0], res(R3[:, 2:3])[:, 0], nm))
+            continue
+        # ALIGN: locate the source's ends on the trace by position, resample the source onto those rings by arclength
+        r0, r1 = int(sec.r0), int(sec.r1)
+        Ct = (Lraw + Rraw) / 2  # trace midline (stage a: Lraw/Rraw are still the pure trace here)
+        st_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(Ct, axis=0), axis=1))])  # zero-length steps add zero
+        Cs = (pL + pR) / 2
+        ss_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(Cs, axis=0), axis=1))])
+
+        def nearest_ring(q, c):
+            a_, b_ = max(0, c - 60), min(n - 1, c + 60)
+            return a_ + int(np.argmin(np.linalg.norm(Ct[a_:b_ + 1] - q, axis=1)))
+        i_start = nearest_ring(Cs[0], lo_)
+        i_end = nearest_ring(Cs[-1], hi_)
+        assert i_end > i_start, "ALIGN %s: degenerate ring range %d..%d" % (nm, i_start, i_end)
+        ns = len(pL)
+
+        def src_mid(r):  # the source midpoint at the old ring r's fractional index position
+            fr = float(np.clip((r - lo_) / max(hi_ - lo_, 1), 0, 1)) * (ns - 1)
+            return np.array([np.interp(fr, np.arange(ns), Cs[:, k]) for k in range(2)])
+        seg = np.arange(i_start, i_end + 1)
+
+        def ring_near(q):
+            return int(seg[int(np.argmin(np.linalg.norm(Ct[seg] - q, axis=1)))])
+        r0a, r1a = ring_near(src_mid(r0)), ring_near(src_mid(r1))
+        span_t = st_[i_end] - st_[i_start]
+        fidx = (seg - i_start) / float(i_end - i_start)
+        if span_t > 1e-9:
+            f_ = (st_[seg] - st_[i_start]) / span_t
+        else:
+            f_ = fidx
+        sq = f_ * ss_[-1]
+        itp = lambda A: np.stack([np.interp(sq, ss_, A[:, k]) for k in range(A.shape[1])], 1)  # noqa: E731
+        print("  align %s: lo %d->%d hi %d->%d own %d..%d -> %d..%d" % (nm, lo_, i_start, hi_, i_end, r0, r1, r0a, r1a))
+        srcs.append((i_start, i_end, r0a, r1a, itp(pL), itp(pR), itp(L3[:, 2:3])[:, 0], itp(R3[:, 2:3])[:, 0], nm))
     # weights: each section 1 over its own rings, ramping to 0 across the overlap with its neighbour (or over FADE rings into
     # the trace where it has none); the trace fills the rest. Everything blended (normalised).
     wsum = np.zeros(n)
@@ -249,6 +287,9 @@ if APPROVED:
         nb_lo = any(o[1] >= lo_ and o[0] < lo_ and o[8] != nm for o in srcs)
         nb_hi = any(o[0] <= hi_ and o[1] > hi_ and o[8] != nm for o in srcs)
         a0, a1 = (lo_, r0 + (r0 - lo_)) if nb_lo else (r0, r0 + (float(os.environ.get('FADE_S_LO', 35)) if nm == 'S' else FADE))
+        if ALIGN and 'S' in ALIGN_SECS and nm == 'S' and not nb_lo:  # the fade-in completes before the pinned trace R of the re-paired 's' window
+            a1 = float(os.environ.get('S_FADE_END', 148))
+            a0 = max(lo_, a1 - float(os.environ.get('FADE_S_LO', 35)))
         b1, b0 = (hi_, r1 - (hi_ - r1)) if nb_hi else (r1, r1 - FADE)
         w_ = np.clip(np.minimum((idx - a0) / max(a1 - a0, 1), (b1 - idx) / max(b1 - b0, 1)), 0, 1)
         w_ = w_ * w_ * (3 - 2 * w_)
@@ -265,6 +306,8 @@ if APPROVED:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
+if os.environ.get("DUMP_EDGES"):
+    np.savez(os.environ["DUMP_EDGES"], L2=L2, R2=R2, Lraw_a=Lraw_a, Rraw_a=Rraw_a, IV=IV)
 # the tail's width: the mockup widens it ~4x (artistic perspective a face-on strip can't have); taper the band's width
 # smoothly over the tail -> S so the narrowing reads as perspective, never as a crease at the S
 TW_SIG = float(os.environ.get("TAIL_WSIG", 0))

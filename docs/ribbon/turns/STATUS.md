@@ -206,3 +206,10 @@ Plan: a local PAPER-SPAN primitive in the engine, a port of scripts/mockup/paper
 
 ## 2026-10-08 end of session: see docs/ribbon/RESUME.md (start there)
 The approach changed to `scripts/curve/rotosurf.py`: the AK from the approved trace's edges + designed depth + the approved paper sections. The best is `docs/ribbon/turns/curve/best/` (r19). `ak-hero.json` is unchanged.
+
+## 2026-10-09: r31 = new best (S crease fixed)
+Fresh session after the Mac reset. The env is rebuilt and r23 reproduces byte-identically.
+- ROOT CAUSE of the S crease (diagnosed from the screen-space ruling dumps): the approved sections were resampled and crossfaded BY RING INDEX. The trace and the S source are 60–80 px out of phase along the strip, and the re-paired 's' window pins the trace's R edge on one point for rings 152–193 (all those rulings fan from one apex). The index blend made the R edge double back (a small curl at rings 140–152), which read as the crease and cone.
+- FIX: `ALIGN=1`: each section is located on the trace by position and resampled onto the trace's rings by arclength. For S the fade-in completes by ring 148 (`S_FADE_END`), before the pinned rings. Default `ALIGN_SECS=S`: aligning F/A/P too (r28) put a diagonal seam in the sweep and a notch at the left-leg corner.
+- Tried and rejected: no approved S (r24, r27: a sharper kink); longer index fade FADE_S_LO 70/110 (r25, r26: barely softer); an earlier S fade end 140 (r30: kinks at 124–134).
+- Still open at the S: a bright fan of shading converging toward the S's lower tip (the rulings rotate fast there). The mockup is a broad, even turn with a thin bright rim along the inner edge.
