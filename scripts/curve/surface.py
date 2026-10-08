@@ -300,6 +300,80 @@ def helix_piece(st, start, LZ, a, b, s0, s1, name, n=90):
     return st.exit()
 
 
+
+# ---- tilted ring fit (ringfit.py, generalised): a circle of radius R tilted by tau about the in-screen axis at alpha ------
+_RING_CACHE = os.path.join(HERE, "..", "..", "docs", "ribbon", "turns", "curve", "ring_cache.json")
+
+
+def fit_ring(in_p, in_d, out_p, out_d, trace, R0=50.0, min_span=2.6):
+    key = json.dumps([in_p, in_d, out_p, out_d, trace, R0, min_span])
+    cache = json.load(open(_RING_CACHE)) if os.path.exists(_RING_CACHE) else {}
+    if key in cache:
+        pts, cen = cache[key]
+        return [tuple(q) for q in pts], tuple(cen)
+    pts, cen = _fit_ring(in_p, in_d, out_p, out_d, trace, R0, min_span)
+    cache[key] = [pts, cen]
+    json.dump(cache, open(_RING_CACHE, "w"))
+    return pts, cen
+
+
+def _fit_ring(in_p, in_d, out_p, out_d, trace, R0=50.0, min_span=2.6):
+    """A circular arc that leaves the entry line (point in_p, direction in_d; cutout px / screen dirs) tangentially and joins
+    the exit line tangentially, fitted to `trace` (cutout points). Orthographic design in css units. Returns the arc as
+    cutout xy + relative depth samples, its centre (cutout xy, depth) and the tilt."""
+    Kc = 2.185
+    tr = np.array(trace, float) / Kc
+    L1p, L1d = np.array(in_p, float) / Kc, unit(np.array(in_d, float))
+    L2p, L2d = np.array(out_p, float) / Kc, unit(np.array(out_d, float))
+
+    def ring(R, tau, al):
+        a = np.array([math.cos(al), math.sin(al)]); ap = np.array([-a[1], a[0]])
+        p = lambda th: (R * (math.cos(th) * a + math.sin(th) * math.cos(tau) * ap), R * math.sin(th) * math.sin(tau))  # noqa: E731
+        def t(th):
+            v = R * (-math.sin(th) * a + math.cos(th) * math.cos(tau) * ap)
+            return v / max(np.linalg.norm(v), 1e-9)
+        return p, t
+
+    ths = np.linspace(0, 2 * math.pi, 1441)
+
+    def solve_th(t, d):
+        return ths[int(np.argmax([t(x) @ d for x in ths]))]
+
+    def build_(v, n):
+        R, tau, al = v
+        p, t = ring(R, tau, al)
+        th0, th1 = solve_th(t, L1d), solve_th(t, L2d)
+        if th1 <= th0:
+            th1 += 2 * math.pi
+        Dv = p(th1)[0] - p(th0)[0]
+        cr = lambda w: w[0] * L2d[1] - w[1] * L2d[0]  # noqa: E731
+        sdist = -cr(L1p + Dv - L2p) / cr(L1d)
+        Ein = L1p + sdist * L1d
+        C = Ein - p(th0)[0]
+        return [(C + p(th)[0], p(th)[1]) for th in np.linspace(th0, th1, n)], th0, th1, C
+
+    def cost(v):
+        try:
+            pts, th0, th1, _ = build_(v, 50)
+        except Exception:
+            return 1e9
+        P = np.array([q[0] for q in pts])
+        dmin = [np.min(np.linalg.norm(P - q, axis=1)) for q in tr]
+        return float(np.mean(np.square(dmin))) + 50 * max(0, min_span - (th1 - th0)) ** 2
+
+    from scipy.optimize import minimize
+    best = None
+    for tau in (0.7, 0.9, 1.1, 2.0, 2.4):
+        for al in np.linspace(-math.pi, math.pi, 9):
+            r = minimize(cost, [R0, tau, al], method="Nelder-Mead", options=dict(maxiter=400))
+            if best is None or r.fun < best.fun:
+                best = r
+    pts, th0, th1, C = build_(best.x, 16)
+    R, tau, al = best.x
+    print("  ring: cost %.1f  R %.2f W  tilt %.0f deg  sweep %.0f deg" % (best.fun, R / W, math.degrees(tau), math.degrees(th1 - th0)))
+    return [(float(q[0][0] * Kc), float(q[0][1] * Kc), float(q[1])) for q in pts], (float(C[0] * Kc), float(C[1] * Kc))
+
+
 # ---- the design ------------------------------------------------------------------------------------------------------------
 def fold_auto(st, ex, target, rho, z_want, u0, name, phim=0.999):
     """a flat fold (phi = +-pi) towards `target`, the side chosen so the far layer lands nearest depth z_want"""
@@ -406,80 +480,90 @@ def build(stage=99):
     # 4. apex fold down into the right leg (face B), frontmost
     RZ = LZ + 1.2 * W
     ex = fold_auto(st, ex, world(480, 950, RZ), 0.6 * W, RZ, 0.5 * W, "apex")
-    # 5. right leg (face B) to the bottom K
-    bk_entry = world(536, 1119, RZ - 8)
-    ex = connector(st, ex, [world(470, 900, RZ), bk_entry], unit(bk_entry - world(470, 900, RZ)), "B", name="right-leg")
+    # 5. right leg (face B) down to the bottom-K ring
+    bk, bkc = fit_ring((531, 1105), (0.244, 0.970), (553, 937), (-0.79, -0.61),
+                       [(565, 1169), (616, 1204), (680, 1207), (732, 1171), (753, 1122), (718, 1068)], R0=52.0)
+    bz0 = RZ - 6.0 - bk[0][2]
+    bk_pts = [world(x, y, z + bz0) for x, y, z in bk]
+    bk_c = world(bkc[0], bkc[1], bz0)
+    ex = connector(st, ex, [world(470, 900, RZ), bk_pts[0]], unit(bk_pts[1] - bk_pts[0]), "B", name="right-leg")
     if stage < 3:
         return st, ex
-    # 6. bottom K: the owner's double fold (other face between the folds), leaving onto the K band behind the right leg
-    rolls, L = solve_double(ex, (702, 1051), (-0.79, -0.61), [(565, 1169), (616, 1204), (680, 1207), (732, 1171), (753, 1122), (718, 1068)],
-                            z_mid_max=ex["pos"][2] - 45, z_out=-14, rho_lo=0.55, rho_hi=0.9)
-    ex = fold_piece(st, ex, rolls, L, "bottom-k")
-    print("  bottom-K exit", screen(ex["pos"]).round(0), "z %.0f" % ex["pos"][2])
-    # 7-9. one continuous path: K band -> junction (behind the right leg) -> crossbar (upper strand) -> the wrap round the
-    #      left leg (front pass, curl round its outer edge, behind it; a bracelet) -> the hidden half twist -> the return
-    #      (lower strand, in front of the crossbar at the V) -> junction -> top-K front strand
+    # 6-12. one continuous path: the bottom-K RING (a tilted bracelet: outer face B on the near arc, the inner face A on the
+    #       far arc) -> K band -> junction (behind the right leg) -> crossbar -> the wrap round the left leg (bracelet) ->
+    #       the hidden half twist -> the return -> junction -> top-K front -> the top-K RING (bracelet, tilted back) -> the
+    #       back section and the end strand (face A), tip hidden behind the right leg
     BZ = -20.0
-    hx = []  # the wrap: half a turn round the leg's axis (leg frame, cutout px), depth LZ +- b
+    hx = []
     for k in range(1, 7):
         ph = math.pi * k / 6
         su = 208.0 + (WR_S1 - 208.0) * (0.5 - 0.5 * math.cos(ph))
-        hx.append(leg_world(su, -WR_A * math.sin(ph), LZ + 30.0 * math.cos(ph) - 14.0 * (1 - math.cos(ph)) / 2))  # deeper behind: the leg's foot sits ~15 px deeper than its top
+        hx.append(leg_world(su, -WR_A * math.sin(ph), LZ + 30.0 * math.cos(ph) - 14.0 * (1 - math.cos(ph)) / 2))
     pre = [world(611, 968, -18), world(553, 937, BZ), world(468, 911, BZ), world(374, 883, BZ - 4), world(290, 840, -4),
            leg_world(208.0, 0.0, LZ + 30.0)]
     post = [world(140, 1056, -74), world(200, 1046, -62), world(254, 1036, -46), world(346, 992, -12), world(429, 938, 2),
-            world(482, 893, 8), world(543, 843, 10), world(610, 789, 12), world(670, 740, 12)]
-    # the top-K tip: a round loop, half a circle tilted back in depth (over the top and back behind), a bracelet: the
-    # outgoing strand shows its outer face B, the back section the inner face A (dark), no crease
-    d1 = unit(np.array([0.777, -0.629])); sv = np.array([-d1[1], d1[0]])  # screen: along the front strand / down-right
-    R, gm = TK_R * W, math.radians(TK_TILT)
-    E = np.array([705.0, 712.0])  # cutout, on the front strand's line
-    # the loop as a planar curve whose curvature eases in and out (no curvature jump where it meets the straight strand):
-    # kappa(s) ramps 0 -> 1/R over the first and last 20 % of the turn; the total turn is pi
-    ns = 400
-    prof = np.minimum(1.0, np.minimum(np.linspace(0, 1, ns), np.linspace(1, 0, ns)) / 0.2)
-    prof = 0.5 - 0.5 * np.cos(np.pi * prof)
-    ds_ = math.pi / (prof.sum() / R)  # arc step so the turning sums to pi
-    ang = np.cumsum(prof / R * ds_)
-    uu = np.cumsum(np.cos(ang) * ds_); ww = np.cumsum(np.sin(ang) * ds_)
-    loop = []
-    for k in np.linspace(ns // 9, ns - 1, 9).astype(int):
-        xy = E + 2.185 * (uu[k] * d1 + ww[k] * math.sin(gm) * sv)
-        loop.append(world(xy[0], xy[1], 12 - ww[k] * math.cos(gm)))
-    Ez = 12.0
-    lc = world(*(E + 2.185 * (uu[ns // 2] * d1 + 0.5 * ww[-1] * math.sin(gm) * sv)), Ez - 0.5 * ww[-1] * math.cos(gm))  # the loop's centre
-    back0 = loop[-1]
-    b0 = screen(back0)[0]
-    end_pts = [world(*(b0 - 85 * d1), back0[2] - 2), world(640, 905, -60), world(585, 975, -60)]
-    end = world(540, 1035, -60)
-    anchors = pre + hx + post + [world(*E, Ez)] + loop + end_pts + [end]
-    i_h0, i_h1 = len(pre) - 1, len(pre) + len(hx)  # the bracelet round the left leg (to the hidden point behind it), by anchor index
-    i_l0 = len(pre) + len(hx) + len(post)  # the loop start (E)
-    i_l1 = i_l0 + len(loop)  # the loop end
+            world(482, 893, 8), world(543, 843, 10)]
+    tk, tkc = fit_ring((610, 789), (0.777, -0.629), (709, 854), (-0.639, 0.769),
+                       [(716, 717), (770, 702), (797, 711), (777, 759), (744, 810)], R0=40.0, min_span=2.8)
+    tz0 = 12.0 - tk[0][2]
+    tk_pts = [world(x, y, z + tz0) for x, y, z in tk]
+    tk_c = world(tkc[0], tkc[1], tz0)
+    tb = screen(tk_pts[-1])[0]
+    td = unit(np.array([-0.639, 0.769]))
+    end_pts = [world(*(tb + 90 * td), tk_pts[-1][2] - 4), world(*(tb + 180 * td), tk_pts[-1][2] - 6)]
+    end = world(505, 1012, tk_pts[-1][2] - 6)  # the tip, fully behind the right leg
+    anchors = bk_pts[1:] + pre + hx + post + tk_pts + end_pts + [end]
+    nb = len(bk_pts) - 1
+    i_b1 = nb - 1  # the bottom-K ring ends (anchor index)
+    i_h0, i_h1 = nb + len(pre) - 1, nb + len(pre) + len(hx)  # the bracelet round the left leg
+    i_t0 = nb + len(pre) + len(hx) + len(post)  # the top-K ring starts
+    i_t1 = i_t0 + len(tk_pts) - 1
     ax0, axd = leg_world(0, 0, LZ), unit(leg_world(100, 0, LZ) - leg_world(0, 0, LZ))
-    lax = unit(np.cross(unit(loop[3] - world(*E, Ez)), unit(loop[6] - loop[3])))  # the loop's axis
+
+    def ring_axis(pts):
+        P_ = np.array(pts); Cc = P_.mean(0)
+        _, _, vt = np.linalg.svd(P_ - Cc)
+        return unit(vt[2])
+
+    bk_ax, tk_ax = ring_axis(bk_pts), ring_axis(tk_pts)
+
+    def cone(q, cen, ax, psi):
+        """face-A normal of a conical band on the ring: the inward radial tilted by psi towards the axis; the axis sign is
+        chosen so the band turns towards the camera (a lampshade seen from the front shows its faces broad)"""
+        rin = -unit(q - cen); rin = unit(rin - (rin @ ax) * ax)
+        v = unit(CAM - q)
+        best = None
+        for sg in (1, -1):
+            n_ = unit(rin * math.cos(psi) + sg * ax * math.sin(psi))
+            sc = abs(n_ @ v)
+            if best is None or sc > best[0]:
+                best = (sc, n_)
+        return best[1]
 
     def frames(i, q, t, afr, si):
+        if si <= afr[i_b1]:
+            return cone(q, bk_c, bk_ax, BK_PSI)  # bottom-K ring: a lampshade band, face A inside
         if afr[i_h0] <= si <= afr[i_h1]:
             r = q - ax0; r = r - (r @ axd) * axd
-            return -unit(r)  # face A towards the leg's axis: the outer face B shows outside
-        if afr[i_l0] <= si <= afr[i_l1]:
-            r = q - lc; r = r - (r @ lax) * lax
-            return -unit(r)  # face A towards the loop's centre: B outside on the front strand, A inside / behind
-        if si > afr[i_l1]:
-            return cam_normal(q, t, "A")  # the back section and the end strand: face A
+            return -unit(r)  # the wrap: face A towards the leg's axis
+        if afr[i_t0] <= si <= afr[i_t1]:
+            return cone(q, tk_c, tk_ax, TK_PSI)  # top-K ring: a lampshade band, face A inside
+        if si > afr[i_t1]:
+            return roll(cam_normal(q, t, "A"), t, END_ROLL)  # the back section / end strand: face A, turned away (a dark sliver)
         return None
 
     def sm_fn(afr, si):
-        return 1.0 if afr[i_h1] - 0.005 < si < afr[i_h1 + 3] else WR_SMOOTH  # the half twist: spread over the straight emergence
+        return 1.0 if afr[i_h1] - 0.005 < si < afr[i_h1 + 3] else WR_SMOOTH
 
-    ex = connector(st, ex, anchors, unit(end - end_pts[-1]), "B", name="kband-crossbar-wrap-return-topk-end",
-                   target=frames, smooth_w=WR_SMOOTH, wind=WR_WIND, smooth_fn=sm_fn)
+    ex = connector(st, ex, anchors, unit(end - end_pts[-1]), "B", name="bk-kband-crossbar-wrap-return-topk-end",
+                   target=frames, smooth_w=WR_SMOOTH, wind=WR_WIND, smooth_fn=sm_fn, ease=0.3)
     return st, ex
 
 
 WR_A, WR_S1, TK_RHO, TK_PHIM, WR_SMOOTH, WR_WIND = 70.0, -40.0, 0.8, 0.82, 0.5, 0
 TK_R, TK_TILT = 0.62, 35.0
+BK_PSI, TK_PSI = math.radians(float(os.environ.get('BK_PSI', 0))), math.radians(float(os.environ.get('TK_PSI', 0)))
+END_ROLL = math.radians(float(os.environ.get('END_ROLL', 60)))
 WR_SMOOTH = 0.8
 
 
