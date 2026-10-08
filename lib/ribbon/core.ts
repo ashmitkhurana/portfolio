@@ -16,6 +16,7 @@
  * ImageBitmaps out, so this class can run inside a Worker unchanged.
  */
 import * as THREE from "three";
+import { AoPass, aoFormat } from "./ao";
 import { Backdrop, BACKDROP_LAYER } from "./backdrop";
 import { EnvironmentBuilder } from "./environment";
 import { temperatureColor } from "./color";
@@ -152,6 +153,13 @@ export class RibbonCore {
   private catcherSig: Float32Array | null = null;
   private catcherDirty = true;
   private catcherValid = false;
+  // environment ambient occlusion (ao.ts): depth maps re-rendered when the geometry changed
+  private aoPass: AoPass | null = null;
+  private aoSig: Float32Array | null = null;
+  private aoDirty = true;
+  private aoOn = false;
+  /** CPU submit ms of the last AO depth-map render (0 when AO is off or nothing changed) */
+  aoLastMs = 0;
   private catcherGroups = new THREE.Vector3(NaN, 0, 0);
   private ribRectDev = new THREE.Vector4();
   private frameIndex = 0;
@@ -408,6 +416,11 @@ export class RibbonCore {
 
     this.ribbonMat.setToneMapping(s.post.toneMapping);
     applyMaterialSettings(this.ribbonMat.material, s.material, this.shared);
+    // environment AO: off on the low tier and where float colour targets are missing (the maps need R32F / R16F)
+    this.aoOn =
+      s.material.ao > 0 && s.quality !== "low" && aoFormat(this.renderer) !== "none";
+    this.ribbonMat.setAo(this.aoOn);
+    this.aoDirty = true;
     this.ribbonMat.material.wireframe = s.debug.wireframe;
     this.mesh.receiveShadow = s.shadows.self;
     this.mesh.castShadow = s.shadows.self || s.shadows.floor || s.shadows.wall;
@@ -513,6 +526,11 @@ export class RibbonCore {
     const contactOn = s.contact.enabled && frontActive;
     this.contactWanted = contactOn;
     const bloomOn = s.post.bloom && this.rtBloomA !== null && this.rtBloomB !== null;
+    // ---- 0: environment AO depth maps (only when on, and only when the ribbon changed)
+    this.aoLastMs = 0;
+    if (this.aoOn && (this.aoDirty || this.ribbon.signatureDelta(this.aoSig) > 0)) {
+      this.renderAo(measure);
+    }
     r.info.reset();
 
     // ---- 1+2: shadow map + ribbon colour/mask (full shading ONCE)
@@ -661,6 +679,48 @@ export class RibbonCore {
     st.frontActive = frontActive;
   }
 
+  private aoParams() {
+    const s = this.settings.material;
+    return {
+      dirs: s.aoDirs,
+      res: s.aoRes,
+      blur: s.aoBlur,
+      profileCount: this.ribbon.profileCount,
+      rings: this.ribbon.totalRings,
+    };
+  }
+
+  private renderAo(measure: boolean): void {
+    const s = this.settings.material;
+    if (!this.aoPass) {
+      this.aoPass = new AoPass(this.renderer, this.ribbon.sweep, this.ribbon.geometry, this.shared);
+    }
+    this.aoDirty = false;
+    this.aoSig = this.ribbon.snapshotSignature(this.aoSig);
+    const t = performance.now();
+    this.stageBegin("ao", measure);
+    this.aoPass.render(this.ribbon.bounds, this.aoParams());
+    this.stageEnd("ao", measure);
+    this.aoLastMs = performance.now() - t;
+    rlog("ao-render", { dirs: s.aoDirs, res: s.aoRes });
+  }
+
+  /**
+   * Debug: GPU-synchronised cost (ms per full set of AO depth maps) averaged over `n` renders; the vertex-shader
+   * lookups of the colour pass are NOT included (compare frame times with ao on / off for that).
+   */
+  benchAo(n = 20): { ms: number; format: string } {
+    if (!this.aoOn) return { ms: 0, format: "off" };
+    if (!this.aoPass) this.renderAo(false);
+    const pass = this.aoPass;
+    if (!pass) return { ms: 0, format: "off" };
+    this.finish();
+    const t = performance.now();
+    for (let i = 0; i < n; i++) pass.render(this.ribbon.bounds, this.aoParams());
+    this.finish();
+    return { ms: (performance.now() - t) / n, format: pass.format };
+  }
+
   private stageBegin(name: string, on: boolean): void {
     if (!on) return;
     (this.stageTimers[name] ??= new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext)).begin();
@@ -690,6 +750,7 @@ export class RibbonCore {
     this.ribbonMat.material.dispose();
     this.depthMat.dispose();
     this.distanceMat.dispose();
+    this.aoPass?.dispose();
     this.ribbon.sweep.uRingTex.value.dispose();
     this.light.shadow.map?.dispose();
     for (const rt of [this.rtRibbon, this.rtCatchA, this.rtCatchB, this.rtBloomA, this.rtBloomB]) {
@@ -719,7 +780,9 @@ export class RibbonCore {
     if (this.ribbon.setParams(eff)) {
       this.mesh.geometry = this.ribbon.geometry;
       this.catcherMesh.geometry = this.ribbon.geometry;
+      this.aoPass?.setGeometry(this.ribbon.geometry);
     }
+    this.aoDirty = true;
   }
 
   /**

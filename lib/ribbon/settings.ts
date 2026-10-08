@@ -83,6 +83,24 @@ export interface RibbonSettings {
     /** Fresnel rim: environment / clearcoat reflections are boosted by 1 + rim * (1 - N.V)^rimPower */
     rim: number;
     rimPower: number;
+    /**
+     * 0..1 ambient occlusion of the ENVIRONMENT light (not the direct light: the shadow map covers that): loop interiors and
+     * faces that look at other parts of the ribbon go dark. 0 = off (no extra passes at all). Computed from depth maps of
+     * `aoDirs` fixed directions (see ao.ts); off on the low tier.
+     */
+    ao: number;
+    /** exponent of the occlusion applied to the environment's SPECULAR (and clearcoat) reflections (1 = same as diffuse) */
+    aoSpec: number;
+    /** number of occlusion directions (Fibonacci sphere, max 64) */
+    aoDirs: number;
+    /** side of each direction's depth map, px */
+    aoRes: number;
+    /** depth bias of the occlusion test, world px */
+    aoBias: number;
+    /** width of the soft occlusion ramp (an occluder this much nearer than the surface occludes fully), world px */
+    aoSoft: number;
+    /** gaussian blur of the baked AO along the ribbon, in rings (never across a face / rim boundary) */
+    aoBlur: number;
   };
   env: {
     intensity: number;
@@ -331,6 +349,13 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     envDiffuse: 0.7,
     rim: 1.8,
     rimPower: 3,
+    ao: 0,
+    aoSpec: 1,
+    aoDirs: 32,
+    aoRes: 256,
+    aoBias: 3,
+    aoSoft: 12,
+    aoBlur: 6,
     ior: 1.5,
     sheen: 0,
     sheenRoughness: 0.5,

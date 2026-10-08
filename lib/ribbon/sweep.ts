@@ -27,12 +27,10 @@ export interface SweepUniforms {
   uRingProf: { value: THREE.Vector4 };
 }
 
-export const SWEEP_GLSL = /* glsl */ `
+/** attribute-free part of the sweep (also used by the AO bake, a fragment shader) */
+export const SWEEP_CORE_GLSL = /* glsl */ `
 uniform sampler2D uRingTex;
 uniform vec4 uRingProf;
-#ifndef USE_TANGENT
-attribute vec4 tangent;
-#endif
 
 vec3 ribRingPoint(int ring, vec2 sp, vec2 cp) {
   vec4 a = texelFetch(uRingTex, ivec2(ring, 0), 0);
@@ -44,18 +42,10 @@ vec3 ribRingPoint(int ring, vec2 sp, vec2 cp) {
   return a.xyz + b.xyz * x + n.xyz * y;
 }
 
-// position only (shadow depth passes, contact-shadow catcher)
-vec3 ribSweepPosition() {
-  return ribRingPoint(int(position.z + 0.5), position.xy, tangent.xy);
-}
-
-// position + outward normal + length tangent (colour pass). The normal is
+// position + outward normal + length tangent of the vertex (ring i, profile point sp / cp). The normal is
 // dP/ds x dP/du with dP/ds the central difference of the swept positions of the
 // neighbouring rings, exactly like the CPU version it replaces.
-void ribSweep(out vec3 P, out vec3 Nrm, out vec3 Tan) {
-  vec2 sp = position.xy;
-  vec2 cp = tangent.xy;
-  int i = int(position.z + 0.5);
+void ribSweepAt(int i, vec2 sp, vec2 cp, out vec3 P, out vec3 Nrm, out vec3 Tan) {
   int last = int(uRingProf.z + 0.5) - 1;
   P = ribRingPoint(i, sp, cp);
   vec3 pp = i > 0 ? ribRingPoint(i - 1, sp, cp) : P;
@@ -74,6 +64,23 @@ void ribSweep(out vec3 P, out vec3 Nrm, out vec3 Tan) {
   float ol = length(o);
   Nrm = o / (ol > 0.0 ? ol : 1.0);
   Tan = s;
+}
+`;
+
+export const SWEEP_GLSL = /* glsl */ `
+${SWEEP_CORE_GLSL}
+#ifndef USE_TANGENT
+attribute vec4 tangent;
+#endif
+
+// position only (shadow depth passes, contact-shadow catcher)
+vec3 ribSweepPosition() {
+  return ribRingPoint(int(position.z + 0.5), position.xy, tangent.xy);
+}
+
+// position + outward normal + length tangent (colour pass)
+void ribSweep(out vec3 P, out vec3 Nrm, out vec3 Tan) {
+  ribSweepAt(int(position.z + 0.5), position.xy, tangent.xy, P, Nrm, Tan);
 }
 `;
 

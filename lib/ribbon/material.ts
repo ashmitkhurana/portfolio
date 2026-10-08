@@ -21,8 +21,15 @@ import * as THREE from "three";
 import { MAX_PROXIES } from "./types";
 import type { RibbonSettings, ToneMapName } from "./settings";
 import { patchSweepVertexFull, type SweepUniforms } from "./sweep";
+import {
+  AO_FRAG_DECL,
+  AO_VERT_BODY,
+  AO_VERT_DECL,
+  createAoUniforms,
+  type AoUniforms,
+} from "./ao";
 
-export interface RibbonSharedUniforms {
+export interface RibbonSharedUniforms extends AoUniforms {
   uProxyRects: { value: Float32Array };
   uProxyDepth: { value: Float32Array };
   uProxyRadius: { value: Float32Array };
@@ -69,6 +76,7 @@ export function createSharedUniforms(): RibbonSharedUniforms {
     uDiffuseK: { value: 1 },
     uRim: { value: new THREE.Vector2(0, 3) },
     uEdgeGrad: { value: 0 },
+    ...createAoUniforms(),
   };
 }
 
@@ -170,16 +178,19 @@ vec3 RibNeutral(vec3 color) {
 }
 `;
 
-const SPEC_TINT_APPLY = /* glsl */ `
+const SPEC_TINT_APPLY = (ao: boolean) => /* glsl */ `
   // the softboxes carry the highlights: a punctual light only adds small hard dots
   reflectedLight.indirectDiffuse *= uDiffuseK;
+  ${ao ? "float ribAoS = pow(max(vAO, 1e-4), uAoSpec);\n  reflectedLight.indirectDiffuse *= vAO;" : ""}
   reflectedLight.directSpecular *= ribHue * uLightSpec;
   // Fresnel rim: reflections strengthen towards grazing angles
   float ribFres = 1.0 + uRim.x * pow(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), uRim.y);
   reflectedLight.indirectSpecular *= ribHue * ribFres;
+  ${ao ? "reflectedLight.indirectSpecular *= ribAoS;" : ""}
   #ifdef USE_CLEARCOAT
     clearcoatSpecularDirect *= ribHue * uLightSpec;
     clearcoatSpecularIndirect *= ribHue * ribFres;
+    ${ao ? "clearcoatSpecularIndirect *= ribAoS;" : ""}
   #endif
 `;
 
@@ -211,6 +222,8 @@ function patchedPhysicalChunk(): string {
 export interface RibbonMaterial {
   material: THREE.MeshPhysicalMaterial;
   setToneMapping(t: ToneMapName): void;
+  /** compile the environment ambient-occlusion variant (ao.ts) in / out */
+  setAo(on: boolean): void;
 }
 
 export function createRibbonMaterial(
@@ -222,6 +235,7 @@ export function createRibbonMaterial(
     clearcoat: 1, // enables the clearcoat program; per-face value comes from uFaceMat
   });
   let tone: ToneMapName = "Neutral";
+  let ao = false;
   const exposure = { value: 1 };
 
   mat.onBeforeCompile = (shader) => {
@@ -230,16 +244,19 @@ export function createRibbonMaterial(
     // geometry comes from the GPU sweep (sweep.ts): position, normal and tangent
     // are rebuilt from the per-ring texture; the face id rides in tangent.z
     shader.vertexShader = patchSweepVertexFull(
-      shader.vertexShader.replace("#include <common>", `#include <common>\n${VERT_DECL}`),
+      shader.vertexShader.replace(
+        "#include <common>",
+        `#include <common>\n${VERT_DECL}${ao ? AO_VERT_DECL : ""}`,
+      ),
     ).replace(
       "#include <project_vertex>",
-      `#include <project_vertex>\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
+      `#include <project_vertex>${ao ? AO_VERT_BODY : ""}\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
     );
 
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>\n${THREE.ShaderChunk.tonemapping_pars_fragment}\n${FRAG_DECL}\n${SPEC_TINT}`,
+        `#include <common>\n${THREE.ShaderChunk.tonemapping_pars_fragment}\n${FRAG_DECL}${ao ? AO_FRAG_DECL : ""}\n${SPEC_TINT}`,
       )
       .replace(
         "void main() {",
@@ -265,7 +282,7 @@ export function createRibbonMaterial(
         `#include <roughnessmap_fragment>\n  roughnessFactor = ribMat(ribFace).x;`,
       )
       .replace("#include <lights_physical_fragment>", patchedPhysicalChunk())
-      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${SPEC_TINT_APPLY}`)
+      .replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${SPEC_TINT_APPLY(ao)}`)
       .replace("#include <opaque_fragment>", `${DEPTH_SHADE}\n  #include <opaque_fragment>`)
       .replace(
         "#include <tonemapping_fragment>",
@@ -275,12 +292,17 @@ export function createRibbonMaterial(
   gMask = vec4(ribFrontMask());`,
       );
   };
-  mat.customProgramCacheKey = () => `ribbon-v5-${tone}`;
+  mat.customProgramCacheKey = () => `ribbon-v6-${tone}-${ao ? "ao" : "noao"}`;
   return {
     material: mat,
     setToneMapping(t) {
       if (t === tone) return;
       tone = t;
+      mat.needsUpdate = true;
+    },
+    setAo(on) {
+      if (on === ao) return;
+      ao = on;
       mat.needsUpdate = true;
     },
   };
@@ -328,6 +350,10 @@ export function applyMaterialSettings(
   shared.uLightSpec.value = s.lightSpecular;
   shared.uDiffuseK.value = s.envDiffuse;
   shared.uRim.value.set(s.rim, s.rimPower);
+  shared.uAoK.value = s.ao;
+  shared.uAoSpec.value = s.aoSpec;
+  shared.uAoBias.value = s.aoBias;
+  shared.uAoSoft.value = s.aoSoft;
   mat.color.set(s.faceA.color);
   mat.metalness = s.metalness;
   mat.anisotropy = s.anisotropy;

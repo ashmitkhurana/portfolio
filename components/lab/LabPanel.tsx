@@ -62,6 +62,13 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["material.envDiffuse", num(0, 3, 0.01)],
       ["material.rim", num(0, 4, 0.01)],
       ["material.rimPower", num(0.5, 8, 0.1)],
+      ["material.ao", num(0, 1, 0.01)],
+      ["material.aoSpec", num(0, 4, 0.05)],
+      ["material.aoDirs", num(8, 64, 1)],
+      ["material.aoRes", num(64, 1024, 64)],
+      ["material.aoBias", num(0, 20, 0.5)],
+      ["material.aoSoft", num(1, 60, 1)],
+      ["material.aoBlur", num(0.5, 30, 0.5)],
     ],
   },
   {
