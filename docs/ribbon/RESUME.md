@@ -3,7 +3,7 @@
 Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/ribbon/HANDOFF.md` §1 and §5a (the owner's ribbon flow, faces and over/under). My memory notes from this machine are copied into `docs/ribbon/agent-memory/`. Restore them into the new machine's Claude memory dir, or just read them: they carry the owner's working rules.
 
 ## Where the work is
-- Branch: everything is on the branch this file was pushed with. Its parent is `rebrand/ribbon`.
+- Branch: **`claude/upbeat-hellman-f92bb7`** on origin (pushed 2026-10-08 at the owner's request before the reset). It is `rebrand/ribbon` plus all of this session's work. Restore: `git clone`, then `git checkout claude/upbeat-hellman-f92bb7`, then `npm install`, then recreate the venv (below).
 - `ak-hero.json` is NOT changed: swapping in a pose needs the owner's OK.
 - **Current best AK: `docs/ribbon/turns/curve/best/pose.json`** (render: `best/ribbon.png`, = version r8).
   - Build it with `scripts/curve/rotosurf.py best`.
