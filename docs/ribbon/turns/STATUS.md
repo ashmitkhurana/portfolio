@@ -203,3 +203,6 @@ Plan: a local PAPER-SPAN primitive in the engine, a port of scripts/mockup/paper
 - 17:45: step 1 DONE (commit 4b1a84e). lib/ribbon/paper.ts (paperPoint, buildPaperSpan) plus scripts/curve/paper-test.mjs (`node --experimental-strip-types`). It matches paper.py to 7e-14 and is isometric to 0.05 %.
   - Design note: two folds with the SAME roll sense put layer 3 back under layer 1 (0.2 px apart), so a double fold whose ends must clear needs OPPOSITE phi signs (a Z-fold: layers 36 / 72 px apart). Check which the bottom-K trace implies.
   - Next: step 2 (spans in the pose format plus geometry.ts), then step 3 (the bottom-K double fold).
+
+## 2026-10-08 end of session: see docs/ribbon/RESUME.md (start there)
+The approach changed to `scripts/curve/rotosurf.py`: the AK from the approved trace's edges + designed depth + the approved paper sections. The best is `docs/ribbon/turns/curve/best/` (r19). `ak-hero.json` is unchanged.
