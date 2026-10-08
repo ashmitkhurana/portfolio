@@ -1,0 +1,53 @@
+{
+ "start": 1,
+ "groups": [
+  "bottomK"
+ ],
+ "passes": [
+  {
+   "label": "pass 1 (landmarks, width, faces, depth, realism)",
+   "status": "ok",
+   "cost0": 2371016.694864801,
+   "cost": 406295.739532522,
+   "seconds": 98.68210482597351
+  },
+  {
+   "label": "pass 2 (+ over/under, end hidden, clearance)",
+   "status": "ok",
+   "cost0": 71731951.7864829,
+   "cost": 1156017.9884630702,
+   "seconds": 317.3743951320648
+  },
+  {
+   "label": "pass 3 (all, realism x3)",
+   "status": "ok",
+   "cost0": 5598532.54791567,
+   "cost": 5598437.433451113,
+   "seconds": 55.32888388633728
+  }
+ ],
+ "total_cost": 1156006.96906538,
+ "realism_fails": [
+  "crossing",
+  "curv-oscillation",
+  "corners",
+  "surface-dip",
+  "roll-overlap"
+ ],
+ "A_max_dL": 7.440076172231488e-10,
+ "blocks": {
+  "lm": 81113.51,
+  "width": 1209.24,
+  "face": 12588.48,
+  "depth": 606.19,
+  "xing": 1270.51,
+  "smooth": 394846.82,
+  "ovm": 159180.36,
+  "order": 74.25,
+  "dip": 6.11,
+  "corner": 0.0,
+  "ou": 343711.82,
+  "end": 96123.26,
+  "clr": 65276.4
+ }
+}

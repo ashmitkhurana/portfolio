@@ -1,0 +1,6 @@
+[design +0.0min] multi-start table: [[0, ["bottomK", "wrap", "topK"], 24239473, ["corners", "crossing", "curv-oscillation", "roll-overlap", "separation", "surface-dip"]], [1, ["bottomK"], 1156007, ["corners", "crossing", "curv-oscillation", "roll-overlap", "surface-dip"]], [2, ["S", "bottomK", "wrap", "topK"], 33519654, ["corners", "crossing", "curv-oscillation", "roll-overlap", "separation", "surface-dip"]], [3, ["topK"], 806515, ["corners", "crossing", "curv-oscillation", "roll-overlap", "surface-dip"]]]
+[design +0.0min] best start 3 (realism-clean starts: 0)
+[design +0.0min] metrics.json written
+[design +0.0min] overlay.png, shaded_camera.png, shaded_side.png, shaded_top.png written
+[design +0.1min] zoom sheets written
+[design +0.1min] solution.npz written

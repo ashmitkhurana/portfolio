@@ -1,0 +1,8 @@
+[design s1 +0.0min] start 1: flip groups ['bottomK']; A check 0.00000
+[design s1 +1.6min] [s1 pass 1 (landmarks, width, faces, depth, realism)] ok cost 406295.7 evals 2713 (99s)
+[design s1 +1.6min] pass 1 (landmarks, width, faces, depth, realism): ok cost 2371017 -> 406296
+[design s1 +6.9min] [s1 pass 2 (+ over/under, end hidden, clearance)] ok cost 1156018.0 evals 6221 (317s)
+[design s1 +6.9min] pass 2 (+ over/under, end hidden, clearance): ok cost 71731952 -> 1156018
+[design s1 +7.9min] [s1 pass 3 (all, realism x3)] ok cost 5598437.4 evals 1120 (55s)
+[design s1 +7.9min] pass 3 (all, realism x3): ok cost 5598533 -> 5598437
+[design s1 +7.9min] start 1 done: total cost 1156007, ALL-realism fails ['crossing', 'curv-oscillation', 'corners', 'surface-dip', 'roll-overlap'], A dL 0.00000
