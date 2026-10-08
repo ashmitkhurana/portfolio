@@ -265,6 +265,16 @@ if APPROVED:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
+# the tail's width: the mockup widens it ~4x (artistic perspective a face-on strip can't have); taper the band's width
+# smoothly over the tail -> S so the narrowing reads as perspective, never as a crease at the S
+TW_SIG = float(os.environ.get("TAIL_WSIG", 0))
+if TW_SIG > 0:
+    mt = np.where(IV <= 2)[0]
+    Cm = (L2[mt] + R2[mt]) / 2; H = (R2[mt] - L2[mt]) / 2
+    hl = np.linalg.norm(H, axis=1); hs = gsmooth(hl, TW_SIG)
+    hs[-20:] = hl[-20:] * np.linspace(0, 1, 20) + hs[-20:] * np.linspace(1, 0, 20)  # back onto the sweep
+    H = H / hl[:, None] * hs[:, None]
+    L2[mt], R2[mt] = Cm - H, Cm + H
 C2 = (L2 + R2) / 2
 T2 = np.gradient(gsmooth(C2, 3.0), axis=0)
 T2 /= np.linalg.norm(T2, axis=1, keepdims=True)
