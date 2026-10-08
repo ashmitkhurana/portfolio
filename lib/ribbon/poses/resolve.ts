@@ -228,7 +228,11 @@ export function resolveRuled(
       const d = (ax * bx + ay * by + az * bz) / ((Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz)) || 1);
       turn = Math.acos(Math.min(Math.max(d, -1), 1));
     }
-    w[i] = w[i - 1] + ds + 3 * turn * H[i] * 2;
+    // the ruling can rotate fast where the centreline barely turns (the sections of a paper fold swing to the crease):
+    // weight that too, and half-width changes, so those stretches keep enough control points
+    const bd = Bv[i * 3] * Bv[i * 3 - 3] + Bv[i * 3 + 1] * Bv[i * 3 - 2] + Bv[i * 3 + 2] * Bv[i * 3 - 1];
+    const rot = Math.acos(Math.min(Math.max(bd, -1), 1));
+    w[i] = w[i - 1] + ds + 3 * turn * H[i] * 2 + 3 * rot * H[i] * 2 + 2 * Math.abs(H[i] - H[i - 1]);
   }
   const outPos = new Float32Array(count * 3);
   const data = new Float32Array(count * 4);

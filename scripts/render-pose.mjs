@@ -90,8 +90,8 @@ try {
     await page.screenshot({ path: path.join(outDir, "ribbon.png") });
     await ctx.close();
   }
-  // DPR 3: the crops, full hero then ribbon only
-  {
+  // DPR 3: the crops, full hero then ribbon only (skipped with --quick)
+  if (!process.argv.includes("--quick")) {
     const { ctx, page, info } = await open(3);
     console.log("DPR3 canvases", info.canvases.join(" "));
     for (const [n, w] of Object.entries(CROPS)) await page.screenshot({ path: path.join(outDir, `crop_${n}.png`), clip: clipOf(w) });

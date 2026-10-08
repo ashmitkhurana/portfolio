@@ -121,7 +121,7 @@ def resample(Q, ds):
     return np.stack([np.interp(t, s, Q[:, k]) for k in range(3)], 1), s[-1]
 
 
-def connector(st, start, anchors, end_T, face, twists=(), name="", end_frame=None, ease=1.2, target=None, smooth_w=0.6, wind=0):
+def connector(st, start, anchors, end_T, face, twists=(), name="", end_frame=None, ease=1.2, target=None, smooth_w=0.6, wind=0, smooth_fn=None):
     """Path from start['pos'] (tangent start['T']) through `anchors` (world points) ending at anchors[-1] with tangent
     end_T. Roll: from start['NA'] eased (over `ease` W) into face-on `face`, plus twist ramps [(s0 frac, s1 frac, dtheta)],
     eased at the end into end_frame['NA'] when given."""
@@ -161,9 +161,14 @@ def connector(st, start, anchors, end_T, face, twists=(), name="", end_frame=Non
                 v = v - 2 * math.pi * round((v - prev) / (2 * math.pi))
                 seq[i] = prev = v
             seq += 2 * math.pi * wind * have
-            sig = max(1.0, smooth_w * W / DS)
-            g = np.exp(-0.5 * (np.arange(-int(4 * sig), int(4 * sig) + 1) / sig) ** 2); g /= g.sum()
-            th_tw += np.convolve(np.pad(seq, len(g) // 2, mode="edge"), g, mode="valid")
+            sigs = np.array([max(1.0, (smooth_fn(afr, s[i]) if smooth_fn else smooth_w) * W / DS) for i in range(n)])
+            out = np.zeros(n)
+            for i in range(n):
+                k = int(4 * sigs[i])
+                j0, j1 = max(0, i - k), min(n, i + k + 1)
+                wgt = np.exp(-0.5 * ((np.arange(j0, j1) - i) / sigs[i]) ** 2)
+                out[i] = (seq[j0:j1] * wgt).sum() / wgt.sum()
+            th_tw += out
     # entry ease: the angle from the face-on frame to the incoming frame, faded out over `ease` widths
     th0 = roll_angle(base[0], unit(start["NA"] - (start["NA"] @ T[0]) * T[0]), T[0])
     fade0 = 1 - smooth5(s * L / (ease * W))
@@ -174,7 +179,10 @@ def connector(st, start, anchors, end_T, face, twists=(), name="", end_frame=Non
         ref = roll(base[-1], T[-1], th_tw[-1])
         th1 = roll_angle(ref, target, T[-1])
         fade1 = smooth5(1 - (1 - s) * L / (ease * W))
+    first = len(st.c) > 0
     for i in range(n):
+        if first and i == 0:
+            continue  # the previous piece's exit ring is this one (no duplicate ring at the join)
         th = th_tw[i] + th0 * fade0[i] + th1 * fade1[i]
         NA = roll(base[i], T[i], th)
         st.add(Q[i], T[i], NA, unit(np.cross(T[i], NA)) * -1.0, W / 2, name)
@@ -331,6 +339,10 @@ def solve_double(ex, x_out, d_out, trace, z_mid_max, z_out, rho_lo, rho_hi):
         r = list((S_[-1] - x_out) / 5.0)
         r += [(dd[0] * d_out[1] - dd[1] * d_out[0]) * 20, (1 - dd @ d_out) * 20]
         r.append((C[-1][2] - z_out) / 8.0)
+        A_ = paper.surface(x, np.array([L - 0.5, L, L, L]), np.array([0, 0, -0.5, 0.5]), K=2)
+        ne = unit(np.cross(A_[1] - A_[0], A_[3] - A_[2]))
+        ve = unit(CAM - C[-1])
+        r.append(max(0.0, 0.7 - abs(ne @ ve)) * 4)  # the K band starts near face-on (no twist right after the fold)
         mid = C[len(C) // 2][2]
         r.append(max(0.0, mid - z_mid_max) / 6.0)
         r += [np.min(np.linalg.norm(S_ - q, axis=1)) / 15.0 for q in trace]
@@ -412,30 +424,36 @@ def build(stage=99):
     for k in range(1, 7):
         ph = math.pi * k / 6
         su = 208.0 + (WR_S1 - 208.0) * (0.5 - 0.5 * math.cos(ph))
-        hx.append(leg_world(su, -WR_A * math.sin(ph), LZ + 30.0 * math.cos(ph)))
+        hx.append(leg_world(su, -WR_A * math.sin(ph), LZ + 30.0 * math.cos(ph) - 14.0 * (1 - math.cos(ph)) / 2))  # deeper behind: the leg's foot sits ~15 px deeper than its top
     pre = [world(611, 968, -18), world(553, 937, BZ), world(468, 911, BZ), world(374, 883, BZ - 4), world(290, 840, -4),
            leg_world(208.0, 0.0, LZ + 30.0)]
-    post = [world(150, 1040, -56), world(205, 1050, -50), world(254, 1036, -42), world(346, 992, -12), world(429, 938, 2),
+    post = [world(140, 1056, -74), world(200, 1046, -62), world(254, 1036, -46), world(346, 992, -12), world(429, 938, 2),
             world(482, 893, 8), world(543, 843, 10), world(610, 789, 12), world(670, 740, 12)]
     # the top-K tip: a round loop, half a circle tilted back in depth (over the top and back behind), a bracelet: the
     # outgoing strand shows its outer face B, the back section the inner face A (dark), no crease
     d1 = unit(np.array([0.777, -0.629])); sv = np.array([-d1[1], d1[0]])  # screen: along the front strand / down-right
     R, gm = TK_R * W, math.radians(TK_TILT)
     E = np.array([705.0, 712.0])  # cutout, on the front strand's line
+    # the loop as a planar curve whose curvature eases in and out (no curvature jump where it meets the straight strand):
+    # kappa(s) ramps 0 -> 1/R over the first and last 20 % of the turn; the total turn is pi
+    ns = 400
+    prof = np.minimum(1.0, np.minimum(np.linspace(0, 1, ns), np.linspace(1, 0, ns)) / 0.2)
+    prof = 0.5 - 0.5 * np.cos(np.pi * prof)
+    ds_ = math.pi / (prof.sum() / R)  # arc step so the turning sums to pi
+    ang = np.cumsum(prof / R * ds_)
+    uu = np.cumsum(np.cos(ang) * ds_); ww = np.cumsum(np.sin(ang) * ds_)
     loop = []
-    for k in range(1, 9):
-        ph = math.pi * k / 8
-        u, w = math.sin(ph), 1 - math.cos(ph)
-        xy = E + R * 2.185 * (u * d1 + w * math.sin(gm) * sv)
-        loop.append(world(xy[0], xy[1], 12 - R * w * math.cos(gm)))
+    for k in np.linspace(ns // 9, ns - 1, 9).astype(int):
+        xy = E + 2.185 * (uu[k] * d1 + ww[k] * math.sin(gm) * sv)
+        loop.append(world(xy[0], xy[1], 12 - ww[k] * math.cos(gm)))
     Ez = 12.0
-    lc = world(*(E + R * 2.185 * math.sin(gm) * sv), Ez - R * math.cos(gm))  # the loop's centre
+    lc = world(*(E + 2.185 * (uu[ns // 2] * d1 + 0.5 * ww[-1] * math.sin(gm) * sv)), Ez - 0.5 * ww[-1] * math.cos(gm))  # the loop's centre
     back0 = loop[-1]
-    end_pts = [world(*(np.array([705.0, 712.0]) + R * 2.185 * 2 * math.sin(gm) * sv - 80 * d1), back0[2] - 2),
-               world(612, 950, -58), world(560, 1030, -58)]
-    end = world(538, 1062, -58)
+    b0 = screen(back0)[0]
+    end_pts = [world(*(b0 - 85 * d1), back0[2] - 2), world(640, 905, -60), world(585, 975, -60)]
+    end = world(540, 1035, -60)
     anchors = pre + hx + post + [world(*E, Ez)] + loop + end_pts + [end]
-    i_h0, i_h1 = len(pre) - 1, len(pre) + len(hx) - 1  # the bracelet round the left leg, by anchor index
+    i_h0, i_h1 = len(pre) - 1, len(pre) + len(hx)  # the bracelet round the left leg (to the hidden point behind it), by anchor index
     i_l0 = len(pre) + len(hx) + len(post)  # the loop start (E)
     i_l1 = i_l0 + len(loop)  # the loop end
     ax0, axd = leg_world(0, 0, LZ), unit(leg_world(100, 0, LZ) - leg_world(0, 0, LZ))
@@ -452,13 +470,17 @@ def build(stage=99):
             return cam_normal(q, t, "A")  # the back section and the end strand: face A
         return None
 
+    def sm_fn(afr, si):
+        return 1.0 if afr[i_h1] - 0.005 < si < afr[i_h1 + 3] else WR_SMOOTH  # the half twist: spread over the straight emergence
+
     ex = connector(st, ex, anchors, unit(end - end_pts[-1]), "B", name="kband-crossbar-wrap-return-topk-end",
-                   target=frames, smooth_w=WR_SMOOTH, wind=WR_WIND)
+                   target=frames, smooth_w=WR_SMOOTH, wind=WR_WIND, smooth_fn=sm_fn)
     return st, ex
 
 
-WR_A, WR_S1, TK_RHO, TK_PHIM, WR_SMOOTH, WR_WIND = 70.0, 40.0, 0.8, 0.82, 0.5, 0
+WR_A, WR_S1, TK_RHO, TK_PHIM, WR_SMOOTH, WR_WIND = 70.0, -40.0, 0.8, 0.82, 0.5, 0
 TK_R, TK_TILT = 0.62, 35.0
+WR_SMOOTH = 0.8
 
 
 
