@@ -248,7 +248,7 @@ if APPROVED:
         idx = np.arange(lo_, hi_ + 1)
         nb_lo = any(o[1] >= lo_ and o[0] < lo_ and o[8] != nm for o in srcs)
         nb_hi = any(o[0] <= hi_ and o[1] > hi_ and o[8] != nm for o in srcs)
-        a0, a1 = (lo_, r0 + (r0 - lo_)) if nb_lo else (r0, r0 + FADE)
+        a0, a1 = (lo_, r0 + (r0 - lo_)) if nb_lo else (r0, r0 + (float(os.environ.get('FADE_S_LO', 35)) if nm == 'S' else FADE))
         b1, b0 = (hi_, r1 - (hi_ - r1)) if nb_hi else (r1, r1 - FADE)
         w_ = np.clip(np.minimum((idx - a0) / max(a1 - a0, 1), (b1 - idx) / max(b1 - b0, 1)), 0, 1)
         w_ = w_ * w_ * (3 - 2 * w_)

@@ -5,7 +5,7 @@ Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/
 ## Where the work is
 - Branch: **`claude/upbeat-hellman-f92bb7`** on origin (pushed 2026-10-08 at the owner's request before the reset). It is `rebrand/ribbon` plus all of this session's work. Restore: `git clone`, then `git checkout claude/upbeat-hellman-f92bb7`, then `npm install`, then recreate the venv (below).
 - `ak-hero.json` is NOT changed: swapping in a pose needs the owner's OK.
-- **Current best AK: `docs/ribbon/turns/curve/best/pose.json`** (render: `best/ribbon.png`, = version **r19**: r8 + the bottom-K cylinder band (r14) + smoother edges and roll (r19) + the material pass).
+- **Current best AK: `docs/ribbon/turns/curve/best/pose.json`** (render: `best/ribbon.png`, = version **r23**: r8 + the bottom-K cylinder band (r14) + smoother edges and roll (r19) + a 35-ring crossfade on the S section's tail side (r23, `FADE_S_LO`: softens the S crease) + the material pass).
   - Build it with `scripts/curve/rotosurf.py best`.
 
 ## The approach that finally works: `scripts/curve/rotosurf.py`
@@ -60,7 +60,7 @@ Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/
 `/Users/ashmitkhurana/Development/tools/ribbon-studio` is a separate, older tool (Codex's "Ribbon Studio" editor + MCP server, Oct 5; not a git repo, ~3 MB without node_modules). Nothing in the portfolio uses it: no references to it. All the AK work is in this repo.
 
 ## Latest state (end of session, 2026-10-08 ~16:25)
-- `rotosurf.py` defaults now reproduce r19: `BK_RING=1 BK_FADE=3 BK_FADE_OUT=25 EDGE_SIG=3.5 ROLL_SIG=5 TAIL_ZMAX=260`.
+- `rotosurf.py` defaults now reproduce r23: `BK_RING=1 BK_FADE=3 BK_FADE_OUT=25 EDGE_SIG=3.5 ROLL_SIG=5 TAIL_ZMAX=260 FADE_S_LO=35` (TAIL_WSIG off).
 - **What improved in the last stretch:**
   - **Material** (`lib/ribbon/siteSettings.ts`): saturated glossy orange. The colour is close to the mockup.
   - **Bottom K (r14)**: a cylinder band (ring from `ringfit.json`). The ruling turns from the right leg's into the ring's axis over the first 30 % of the loop, then stays on the axis. The sign is taken from the exit (the K band's edge order). The exit is crossfaded over 25 rings. It reads as one round loop with the hole open, but is still smaller and flatter than the mockup's. There is a bright flat strip at its lower right, where the inner face shows flat.
