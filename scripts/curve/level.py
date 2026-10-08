@@ -49,6 +49,7 @@ last = 0.0
 for i in locked:
     k = prev[i] + corr[i][0]
     k = k - 2 * math.pi * round((k - last) / (2 * math.pi)) if acc else k
+    k += 2 * math.pi * A.P[i][4].get("wind", 0)  # force the long way round (e.g. the S half twist's direction)
     acc[i] = last = k
 for i in range(len(A.P)):
     if i in acc:

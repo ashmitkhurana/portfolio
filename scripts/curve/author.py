@@ -20,6 +20,8 @@ CK = 2.185  # cutout px per css px
 # goes edge-on through the curve, a satin roll outline), joined tangentially to straight face-on runs.
 RHO_A = 0.6
 GAP_A = 2 * RHO_A * W
+RHO_F = 0.6  # far-left: soft (the engine's zones measured: room for ~0.6 next to the apex fold)
+GAP_F = 2 * RHO_F * W
 FA = -PI  # fold dihedral; the sign picks the side the strip rolls to
 
 # depth layout (css px)
@@ -54,6 +56,19 @@ def arc(E, heading, R, sweep, n, z0, z1, tag=None):
     return out, heading + sweep
 
 
+def eased_arc(E, heading, R, sweep, n, z0, z1, tag=None):
+    """A round turn whose curvature eases in and out (radius 2R over the first and last 18 % of the sweep, R between), so
+    no straight run meets a curve abruptly (an abrupt curvature step shows as a notch / wobble on the band's edges)."""
+    parts = [(2 * R, 0.18), (R, 0.64), (2 * R, 0.18)]
+    out, h, P0, z = [], heading, E, z0
+    for (r, f), k in zip(parts, (max(2, n // 4), max(3, n // 2), max(2, n // 4))):
+        zz = z + (z1 - z0) * f
+        pts, h = arc(P0, h, r, sweep * f, k, z, zz, tag)
+        out += pts
+        P0, z = pts[-1][:2], zz
+    return out, h
+
+
 def ahead(P0, heading, d):
     h = math.radians(heading)
     return (round(P0[0] + d * math.cos(h), 1), round(P0[1] + d * math.sin(h), 1))
@@ -68,24 +83,34 @@ def leg(su, sv):
 
 
 def helix():
-    """The wrap: half a turn of a helix around the left leg (axis L0 + s U, depth LZ): front pass -> outer edge -> back
-    pass, then heading right behind the leg. Screen in cutout px, depth in css px; a, b = the semi-axes across the leg
-    (screen) and in depth. The start runs along the crossbar's screen line (no screen kink)."""
-    a, b = 92.0, 32.0
-    s0, s1, sd = 205.0, 60.0, -12.5
+    """The wrap: half a turn of a helix around the left leg (axis L0 + s U, depth LZ). Front pass (along the crossbar's
+    screen line) -> curl round the outer edge -> down behind the leg -> leaving behind it already heading along the
+    return's line (so the return needs no visible screen bend; the half twist happens behind the leg).
+    s(phi) = s0 + sd phi - c (1 - cos phi) + e (phi - sin phi): s'(0) = sd, s'(pi) = sd + 2 e, s(pi) = s1."""
+    a, b = 75.0, 30.0
+    s0, s1, sd = 205.0, -100.0, -12.5
+    e = (RET_SLOPE_U * a - sd) / 2
+    c = (s0 + sd * math.pi + e * math.pi - s1) / 2
     out = []
-    for k in range(7):
-        ph = math.pi * k / 6
-        su = s0 + sd * ph - 0.5 * (s0 + sd * math.pi - s1) * (1 - math.cos(ph))
+    for k in range(1, 9):
+        ph = math.pi * k / 8
+        su = s0 + sd * ph - c * (1 - math.cos(ph)) + e * (ph - math.sin(ph))
         out.append(leg(su, -a * math.sin(ph)) + (round(LZ + b * math.cos(ph), 1), T2, RAMP if k >= 4 else None))
-    out.append(leg(45, 60) + (LZ - b, T2, RAMP))  # behind the leg, heading right (the hidden half twist happens here)
-    out.append(leg(35, 126) + (LZ - b + 4, T2, None))  # emerging past the true right edge, on the return's line
+    out[-1] = out[-1][:4] + (LB,)  # hidden behind the leg: the anchor of the return's face
     return out
 
 
+# the return's screen heading (up-right, ~22.8 deg) expressed in the leg frame: U / V components ratio
+RET_H = -22.8
+_rh = (math.cos(math.radians(RET_H)), math.sin(math.radians(RET_H)))
+RET_SLOPE_U = (_rh[0] * U[0] + _rh[1] * U[1]) / (_rh[0] * V[0] + _rh[1] * V[1])
+HX_END = leg(-100.0, 0.0)
+
+
 # ---- S: the tail rises (straight on screen near the bend), one round arc, then the sweep -------------------------------
-S_E = (700.0, 1484.0)
-S_ARC, S_OUT = arc(S_E, -27.6, 0.8 * W, -138.0, 7, 115.0, 92.0)
+S_E = (660.0, 1540.0)  # fitted: the eased S exits onto the mockup's sweep line
+S_H = math.degrees(math.atan2(S_E[1] - 1600, S_E[0] - 478))  # along the tail's last run
+S_ARC, S_OUT = eased_arc(S_E, S_H, 0.95 * W, -165.6 - S_H, 12, 115.0, 88.0, RAMP)
 S_X = S_ARC[-1][:2]
 
 # ---- far-left: a round rolled corner from the sweep into the left leg ---------------------------------------------------
@@ -94,39 +119,41 @@ FL_V = (64.0, 1150.0)
 FL_TURN = (-63.2) - S_OUT  # into the left leg's heading (0.45, -0.89)
 FL_R = 0.8 * W
 FL_E = ahead(FL_V, S_OUT + 180, FL_R * CK * math.tan(math.radians(abs(FL_TURN)) / 2))
-FL_ARC, FL_OUT = arc(FL_E, S_OUT, FL_R, FL_TURN, 6, 40.0, LZ)
+FL_ARC, FL_OUT = arc(FL_E, S_OUT, FL_R, FL_TURN, 6, 40.0, LZ, RAMP)
 
-# ---- bottom K: a round loop off the right leg (loopsolve.py: R 0.8 W, 207 deg, exits on the junction line) -------------
-BK_E = (551.0, 1174.0)
-BK_ARC, BK_OUT = arc(BK_E, math.degrees(math.atan2(0.96, 0.29)), 0.8 * W, -207.0, 8, RIGHT_Z - 4, -14.0)
+# ---- bottom K: a round loop off the right leg, fitted to the approved trace (out_v9): radius 0.9 W, 218 deg, exits onto
+# the trace's K band line (707,1056) -> (553,937)
+BK_H = math.degrees(math.atan2(0.970, 0.244))
+BK_E = (543.0, 1155.0)
+BK_ARC, BK_OUT = arc(BK_E, BK_H, 0.9 * W, -218.2, 9, RIGHT_Z - 6, -14.0, RAMP)
 
-# ---- top K: straight front strand, a round 180 degree end, the back section returns parallel below --------------------
-TK_H = math.degrees(math.atan2(-0.467, 0.884))
-TK_E = (760.0, 753.0)
-TK_ARC, TK_OUT = arc(TK_E, TK_H, 0.75 * W, 180.0, 7, MID_Z, END_Z + 6)
+# ---- top K: the front strand (trace heading -39 deg), a round tip of radius 0.45 W turning 168.7 deg (it rolls over like
+# the S: face B -> A through it), the back section on the trace's line (709,854) -> (533,1066)
+TK_H = math.degrees(math.atan2(-0.629, 0.777))
+TK_E = (684.0, 728.0)
+TK_ARC, TK_OUT = arc(TK_E, TK_H, 0.45 * W, 168.7, 7, MID_Z, END_Z + 10, RAMP)
 TK_X = TK_ARC[-1][:2]
 
-WRAP = helix()
 
 # (cutout x, cutout y, z css, twist rad, tag/extra)   End 1 -> End 2
 P = [
     # 1. tail: off-screen bottom-left, near the camera, rising into the sculpture (face A)
-    (200, 1960, 1250, T2, None),
-    (265, 1846, 1120, T2, None),
-    (350, 1700, 700, T2, None),
-    (478, 1600, 300, T2, None),
-    (S_E[0], S_E[1], 130.0, T2, None),
+    (200, 1960, 540, T2, None),
+    (265, 1846, 430, T2, None),
+    (350, 1700, 300, T2, LA),
+    (478, 1600, 200, T2, LA),
+    (S_E[0], S_E[1], 130.0, T2, RAMP),
     # 2. S: one round bend; the band rolls over its edge through it (A -> B)
 ] + S_ARC + [
     # the long sweep left (face B), in front of the right leg's foot
     ahead(S_X, S_OUT, 150) + (80.0, T2, RAMP),
-    ahead(S_X, S_OUT, 300) + (68.0, T2, LB),
-    ahead(S_X, S_OUT, 450) + (54.0, T2, LB),
-    (FL_E[0], FL_E[1], 42.0, T2, None),
-    # 3. far-left: a round rolled corner up into the A left leg (face A)
-] + FL_ARC + [
-    ahead(FL_ARC[-1][:2], FL_OUT, 90) + (LZ, T2, RAMP),
-    (215, 800, LZ, T2, LA),
+    ahead(S_X, S_OUT, 300) + (44.0, T2, LB),
+    ahead(S_X, S_OUT, 450) + (40.0, T2, None),
+    (150, 1162, LZ + GAP_F, T2, None),
+    # 3. far-left FOLD: flat, like the apex (broad layers, a rounded roll edge), up into the A left leg (face A)
+    (64, 1147, LZ + GAP_F, T2, dict(fold=dict(angle=FA, radius=RHO_F, name="far-left"))),
+    (115, 1000, LZ, T2, None),
+    (215, 800, LZ, T2, None),
     (290, 650, LZ, T2, None),
     # 4. apex fold: down into the A right leg (face B), frontmost of all
     (362, 548, LZ, T2, dict(fold=dict(angle=FA, radius=RHO_A, name="apex"))),
@@ -134,32 +161,42 @@ P = [
     (468, 900, RIGHT_Z, T2, None),
     (512, 1045, RIGHT_Z, T2, LB),
     (BK_E[0], BK_E[1], RIGHT_Z - 4, T2, None),
-    # 5. bottom K: a round loop, rolling back in depth (B outside, A glimpsed in the curl)
+    # 5. bottom K: a round loop rolling back in depth (B outside, A glimpsed in the curl)
 ] + BK_ARC + [
-    # 6. back layer: the band straight up-left to the junction, behind the right leg
-    (650, 1034, -16, T2, RAMP),
-    (606, 988, -18, T2, LB),
-    (555, 935, BACK_Z, T2, None),
-    (500, 912, BACK_Z, T2, None),
-    # 7. crossbar left (upper strand), onto the front of the left leg
-    (420, 884, BACK_Z, T2, RAMP),
-    (330, 857, -14, T2, LB),
-] + WRAP + [
-    # 9. return (lower strand): from behind the leg's true right edge, straight up-right through the junction
-    (300, 996, -32, T2, LB),
-    (385, 951, -12, T2, LB),
-    (465, 909, 4, T2, LB),
-    (545, 867, MID_Z - 2, T2, LB),
-    # 10. top-K front strand (same straight line)
-    (650, 811, MID_Z, T2, LB),
+    # 6. back layer: the K band, straight up-left to the junction (trace), behind the right leg
+    (660, 1011, -16, T2, LB),
+    (611, 968, -18, T2, None),
+    (553, 937, BACK_Z, T2, None),
+    (468, 911, BACK_Z, T2, None),
+    # 7. crossbar left (upper strand; trace), rising onto the front of the left leg, arching as it starts to wrap
+    (374, 883, BACK_Z - 4, T2, LB),
+    (318, 850, -10, T2, None),
+    (260, 822, 6, T2, None),
+    (205, 815, 14, T2, None),
+    # 8. the wrap (trace): over the front of the left leg, a tight curl round its outer edge, behind it (the hidden half
+    #    twist), out at the leg's right edge, where the band turns up-right as the return, still rolled (thin)
+    (150, 834, 2, T2, None),
+    (102, 870, -14, T2, None),
+    (84, 920, -34, T2, RAMP),
+    (96, 975, -62, T2, RAMP),
+    (124, 1030, -72, T2, RAMP),
+    (160, 1064, -70, T2, RAMP),
+    # 9. return (lower strand; trace), opening to face-on B under the crossbar, in front of it at the V
+    (254, 1036, -44, T2, RAMP),
+    (346, 992, -6, T2, LB),
+    (429, 938, 6, T2, None),
+    (482, 893, 6, T2, RAMP),
+    # 10. top-K front strand (trace), behind the right leg's top, out to the tip
+    (543, 843, MID_Z - 2, T2, None),
+    (610, 789, MID_Z, T2, LB),
     (TK_E[0], TK_E[1], MID_Z, T2, None),
-    # 11. top-K: a round 180 degree end (the band rolls over through it: face A after)
+    # 11. top-K tip: rolls over (face A after it)
 ] + TK_ARC + [
-    # 12. end strand: back down-left, parallel below the front strand, tip hidden behind the right leg
-    ahead(TK_X, TK_OUT, 90) + (END_Z, T2, RAMP),
-    ahead(TK_X, TK_OUT, 180) + (END_Z, T2, LA),
-    ahead(TK_X, TK_OUT, 260) + (END_Z, T2, LA),
-    ahead(TK_X, TK_OUT, 330) + (END_Z, T2, None),
+    # 12. end strand (trace line), dark, behind the K band, tip hidden behind the right leg
+    ahead(TK_X, TK_OUT, 70) + (END_Z, T2, LA),
+    ahead(TK_X, TK_OUT, 160) + (END_Z, T2, None),
+    ahead(TK_X, TK_OUT, 260) + (END_Z, T2, None),
+    ahead(TK_X, TK_OUT, 335) + (END_Z, T2, None),
 ]
 
 

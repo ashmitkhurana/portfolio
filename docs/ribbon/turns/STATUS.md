@@ -166,3 +166,17 @@ Next:
 - S: design the tail and S together in depth. The near-camera tail must curve into the screen plane BEFORE the S arc, with no screen kink where the straight tail meets the arc.
 - Return and sweep: move their twist ramps fully out of view.
 - After that, per-turn shaded crops for each turn, then the owner.
+
+## 2026-10-08 ~17:15: v18w0 (latest; render in curve/v18w0/render/ribbon.png)
+The owner re-stated the flow (it matches §5a). Rebuild on the APPROVED TRACE centreline (out_v9/edges_v3.json "pairs" midpoints per interval; the numbers are in the author.py comments).
+- Fixed:
+  - the S is a wide eased bend (eased_arc, 0.95 W) that exits onto the mockup sweep line, with a single A→B flip at the right-hand bend (leveling with no wind);
+  - the far-left is a FLAT fold at ρ 0.6 (zones measured: 426..624 vs the apex 630..776, so it fits);
+  - the wrap and return follow the trace;
+  - the top-K tip is a 0.45 W rolled arc;
+  - leveling uses ONE lock per straight run (several locks per run fight each other and never converge).
+- Owner's open critique (17:05): the bottom-K loop is bad, and the overall finish isn't natural.
+- Next:
+  1. Bottom K: rebuild as a TILTED RING in 3D. Today it's an in-screen arc, so the frame rolls it edge-on at the bottom and it reads as a pinched tongue. The mockup's loop is a ring you look into: broad all round, with the dark inner face showing. Fit an ellipse (the tilted circle) whose tangent points match the right leg (entry) and the K band (exit); let the right leg bend back in depth into it.
+  2. Remove the wavy edges on the return and the wrap's inner edge: fewer twist corrections, RAMPs only where hidden, eased curvature (eased_arc) at every turn.
+  3. Two contacts remain (crossbar front pass vs the left leg near (251,846); the wrap vs the leg base near (104,966)).
