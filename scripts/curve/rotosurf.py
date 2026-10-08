@@ -421,6 +421,12 @@ zL, zR = zc - dz / 2, zc + dz / 2
 if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade fights the trace pairs; ring arc != interval 7 extent)
     rf = json.load(open(os.path.join(HERE, "..", "..", "docs", "ribbon", "turns", "curve", "ringfit.json")))
     Rr_, tau, al = rf["R"], rf["tau"], rf["alpha"]
+    # r36 defaults: refit ring (bigger, flatter), 120-point sampling, depth ramp to the K band; r35 = BK_RF= BK_NPTS= BK_WSCALE=1 BK_TURN=0.3 BK_FADE=3 BK_ZRAMP=
+    if os.environ.get("BK_RF", "72.155,2.1885,0.7960"):  # "R,tau,alpha": regenerate the ring's points for another ring (R css, tau rad, alpha rad) instead of ringfit.json's
+        Rr_, tau, al = (float(v) for v in os.environ.get("BK_RF", "72.155,2.1885,0.7960").split(","))
+    if os.environ.get("BK_RF", "72.155,2.1885,0.7960") or os.environ.get("BK_NPTS", "120"):  # BK_NPTS=N: sample the ring at N points (default 120; 12 = a 12-sided polygon after the linear interp below)
+        sys.path.insert(0, HERE); import ringmod
+        rf["pts"] = [[q[0][0] * 2.185, q[0][1] * 2.185, q[1]] for q in ringmod.build((Rr_, tau, al), int(os.environ.get("BK_NPTS", "120") or 12))[0]]
     a_ = np.array([math.cos(al), math.sin(al), 0.0]); ap_ = np.array([-math.sin(al), math.cos(al), 0.0])
     # ring in screen-css xy (y down) + depth: p(th) = R (cos th a + sin th (cos tau ap + sin tau z))
     e2 = math.cos(tau) * ap_ + np.array([0, 0, math.sin(tau)])
@@ -431,6 +437,15 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
     tq = np.linspace(0, 1, len(idx)); tp = np.linspace(0, 1, len(Pc))
     cen = np.stack([np.interp(tq, tp, Pc[:, k]) for k in range(3)], 1)
     cen[:, 2] += zc[idx[0]] - cen[0, 2]
+    if os.environ.get("BK_ZRAMP", "smooth"):  # lin|smooth|late: a depth offset along the ring (0 at its start) so its END lands on the pre-ring centre depth at the exit ring (what the BK fade blends toward); applied to cen, so both edges shift equally
+        _zm = os.environ.get("BK_ZRAMP", "smooth")
+        _tt = np.linspace(0, 1, len(idx))
+        _ss = lambda x: x * x * (3 - 2 * x)
+        _g = {"lin": _tt, "smooth": _ss(_tt), "late": _ss(np.clip((_tt - 0.3) / 0.7, 0, 1))}[_zm]
+        _tgt = float((zL[idx[-1]] + zR[idx[-1]]) / 2)
+        _zb = float(cen[-1, 2])
+        cen[:, 2] += (_tgt - _zb) * _g
+        print("  BK_ZRAMP %s: exit z %.1f -> %.1f (target %.1f)" % (_zm, _zb, float(cen[-1, 2]), _tgt))
     # the band's width direction = the axis; sign so L -> R matches the incoming trace ring
     # sign from the EXIT (the K band's edge order); the ruling turns from the right leg's own ruling into the ring's axis over
     # the first part of the loop (the roll at the leg's foot), then stays on the axis (a cylinder band) to the exit
@@ -438,8 +453,8 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
     ax = axis if ax_sign(axis, trE) else -axis
     i0 = idx[0]
     r0v = np.array([(R2[i0, 0] - L2[i0, 0]) / SX, (R2[i0, 1] - L2[i0, 1]) / SY, zR[i0] - zL[i0]]); r0v /= np.linalg.norm(r0v)
-    hw = W_CSS / 2 * float(os.environ.get('BK_WSCALE', 1.0))
-    tin = float(os.environ.get('BK_TURN', 0.3))
+    hw = W_CSS / 2 * float(os.environ.get('BK_WSCALE', 1.297))
+    tin = float(os.environ.get('BK_TURN', 0.409))
     rul = []
     for t in tq:
         f = min(1.0, t / tin); f = f * f * (3 - 2 * f)
@@ -447,7 +462,7 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
         rul.append(v / np.linalg.norm(v))
     rul = np.array(rul)
     Lc, Rc = cen - rul * hw, cen + rul * hw
-    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)) / float(os.environ.get('BK_FADE', 3)), np.arange(len(idx))[::-1] / float(os.environ.get('BK_FADE_OUT', 25))))
+    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)) / float(os.environ.get('BK_FADE', 10)), np.arange(len(idx))[::-1] / float(os.environ.get('BK_FADE_OUT', 25))))
     fd = fd * fd * (3 - 2 * fd)
     for j, i in enumerate(idx):
         f = fd[j]
