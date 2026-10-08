@@ -344,9 +344,9 @@ if os.environ.get("BK_RING", "0") == "1":  # experimental (r11: the 12-ring fade
     # the band's width direction = the axis; sign so L -> R matches the incoming trace ring
     tr0 = np.array([*(R2[idx[0]] - L2[idx[0]]) / SX, 0.0])
     ax = axis if ax_sign(axis, tr0) else -axis
-    hw = W_CSS / 2
+    hw = W_CSS / 2 * float(os.environ.get('BK_WSCALE', 1.0))
     Lc, Rc = cen - ax * hw, cen + ax * hw
-    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)), np.arange(len(idx))[::-1]) / 12.0)
+    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)), np.arange(len(idx))[::-1]) / float(os.environ.get('BK_FADE', 4)))
     fd = fd * fd * (3 - 2 * fd)
     for j, i in enumerate(idx):
         f = fd[j]
