@@ -144,6 +144,7 @@ def outline_rings(a1, b1, a2, b2, sil, nr):
     return (A, B) if ev_is1 else (B, A), len(rul), ev_is1
 
 
+EXTEND = set(os.environ.get('EXTEND', 'none').split(','))  # 'bottomk,wrap' extends hidden-edge rulings to the roll outlines (experimental, not yet right)
 REPAIR = set(os.environ.get('REPAIR', 's,farleft').split(','))  # windows whose rulings are re-paired (the others keep the approved pairs)
 OUTLINE_WINDOWS = set(os.environ.get('OUTLINE_WINDOWS', '').split(','))
 Lr, Rr, IVr = [], [], []
@@ -167,6 +168,49 @@ for k in range(16):
 Lraw, Rraw, IV = np.concatenate(Lr), np.concatenate(Rr), np.array(IVr)
 n = len(Lraw)
 
+# ---- where a window's outer edge rolls out of sight, the band's visible boundary is the roll outline: extend those rulings
+#      from the visible edge out to the outline (the band then fills the mockup's silhouette)
+PAIR_HID = np.zeros((len(P), 2), bool)
+_e1i = np.array([np.argmin(np.linalg.norm(E1 - q, axis=1)) for q in P[:, 0]])
+_e2i = np.array([np.argmin(np.linalg.norm(E2 - q, axis=1)) for q in P[:, 1]])
+PAIR_HID[:, 0], PAIR_HID[:, 1] = ~VIS1[_e1i], ~VIS2[_e2i]
+
+
+def ray_hit(B, A, O):
+    """first crossing of the ray B -> A (beyond A, up to 2.2x) with the polyline O; None if none"""
+    d_ = A - B
+    best = None
+    for i in range(len(O) - 1):
+        p0, p1 = O[i], O[i + 1]
+        Mx = np.array([d_, p0 - p1]).T
+        if abs(np.linalg.det(Mx)) < 1e-9:
+            continue
+        t, u = np.linalg.solve(Mx, p0 - B)
+        if 0 <= u <= 1 and 0.85 <= t <= 2.2 and (best is None or t < best):
+            best = t
+    return None if best is None else B + best * d_
+
+
+for name, kiv in (("bottomk", 7), ("wrap", 11)):
+    if name not in EXTEND or name not in SIL:
+        continue
+    O = gsmooth(densify(SIL[name], 60), 1.5)
+    idx = np.where(IV == kiv)[0]
+    ext = np.zeros(len(idx))
+    for j, i in enumerate(idx):
+        for side in (0, 1):
+            if PAIR_HID[i, side]:
+                A = Lraw[i] if side == 0 else Rraw[i]
+                B = Rraw[i] if side == 0 else Lraw[i]
+                h = ray_hit(B, A, O)
+                if h is not None:
+                    if side == 0:
+                        Lraw[i] = h
+                    else:
+                        Rraw[i] = h
+                    ext[j] = 1
+    print("  %s: %d of %d rulings extended to the roll outline" % (name, int(ext.sum()), len(idx)))
+
 # ---- the owner-approved paper sections (msfit: S, F, A, P): their TRUE rulings replace the rings they cover (exact screen
 #      shape and roll relief); their own depths were never mutually consistent, so only their relief is kept and they are
 #      re-seated on the layering below. Cross-faded into the neighbouring rings over a few rings at each end.
@@ -181,27 +225,43 @@ if APPROVED:
     M = importlib.import_module("msfit")
     sys.argv = _argv
     pr = M.SecPrb()
+    srcs = []  # (ring lo, ring hi, screen L, screen R, z L, z R)
     for item in APPROVED:
         nm, fn = item.split(":") if ":" in item else (item, item + "_APPROVED")
         sec = pr.bind(nm)
         xs = M.ldx(pr, M.sec_path(fn))
-        rr = M.sec_rulings(pr, xs, sec, hidden=False)
+        lo_, hi_ = int(sec.lo), int(sec.hi)  # the section's full fitted range (overlaps its neighbours)
+        u_lo = float(pr.F(xs, np.array([pr.tau[lo_]]))[0]); u_hi = float(pr.F(xs, np.array([pr.tau[hi_]]))[0])
+        rr = M.sec_rulings(pr, xs, sec, u_lo=u_lo, u_hi=u_hi, hidden=False)
         L3, R3 = rr["L"], rr["R"]
         pL, pR = M.AP.project(L3), M.AP.project(R3)
-        r0, r1 = int(sec.r0), int(sec.r1)
-        m = r1 - r0 + 1
-        # resample the section's rulings to the ring slots (uniform in its own parameter)
+        m = hi_ - lo_ + 1
         tt = np.linspace(0, 1, len(L3)); tq = np.linspace(0, 1, m)
         res = lambda A: np.stack([np.interp(tq, tt, A[:, k]) for k in range(A.shape[1])], 1)  # noqa: E731
-        sL, sR = res(pL), res(pR)
-        zl, zr = res(L3[:, 2:3])[:, 0], res(R3[:, 2:3])[:, 0]
-        fade = np.minimum(1.0, np.minimum(np.arange(m), np.arange(m)[::-1]) / FADE)[:, None]
-        fade = fade * fade * (3 - 2 * fade)
-        Lraw[r0:r1 + 1] = Lraw[r0:r1 + 1] * (1 - fade) + sL * fade
-        Rraw[r0:r1 + 1] = Rraw[r0:r1 + 1] * (1 - fade) + sR * fade
-        RELZ[r0:r1 + 1, 0] = zl  # absolute (the section's own 3D); re-seated below by a depth ramp
-        RELZ[r0:r1 + 1, 1] = zr
-        SECS.append((r0, r1, fade[:, 0]))
+        srcs.append((lo_, hi_, int(sec.r0), int(sec.r1), res(pL), res(pR), res(L3[:, 2:3])[:, 0], res(R3[:, 2:3])[:, 0], nm))
+    # weights: each section 1 over its own rings, ramping to 0 across the overlap with its neighbour (or over FADE rings into
+    # the trace where it has none); the trace fills the rest. Everything blended (normalised).
+    wsum = np.zeros(n)
+    accL, accR = np.zeros((n, 2)), np.zeros((n, 2))
+    zsrc = []
+    for lo_, hi_, r0, r1, sL, sR, zl, zr, nm in srcs:
+        idx = np.arange(lo_, hi_ + 1)
+        nb_lo = any(o[1] >= lo_ and o[0] < lo_ and o[8] != nm for o in srcs)
+        nb_hi = any(o[0] <= hi_ and o[1] > hi_ and o[8] != nm for o in srcs)
+        a0, a1 = (lo_, r0 + (r0 - lo_)) if nb_lo else (r0, r0 + FADE)
+        b1, b0 = (hi_, r1 - (hi_ - r1)) if nb_hi else (r1, r1 - FADE)
+        w_ = np.clip(np.minimum((idx - a0) / max(a1 - a0, 1), (b1 - idx) / max(b1 - b0, 1)), 0, 1)
+        w_ = w_ * w_ * (3 - 2 * w_)
+        wsum[idx] += w_
+        accL[idx] += sL * w_[:, None]; accR[idx] += sR * w_[:, None]
+        zsrc.append((idx, w_, zl, zr))
+        print("  approved %s: rings %d..%d (own %d..%d)" % (nm, lo_, hi_, r0, r1))
+    wt = np.clip(1 - wsum, 0, 1)
+    tot = np.maximum(wsum + wt, 1e-9)
+    Lraw = (Lraw * wt[:, None] + accL) / tot[:, None]
+    Rraw = (Rraw * wt[:, None] + accR) / tot[:, None]
+    SECW = (wt, tot)
+    if False:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
 L2 = gsmooth(Lraw, 1.5)
 R2 = gsmooth(Rraw, 1.5)
@@ -261,18 +321,20 @@ sig = np.array([SIGMA.get(int(i), 1) for i in IV], float)
 sig = gsmooth(sig, 6.0)
 dz = sig * W_CSS * np.sin(th)
 zL, zR = zc - dz / 2, zc + dz / 2
-# each approved section keeps its own 3D (folds, layer offsets, roll relief); a depth ramp along it makes its two ends meet
-# the layering of the strands on either side; cross-faded with the layering over the fade rings
-for r0, r1, fd in SECS:
-    zl, zr = RELZ[r0:r1 + 1, 0], RELZ[r0:r1 + 1, 1]
-    zs = (zl + zr) / 2
-    k = min(10, (r1 - r0) // 4)
-    off0 = zc[r0:r0 + k].mean() - zs[:k].mean()
-    off1 = zc[r1 - k + 1:r1 + 1].mean() - zs[-k:].mean()
-    ramp = off0 + (off1 - off0) * np.linspace(0, 1, r1 - r0 + 1)
-    zL[r0:r1 + 1] = zL[r0:r1 + 1] * (1 - fd) + (zl + ramp) * fd
-    zR[r0:r1 + 1] = zR[r0:r1 + 1] * (1 - fd) + (zr + ramp) * fd
-
+# each approved section keeps its own 3D (folds, layer offsets, roll relief); a depth ramp along it makes it meet the layering
+# at its own ends; blended with the same weights as the screen positions
+if APPROVED:
+    wt, tot = SECW
+    accZL, accZR = zL * wt, zR * wt
+    for idx, w_, zl, zr in zsrc:
+        zs = (zl + zr) / 2
+        k = 10
+        off0 = zc[idx[:k]].mean() - zs[:k].mean()
+        off1 = zc[idx[-k:]].mean() - zs[-k:].mean()
+        ramp = off0 + (off1 - off0) * np.linspace(0, 1, len(idx))
+        accZL[idx] += (zl + ramp) * w_
+        accZR[idx] += (zr + ramp) * w_
+    zL, zR = accZL / tot, accZR / tot
 
 def anchor_xyz(cx, cy, z):
     sx, sy = cx / SX, cy / SY

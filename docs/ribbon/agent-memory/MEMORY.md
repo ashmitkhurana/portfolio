@@ -1,0 +1,5 @@
+- [Delegate execution to Sonnet/Haiku](delegate-implementation-to-sonnet.md) — Opus specs exactly, Sonnet/Haiku execute, max 3 parallel
+- [Portfolio ribbon rebrand](portfolio-ribbon-rebrand.md) — AK ribbon rebuild; docs/ribbon/HANDOFF.md is source of truth; pose geometry is the blocker
+- [Agents never drive user browser](agents-never-drive-user-browser.md) — screenshot QA uses headless only; never resize the user's Comet
+- [Work autonomously to delivery](work-autonomously-to-delivery.md) — no go/no-go pauses; show checked results at milestones only
+- [Usage: run until exhausted](usage-run-until-exhausted.md) — no 80% stop line; work until limits hit, resume at reset
