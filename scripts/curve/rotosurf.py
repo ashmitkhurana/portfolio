@@ -218,6 +218,7 @@ RELZ = np.full((n, 2), np.nan)
 SECS = []
 ALIGN = os.environ.get("ALIGN", "1") == "1"  # 1: resample each approved section onto the trace's rings by ARCLENGTH (not ring index) and map its ends/own range onto the trace (default on for S only = r31; aligning F/A/P adds seams, r28)
 ALIGN_SECS = set(os.environ.get("ALIGN_SECS", "S").split(","))  # sections ALIGN applies to
+ALIGN_ENDS = set(e_.strip() for e_ in os.environ.get("ALIGN_ENDS", "").split(",") if e_.strip())  # "NAME:lo" / "NAME:hi": a listed section aligns only the named ends by position (the other end keeps its original ring index); an unlisted section aligns both ends (F:lo tried in r35 work: resampling F's interior adds kinks at rings 288-290; rejected)
 Lraw_a, Rraw_a = Lraw.copy(), Rraw.copy()  # stage a: the trace rings before the sections are crossfaded in
 FADE = float(os.environ.get("FADE", 14))
 APPROVED = [s_ for s_ in os.environ.get("APPROVED", "S:S_APPROVED,F:F_APPROVED,A:A_APPROVED,P:P_APPROVED").split(",") if s_]
@@ -258,8 +259,11 @@ if APPROVED:
         def nearest_ring(q, c):
             a_, b_ = max(0, c - 60), min(n - 1, c + 60)
             return a_ + int(np.argmin(np.linalg.norm(Ct[a_:b_ + 1] - q, axis=1)))
-        i_start = nearest_ring(Cs[0], lo_)
-        i_end = nearest_ring(Cs[-1], hi_)
+        sec_ends = [e_ for e_ in ALIGN_ENDS if e_.split(":")[0] == nm]
+        al_lo = (not sec_ends) or (nm + ":lo") in ALIGN_ENDS
+        al_hi = (not sec_ends) or (nm + ":hi") in ALIGN_ENDS
+        i_start = nearest_ring(Cs[0], lo_) if al_lo else lo_
+        i_end = nearest_ring(Cs[-1], hi_) if al_hi else hi_
         assert i_end > i_start, "ALIGN %s: degenerate ring range %d..%d" % (nm, i_start, i_end)
         ns = len(pL)
 
@@ -270,7 +274,8 @@ if APPROVED:
 
         def ring_near(q):
             return int(seg[int(np.argmin(np.linalg.norm(Ct[seg] - q, axis=1)))])
-        r0a, r1a = ring_near(src_mid(r0)), ring_near(src_mid(r1))
+        r0a = ring_near(src_mid(r0)) if al_lo else r0
+        r1a = ring_near(src_mid(r1)) if al_hi else r1
         span_t = st_[i_end] - st_[i_start]
         fidx = (seg - i_start) / float(i_end - i_start)
         if span_t > 1e-9:
@@ -308,10 +313,10 @@ if APPROVED:
     SECW = (wt, tot)
     if False:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
-EQS = os.environ.get("EQS", "125:215")  # "a:b": rings a..b keep both edge polylines but are re-paired at equal arclength FRACTIONS of each edge (kills the fan of rulings where one edge advances slowly), blended in/out over EQS_RAMP rings (default 125:215 = r33: removes the S fan)
+EQS = os.environ.get("EQS", "125:230")  # "a:b": rings a..b keep both edge polylines but are re-paired at equal arclength FRACTIONS of each edge (kills the fan of rulings where one edge advances slowly), blended in/out over EQS_RAMP rings (default 125:230 ramp 20 = r35: removes the S fan and softens the ridge at the S's inner corner)
 if EQS:
     ea, eb = (int(x_) for x_ in EQS.split(":"))
-    er = int(os.environ.get("EQS_RAMP", 12))
+    er = int(os.environ.get("EQS_RAMP", 20))
     def _rang(L_, R_):
         a_ = np.arctan2(*(R_ - L_)[:, ::-1].T)
         return np.degrees((np.diff(a_) + np.pi) % (2 * np.pi) - np.pi)
