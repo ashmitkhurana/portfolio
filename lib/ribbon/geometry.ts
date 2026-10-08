@@ -221,7 +221,7 @@ export class RibbonGeometry {
   hairpins: HairpinSpec[] = [];
   readonly hairpinReports: HairpinReport[] = [];
   /** paper spans (see paper.ts): body stretches rebuilt as an exact paper-folded strip; set from the pose */
-  spans: { at0: number; at1: number; rolls: PaperRoll[]; name?: string }[] = [];
+  spans: { at0: number; at1: number; rolls: PaperRoll[]; name?: string; length?: number }[] = [];
   readonly spanReports: { name?: string; ring0: number; ring1: number; exitGap: number; exitAngle: number }[] = [];
   private rShear!: Float32Array; // per-ring half-width multiplier (folds shear the rulings)
   private rFoldMask!: Uint8Array; // rings inside a fold zone (body index)
@@ -307,7 +307,7 @@ export class RibbonGeometry {
       const width = W0 * rWidth[E + i0];
       const n = i1 - i0 + 1;
       const s = buildPaperSpan({
-        length: L,
+        length: sp.length ?? L,
         width,
         rolls: sp.rolls,
         rings: n,

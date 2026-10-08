@@ -25,7 +25,8 @@ function parseSpans(raw: unknown): NonNullable<PoseVariant["spans"]> {
       rho: num(r?.rho, 20),
       phi: num(r?.phi, 0),
     }));
-    out.push({ from, to, rolls, ...(typeof s.name === "string" ? { name: s.name } : {}) });
+    const length = num(s.length, 0);
+    out.push({ from, to, rolls, ...(typeof s.name === "string" ? { name: s.name } : {}), ...(length > 0 ? { length } : {}) });
   }
   return out;
 }

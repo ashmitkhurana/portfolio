@@ -66,7 +66,7 @@ export interface PoseVariant {
    * PAPER SPANS: the stretch between control points `from` and `to` (indices into `points`) is replaced by an
    * exact paper-folded strip (see ../paper.ts); `rolls` are in the span's flat frame (u in px along the strip).
    */
-  spans?: { from: number; to: number; rolls: PaperRoll[]; name?: string }[];
+  spans?: { from: number; to: number; rolls: PaperRoll[]; name?: string; /** flat length of the span (px); default: the authored arc length */ length?: number }[];
 }
 
 export interface PoseFile {

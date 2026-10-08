@@ -173,6 +173,7 @@ export function resolvePose(
       at1: curve.arcFractionAtControl(s.to),
       rolls: s.rolls,
       ...(s.name ? { name: s.name } : {}),
+      ...(s.length ? { length: s.length } : {}),
     }));
   return {
     points: outPos,

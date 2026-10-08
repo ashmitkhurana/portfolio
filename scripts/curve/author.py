@@ -121,19 +121,24 @@ FL_R = 0.8 * W
 FL_E = ahead(FL_V, S_OUT + 180, FL_R * CK * math.tan(math.radians(abs(FL_TURN)) / 2))
 FL_ARC, FL_OUT = arc(FL_E, S_OUT, FL_R, FL_TURN, 6, 40.0, LZ, RAMP)
 
-# ---- bottom K: a TILTED RING (scripts/curve/ringfit.py, fitted to the approved trace's loop: R 1.04 W, plane tilted 41 deg
-# from the screen, 225 deg of it). It projects to an ellipse: the band shows broad across the loop and rolls edge-on only
-# at the ellipse's ends (the mockup's roll outline at the bottom-right); the inner face A glimpses inside.
-_RING = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "ribbon", "turns", "curve", "ringfit.json")))["pts"]
-BK_E = tuple(round(v, 1) for v in _RING[0][:2])
-BK_Z0 = round(_RING[0][2], 1)
-BK_ARC = [(round(x, 1), round(y, 1), round(z, 1), T2, RAMP) for x, y, z in _RING[1:]]
+# ---- bottom K: the owner's DOUBLE FOLD (scripts/curve/bkfit.py, paper.py rolls fitted from the right leg's engine frame
+# to the trace: fold 1 at the leg's foot, the bottom span showing the other face A, fold 2 back up-left as B onto the K
+# band, which leaves ~54 px behind the right leg). The engine builds it as an exact paper span (lib/ribbon/paper.ts);
+# the control points below only carry the arc length and a placeholder path.
+_BKF = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "ribbon", "turns", "curve", "bkfold.json")))
+_BKC = _BKF["centre"]
+BK_E = (round(_BKC[0][0], 1), round(_BKC[0][1], 1))
+BK_Z0 = round(_BKC[0][2], 1)
+BK_ARC = [(round(x, 1), round(y, 1), round(z, 1), T2, None) for x, y, z in _BKC[3:-1:3]] + \
+         [(round(_BKC[-1][0], 1), round(_BKC[-1][1], 1), round(_BKC[-1][2], 1), T2, {"span": "bk-to"})]
+SPANS = {"bk": dict(name="bottom-k", rolls=_BKF["rolls"], length=_BKF["L"])}
 
 # ---- top K: the front strand (trace heading -39 deg), a round tip of radius 0.45 W turning 168.7 deg (it rolls over like
 # the S: face B -> A through it), the back section on the trace's line (709,854) -> (533,1066)
 TK_H = math.degrees(math.atan2(-0.629, 0.777))
 TK_E = (684.0, 728.0)
-TK_ARC, TK_OUT = arc(TK_E, TK_H, 0.45 * W, 168.7, 7, MID_Z, END_Z + 10, RAMP)
+TK_ARC, TK_OUT = arc(TK_E, TK_H, 0.45 * W, 168.7, 7, MID_Z, END_Z + 10)
+TK_ARC = [q[:3] + (T2 + PI, None) for q in TK_ARC]
 TK_X = TK_ARC[-1][:2]
 
 
@@ -142,14 +147,15 @@ P = [
     # 1. tail: off-screen bottom-left, near the camera, rising into the sculpture (face A)
     (200, 1960, 540, T2, None),
     (265, 1846, 430, T2, None),
-    (350, 1700, 300, T2, LA),
-    (478, 1600, 200, T2, LA),
+    (350, 1700, 300, T2, None),
+    (478, 1600, 200, T2, None),
     (S_E[0], S_E[1], 130.0, T2, RAMP),
     # 2. S: one round bend; the band rolls over its edge through it (A -> B)
 ] + S_ARC + [
     # the long sweep left (face B), in front of the right leg's foot
-    ahead(S_X, S_OUT, 150) + (80.0, T2, RAMP),
-    ahead(S_X, S_OUT, 300) + (44.0, T2, LB),
+    ahead(S_X, S_OUT, 60) + (84.0, T2, LB),  # the sweep's face, pinned just after the S (far from the far-left fold's pre-roll: a lock there made the fold flip sides)
+    ahead(S_X, S_OUT, 150) + (80.0, T2, None),
+    ahead(S_X, S_OUT, 300) + (44.0, T2, None),
     ahead(S_X, S_OUT, 450) + (40.0, T2, None),
     (150, 1162, LZ + GAP_F, T2, None),
     # 3. far-left FOLD: flat, like the apex (broad layers, a rounded roll edge), up into the A left leg (face A)
@@ -161,8 +167,8 @@ P = [
     (362, 548, LZ, T2, dict(fold=dict(angle=FA, radius=RHO_A, name="apex"))),
     (408, 700, RIGHT_Z, T2, None),
     (468, 900, RIGHT_Z, T2, None),
-    (512, 1045, RIGHT_Z, T2, LB),
-    (BK_E[0], BK_E[1], BK_Z0, T2, None),
+    (512, 1045, RIGHT_Z, T2, None),
+    (BK_E[0], BK_E[1], BK_Z0, T2, {"span": "bk-from"}),
     # 5. bottom K: a round loop rolling back in depth (B outside, A glimpsed in the curl)
 ] + BK_ARC + [
     # 6. back layer: the K band, straight up-left to the junction (trace), behind the right leg
@@ -179,26 +185,26 @@ P = [
     #    twist), out at the leg's right edge, where the band turns up-right as the return, still rolled (thin)
     (150, 834, 2, T2, None),
     (102, 870, -14, T2, None),
-    (84, 920, -34, T2, RAMP),
-    (96, 975, -62, T2, RAMP),
-    (124, 1030, -72, T2, RAMP),
-    (160, 1064, -70, T2, RAMP),
+    (84, 920, -34, T2 + 0.25 * PI, RAMP),  # the hidden half twist behind the left leg (spec #9: "after a small twist that shows B again")
+    (96, 975, -62, T2 + 0.5 * PI, RAMP),
+    (124, 1030, -72, T2 + 0.75 * PI, RAMP),
+    (160, 1064, -70, T2 + PI, RAMP),
     # 9. return (lower strand; trace), opening to face-on B under the crossbar, in front of it at the V
-    (254, 1036, -44, T2, RAMP),
-    (346, 992, -6, T2, LB),
-    (429, 938, 6, T2, None),
-    (482, 893, 6, T2, RAMP),
+    (254, 1036, -44, T2 + PI, None),
+    (346, 992, -6, T2 + PI, LB),
+    (429, 938, 6, T2 + PI, None),
+    (482, 893, 6, T2 + PI, None),
     # 10. top-K front strand (trace), behind the right leg's top, out to the tip
-    (543, 843, MID_Z - 2, T2, None),
-    (610, 789, MID_Z, T2, LB),
-    (TK_E[0], TK_E[1], MID_Z, T2, None),
+    (543, 843, MID_Z - 2, T2 + PI, None),
+    (610, 789, MID_Z, T2 + PI, LB),
+    (TK_E[0], TK_E[1], MID_Z, T2 + PI, None),
     # 11. top-K tip: rolls over (face A after it)
 ] + TK_ARC + [
     # 12. end strand (trace line), dark, behind the K band, tip hidden behind the right leg
-    ahead(TK_X, TK_OUT, 70) + (END_Z, T2, LA),
-    ahead(TK_X, TK_OUT, 160) + (END_Z, T2, None),
-    ahead(TK_X, TK_OUT, 260) + (END_Z, T2, None),
-    ahead(TK_X, TK_OUT, 335) + (END_Z, T2, None),
+    ahead(TK_X, TK_OUT, 70) + (END_Z, T2 + PI, None),
+    ahead(TK_X, TK_OUT, 160) + (END_Z, T2 + PI, LA),
+    ahead(TK_X, TK_OUT, 260) + (END_Z, T2 + PI, None),
+    ahead(TK_X, TK_OUT, 335) + (END_Z, T2 + PI, None),
 ]
 
 
@@ -212,8 +218,18 @@ def to_point(cx, cy, z, tw, extra, width, dtw=0.0):
         width=width,
     )
     if extra:
-        p.update({k: v for k, v in extra.items() if k not in ("face", "ramp")})
+        p.update({k: v for k, v in extra.items() if k not in ("face", "ramp", "span", "wind")})
     return p
+
+
+def spans_of(points):
+    """paper spans between the control points tagged {"span": "<key>-from"} / {"span": "<key>-to"} (engine: lib/ribbon/paper.ts)"""
+    idx = {}
+    for i, q in enumerate(points):
+        if q[4] and "span" in q[4]:
+            idx[q[4]["span"]] = i
+    out = [dict(**{"from": idx[k + "-from"], "to": idx[k + "-to"]}, **v) for k, v in SPANS.items() if k + "-from" in idx and k + "-to" in idx]
+    return {"spans": out} if out else {}
 
 
 def build(points, width=1.0, name="ak-curve", delta=None):
@@ -224,7 +240,7 @@ def build(points, width=1.0, name="ak-curve", delta=None):
         "anchor": "hero-name",
         "notes": "designed 3D centreline (scripts/curve/author.py)",
         "orientation": "curvature",
-        "variants": {"phone": {"points": [to_point(*q, width, d[i]) for i, q in enumerate(points)]}},
+        "variants": {"phone": {"points": [to_point(*q, width, d[i]) for i, q in enumerate(points)], **spans_of(points)}},
     }
 
 

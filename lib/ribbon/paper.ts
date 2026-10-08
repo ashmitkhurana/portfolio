@@ -188,16 +188,37 @@ export function buildPaperSpan(opts: PaperSpanOpts): PaperSpan {
   const H = 0.01;
   const lo = [0, 0, 0], ro = [0, 0, 0], c0 = [0, 0, 0], c1 = [0, 0, 0];
 
+  // Section directions (the straight lines across the strip). Inside a roll zone the only straight line is the one parallel
+  // to its crease; in the flat gaps the strip is planar, so any direction is exact: there the direction ROTATES smoothly from
+  // one crease to the next (and from / back to the perpendicular before the first / after the last roll), so sections never
+  // cut into a roll band and the surface has no ridges. Bands on the centreline: [s_k, e_k] (Xp from 0 to rho |phi|).
+  const thK: number[] = [], sK: number[] = [], eK: number[] = [], rK: number[] = [];
+  for (let k = 0; k < P.n; k++) {
+    let dx = P.a[2 * k], dy = P.a[2 * k + 1];
+    if (dy < 0) { dx = -dx; dy = -dy; }
+    thK.push(Math.atan2(dy, dx));
+    const apx = Math.max(P.ap[2 * k], 1e-6);
+    sK.push(P.q0u[k]);
+    eK.push(P.q0u[k] + P.len[k] / apx);
+    rK.push((W / 2) * Math.abs(dx / Math.max(dy, 1e-6)) + 0.25 * W); // room to turn before an oblique crease
+  }
+  const sm = (x: number) => { const t = x < 0 ? 0 : x > 1 ? 1 : x; return t * t * (3 - 2 * t); };
+  const HALF = Math.PI / 2;
   const dirAt = (u: number): [number, number] => {
-    for (let k = 0; k < P.n; k++) {
-      const Xp = (u - P.q0u[k]) * P.ap[2 * k];
-      if (Xp > 0 && Xp < P.len[k]) {
-        let dx = P.a[2 * k], dy = P.a[2 * k + 1];
-        if (dy < 0) { dx = -dx; dy = -dy; }
-        return [dx, dy];
-      }
+    let th = HALF;
+    if (P.n) {
+      if (u < sK[0]) th = HALF + (thK[0] - HALF) * sm((u - (sK[0] - rK[0])) / rK[0]);
+      else if (u > eK[P.n - 1]) th = thK[P.n - 1] + (HALF - thK[P.n - 1]) * sm((u - eK[P.n - 1]) / rK[P.n - 1]);
+      else
+        for (let k = 0; k < P.n; k++) {
+          if (u >= sK[k] && u <= eK[k]) { th = thK[k]; break; }
+          if (k + 1 < P.n && u > eK[k] && u < sK[k + 1]) {
+            th = thK[k] + (thK[k + 1] - thK[k]) * sm((u - eK[k]) / Math.max(sK[k + 1] - eK[k], 1e-6));
+            break;
+          }
+        }
     }
-    return [0, 1];
+    return [Math.cos(th), Math.sin(th)];
   };
 
   // local-frame section data at flat u
