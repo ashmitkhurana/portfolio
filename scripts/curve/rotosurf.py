@@ -338,6 +338,7 @@ if EQS:
     print("  EQS %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (ea, eb, er, ang0, ang1))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
+L2_TR, R2_TR = L2.copy(), R2.copy()
 if os.environ.get("DUMP_EDGES"):
     np.savez(os.environ["DUMP_EDGES"], L2=L2, R2=R2, Lraw_a=Lraw_a, Rraw_a=Rraw_a, IV=IV)
 # the tail's width: the mockup widens it ~4x (artistic perspective a face-on strip can't have); taper the band's width
@@ -554,6 +555,94 @@ if os.environ.get("ZCON", "880:945>3,4:16"):  # depth constraints, "a:b>ivs:gap;
                     tot_[b_ + j] = e[-1] * t_
             zL += sgn * tot_
             zR += sgn * tot_
+
+EQS_POST = os.environ.get("EQS_POST", "")  # "a:b:ramp[,a:b:ramp...]": final 3D equal-fraction re-pairing of both edges over rings a..b (blended in/out over ramp rings)
+if EQS_POST:
+    def _rang_p(L_, R_):
+        a_ = np.arctan2(*(R_ - L_)[:, ::-1].T)
+        return np.degrees((np.diff(a_) + np.pi) % (2 * np.pi) - np.pi)
+    def _resamp_p(P_, t_):
+        d_ = np.linalg.norm(np.diff(P_, axis=0), axis=1)
+        s_ = np.concatenate([[0], np.cumsum(d_)]); s_ /= s_[-1]
+        keep = np.concatenate([[True], d_ > 1e-9])  # ignore zero-length steps
+        return np.stack([np.interp(t_, s_[keep], P_[keep, k_]) for k_ in range(P_.shape[1])], axis=1)
+    def _ss_p(x_):
+        x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
+    for w_ in EQS_POST.split(","):
+        pa_, pb_, pr_ = (int(x_) for x_ in w_.split(":"))
+        PL_ = np.stack([L2[pa_:pb_ + 1, 0], L2[pa_:pb_ + 1, 1], zL[pa_:pb_ + 1]], axis=1)
+        PR_ = np.stack([R2[pa_:pb_ + 1, 0], R2[pa_:pb_ + 1, 1], zR[pa_:pb_ + 1]], axis=1)
+        ti_ = np.arange(pb_ - pa_ + 1) / float(pb_ - pa_)
+        Lq_, Rq_ = _resamp_p(PL_, ti_), _resamp_p(PR_, ti_)
+        k2_ = np.arange(pb_ - pa_ + 1)
+        ew_ = _ss_p(np.minimum(k2_, (pb_ - pa_) - k2_) / float(max(pr_, 1)))[:, None]
+        ang0_ = np.abs(_rang_p(PL_[:, :2], PR_[:, :2])).max()
+        PL_ = PL_ + ew_ * (Lq_ - PL_)
+        PR_ = PR_ + ew_ * (Rq_ - PR_)
+        ang1_ = np.abs(_rang_p(PL_[:, :2], PR_[:, :2])).max()
+        L2[pa_:pb_ + 1, 0], L2[pa_:pb_ + 1, 1], zL[pa_:pb_ + 1] = PL_[:, 0], PL_[:, 1], PL_[:, 2]
+        R2[pa_:pb_ + 1, 0], R2[pa_:pb_ + 1, 1], zR[pa_:pb_ + 1] = PR_[:, 0], PR_[:, 1], PR_[:, 2]
+        print("  EQS_POST %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (pa_, pb_, pr_, ang0_, ang1_))
+
+CYL = os.environ.get("CYL", "1080:1290:25:-1:perp")  # "a:b:ramp:sign:zmode[,...]" constant-ruling (generalised cylinder) band over rings a..b (default = r37: the top-K loop as a constant-ruling band; removes the notch where it leaves the right leg)
+if CYL:
+    sys.path.insert(0, HERE)
+    import cylfit
+
+    def _ss_c(x_):
+        x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
+    for w_ in CYL.split(","):
+        f_ = w_.split(":")
+        ca_, cb_, cr_, csg_, czm_ = int(f_[0]), int(f_[1]), int(f_[2]), int(f_[3]), f_[4]
+        cn_ = cb_ - ca_ + 1
+        Lt_, Rt_ = L2_TR[ca_:cb_ + 1], R2_TR[ca_:cb_ + 1]
+        d_, rm_, rx_ = cylfit.fit_offset(Lt_, Rt_)
+        # midline from the trace
+        pq_ = Lt_ + d_
+        _, qq_ = cylfit.pt_seg_dist(pq_, Rt_)
+        m_ = ((Lt_ + d_ / 2) + (qq_ - d_ / 2)) / 2
+        m_ = gsmooth(m_, 3.0)
+        ds_ = np.linalg.norm(np.diff(m_, axis=0), axis=1)
+        s_ = np.concatenate([[0], np.cumsum(ds_)]); s_ /= s_[-1]
+        tt_ = np.linspace(0, 1, cn_)
+        m_ = np.stack([np.interp(tt_, s_, m_[:, k_]) for k_ in range(2)], axis=1)
+        # ruling
+        dc_ = d_ / SX
+        hw_ = W_CSS / 2
+        bxy_ = dc_ / (2 * hw_)
+        if np.linalg.norm(bxy_) > 1:
+            hw_ = np.linalg.norm(dc_) / 2
+            bxy_ = bxy_ / np.linalg.norm(bxy_)
+            bz_ = 0.0
+        else:
+            bz_ = csg_ * math.sqrt(1 - float(bxy_ @ bxy_))
+        Ln_, Rn_ = m_ - d_ / 2, m_ + d_ / 2
+        c0_ = (zL[ca_] + zR[ca_]) / 2
+        c1_ = (zL[cb_] + zR[cb_]) / 2
+        if czm_ == "keep":
+            cz_ = gsmooth((zL[ca_:cb_ + 1] + zR[ca_:cb_ + 1]) / 2, 4.0)
+        elif czm_ == "perp":
+            dm_ = np.diff(m_ / SX, axis=0)
+            if abs(bz_) > 0.15:
+                dcz_ = -(dm_ @ bxy_) / bz_
+            else:
+                dcz_ = np.zeros(len(dm_))
+            dmn_ = np.linalg.norm(dm_, axis=1)
+            dcz_ = np.clip(dcz_, -3 * dmn_, 3 * dmn_)
+            cz_ = np.concatenate([[0], np.cumsum(dcz_)])
+            t_ = np.linspace(0, 1, cn_)
+            cz_ = cz_ + c0_ + (c1_ - c0_) * t_ - (cz_[0] + (cz_[-1] - cz_[0]) * t_)
+        else:
+            raise SystemExit("CYL zmode must be keep or perp")
+        zLn_, zRn_ = cz_ - hw_ * bz_, cz_ + hw_ * bz_
+        k_ = np.arange(cn_)
+        ew_ = _ss_c(np.minimum(k_, (cb_ - ca_) - k_) / float(max(cr_, 1)))
+        L2[ca_:cb_ + 1] += ew_[:, None] * (Ln_ - L2[ca_:cb_ + 1])
+        R2[ca_:cb_ + 1] += ew_[:, None] * (Rn_ - R2[ca_:cb_ + 1])
+        zL[ca_:cb_ + 1] += ew_ * (zLn_ - zL[ca_:cb_ + 1])
+        zR[ca_:cb_ + 1] += ew_ * (zRn_ - zR[ca_:cb_ + 1])
+        print("  CYL %d..%d: d (%.1f,%.1f) |d| %.1f px, residual mean/max %.2f/%.2f px, |bxy| %.3f, bz %.3f, hw %.1f, %s, cz %.1f..%.1f"
+              % (ca_, cb_, d_[0], d_[1], np.linalg.norm(d_), rm_, rx_, np.linalg.norm(bxy_), bz_, hw_, czm_, cz_.min(), cz_.max()))
 
 def _unused():
     pass

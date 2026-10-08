@@ -1,0 +1,1 @@
+{"_note":"material candidate j5 (2026-10-09); render-pose --settings; not yet in siteSettings.ts","env":{"key":{"softness":0.5,"width":3,"intensity":10},"fill":{"intensity":2.0}},"material":{"metalness":0.7,"envDiffuse":0.8,"faceA":{"roughness":0.3,"clearcoat":0.3},"faceB":{"roughness":0.3,"clearcoat":0.3}}}
