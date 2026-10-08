@@ -121,11 +121,13 @@ FL_R = 0.8 * W
 FL_E = ahead(FL_V, S_OUT + 180, FL_R * CK * math.tan(math.radians(abs(FL_TURN)) / 2))
 FL_ARC, FL_OUT = arc(FL_E, S_OUT, FL_R, FL_TURN, 6, 40.0, LZ, RAMP)
 
-# ---- bottom K: a round loop off the right leg, fitted to the approved trace (out_v9): radius 0.9 W, 218 deg, exits onto
-# the trace's K band line (707,1056) -> (553,937)
-BK_H = math.degrees(math.atan2(0.970, 0.244))
-BK_E = (543.0, 1155.0)
-BK_ARC, BK_OUT = arc(BK_E, BK_H, 0.9 * W, -218.2, 9, RIGHT_Z - 6, -14.0, RAMP)
+# ---- bottom K: a TILTED RING (scripts/curve/ringfit.py, fitted to the approved trace's loop: R 1.04 W, plane tilted 41 deg
+# from the screen, 225 deg of it). It projects to an ellipse: the band shows broad across the loop and rolls edge-on only
+# at the ellipse's ends (the mockup's roll outline at the bottom-right); the inner face A glimpses inside.
+_RING = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "ribbon", "turns", "curve", "ringfit.json")))["pts"]
+BK_E = tuple(round(v, 1) for v in _RING[0][:2])
+BK_Z0 = round(_RING[0][2], 1)
+BK_ARC = [(round(x, 1), round(y, 1), round(z, 1), T2, RAMP) for x, y, z in _RING[1:]]
 
 # ---- top K: the front strand (trace heading -39 deg), a round tip of radius 0.45 W turning 168.7 deg (it rolls over like
 # the S: face B -> A through it), the back section on the trace's line (709,854) -> (533,1066)
@@ -160,12 +162,12 @@ P = [
     (408, 700, RIGHT_Z, T2, None),
     (468, 900, RIGHT_Z, T2, None),
     (512, 1045, RIGHT_Z, T2, LB),
-    (BK_E[0], BK_E[1], RIGHT_Z - 4, T2, None),
+    (BK_E[0], BK_E[1], BK_Z0, T2, None),
     # 5. bottom K: a round loop rolling back in depth (B outside, A glimpsed in the curl)
 ] + BK_ARC + [
     # 6. back layer: the K band, straight up-left to the junction (trace), behind the right leg
-    (660, 1011, -16, T2, LB),
-    (611, 968, -18, T2, None),
+    (660, 1011, -28, T2, LB),
+    (611, 968, -24, T2, None),
     (553, 937, BACK_Z, T2, None),
     (468, 911, BACK_Z, T2, None),
     # 7. crossbar left (upper strand; trace), rising onto the front of the left leg, arching as it starts to wrap
