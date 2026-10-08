@@ -261,3 +261,9 @@ Fresh session after the Mac reset. The env is rebuilt and r23 reproduces byte-id
 - Site key strip moved to elevation 40 / azimuth −50 (h6): the blown-out glare on the near tail is gone (tail pixels > 220: 10.5 % → 0.08 %), deep-shade share 17 % → 24 % (mockup 28 %).
 - The return strand (pose rings 990–1070) matches the trace to < 1 %; it only reads thin because it emerges from behind the left leg as a wedge and is shaded dark with one specular streak (shading, not geometry).
 - New: `scripts/curve/silhouette.py` (render vs mockup silhouette diff, per-region IoU); r39 results in docs/ribbon/turns/curve/r39/sil/.
+
+## 2026-10-09 (night): site material = golden orange with bright rims
+- Rims: `material.rimNormalMix` 0.85 (rim normals blended toward the camera-facing face normal, like a rounded bevel): the dark edge line along every strand is now a bright thin rim (docs/ribbon/turns/rim).
+- Hue: the salmon-pink highlights came from the white clearcoat reflection. Clearcoat 0, base #ff7a0a, specular tint #ffd060, key 17 (docs/ribbon/turns/gold2, z6): golden orange like the mockup (mid-tone hue 18° → 26°, mockup 28°).
+- Rejected: warm key colours (docs/ribbon/turns/gold: darker and redder); wider bottom-K bands BK_WSCALE 1.45–1.75 (silhouette IoU 0.78 → 0.81 but dN 14–16°); apex-shoulder notch fixes (it is the hidden edge's rim emerging behind the front face; with bright rims it is a ~3 px seam; a real fix is a rim fade-in in the engine).
+- Finding: most of the bottom-K "missing" silhouette (docs/ribbon/turns/curve/r39/sil) is the END strand (#12): in the mockup it is visible as a dark strand in the gap between the right leg and the bottom-K loop down to ~y 1100 (780 frame); ours ends higher (ring 1298 at ~(492, 972)) and hides behind the leg.

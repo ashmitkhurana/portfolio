@@ -11,15 +11,15 @@ import type { DeepPartial, RibbonSettings } from "./settings";
  * map / contact catcher are never motion-gated by a threshold (a frozen pose renders them once
  * and keeps them; a moving ribbon renders them every frame). Idle motion comes back in a later stage.
  */
-// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4); key raised to el 40 / az -50 to remove the tail glare (docs/ribbon/turns/glare, h6); rimNormalMix 0.85 turns the dark edge line into a bright rim (docs/ribbon/turns/rim)
+// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4); key raised to el 40 / az -50 to remove the tail glare (docs/ribbon/turns/glare, h6); rimNormalMix 0.85 turns the dark edge line into a bright rim (docs/ribbon/turns/rim); golden highlights: clearcoat 0, base #ff7a0a, specular tint #ffd060, key 17 (docs/ribbon/turns/gold2, z6)
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
   // the sculpture's satin golden orange (face A the bright face, face B the darker inner face); the anisotropy streaks the
   // highlights along the band like brushed metal
   material: {
-    faceA: { color: "#ff6a10", roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.14 },
-    faceB: { color: "#ff620e", roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.15 },
+    faceA: { color: "#ff7a0a", roughness: 0.3, clearcoat: 0, clearcoatRoughness: 0.14, specularColor: "#ffd060" },
+    faceB: { color: "#ff7a0a", roughness: 0.3, clearcoat: 0, clearcoatRoughness: 0.15, specularColor: "#ffd060" },
     edge: { mode: "gradient" },
     anisotropy: 0.6,
     envDiffuse: 0.8,
@@ -32,7 +32,7 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   env: {
     intensity: 1.0,
     autoRotate: false,
-    key: { intensity: 14, azimuth: -50, elevation: 40, width: 5, softness: 0.7 },
+    key: { intensity: 17, azimuth: -50, elevation: 40, width: 5, softness: 0.7 },
     fill: { intensity: 2.0 },
     top: { intensity: 0.45 },
     bounce: { intensity: 0.12 },
