@@ -76,3 +76,15 @@ Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/
   4. Highlights/shading of the material (satin bands, deep shadow where the band turns away).
   5. Seams at the section joins (S/F/A/P).
 - **Never swap into `ak-hero.json` without the owner's OK. Show the owner only close-crop-checked results.**
+
+## Final state at push (2026-10-08 ~16:45; 5-hour window 86 %, weekly 89 %)
+- Best = **r23** (`docs/ribbon/turns/curve/best/`). Everything is committed and pushed to `origin/claude/upbeat-hellman-f92bb7`.
+- **First thing next session:**
+  1. Read this file.
+  2. `npm install`; recreate the venv.
+  3. Build the override (`.next-ak`) and start :4100.
+  4. `scripts/mockup/.venv/bin/python scripts/curve/rotosurf.py best`.
+  5. `node scripts/render-pose.mjs --quick --pose docs/ribbon/turns/curve/best/pose.json --out /tmp/x`.
+  6. Compare with the mockup in close crops, then continue the priority list above (S crease remainder, wrap, bottom-K size, material highlights, seams).
+- The owner will judge only close-crop-checked results. Don't swap `ak-hero.json` without their OK.
+- Weekly usage is 89 %: expect the weekly limit soon (it resets 2026-10-13 20:00).
