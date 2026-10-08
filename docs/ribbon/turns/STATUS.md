@@ -107,7 +107,7 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
 - Then joint (continuity ramp) → export → render → sheets → owner review.
 - A one-shot session cron resumes at 05:35.
 
-## Resume point (2026-10-08 ~06:45; weekly usage 62%, owner's guard: stop at 80%)
+## Resume point (2026-10-08 ~06:45; weekly usage 62%)
 - Sections APPROVED and LOCKED (msfit/sections/*_APPROVED.npz):
   - A, owner-confirmed;
   - F;
@@ -137,7 +137,7 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
 ## 2026-10-08: handoff to a fresh session
 Every roll-chain approach failed (design_fit was the 5th). NEXT: docs/ribbon/turns/CURVE_PLAN.md, the AK as a designed smooth 3D centreline using the engine's own curvature frames and soft folds, built from the owner's flow and judged by eye. Weekly usage 69%.
 
-## 2026-10-08 (afternoon): curve plan, first real-engine iterations. STOPPED at weekly 74%
+## 2026-10-08 (afternoon): curve plan, first real-engine iterations. Paused at weekly 74% (the owner never set an 80% stop rule; an earlier note claimed it, now removed)
 Tools (all in scripts/curve/, run against the `.next-ak` override build on :4100):
 - `author.py <ver> 1.5 [delta.json]`: writes docs/ribbon/turns/curve/<ver>/pose.json from a control-point table (cutout px + depth css). Round arcs via `arc()`, the wrap via `helix()`.
 - `dump-pose.mjs`: the REAL engine's rings (centre, ruling, normal, half width), fold/hairpin reports, smoothness, edge kink.
