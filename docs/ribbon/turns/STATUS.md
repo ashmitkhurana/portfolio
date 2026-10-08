@@ -181,3 +181,22 @@ The owner re-stated the flow (it matches §5a). Rebuild on the APPROVED TRACE ce
   2. Remove the wavy edges on the return and the wrap's inner edge: fewer twist corrections, RAMPs only where hidden, eased curvature (eased_arc) at every turn.
   3. Two contacts remain (crossbar front pass vs the left leg near (251,846); the wrap vs the leg base near (104,966)).
 - 17:25: tried evening out the return's depth (-50/-24/-4/6) to remove its wavy edge (v20). It unsettled leveling and put the return within ~1 px of the crossbar at the V (431,901). Reverted to v19c. Next try: keep the return >= 14 px in front of the crossbar from x 380 to 470, and space the return's control points evenly in 3D arc length (uneven spacing + steep depth = curvature ripple = edge waviness).
+
+## ENGINE FOLD PLAN (owner said GO, 2026-10-08 ~17:40; keep working to 100% usage and auto-resume after resets)
+Owner's verdict on v19c, from close crops (images in this session):
+- the S pinches and flashes pale (it must stay broad, with one long gradual turn and a thin rim);
+- the bottom-K must be the DOUBLE FOLD of the approved trace (other face visible between the folds), not a ring;
+- the top-K outgoing strand must read IN FRONT (broad and bright to the tip, rolling over the top; the returning strand the darker inner face behind; numerically v19c is right, -67 px, but it reads wrong because the outgoing strand rolls edge-on early and the returning one is the brightest);
+- creases and ripples everywhere = the seams of my circles + straight runs + twist corrections.
+
+Root cause: lib/ribbon/fold.ts builds ONE crease per zone, with long straight lead-ins (Lin/Lout ~1.7 W / 3–4 W), so two folds close together are impossible. The curvature frames roll the band their own way at every curve.
+
+Plan: a local PAPER-SPAN primitive in the engine, a port of scripts/mockup/paper.py. That file is an exact isometric strip folded by a chain of rolls, each [u_k, beta_k (crease angle), rho_k, phi_k]; it built the owner-confirmed A.
+1. lib/ribbon/paper.ts: buildPaperSpan(entry frame {pos, T, N} from the centreline at the span start, rolls[], span length, ring count) -> rings (centre, ruling, normal, hwScale) in the same arrays geometry.ts already packs, so the shader is unchanged.
+   - Node test: edge lengths preserved; layers >= 2 × thickness apart.
+2. Pose format: variant-level `spans: [{from: pointIndex, to: pointIndex, rolls: [...]}]`. resolve.ts passes it through. geometry.ts applies the spans after frames/folds and replaces those rings.
+   - Make the span's exit frame continue smoothly into the following centreline: blend over ~1 W, or author the next control points from the span's exit pose.
+3. Bottom-K double fold first. Read the creases from the trace: TURNS.md §2.4, guides_v5.json roll outlines, and the edge crossovers in out_v9/edges_v3.json around landmarks bk_in/bk_out. Take the radius from the mockup's roll outline.
+   - Render, then compare a close crop with the mockup bottom-K crop.
+4. Then the top-K tip (a fold like the apex: the 150° limit no longer applies) and the S (a twist span spread over >= 3 W, the band broad, only a rim showing).
+5. Reuse msfit/sections/*_APPROVED.npz (A, F, P, S shapes in paper parameters) as starting rolls where they apply. They are paper.py parameters already.
