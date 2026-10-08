@@ -1,0 +1,31 @@
+width=34 ht=1.5455 thickness=3.0909 M=1500 E=18 view=390x844
+
+== fold reports ==
+fold 0: built=True rings=628..716 theta=109.3deg mismatch=39.73 liftError=4.80 gap=40.9 shear=35.3deg
+    issue: {'kind': 'mismatch', 'level': 'warn', 'text': "the authored path misses the fold's own geometry by 40 px at the exit: add depth (z) to the points after the fold, or move the turn"}
+fold 1: built=True rings=779..850 theta=133.0deg mismatch=15.09 liftError=7.52 gap=48.4 shear=23.5deg
+== hairpin reports ==
+hairpin k-lower: ring=1013 turn=130.5deg radiusW=0.75 (design 1.00) rolled=False
+hairpin k-upper: ring=1403 turn=164.5deg radiusW=0.33 (design 0.90) rolled=True
+== smoothness ==
+  curvature=5  roll=2  rollRate=0.800  curvatureAt=1420  rollAt=532  rateAt=1448  ok=False
+== edge report ==
+  kink=50.616  kinkAt=460  edge=L  jerk=7388.809  jerkAt=462  limit=12  ok=False
+
+arc length total=3396.0px, mean ring spacing=2.266px
+== clearance (pairs > 3*width = 102px apart in arc, dist < 6.18px) ==
+  rings 1098-1120  vs  1303-1317  min=0.47px  at cutout (436,905)  pairs=146
+  rings 734-747  vs  1154-1176  min=1.06px  at cutout (194,802)  pairs=132
+  rings 1071-1077  vs  1460-1467  min=1.09px  at cutout (622,945)  pairs=47
+  rings 690-701  vs  1215-1234  min=1.48px  at cutout (110,1032)  pairs=143
+  4 group(s)
+  global min non-adjacent distance = 0.47px between rings 1114 and 1307 at cutout (436,905)
+
+== screen crossings (centreline, cutout px; rings > 2*width = 68px apart in arc) ==
+  (104,1008)  ring 696 x ring 1225  front=ring 696  depth gap=13.6px
+  (211,808)  ring 740 x ring 1163  front=ring 1163  depth gap=15.9px
+  (469,905)  ring 885 x ring 1107  front=ring 885  depth gap=38.9px
+  (469,905)  ring 885 x ring 1313  front=ring 885  depth gap=25.3px
+  (625,958)  ring 1073 x ring 1465  front=ring 1073  depth gap=23.3px
+  (469,905)  ring 1107 x ring 1313  front=ring 1313  depth gap=13.5px
+  6 crossing(s)
