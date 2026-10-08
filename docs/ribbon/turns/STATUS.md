@@ -106,3 +106,17 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
 - The overlays and realism checks used same-u chords instead of the true rulings, which gave false fan/crossing failures (A was flagged). The agent is switching to true rulings, dashed hidden edges and shaded renders, then re-evaluating every section and redoing only the genuinely failing folds (candidates: far-left corner too tight, top-K tip, S, bottom-K double fold, wrap).
 - Then joint (continuity ramp) → export → render → sheets → owner review.
 - A one-shot session cron resumes at 05:35.
+
+## Resume point (2026-10-08 ~06:45; weekly usage 62%, owner's guard: stop at 80%)
+- Sections APPROVED and LOCKED (msfit/sections/*_APPROVED.npz):
+  - A, owner-confirmed;
+  - F;
+  - P v5 (top-K loop);
+  - S v6 (one big soft roll).
+- Not approved: K (bottom-K loop; best = original), X (wrap; best = v5, clean curl but a flat crossbar), T (tail, unreviewed).
+- Lessons, all in NOTES/messages:
+  - inside fold windows use sliding + dense alpha coverage, never point-to-point;
+  - seed fold axes with the paper-fold reflection rule;
+  - the crossbar arch is the start of the wrap curl;
+  - warm-start redos and accept only if not worse.
+- The joint step (continuity ramp) DEGRADED at wc = 10 (tail collapsed, K/X mangled). The independently fitted sections are inconsistent in 3D. Junction diagnostics (gap, depth, normal/tangent angles per junction) have been requested. The next decision depends on that table: e.g. re-fit inconsistent sections WITH continuity to the locked neighbours, chained outward from the locked A (A→K→B→X→M→P and A→F→S→T), instead of a global joint.
