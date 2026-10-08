@@ -328,7 +328,7 @@ zL, zR = zc - dz / 2, zc + dz / 2
 
 # ---- the bottom-K loop as a CYLINDER BAND: a ring of ribbon (scripts/curve/ringfit.py, fitted to the trace's loop centreline)
 #      whose width runs along the ring's axis, so the band stays broad all round and shows its inner face on the far side
-if os.environ.get("BK_RING", "0") == "1":  # experimental (r11: the 12-ring fade fights the trace pairs; ring arc != interval 7 extent)
+if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade fights the trace pairs; ring arc != interval 7 extent)
     rf = json.load(open(os.path.join(HERE, "..", "..", "docs", "ribbon", "turns", "curve", "ringfit.json")))
     Rr_, tau, al = rf["R"], rf["tau"], rf["alpha"]
     a_ = np.array([math.cos(al), math.sin(al), 0.0]); ap_ = np.array([-math.sin(al), math.cos(al), 0.0])
@@ -342,11 +342,22 @@ if os.environ.get("BK_RING", "0") == "1":  # experimental (r11: the 12-ring fade
     cen = np.stack([np.interp(tq, tp, Pc[:, k]) for k in range(3)], 1)
     cen[:, 2] += zc[idx[0]] - cen[0, 2]
     # the band's width direction = the axis; sign so L -> R matches the incoming trace ring
-    tr0 = np.array([*(R2[idx[0]] - L2[idx[0]]) / SX, 0.0])
-    ax = axis if ax_sign(axis, tr0) else -axis
+    # sign from the EXIT (the K band's edge order); the ruling turns from the right leg's own ruling into the ring's axis over
+    # the first part of the loop (the roll at the leg's foot), then stays on the axis (a cylinder band) to the exit
+    trE = np.array([*(R2[idx[-1]] - L2[idx[-1]]) / SX, 0.0])
+    ax = axis if ax_sign(axis, trE) else -axis
+    i0 = idx[0]
+    r0v = np.array([(R2[i0, 0] - L2[i0, 0]) / SX, (R2[i0, 1] - L2[i0, 1]) / SY, zR[i0] - zL[i0]]); r0v /= np.linalg.norm(r0v)
     hw = W_CSS / 2 * float(os.environ.get('BK_WSCALE', 1.0))
-    Lc, Rc = cen - ax * hw, cen + ax * hw
-    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)), np.arange(len(idx))[::-1]) / float(os.environ.get('BK_FADE', 4)))
+    tin = float(os.environ.get('BK_TURN', 0.3))
+    rul = []
+    for t in tq:
+        f = min(1.0, t / tin); f = f * f * (3 - 2 * f)
+        v = r0v * (1 - f) + ax * f
+        rul.append(v / np.linalg.norm(v))
+    rul = np.array(rul)
+    Lc, Rc = cen - rul * hw, cen + rul * hw
+    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)) / float(os.environ.get('BK_FADE', 3)), np.arange(len(idx))[::-1] / float(os.environ.get('BK_FADE_OUT', 25))))
     fd = fd * fd * (3 - 2 * fd)
     for j, i in enumerate(idx):
         f = fd[j]
