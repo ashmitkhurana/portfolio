@@ -271,6 +271,10 @@ T2 /= np.linalg.norm(T2, axis=1, keepdims=True)
 N2 = np.stack([-T2[:, 1], T2[:, 0]], 1)  # screen perpendicular
 w = ((R2 - L2) * N2).sum(1)  # signed projected width, cutout px
 
+def ax_sign(axis, ref):
+    return float(axis[:2] @ ref[:2]) >= 0
+
+
 # ---- centre depth by stretch (keys: interval -> (z at its start, z at its end)); windows interpolate between neighbours ---
 LZ, RZ, BZ, MZ, EZ = -24.0, 37.0, -20.0, 12.0, -58.0
 KEYS = {
@@ -321,6 +325,36 @@ sig = np.array([SIGMA.get(int(i), 1) for i in IV], float)
 sig = gsmooth(sig, 6.0)
 dz = sig * W_CSS * np.sin(th)
 zL, zR = zc - dz / 2, zc + dz / 2
+
+# ---- the bottom-K loop as a CYLINDER BAND: a ring of ribbon (scripts/curve/ringfit.py, fitted to the trace's loop centreline)
+#      whose width runs along the ring's axis, so the band stays broad all round and shows its inner face on the far side
+if os.environ.get("BK_RING", "0") == "1":  # experimental (r11: the 12-ring fade fights the trace pairs; ring arc != interval 7 extent)
+    rf = json.load(open(os.path.join(HERE, "..", "..", "docs", "ribbon", "turns", "curve", "ringfit.json")))
+    Rr_, tau, al = rf["R"], rf["tau"], rf["alpha"]
+    a_ = np.array([math.cos(al), math.sin(al), 0.0]); ap_ = np.array([-math.sin(al), math.cos(al), 0.0])
+    # ring in screen-css xy (y down) + depth: p(th) = R (cos th a + sin th (cos tau ap + sin tau z))
+    e2 = math.cos(tau) * ap_ + np.array([0, 0, math.sin(tau)])
+    axis = np.cross(a_, e2); axis /= np.linalg.norm(axis)
+    P0 = np.array(rf["pts"], float)  # cutout xy, rel z (start .. end of the arc)
+    Pc = np.stack([P0[:, 0] / SX, P0[:, 1] / SY, P0[:, 2]], 1)
+    idx = np.where(IV == 7)[0]
+    tq = np.linspace(0, 1, len(idx)); tp = np.linspace(0, 1, len(Pc))
+    cen = np.stack([np.interp(tq, tp, Pc[:, k]) for k in range(3)], 1)
+    cen[:, 2] += zc[idx[0]] - cen[0, 2]
+    # the band's width direction = the axis; sign so L -> R matches the incoming trace ring
+    tr0 = np.array([*(R2[idx[0]] - L2[idx[0]]) / SX, 0.0])
+    ax = axis if ax_sign(axis, tr0) else -axis
+    hw = W_CSS / 2
+    Lc, Rc = cen - ax * hw, cen + ax * hw
+    fd = np.minimum(1.0, np.minimum(np.arange(len(idx)), np.arange(len(idx))[::-1]) / 12.0)
+    fd = fd * fd * (3 - 2 * fd)
+    for j, i in enumerate(idx):
+        f = fd[j]
+        L2[i] = L2[i] * (1 - f) + Lc[j, :2] * SX * f
+        R2[i] = R2[i] * (1 - f) + Rc[j, :2] * SX * f
+        zL[i] = zL[i] * (1 - f) + Lc[j, 2] * f
+        zR[i] = zR[i] * (1 - f) + Rc[j, 2] * f
+    print("  bottom-K cylinder band: R %.2f W, tilt %.0f deg, %d rings" % (Rr_ / W_CSS, math.degrees(tau), len(idx)))
 # each approved section keeps its own 3D (folds, layer offsets, roll relief); a depth ramp along it makes it meet the layering
 # at its own ends; blended with the same weights as the screen positions
 if APPROVED:
@@ -335,6 +369,10 @@ if APPROVED:
         accZL[idx] += (zl + ramp) * w_
         accZR[idx] += (zr + ramp) * w_
     zL, zR = accZL / tot, accZR / tot
+
+def _unused():
+    pass
+
 
 def anchor_xyz(cx, cy, z):
     sx, sy = cx / SX, cy / SY
