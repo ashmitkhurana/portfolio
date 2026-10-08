@@ -56,6 +56,10 @@ export interface RibbonSharedUniforms extends AoUniforms {
   uRim: { value: THREE.Vector2 };
   /** 1 = the rim strip blends face A -> face B across the thickness */
   uEdgeGrad: { value: number };
+  /** rim normals blend towards the camera-facing face normal (vertex stage) */
+  uRimNormalMix: { value: number };
+  /** minimum AO on rim fragments */
+  uRimAoFloor: { value: number };
 }
 
 export function createSharedUniforms(): RibbonSharedUniforms {
@@ -76,11 +80,14 @@ export function createSharedUniforms(): RibbonSharedUniforms {
     uDiffuseK: { value: 1 },
     uRim: { value: new THREE.Vector2(0, 3) },
     uEdgeGrad: { value: 0 },
+    uRimNormalMix: { value: 0 },
+    uRimAoFloor: { value: 0 },
     ...createAoUniforms(),
   };
 }
 
 const VERT_DECL = /* glsl */ `
+uniform float uRimNormalMix;
 varying float vFace;
 varying float vRibbonZ;
 varying float vEdgeT;
@@ -104,6 +111,7 @@ uniform float uLightSpec;
 uniform float uDiffuseK;
 uniform vec2 uRim;
 uniform float uEdgeGrad;
+uniform float uRimAoFloor;
 varying float vFace;
 varying float vRibbonZ;
 varying float vEdgeT;
@@ -181,7 +189,7 @@ vec3 RibNeutral(vec3 color) {
 const SPEC_TINT_APPLY = (ao: boolean) => /* glsl */ `
   // the softboxes carry the highlights: a punctual light only adds small hard dots
   reflectedLight.indirectDiffuse *= uDiffuseK;
-  ${ao ? "float ribAoS = pow(max(vAO, 1e-4), uAoSpec);\n  reflectedLight.indirectDiffuse *= vAO;" : ""}
+  ${ao ? "float ribAo = ribFace == 2 ? max(vAO, uRimAoFloor) : vAO;\n  float ribAoS = pow(max(ribAo, 1e-4), uAoSpec);\n  reflectedLight.indirectDiffuse *= ribAo;" : ""}
   reflectedLight.directSpecular *= ribHue * uLightSpec;
   // Fresnel rim: reflections strengthen towards grazing angles
   float ribFres = 1.0 + uRim.x * pow(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), uRim.y);
@@ -250,7 +258,15 @@ export function createRibbonMaterial(
       ),
     ).replace(
       "#include <project_vertex>",
-      `#include <project_vertex>${ao ? AO_VERT_BODY : ""}\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
+      `#include <project_vertex>
+  #ifndef FLAT_SHADED
+  if (abs(tangent.z) < 0.5 && uRimNormalMix > 0.0) {
+    // rim: bend the normal towards the camera-facing face normal so the thin edge catches the light
+    vec3 ribFn = normalize(normalMatrix * texelFetch(uRingTex, ivec2(int(position.z + 0.5), 2), 0).xyz);
+    if (dot(ribFn, -mvPosition.xyz) < 0.0) ribFn = -ribFn;
+    vNormal = normalize(mix(normalize(vNormal), ribFn, uRimNormalMix));
+  }
+  #endif${ao ? AO_VERT_BODY : ""}\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
     );
 
     shader.fragmentShader = shader.fragmentShader
@@ -350,6 +366,8 @@ export function applyMaterialSettings(
   shared.uLightSpec.value = s.lightSpecular;
   shared.uDiffuseK.value = s.envDiffuse;
   shared.uRim.value.set(s.rim, s.rimPower);
+  shared.uRimNormalMix.value = s.rimNormalMix ?? 0;
+  shared.uRimAoFloor.value = s.rimAoFloor ?? 0;
   shared.uAoK.value = s.ao;
   shared.uAoSpec.value = s.aoSpec;
   shared.uAoBias.value = s.aoBias;

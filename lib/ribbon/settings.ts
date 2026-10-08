@@ -101,6 +101,10 @@ export interface RibbonSettings {
     aoSoft: number;
     /** gaussian blur of the baked AO along the ribbon, in rings (never across a face / rim boundary) */
     aoBlur: number;
+    /** 0..1: rim (thin edge) normals blend towards the camera-facing face normal so the edge catches the light (0 = pure rim normal) */
+    rimNormalMix: number;
+    /** 0..1: minimum baked AO on rim fragments (AO never darkens the rim below this) */
+    rimAoFloor: number;
   };
   env: {
     intensity: number;
@@ -356,6 +360,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     aoBias: 3,
     aoSoft: 12,
     aoBlur: 6,
+    rimNormalMix: 0,
+    rimAoFloor: 0,
     ior: 1.5,
     sheen: 0,
     sheenRoughness: 0.5,

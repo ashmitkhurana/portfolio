@@ -69,6 +69,8 @@ const FOLDERS: Array<{ title: string; open?: boolean; rows: Row[]; sub?: Array<{
       ["material.aoBias", num(0, 20, 0.5)],
       ["material.aoSoft", num(1, 60, 1)],
       ["material.aoBlur", num(0.5, 30, 0.5)],
+      ["material.rimNormalMix", num(0, 1, 0.01)],
+      ["material.rimAoFloor", num(0, 1, 0.01)],
     ],
   },
   {
