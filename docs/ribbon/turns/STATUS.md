@@ -136,3 +136,33 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
 
 ## 2026-10-08: handoff to a fresh session
 Every roll-chain approach failed (design_fit was the 5th). NEXT: docs/ribbon/turns/CURVE_PLAN.md, the AK as a designed smooth 3D centreline using the engine's own curvature frames and soft folds, built from the owner's flow and judged by eye. Weekly usage 69%.
+
+## 2026-10-08 (afternoon): curve plan, first real-engine iterations. STOPPED at weekly 74%
+Tools (all in scripts/curve/, run against the `.next-ak` override build on :4100):
+- `author.py <ver> 1.5 [delta.json]`: writes docs/ribbon/turns/curve/<ver>/pose.json from a control-point table (cutout px + depth css). Round arcs via `arc()`, the wrap via `helix()`.
+- `dump-pose.mjs`: the REAL engine's rings (centre, ruling, normal, half width), fold/hairpin reports, smoothness, edge kink.
+- `views.py`: front over the mockup, side/top, clearance groups, screen crossings. `faces.py`: visible face per ring.
+- `level.py`: face-on leveling (see the rules below). Converges in 1–2 passes.
+- `loopsolve*.py`: an attempt to solve loops analytically. It's ill-posed; don't reuse it.
+
+Owner's verdict on v3 (false-colour view): the K tips are too sharp (they should be smooth circular loops), the far-left fold is too sharp, the bottom S is broken and both K loops are wrong. Judge in the SHADED render (`render-pose.mjs`, ribbon.png), never by the metrics alone.
+
+Engine rules learned (they explain every failure so far):
+1. Curvature frames follow the principal normal fully below a 4-width radius and partly up to 16 widths (width = params.width 34, NOT ×1.5). A face-on strand must therefore be straight on screen. Any visible screen curve rolls it toward edge-on.
+2. Where the curve fades, the frames HOLD whatever roll they reached. Straight runs inherit leftover roll from the previous turn. `level.py` fixes this with twist offsets, measured per tagged run.
+3. Never put a twist correction INSIDE a turn: it cancels the frame's roll and flattens the band into an in-plane pinch (seen in the bottom-K U). Put it just after the turn, or hidden behind another strand.
+4. Flat folds only for turns of 50–150°. The fold zone runs ~1.7 W before and ~3–4 W after the corner, so two folds on the left leg barely fit. At ρ 0.45 a fold reads as a crease to the owner. Only the apex stays a fold (ρ 0.6); every other turn is a round arc that the frames roll.
+5. A round loop joined to straight strands that converge toward it can't fit (the top-K tip): the strands must be parallel or diverging at the loop.
+
+State at stop (v10b, ribbon render in curve/v10b/render):
+- Better: the bottom-K loop is round, the far-left corner and top-K end are round, the A reads, and faces are correct on all straight runs.
+- Still broken:
+  - the tail→S junction kinks (edge kink 1084 at ring ~430);
+  - the sweep shows a half roll mid-span;
+  - the return crumples near the left leg (the hidden twist isn't hidden enough);
+  - two clearance contacts remain.
+
+Next:
+- S: design the tail and S together in depth. The near-camera tail must curve into the screen plane BEFORE the S arc, with no screen kink where the straight tail meets the arc.
+- Return and sweep: move their twist ramps fully out of view.
+- After that, per-turn shaded crops for each turn, then the owner.
