@@ -1,4 +1,4 @@
-# RESUME HERE (written 2026-10-08 evening, before the owner factory-resets the Mac)
+# RESUME HERE (updated 2026-10-09 evening; weekly usage exhausted)
 
 Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/ribbon/HANDOFF.md` §1 and §5a (the owner's ribbon flow, faces and over/under). My memory notes from this machine are copied into `docs/ribbon/agent-memory/`. Restore them into the new machine's Claude memory dir, or just read them: they carry the owner's working rules.
 
@@ -77,14 +77,42 @@ Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/
   5. Seams at the section joins (S/F/A/P).
 - **Never swap into `ak-hero.json` without the owner's OK. Show the owner only close-crop-checked results.**
 
-## Final state at push (2026-10-08 ~16:45; 5-hour window 86 %, weekly 89 %)
-- Best = **r23** (`docs/ribbon/turns/curve/best/`). Everything is committed and pushed to `origin/claude/upbeat-hellman-f92bb7`.
-- **First thing next session:**
-  1. Read this file.
-  2. `npm install`; recreate the venv.
-  3. Build the override (`.next-ak`) and start :4100.
-  4. `scripts/mockup/.venv/bin/python scripts/curve/rotosurf.py best`.
-  5. `node scripts/render-pose.mjs --quick --pose docs/ribbon/turns/curve/best/pose.json --out /tmp/x`.
-  6. Compare with the mockup in close crops, then continue the priority list above (S crease remainder, wrap, bottom-K size, material highlights, seams).
-- The owner will judge only close-crop-checked results. Don't swap `ak-hero.json` without their OK.
-- Weekly usage is 89 %: expect the weekly limit soon (it resets 2026-10-13 20:00).
+## Handoff 2026-10-09 (read this first)
+
+- Branch `claude/upbeat-hellman-f92bb7`, pushed. The best result is **r36** (`docs/ribbon/turns/curve/best/`, containing `pose.json` and `ribbon.png`). `scripts/mockup/.venv/bin/python scripts/curve/rotosurf.py best` reproduces it byte-identically; all new knobs default to r36 behaviour.
+- `ak-hero.json` is NOT changed (needs the owner's OK).
+- Details of each step are in `docs/ribbon/turns/STATUS.md`, sections dated 2026-10-09.
+
+### Setup on a fresh machine
+
+- `npm install`
+- Python venv: `python3 -m venv scripts/mockup/.venv && scripts/mockup/.venv/bin/pip install -r scripts/mockup/requirements.txt` (plus matplotlib for the diagnostics).
+- `npx playwright install chromium`
+- Build: `NEXT_DIST_DIR=.next-ak NEXT_PUBLIC_POSE_OVERRIDE=1 npx next build`, then `git checkout -- next-env.d.ts tsconfig.json`.
+- Serve: `NEXT_DIST_DIR=.next-ak NEXT_PUBLIC_POSE_OVERRIDE=1 npx next start -p 4100`.
+- Render: `node scripts/render-pose.mjs --quick --pose <pose.json> --out <dir> [--material '<json>']` (`--material` is a live material override, no rebuild needed).
+- macOS has no `timeout`. Git identity: ashmitkhurana <ashmit.khu@gmail.com>.
+
+### Done today (r23 to r36)
+
+- **S crease**: sections were crossfaded by ring index while out of phase with the trace. Fixed with `ALIGN=1 ALIGN_SECS=S` (arclength alignment) [r31].
+- **S fan**: one edge stalled. Fixed with `EQS=125:230 EQS_RAMP=20` equal-fraction re-pairing [r33/r35]. This also halved the ridge at the S's inner corner (normal turn 18.8 to 9.5 deg/ring at ring 195).
+- **Wrap**: the screen edges were right, but the crossbar was keyed behind the left leg in depth. Fixed with `XB_Z=70` plus a depth-constraint pass `ZCON="880:945>3,4:16"` (rings a..b are placed in front/behind intervals by a gap wherever they overlap on screen) [r34].
+- **Bottom-K loop**: it was a 12-point polygon (creases and a bright flat facet), too small and steep, and seated in depth only at its start. Refit with ring `BK_RF=72.155,2.1885,0.7960 BK_WSCALE=1.297 BK_TURN=0.409`, `BK_NPTS=120` (`scripts/curve/ringmod.py`), `BK_FADE=10`, `BK_ZRAMP=smooth` [r36]. Loop-box IoU vs the mockup went from 0.67 to 0.84, with no clearance violations.
+- **Default-off knobs kept**: `ALIGN_DEDUP`, `ZSM`, `ALIGN_ENDS` (`F:lo` rejected), `WRAP_DIP`, `WRAP_HOLD`.
+
+### Open items, in suggested order
+
+1. **Top-K loop**: the mockup's reaches much further right as a wide open loop; ours is narrower and pointed. Not yet diagnosed.
+2. **Dent A on the S's upper edge at ring ~218 (S to F handover)**: the S and F sources disagree everywhere in their overlap (rings 211-243), with F about 18 rings out of phase with the trace. Rejected: `ALIGN_ENDS=F:lo`, a short crossfade (`SF_FADE`), and fading both into the trace (`SF_TRACE`). The next idea is in STATUS.
+3. **Wrap curl bottom (rings ~941-1000)** passes through the left leg (hidden at its base); forcing it behind leaves a spike. Needs the leg's left edge to roll back where the curl wraps, or a retrace.
+4. **Faint glint line across the lower S (rings 123-127)**: the band pitches into the S too fast (geometry; survives rough materials).
+5. **Material and lighting**: the mockup's look is bold highlight stripes across the band plus deep red-brown shading (softbox/strip reflections); rougher materials only flatten it. Also the band edge renders as a dark line where the mockup has a bright rim.
+
+### Method that worked
+
+Diagnose first: map the visible defect to ring numbers via the L2/R2 dumps, then find which quantity breaks (edges, ruling pairing, depth, or normal dN). Then add env-gated knobs with defaults byte-identical, render variants, and compare crops against the mockup plus metrics (dN, edge turn, ruling intersections, z-buffer occlusion, 3D clearance with 2x7.18). Scratch tools from today lived in /private/tmp and are lost; port any you need into `scripts/curve/`.
+
+### Owner's rules (also in `docs/ribbon/agent-memory/`)
+
+Opus plans and reviews, Sonnet/Haiku subagents execute (max 3 in parallel); show only close-crop-checked results; never drive the owner's browser; no pkill/killall; commit locally often and push only when asked.
