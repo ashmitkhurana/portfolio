@@ -19,7 +19,7 @@ SX, SY = 852.0 / VW, 1846.0 / VH
 ANCHOR = dict(left=20.0, top=118.15625, width=347.21875, height=154.1875)
 W_CSS = 51.0
 W_CUT = W_CSS * SX  # 111.4 cutout px at z = 0
-TAIL_ZMAX = float(os.environ.get('TAIL_ZMAX', 260))
+TAIL_ZMAX = float(os.environ.get('TAIL_ZMAX', 260))  # capped (r14). TAIL_ZMAX=1100 = the true depth: the S then rounds like the mockup (r17), but the near tail renders pale (distance-dependent lighting) and steps (noisy depth from width)
 
 d = json.load(open(os.path.join(HERE, "..", "..", "docs", "ribbon", "turns", "out_v9", "edges_v3.json")))
 P = np.array(d["pairs"], float)  # (n, 2 [E1, E2], 2 [x, y]) cutout px
