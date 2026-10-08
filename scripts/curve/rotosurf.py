@@ -313,10 +313,8 @@ if APPROVED:
     SECW = (wt, tot)
     if False:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
-EQS = os.environ.get("EQS", "125:230")  # "a:b": rings a..b keep both edge polylines but are re-paired at equal arclength FRACTIONS of each edge (kills the fan of rulings where one edge advances slowly), blended in/out over EQS_RAMP rings (default 125:230 ramp 20 = r35: removes the S fan and softens the ridge at the S's inner corner)
+EQS = os.environ.get("EQS", "125:230,620:700")  # "a:b": rings a..b keep both edge polylines but are re-paired at equal arclength FRACTIONS of each edge (kills the fan of rulings where one edge advances slowly), blended in/out over EQS_RAMP rings (default 125:230 ramp 20 = r35: removes the S fan and softens the ridge at the S's inner corner) (default 125:230,620:700 = r38: the second window removes the ruling fan/crease at the A right leg's foot)
 if EQS:
-    ea, eb = (int(x_) for x_ in EQS.split(":"))
-    er = int(os.environ.get("EQS_RAMP", 20))
     def _rang(L_, R_):
         a_ = np.arctan2(*(R_ - L_)[:, ::-1].T)
         return np.degrees((np.diff(a_) + np.pi) % (2 * np.pi) - np.pi)
@@ -325,19 +323,36 @@ if EQS:
         s_ = np.concatenate([[0], np.cumsum(d_)]); s_ /= s_[-1]
         keep = np.concatenate([[True], d_ > 1e-9])  # ignore zero-length steps
         return np.stack([np.interp(t_, s_[keep], P_[keep, k_]) for k_ in range(P_.shape[1])], axis=1)
-    ti = (np.arange(ea, eb + 1) - ea) / float(eb - ea)
-    Lq, Rq = _resamp(Lraw[ea:eb + 1], ti), _resamp(Rraw[ea:eb + 1], ti)
     def _ss(x_):
         x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
-    k_ = np.arange(eb - ea + 1)
-    ew = _ss(np.minimum(k_, (eb - ea) - k_) / float(max(er, 1)))
-    ang0 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
-    Lraw[ea:eb + 1] = Lraw[ea:eb + 1] + ew[:, None] * (Lq - Lraw[ea:eb + 1])
-    Rraw[ea:eb + 1] = Rraw[ea:eb + 1] + ew[:, None] * (Rq - Rraw[ea:eb + 1])
-    ang1 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
-    print("  EQS %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (ea, eb, er, ang0, ang1))
+    for w_ in EQS.split(","):  # "a:b[:ramp][,a:b[:ramp]...]"
+        f_ = w_.split(":")
+        ea, eb = int(f_[0]), int(f_[1])
+        er = int(f_[2]) if len(f_) > 2 else int(os.environ.get("EQS_RAMP", 20))
+        ti = (np.arange(ea, eb + 1) - ea) / float(eb - ea)
+        Lq, Rq = _resamp(Lraw[ea:eb + 1], ti), _resamp(Rraw[ea:eb + 1], ti)
+        k_ = np.arange(eb - ea + 1)
+        ew = _ss(np.minimum(k_, (eb - ea) - k_) / float(max(er, 1)))
+        ang0 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
+        Lraw[ea:eb + 1] = Lraw[ea:eb + 1] + ew[:, None] * (Lq - Lraw[ea:eb + 1])
+        Rraw[ea:eb + 1] = Rraw[ea:eb + 1] + ew[:, None] * (Rq - Rraw[ea:eb + 1])
+        ang1 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
+        print("  EQS %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (ea, eb, er, ang0, ang1))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
+EDGE_SIGW = os.environ.get("EDGE_SIGW", "")  # "a:b:sigma[,...]": rings a..b of the smoothed edges are blended toward a wider gsmooth(raw, sigma) (smoothstep(min(k,n-k)/10) weight)
+if EDGE_SIGW:
+    def _ssw(x_):
+        x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
+    for w_ in EDGE_SIGW.split(","):
+        f_ = w_.split(":")
+        wa, wb, wsg = int(f_[0]), int(f_[1]), float(f_[2])
+        Ls_, Rs_ = gsmooth(Lraw, wsg), gsmooth(Rraw, wsg)
+        k_ = np.arange(wb - wa + 1)
+        ew = _ssw(np.minimum(k_, (wb - wa) - k_) / 10.0)
+        L2[wa:wb + 1] = L2[wa:wb + 1] + ew[:, None] * (Ls_[wa:wb + 1] - L2[wa:wb + 1])
+        R2[wa:wb + 1] = R2[wa:wb + 1] + ew[:, None] * (Rs_[wa:wb + 1] - R2[wa:wb + 1])
+        print("  EDGE_SIGW %d..%d sigma %g" % (wa, wb, wsg))
 L2_TR, R2_TR = L2.copy(), R2.copy()
 if os.environ.get("DUMP_EDGES"):
     np.savez(os.environ["DUMP_EDGES"], L2=L2, R2=R2, Lraw_a=Lraw_a, Rraw_a=Rraw_a, IV=IV)
@@ -432,6 +447,17 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
     # ring in screen-css xy (y down) + depth: p(th) = R (cos th a + sin th (cos tau ap + sin tau z))
     e2 = math.cos(tau) * ap_ + np.array([0, 0, math.sin(tau)])
     axis = np.cross(a_, e2); axis /= np.linalg.norm(axis)
+    BK_HW_OVERRIDE = None
+    if os.environ.get("BK_FIT3"):  # "path[:F3]": free-ring fit (scripts/curve/bkfit2.py params.json): P(th) = C + R (cos th e1 + sin th e2), css, replaces the ring points and the axis
+        _fp, _, _fk = os.environ["BK_FIT3"].partition(":")
+        _f3 = json.load(open(_fp))[_fk or "F3"]
+        _C, _e1, _e2 = (np.array(_f3[k], float) for k in ("C", "e1", "e2"))
+        _th = np.linspace(_f3["theta0"], _f3["theta1"], int(os.environ.get("BK_NPTS", "120") or 12))
+        _P = _C[None] + _f3["R"] * (np.cos(_th)[:, None] * _e1[None] + np.sin(_th)[:, None] * _e2[None])
+        rf["pts"] = [[q[0] * 2.185, q[1] * 2.185, q[2]] for q in _P]
+        axis = np.cross(_e1, _e2); axis /= np.linalg.norm(axis)
+        BK_HW_OVERRIDE = _f3["hw"]
+        print("  BK_FIT3: R %.2f hw %.2f span %.1f deg" % (_f3["R"], _f3["hw"], math.degrees(_f3["theta1"] - _f3["theta0"])))
     P0 = np.array(rf["pts"], float)  # cutout xy, rel z (start .. end of the arc)
     Pc = np.stack([P0[:, 0] / SX, P0[:, 1] / SY, P0[:, 2]], 1)
     idx = np.where(IV == 7)[0]
@@ -455,6 +481,8 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
     i0 = idx[0]
     r0v = np.array([(R2[i0, 0] - L2[i0, 0]) / SX, (R2[i0, 1] - L2[i0, 1]) / SY, zR[i0] - zL[i0]]); r0v /= np.linalg.norm(r0v)
     hw = W_CSS / 2 * float(os.environ.get('BK_WSCALE', 1.297))
+    if BK_HW_OVERRIDE is not None and "BK_WSCALE" not in os.environ:
+        hw = BK_HW_OVERRIDE
     tin = float(os.environ.get('BK_TURN', 0.409))
     rul = []
     for t in tq:

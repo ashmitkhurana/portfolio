@@ -11,30 +11,34 @@ import type { DeepPartial, RibbonSettings } from "./settings";
  * map / contact catcher are never motion-gated by a threshold (a frozen pose renders them once
  * and keeps them; a moving ribbon renders them every frame). Idle motion comes back in a later stage.
  */
+// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4)
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
   // the sculpture's satin golden orange (face A the bright face, face B the darker inner face); the anisotropy streaks the
   // highlights along the band like brushed metal
   material: {
-    faceA: { color: "#ff6a10", roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.14 },
-    faceB: { color: "#ff620e", roughness: 0.32, clearcoat: 0.65, clearcoatRoughness: 0.15 },
+    faceA: { color: "#ff6a10", roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.14 },
+    faceB: { color: "#ff620e", roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.15 },
     edge: { mode: "gradient" },
     anisotropy: 0.6,
-    envDiffuse: 0.55,
+    envDiffuse: 0.8,
+    metalness: 0.7,
+    ao: 1.0,
+    aoSpec: 2,
   },
   // strong form shading as in the sculpture: key from the upper left front, little fill / ambient, so inner and away-facing surfaces go deep
   env: {
     intensity: 1.0,
     autoRotate: false,
-    key: { intensity: 15, azimuth: -35, elevation: 28 },
-    fill: { intensity: 0.2 },
+    key: { intensity: 14, azimuth: -35, elevation: 28, width: 5, softness: 0.7 },
+    fill: { intensity: 2.0 },
     top: { intensity: 0.45 },
     bounce: { intensity: 0.12 },
   },
   light: { intensity: 1.15, azimuth: -45, elevation: 40 },
   sim: { mode: "frozen" },
-  post: { adaptive: false },
+  post: { adaptive: false, exposure: 1.2 },
   background: { grainFps: 0 },
   shadows: { moveThreshold: 0 },
   contact: { moveThreshold: 0 },
