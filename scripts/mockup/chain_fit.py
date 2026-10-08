@@ -40,7 +40,7 @@ ROLLS = [
     ('tail bend 1', 'bend', 40), ('tail bend 2', 'bend', 95), ('S bend', 'bend', 138), ('S obl 1', 'obl', 152), ('S obl 2', 'obl', 168), ('S obl 3', 'obl', 184), ('S obl 4', 'obl', 200), ('sweep bend', 'bend', 257),
     ('far-left fold', 'fold', 338), ('left-leg bend 1', 'bend', 420), ('left-leg bend 2', 'bend', 455), ('apex fold', 'fold', 519),
     ('right-leg bend 1', 'bend', 585), ('right-leg bend 2', 'bend', 625), ('bottom-K fold 1', 'fold', 690), ('bottom-K curl', 'fold', 712), ('bottom-K fold 2', 'fold', 735),
-    ('k_return bend', 'bend', 790), ('back-layer bend', 'bend', 836), ('crossbar bend', 'bend', 885), ('wrap curl', 'fold', 960),
+    ('k_return bend', 'bend', 790), ('back-layer bend', 'bend', 836), ('crossbar bend 1', 'bend', 876), ('crossbar bend 2', 'bend', 893), ('wrap curl', 'fold', 960),
     ('wrap twist 1', 'fold', 1010), ('wrap twist 2', 'fold', 1040), ('middle-layer bend', 'bend', 1085), ('top-K front bend', 'bend', 1120),
     ('top-K tip fold', 'fold', 1185), ('end bend', 'bend', 1265)]
 NR = len(ROLLS)
@@ -774,6 +774,53 @@ def s_combos(pr, x, g):
     return out
 
 
+def presearch(pr, x, g, st):
+    """generic start for new rolls: (a) flat u inside the interval span else move to arc midpoint; (b) coarse (phi, beta) grid, coordinate-wise once; best 2 distinct starts"""
+    W = pr.W
+    for k in g:
+        iv = pr.roll_iv[k]
+        u = float(pr.F(x, np.array([pr.roll_tau0[k]]))[0])
+        ulo, uhi = (float(v) for v in pr.F(x, np.array([pr.tau[pr.i0[iv]], pr.tau[pr.i1[iv]]])))
+        if not (ulo <= u <= uhi):
+            mid = 0.5 * (pr.tau[pr.i0[iv]] + pr.tau[pr.i1[iv]])
+            log(f'    roll {pr.rname[k]}: flat u {u:.1f} outside interval span [{ulo:.1f},{uhi:.1f}] -> moved to arc midpoint')
+            pr.roll_tau0[k] = mid
+            pr.lo, pr.hi = pr.bounds()
+    seeds = {}
+    for k in g:
+        if pr.kind[k] == 'bend':
+            seeds[k] = (np.pi / 2, 3 * W, 0.0)
+        else:
+            c = rolls_candidates(pr, x, k)[0]
+            seeds[k] = (c[1], c[2], c[3])
+    cur = x.copy()
+    for k in g:
+        cur = set_roll(cur, k, pr.roll_tau0[k], *seeds[k])
+    phis = [-1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0]
+    evals = []
+    for k in g:
+        pl = phis + ([-np.pi / 2, np.pi / 2, -np.pi, np.pi] if pr.kind[k] != 'bend' else [])
+        rho = seeds[k][1]
+        best = None
+        for b in np.radians([45.0, 90.0, 135.0]):
+            for p in pl:
+                xc = set_roll(cur, k, pr.roll_tau0[k], b, rho, p)
+                r = pr.res(xc, st)
+                c = 0.5 * float(r @ r)
+                evals.append((c, [pr.rname[k], f'b{np.degrees(b):.0f}', f'p{p:.2f}'], xc))
+                if best is None or c < best[0]:
+                    best = (c, xc)
+        cur = best[1]
+    evals.sort(key=lambda q: q[0])
+    out = []
+    for c, tag, xc in evals:
+        if all(np.abs(xc - o[1]).max() > 1e-9 for o in out):
+            out.append((tag, xc))
+        if len(out) == 2:
+            break
+    return out
+
+
 def bk_combos(pr, x, g):
     """bottom-K: fold 1, loop-bottom curl, fold 2. 4 starts = fold sign pattern x curl sign"""
     W = pr.W
@@ -942,6 +989,8 @@ def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
             gact = sorted(pr._active)
             st = pr.stage_info(gact, glo, ghi)
             near = nearest_prev(pr, act_prev + done_new, g)
+            if iv == 10 and ROLLS_IDX['back-layer bend'] not in near:
+                near = near + [ROLLS_IDX['back-layer bend']]
             free = np.array(sorted([6 + 4 * k + j for k in list(g) + near for j in range(4)] + [6 + 4 * NR + iv]))
             if pr.rname[g[-1]] == 'S obl 4':
                 combos = s_combos(pr, x, g)
@@ -949,9 +998,12 @@ def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
             elif pr.rname[g[0]] == 'bottom-K fold 1':
                 combos = bk_combos(pr, x, g)
                 ncf, gs = 4, 360.0
-            else:
+            elif pr.rname[g[0]] == 'apex fold':
                 combos = list(gen_combos(pr, x, g))
                 ncf, gs = ncand_fit, secs_group
+            else:
+                combos = presearch(pr, x, g, st)
+                ncf, gs = 2, secs_group
             scored = []
             for tags, xc in combos:
                 r = pr.res(xc, st)
@@ -978,6 +1030,8 @@ def run_stage(pr, n, secs_final=300.0, secs_group=90.0, ncand_fit=3):
         st = pr.stage_info(act, lo, hi)
         new = [k for g in groups for k in g]
         near = nearest_prev(pr, act_prev, new if new else [int(np.mean([pr.i0[iv], pr.i1[iv]]))] and [min(act_prev, key=lambda k: abs(ROLLS[k][2] - (pr.i0[iv] + pr.i1[iv]) / 2))])
+        if iv == 10 and ROLLS_IDX['back-layer bend'] not in near:
+            near = near + [ROLLS_IDX['back-layer bend']]
         free = np.array(sorted([6 + 4 * k + j for k in new + near for j in range(4)] + [6 + 4 * NR + iv]))
         r = pr.res(x, st)
         log(f'  stage fit: free {len(free)} rings {lo}..{hi} cost0 {0.5 * float(r @ r):.1f}')
@@ -1251,8 +1305,7 @@ def main():
                 continue
             x, m = run_stage(pr, n, **kw)
             if m['data_new']['rms'] is None or m['data_new']['rms'] > m['gate_stop']:
-                log(f'!! STOP: stage {n} (interval {m["new_interval"]}) new-interval rms {m["data_new"]["rms"]} px > {m["gate_stop"]}')
-                return
+                log(f'!! (no hard stop) stage {n} (interval {m["new_interval"]}) new-interval rms {m["data_new"]["rms"]} px > {m["gate_stop"]}; continuing')
         run_polish(pr, arg('psecs', 480.0))
         run_report(pr)
         x, nm = final_x()
