@@ -357,6 +357,9 @@ def ax_sign(axis, ref):
 
 # ---- centre depth by stretch (keys: interval -> (z at its start, z at its end)); windows interpolate between neighbours ---
 LZ, RZ, BZ, MZ, EZ = -24.0, 37.0, -20.0, 12.0, -58.0
+XB_Z = float(os.environ.get('XB_Z', 70.0))  # z the crossbar reaches at the left leg (end of iv10 = start of iv11); default r33 (default 70 = r34: the crossbar arches over the FRONT of the left leg)
+WRAP_DIP = float(os.environ.get('WRAP_DIP', 40.0))  # depth of the wrap's dip behind the leg (m11)
+WRAP_HOLD = float(os.environ.get('WRAP_HOLD', 0.0))  # >0: iv11 holds its start z for this fraction of the interval, then smoothsteps to its end
 KEYS = {
     1: (None, 88.0),  # S window: from the tail's end to the sweep
     2: (88.0, 46.0),  # sweep (in front of the right leg's foot)
@@ -367,8 +370,8 @@ KEYS = {
     7: (RZ, -18.0),  # bottom-K loop: back behind the right leg
     8: (-18.0, BZ),  # K band
     9: (BZ, BZ),  # junction 1 (hidden behind the right leg)
-    10: (BZ, LZ + 30.0),  # crossbar, onto the front of the left leg
-    11: (LZ + 30.0, -46.0),  # the wrap: round the leg, behind it, out as the return
+    10: (BZ, XB_Z),  # crossbar, onto the front of the left leg
+    11: (XB_Z, -46.0),  # the wrap: round the leg, behind it, out as the return
     12: (-12.0, MZ - 2.0),  # junction 2 (return -> top-K front), in front of the crossbar
     13: (MZ - 2.0, MZ),  # top-K front strand
     14: (MZ, EZ),  # top-K loop: over the top and back behind
@@ -386,11 +389,13 @@ for kk, (a, b) in KEYS.items():
     if a is None:
         a = zc[m[0] - 1]
     t = np.linspace(0, 1, len(m))
+    if kk == 11 and WRAP_HOLD > 0:
+        t = np.clip((t - WRAP_HOLD) / (1 - WRAP_HOLD), 0, 1)
     zc[m] = a + (b - a) * (t * t * (3 - 2 * t))
 # the wrap: dip behind the leg in the middle of its window (front pass -> curl at the edge -> behind -> out)
 m11 = np.where(IV == 11)[0]
 t11 = np.linspace(0, 1, len(m11))
-zc[m11] += -40.0 * np.sin(np.pi * np.clip((t11 - 0.15) / 0.6, 0, 1)) ** 2
+zc[m11] += -WRAP_DIP * np.sin(np.pi * np.clip((t11 - 0.15) / 0.6, 0, 1)) ** 2
 # the junction-2 start continues the wrap's end (no step)
 m12 = np.where(IV == 12)[0]
 zc[m12] += (zc[m11[-1]] - zc[m12[0]]) * (1 - np.linspace(0, 1, len(m12))) ** 2
@@ -468,6 +473,67 @@ if APPROVED:
         zLs, zRs = gsmooth(zL, zs_), gsmooth(zR, zs_)
         zL[za:zb + 1] += zw * (zLs[za:zb + 1] - zL[za:zb + 1])
         zR[za:zb + 1] += zw * (zRs[za:zb + 1] - zR[za:zb + 1])
+
+if os.environ.get("ZCON", "880:945>3,4:16"):  # depth constraints, "a:b>ivs:gap;a:b<ivs:gap": rings a..b IN FRONT (>) / BEHIND (<) the strand of intervals ivs (comma list) by >= gap
+    from scipy.ndimage import maximum_filter1d
+    from scipy.spatial import cKDTree as _KD
+
+    def _zc_samples(rings, sub=3, sp=1.5):
+        # screen-space samples along each ruling (L2 -> R2, z zL -> zR), the segments i -> i+1 sub-stepped (as chk.py); (xy, z, ring)
+        X_, Z_, R_ = [], [], []
+        for i, f in rings:
+            j = min(i + 1, n - 1)
+            L = L2[i] * (1 - f) + L2[j] * f; Rr = R2[i] * (1 - f) + R2[j] * f
+            zl = zL[i] * (1 - f) + zL[j] * f; zr = zR[i] * (1 - f) + zR[j] * f
+            nv = max(2, int(np.ceil(np.linalg.norm(Rr - L) / sp)) + 1); v = np.linspace(0, 1, nv)
+            X_.append(L[None] * (1 - v[:, None]) + Rr[None] * v[:, None]); Z_.append(zl * (1 - v) + zr * v)
+            R_.append(np.full(nv, min(i + f, n - 1.0)))
+        return np.concatenate(X_), np.concatenate(Z_), np.concatenate(R_)
+
+    ZC_ITERS, ZC_SIG, ZC_RAMP = int(os.environ.get("ZCON_ITERS", 4)), float(os.environ.get("ZCON_SIG", 6)), int(os.environ.get("ZCON_RAMP", 15))
+    zcons = []
+    for c_ in os.environ.get("ZCON", "880:945>3,4:16").split(";"):
+        c_ = c_.strip()
+        if not c_:
+            continue
+        op_ = ">" if ">" in c_ else "<"
+        rng_, rest_ = c_.split(op_)
+        a_, b_ = (int(v) for v in rng_.split(":"))
+        ivs_, gap_ = rest_.split(":")
+        zcons.append((a_, b_, op_, [int(v) for v in ivs_.split(",")], float(gap_)))
+    for it_ in range(ZC_ITERS):
+        for a_, b_, op_, ivs_, gap_ in zcons:
+            sgn = 1.0 if op_ == ">" else -1.0
+            fixed_ = [(i, k / 3.0) for i in range(n - 1) if int(IV[i]) in ivs_ for k in range(3)]
+            Xf, Zf, _ = _zc_samples(fixed_)
+            Xm, Zm, Rm = _zc_samples([(i, k / 3.0) for i in range(a_, b_) for k in range(3)] + [(b_, 0.0)])
+            need = np.zeros(b_ - a_ + 1)
+            for q, l_ in enumerate(_KD(Xf).query_ball_point(Xm, r=1.5)):
+                if not l_:
+                    continue
+                zf = Zf[l_].max() if sgn > 0 else Zf[l_].min()  # worst case over the fixed samples under this point
+                nd = sgn * (zf + sgn * gap_ - Zm[q])  # > : zf + gap - zm ;  < : zm - (zf - gap)
+                r_ = min(max(int(round(Rm[q])), a_), b_) - a_
+                if nd > need[r_]:
+                    need[r_] = nd
+            e = gsmooth(maximum_filter1d(need, size=9), ZC_SIG)
+            pos = need > 0
+            if pos.any():
+                ratio = (need[pos] / np.maximum(e[pos], 1e-9)).max()
+                if ratio > 1:
+                    e = e * ratio
+            print("  ZCON %s gap %g iter %d: max need %.2f, rings with need>0 %d" % ("%d:%d%s%s" % (a_, b_, op_, ",".join(map(str, ivs_))), gap_, it_ + 1, need.max(), int(pos.sum())))
+            tot_ = np.zeros(n)
+            tot_[a_:b_ + 1] = e
+            for j in range(1, ZC_RAMP + 1):
+                t_ = 1.0 - j / (ZC_RAMP + 1.0)
+                t_ = t_ * t_ * (3 - 2 * t_)
+                if a_ - j >= 0:
+                    tot_[a_ - j] = e[0] * t_
+                if b_ + j < n:
+                    tot_[b_ + j] = e[-1] * t_
+            zL += sgn * tot_
+            zR += sgn * tot_
 
 def _unused():
     pass
