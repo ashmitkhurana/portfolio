@@ -57,7 +57,7 @@ async function open(dpr) {
   }, pose);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.warn(`  [pageerror] ${e.message}`));
-  await page.goto(`${base}/?tier=4`, { waitUntil: "load" });
+  await page.goto(`${base}/?tier=${arg("tier", "4")}`, { waitUntil: "load" });
   await page.waitForFunction(() => window.__ribbonState?.phase === "live", null, { timeout: 40000 });
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo(0, 0));
