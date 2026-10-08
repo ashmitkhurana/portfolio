@@ -17,11 +17,11 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the sculpture's satin golden orange (face A the bright face, face B the darker inner face); the anisotropy streaks the
   // highlights along the band like brushed metal
   material: {
-    faceA: { color: "#ff8418", roughness: 0.38, clearcoat: 0.35, clearcoatRoughness: 0.28 },
-    faceB: { color: "#ff7a12", roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.3 },
+    faceA: { color: "#ff6a10", roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.14 },
+    faceB: { color: "#ff620e", roughness: 0.32, clearcoat: 0.65, clearcoatRoughness: 0.15 },
     edge: { mode: "gradient" },
     anisotropy: 0.6,
-    envDiffuse: 0.42,
+    envDiffuse: 0.55,
   },
   // strong form shading as in the sculpture: key from the upper left front, little fill / ambient, so inner and away-facing surfaces go deep
   env: {
