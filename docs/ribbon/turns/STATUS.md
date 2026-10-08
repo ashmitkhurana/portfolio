@@ -133,3 +133,6 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
   - the isolated shapes of F, S and P, which look right individually;
   - the terminal, motion engine, OG/meta, skeleton, audit.
 - Options for the owner (see the final chat message): (1) one global fit of all rolls from a single depth layout designed up front; (2) a designed, depth-consistent 3D layout that keeps the mockup only as a 2D guide; (3) pause the 3D fit and ship other site work first.
+
+## 2026-10-08: handoff to a fresh session
+Every roll-chain approach failed (design_fit was the 5th). NEXT: docs/ribbon/turns/CURVE_PLAN.md, the AK as a designed smooth 3D centreline using the engine's own curvature frames and soft folds, built from the owner's flow and judged by eye. Weekly usage 69%.
