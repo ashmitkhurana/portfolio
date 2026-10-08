@@ -120,3 +120,16 @@ Details: `SOLVE_SPEC.md` ("Findings") and `synth*/`.
   - the crossbar arch is the start of the wrap curl;
   - warm-start redos and accept only if not worse.
 - The joint step (continuity ramp) DEGRADED at wc = 10 (tail collapsed, K/X mangled). The independently fitted sections are inconsistent in 3D. Junction diagnostics (gap, depth, normal/tangent angles per junction) have been requested. The next decision depends on that table: e.g. re-fit inconsistent sections WITH continuity to the locked neighbours, chained outward from the locked A (A→K→B→X→M→P and A→F→S→T), instead of a global joint.
+
+## STOPPED for the owner's decision (2026-10-08 ~07:00; weekly usage 64%)
+- Joining failed in both forms:
+  - The global continuity ramp wrecked shapes.
+  - Sequential one-ended growth from A: F joined (gap 5 css, realism 0) but at 160 px data RMS; S 178 px, T 725 px, K 256 px.
+- Root cause: single-view depth/tilt ambiguity. Each section fitted alone picks its own depth. The approved isolated shapes (F, S, P) only match their 2D data at their own depths, which are mutually inconsistent (junction depth gaps 40–1300 css).
+- What's solid:
+  - the approved trace;
+  - the paper model and fold recipes;
+  - A (owner-confirmed);
+  - the isolated shapes of F, S and P, which look right individually;
+  - the terminal, motion engine, OG/meta, skeleton, audit.
+- Options for the owner (see the final chat message): (1) one global fit of all rolls from a single depth layout designed up front; (2) a designed, depth-consistent 3D layout that keeps the mockup only as a 2D guide; (3) pause the 3D fit and ship other site work first.

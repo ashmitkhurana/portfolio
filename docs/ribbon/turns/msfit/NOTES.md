@@ -622,3 +622,44 @@ REVIEW M ['bottomk', 'wrap', 'junction', 'endstrand']
     [wc=100] timeout cost 415776023.3 (481s)
   LEVEL wc=100 METRICS {"junction_gap_max_css": [5.117785412126491, 16.793936247390402, 3.7220931973224696, 14.309315920092372, 15.08463267336978, 9.688155382731724, 14.48790274598409, 9.643204633646942], "junction_gap_at_u_css": [2.3396095340442593, 9.490326929548258, 1.6576919602473308, 13.343324307327109, 12.616838383318326, 7.443387297074388, 12.013415742760007, 7.489833135101079], "junction_normal_deg": [8.163027588757163, 31.65897205523292, 2.3622704264092174, 18.459049173427832, 23.87824315780582, 8.438691860268117, 7.938596268871942, 12.650512778460737], "junction_gap_max_all": 16.793936247390402, "junction_normal_deg_max": 31.65897205523292, "delta": [0.37274529092809006, 31.614500472415138, -46.68706073555498, 52.21516029367632, -2.7500979749635706, 51.95154610183972, 52.08680151077996, 50.20130000046035], "data_rms_by_section": {"T": 210.081, "S": 62.834, "F": 46.761, "A": 11.7, "K": 234.315, "B": 151.047, "X": 62.0, "M": null, "P": 44.646}, "data_rms_overall": {"n": 1967, "rms": 121.65733807078365, "p95": 287.53257525565385, "max": 455.4435027667644}, "data_rms_excl_tail": {"n": 1703, "rms": 101.25814615680022, "p95": 262.47510706065697, "max": 455.4435027667644}, "data_rms_tail": {"n": 264, "rms": 210.08096146995206, "p95": 301.7858503003517, "max": 307.52858393483564}, "ou": {"cells": 1512, "viol_lt_2thk": 343, "viol_lt_thk": 305, "max_shortfall_css": 336.84612307191276}, "face": {"checked": 482, "agree": 482, "frac": 1.0}, "end_cost": 1532.897098446733, "close_pairs_lt_2thk": 4000, "wc": 100, "cost": 415776023.28448343, "status": "timeout"}
 ## joint level 4 wc=1000: start; free counts {'T': 15, 'S': 15, 'F': 16, 'A': 6, 'K': 24, 'B': 11, 'X': 28, 'M': 11, 'P': 21}; prior on
+SEQ start
+SEQ isolated-best realism fail counts {'T': 0, 'S': 0, 'F': 0, 'A': 3, 'K': 5, 'X': 0, 'P': 0}
+SEQ step 1 anchors: A locked (mean z 215.7); T+S block kept as is
+## SEQ F two-ended: active ['S', 'F', 'A'], free ['F'], wc 14.0, dfree [1, 2]
+    [F two-ended] ok cost 22122621.0 (147s)
+  SEQ F two-ended METRICS {"gaps": {"S-F": [2.61, 2.0], "F-A": [45.59, 76.5]}, "rms": {"F": 183.06}, "realism": {"F": {"section": "F", "roll_overlap_min_gap": -3.3890584137261612, "crossings": 38, "sep_violations": 0, "min_fold_rho_over_W": 0.302817163111615, "curv_oscillations": 1, "corners": 3, "dips": 0, "outline": {"farleft": {"mean_px": 33.773795909869335, "max_px": 64.40496875241847, "n": 50}}, "fails": ["crossing", "curv-oscillation", "corners", "roll-overlap"]}}, "mean_z": {"S": 1046.2, "F": 779.8, "A": 215.7}}
+REVIEW F ['farleft', 'bottomk', 'wrap', 'endstrand']
+SEQ F done rms=183.06 realism=['crossing', 'curv-oscillation', 'corners', 'roll-overlap'] gaps={'S-F': (2.61, 2.0), 'F-A': (45.59, 76.5)}
+SEQ STOP F: realism fails 4 > isolated best 0
+SEQ isolated-best realism fail counts {'T': 0, 'S': 0, 'F': 0, 'A': 3, 'K': 5, 'X': 0, 'P': 0}
+SEQ step 1 anchors: A locked (mean z 215.7); T+S block kept as is
+## SEQ F one-ended (A end, wc 14, shape prior 50): active ['F', 'A'], free ['F'], wc 14.0, dfree [2]
+    [F one-ended (A end, wc 14, shape prior 50)] ok cost 2933407.7 (3s)
+  SEQ F one-ended (A end, wc 14, shape prior 50) METRICS {"gaps": {"F-A": [5.3, 1.0]}, "rms": {"F": 159.68}, "realism": {"F": {"section": "F", "roll_overlap_min_gap": 129.49446463519212, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": 0.31176165903648206, "curv_oscillations": 0, "corners": 0, "dips": 0, "outline": {"farleft": {"mean_px": 6.761311236585064, "max_px": 13.723155040002126, "n": 50}}, "fails": []}}, "mean_z": {"F": 47.3, "A": 215.7}}
+REVIEW F ['farleft', 'bottomk', 'wrap', 'junction', 'endstrand']
+SEQ F done rms=159.68 realism=[] gaps={'F-A': (5.3, 1.0)}
+## SEQ S one-ended (F end): active ['S', 'F', 'A'], free ['S'], wc 14.0, dfree [1]
+    [S one-ended (F end)] ok cost 137502470.2 (146s)
+  SEQ S one-ended (F end) METRICS {"gaps": {"S-F": [123.88, 61.7], "F-A": [7.02, 1.0]}, "rms": {"S": 178.37}, "realism": {"S": {"section": "S", "roll_overlap_min_gap": 32.82445694484778, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": 3.275292761153357, "curv_oscillations": 0, "corners": 0, "dips": 0, "outline": {"s": {"mean_px": 133.92102577757484, "max_px": 254.48968544913564, "n": 112}}, "fails": []}}, "mean_z": {"S": -17.6, "F": 47.3, "A": 215.7}}
+REVIEW S ['scurve', 'bottomk']
+SEQ S done rms=178.37 realism=[] gaps={'S-F': (123.88, 61.7), 'F-A': (7.02, 1.0)}
+## SEQ T one-ended (S end, tail hinge z, data x0.3): active ['T', 'S', 'F', 'A'], free ['T'], wc 14.0, dfree [0]
+    [T one-ended (S end, tail hinge z, data x0.3)] ok cost 139681292.9 (3s)
+  SEQ T one-ended (S end, tail hinge z, data x0.3) METRICS {"gaps": {"T-S": [1.9, 3.0], "S-F": [124.66, 61.7], "F-A": [7.02, 1.0]}, "rms": {"T": 725.58}, "realism": {"T": {"section": "T", "roll_overlap_min_gap": 15.892769778015772, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": null, "curv_oscillations": 0, "corners": 0, "dips": 0, "outline": {}, "fails": []}}, "mean_z": {"T": -127.1, "S": -17.6, "F": 47.3, "A": 215.7}}
+REVIEW T ['bottomk', 'junction', 'topk', 'endstrand']
+SEQ T done rms=725.58 realism=[] gaps={'T-S': (1.9, 3.0), 'S-F': (124.66, 61.7), 'F-A': (7.02, 1.0)}
+## SEQ K: active ['T', 'S', 'F', 'A', 'K'], free ['K'], wc 14.0, dfree [3]
+    [K] ok cost 275297942.3 (9s)
+  SEQ K METRICS {"gaps": {"T-S": [7.75, 0.8], "S-F": [124.66, 61.7], "F-A": [7.02, 1.0], "A-K": [126.42, 17.6]}, "rms": {"K": 256.09}, "realism": {"K": {"section": "K", "roll_overlap_min_gap": 3.7647660464572255, "crossings": 0, "sep_violations": 0, "min_fold_rho_over_W": 0.30000000002205895, "curv_oscillations": 2, "corners": 0, "dips": 0, "outline": {"bottomk": {"mean_px": 27.024666713232165, "max_px": 53.68308027051249, "n": 150}}, "fails": ["curv-oscillation"]}}, "mean_z": {"T": -127.1, "S": -17.6, "F": 47.3, "A": 215.7, "K": 128.7}}
+REVIEW K ['scurve', 'bottomk', 'wrap', 'junction', 'topk', 'endstrand']
+SEQ K done rms=256.09 realism=['curv-oscillation'] gaps={'T-S': (7.75, 0.8), 'S-F': (124.66, 61.7), 'F-A': (7.02, 1.0), 'A-K': (126.42, 17.6)}
+## SEQ X: active ['T', 'S', 'F', 'A', 'K', 'X'], free ['X'], wc 14.0, dfree []
+SEQ isolated-best realism fail counts {'T': 0, 'S': 0, 'F': 0, 'A': 3, 'K': 5, 'X': 0, 'P': 0}
+SEQ step 1 anchors: A locked (mean z 215.7); T+S block kept as is
+## SEQ F one-ended: 19 starts, init costs [('s-1/db0/rho0.3', 1862053), ('s-1/db20/rho0.3', 3200211), ('s-1/db-20/rho0.8', 3595285), ('warm-approved', 4038195), ('s-1/db-20/rho0.3', 4194026), ('s+1/db0/rho0.3', 4540727)]
+## SEQ summary (stopped by coordinator)
+- Run 1 (T+S kept as is, F two-ended): S-F gap 2.6 css, F-A gap 45.6 css / 76.5 deg normal; F rms 183 px, 4 realism fails -> SEQ STOP F. Mean z S 1046, F 780, A 216.
+- Run 2 (one-ended from A, shape prior 50): F-A gap 5.3 css / 1.0 deg, F rms 159.7, realism 0; S-F gap 123.9 css / 61.7 deg, S rms 178, realism 0; T-S gap 1.9 css, T rms 726, realism 0 (K 256 px reported by coordinator).
+- Run 3 (prior off, multi-start presearch for F/S/T): started, then killed by the coordinator before any result.
+- Files: scripts/mockup/msfit.py; docs/ribbon/turns/msfit/{NOTES.md,seq.log,seq/,sections/,joint/,overlays/,junctions.json,realism_table.json,v1/}.
+- No ak_candidate.json exported, nothing rendered. No msfit processes running.

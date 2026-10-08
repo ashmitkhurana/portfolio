@@ -1,0 +1,3 @@
+SEQ isolated-best realism fail counts {'T': 0, 'S': 0, 'F': 0, 'A': 3, 'K': 5, 'X': 0, 'P': 0}
+SEQ step 1 anchors: A locked (mean z 215.7); T+S block kept as is
+## SEQ F one-ended: 19 starts, init costs [('s-1/db0/rho0.3', 1862053), ('s-1/db20/rho0.3', 3200211), ('s-1/db-20/rho0.8', 3595285), ('warm-approved', 4038195), ('s-1/db-20/rho0.3', 4194026), ('s+1/db0/rho0.3', 4540727)]

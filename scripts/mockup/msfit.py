@@ -54,6 +54,7 @@ C.W_COV = 60.0           # owner priority: window coverage x3 (realism over over
 DATA_HALF = math.sqrt(0.5)   # data weight halved relative to coverage / realism terms
 W_ALPHA = 3.0
 CONT_A = False
+JOINT_MODE = False
 W_X = 5.0
 W_VISW = 20.0
 W_TWIST = 25.0
@@ -128,6 +129,28 @@ class SecPrb(C.Chain):
     def bounds(self):
         lo, hi = super().bounds()
         W = self.W
+        if JOINT_MODE:
+            for k in range(NR):
+                nmk = self.rname[k]
+                if self.kind[k] in ('fold', 'obl'):
+                    lo[6 + 4 * k + 2] = 0.3 * W
+                if nmk == 'S bend':
+                    lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 1.2 * W
+                if nmk == 'S obl 4':
+                    lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 1.5 * W, 6.0 * W
+                    lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -0.6, 0.6
+                if nmk == 'top-K front bend a':
+                    lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 2.0 * W, 6.0 * W
+                    lo[6 + 4 * k + 3], hi[6 + 4 * k + 3] = -0.6, 0.6
+                if nmk == 'end bend':
+                    lo[6 + 4 * k + 2] = 2.0 * W
+                if nmk == 'top-K tip fold':
+                    lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 2.5 * W
+                if nmk in ('crossbar bend 1', 'crossbar bend 2'):
+                    lo[6 + 4 * k + 2] = 2.0 * W
+                if nmk == 'wrap curl':
+                    lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 0.8 * W
+            return lo, hi
         for k in range(NR):
             if self.kind[k] in ('fold', 'obl'):
                 lo[6 + 4 * k + 2] = 0.3 * W
@@ -206,7 +229,7 @@ class SecPrb(C.Chain):
         fo = self.face_ok.copy(); fo[:sec.r0] = False; fo[sec.r1:] = False
         st['face_j'] = np.nonzero(fo)[0]
         st['face_sign'] = np.where(self.face_exp[st['face_j']] == 'A', 1.0, -1.0)
-        st['tailz'] = False
+        st['tailz'] = bool(JOINT_MODE and sec.name == 'T')
         st.pop('end_idx', None)
         xm = math.sqrt(2.0) if sec.name == 'X' else 1.0
         st['amp1'] = st['amp1'] * sec.weight * DATA_HALF * xm
@@ -1546,25 +1569,37 @@ def bk_global(pr, XS):
 class Joint:
     """parameters z = [free(sec) for sec in SECN] + delta (8). Residuals: section blocks (own rings), junction continuity (weight wc), end-hidden, over/under (all sections), clearance."""
 
-    def __init__(self, pr, XS, delta=None, wc=1.0):
+    def __init__(self, pr, XS, delta=None, wc=1.0, free=None, box=None, prior=None):
         self.pr = pr
+        self.free = {n: (pr.secs[n].free if free is None or n not in free else np.asarray(free[n])) for n in SECN}
+        self.box = box or {}
+        self.prior = prior or {}
         self.XS = {n: XS[n].copy() for n in SECN}
         self.delta = np.zeros(len(JUNC)) if delta is None else np.asarray(delta, float).copy()
         self.wc = wc
         self.W = pr.W
+        self.widen = set(('A', 'F', 'P', 'S'))
+        self.active = list(SECN)
+        self.zprior = {}
+        self.dfree = set(range(len(JUNC)))
         self.bkb = bk_global(pr, self.XS)
         self.off = {}
         n = 0
         for nm in SECN:
-            k = len(pr.secs[nm].free)
+            k = len(self.free[nm])
             self.off[nm] = (n, n + k); n += k
         self.nd0 = n
         self.nz = n + len(JUNC)
         lo = np.full(self.nz, -np.inf); hi = np.full(self.nz, np.inf)
         for nm in SECN:
             a, b = self.off[nm]
-            fr = pr.secs[nm].free
+            fr = self.free[nm]
             lo[a:b], hi[a:b] = pr.lo[fr], pr.hi[fr]
+            if nm in self.box:
+                for i_, (l_, h_) in zip(range(a, b), [self.box[nm].get(int(f_), (-np.inf, np.inf)) for f_ in fr]):
+                    lo[i_], hi[i_] = max(lo[i_], l_), min(hi[i_], h_)
+            if nm in self.widen:
+                lo[a:b] = np.minimum(lo[a:b], self.XS[nm][fr]); hi[a:b] = np.maximum(hi[a:b], self.XS[nm][fr])
         lo[n:], hi[n:] = -1.0 * self.W, 1.0 * self.W
         self.lo, self.hi = lo, hi
         self.vz = np.array([-0.5, -0.25, 0.0, 0.25, 0.5]) * self.W
@@ -1581,14 +1616,14 @@ class Joint:
         z = np.zeros(self.nz)
         for nm in SECN:
             a, b = self.off[nm]
-            z[a:b] = self.XS[nm][self.pr.secs[nm].free]
+            z[a:b] = self.XS[nm][self.free[nm]]
         z[self.nd0:] = self.delta
         return z
 
     def xs_from(self, z, nm):
         a, b = self.off[nm]
         x = self.XS[nm].copy()
-        x[self.pr.secs[nm].free] = z[a:b]
+        x[self.free[nm]] = z[a:b]
         return x
 
     # ---------------------------------------------------------------- per-section evaluation
@@ -1624,6 +1659,11 @@ class Joint:
             return out
         st = pr.stage_info(sec.act, sec.r0, sec.r1)
         out['res'] = pr.res(xs, st)
+        if nm in self.prior:
+            xa_, wts = self.prior[nm]
+            idx = np.array([6 + 4 * k + j for k in pr.secs[nm].act for j in range(4)])
+            sc = np.tile(np.array([self.W, 1.0, self.W, 1.0]), len(pr.secs[nm].act))
+            out['res'] = np.concatenate([out['res'], (xs[idx] - xa_[idx]) / sc * math.sqrt(wts)])
         W = self.W
         # dense strand samples (tau-sampled) of the section's own strands, z-buffer per (cell, strand)
         pts, taus, sids = [], [], []
@@ -1662,6 +1702,8 @@ class Joint:
     def eval_all(self, z):
         outs = {}
         for i, nm in enumerate(SECN):
+            if nm not in self.active:
+                continue
             d_in = z[self.nd0 + i - 1] if i > 0 else 0.0
             outs[nm] = self.eval_sec(nm, self.xs_from(z, nm), d_in)
         return outs
@@ -1682,7 +1724,7 @@ class Joint:
         """fix the (rule pair, cell) list of the over/under block and the close-point pair list of the clearance block at the current point"""
         W = self.W
         zb = {}
-        for nm in SECN:
+        for nm in self.active:
             zb.update(outs[nm]['zb'])
         pi, cells = [], []
         for p, (f, b, ri) in enumerate(self.ou_pairs):
@@ -1701,7 +1743,7 @@ class Joint:
             keep = np.sort(np.random.default_rng(0).choice(len(pi), OU_PAD, replace=False))
             pi, cells = pi[keep], cells[keep]
         self.ou_list = (pi, cells)
-        P = np.concatenate([outs[nm]['pts'] for nm in SECN]); T = np.concatenate([outs[nm]['tau'] for nm in SECN])
+        P = np.concatenate([outs[nm]['pts'] for nm in self.active]); T = np.concatenate([outs[nm]['tau'] for nm in self.active])
         tree = cKDTree(P)
         pairs = tree.query_pairs(2.0 * self.thk, output_type='ndarray')
         if len(pairs):
@@ -1714,7 +1756,7 @@ class Joint:
 
     def ou_res(self, outs):
         zb = {}
-        for nm in SECN:
+        for nm in self.active:
             zb.update(outs[nm]['zb'])
         pi, cells = self.ou_list
         r = np.zeros(OU_PAD)
@@ -1735,20 +1777,26 @@ class Joint:
         r = np.zeros(CLR_PAD)
         pr_ = self.clr_list
         if len(pr_):
-            P = np.concatenate([outs[nm]['pts'] for nm in SECN])
+            P = np.concatenate([outs[nm]['pts'] for nm in self.active])
             d = np.linalg.norm(P[pr_[:, 0]] - P[pr_[:, 1]], axis=1)
             r[:len(pr_)] = np.maximum(0.0, 2 * self.thk - d) * SC * W_CLR
         return r
 
     def blocks(self, outs, which=None):
         B = {}
-        for nm in SECN:
+        for nm in self.active:
             B['s:' + nm] = outs[nm]['res']
         for j, (a, b) in enumerate(JUNC):
-            B[f'j:{j}'] = self.junc_res(outs[a], outs[b])
-        B['end'] = self.end_res(outs)
+            if a in self.active and b in self.active:
+                B[f'j:{j}'] = self.junc_res(outs[a], outs[b])
+        if 'A' in self.active and 'P' in self.active:
+            B['end'] = self.end_res(outs)
         B['ou'] = self.ou_res(outs)
         B['clr'] = self.clr_res(outs)
+        for nm, (zr, band) in self.zprior.items():
+            if nm in self.active:
+                zm = float(outs[nm]['pts'][:, 2].mean())
+                B['zp:' + nm] = np.array([max(0.0, abs(zm - zr) - band)])
         return B
 
     # ---------------------------------------------------------------- least squares interface
@@ -1778,9 +1826,12 @@ class Joint:
         J = np.zeros((m, self.nz))
         for si, nm in enumerate(SECN):
             a, b = self.off[nm]
+            if nm not in self.active:
+                continue
             dep = ['s:' + nm, 'end', 'ou', 'clr'] + ([f'j:{si - 1}'] if si > 0 else []) + ([f'j:{si}'] if si < len(JUNC) else [])
-            if nm not in ('A', 'P'):
-                dep.remove('end')
+            if nm in self.zprior:
+                dep.append('zp:' + nm)
+            dep = [k for k in dep if k in B0]
             for i in range(a, b):
                 zp = z.copy()
                 h = 1e-6 * max(1.0, abs(z[i]))
@@ -1793,6 +1844,8 @@ class Joint:
                         new = o2[nm]['res']
                     elif k.startswith('j:'):
                         j = int(k[2:]); new = self.junc_res(o2[JUNC[j][0]], o2[JUNC[j][1]])
+                    elif k.startswith('zp:'):
+                        new = np.array([max(0.0, abs(float(o2[nm]['pts'][:, 2].mean()) - self.zprior[nm][0]) - self.zprior[nm][1])])
                     elif k == 'end':
                         new = self.end_res(o2)
                     elif k == 'ou':
@@ -1805,6 +1858,8 @@ class Joint:
                 raise C.Timeout()
         for j in range(len(JUNC)):
             i = self.nd0 + j
+            if j not in self.dfree or f'j:{j}' not in B0:
+                continue
             zp = z.copy(); h = 1e-6 * max(1.0, abs(z[i])); zp[i] += h
             b = JUNC[j][1]
             ob = self.eval_sec(b, self.xs_from(zp, b), zp[i], full=False)
@@ -2212,30 +2267,392 @@ def run_bridges(pr):
     joint_save(os.path.join(DIRS['joint'], 'level0.npz'), J, z)
 
 
-def run_joint(pr, secs=480.0, levels=(1, 10, 100, 1000)):
-    XS = load_all(pr)
+def joint_config(pr):
+    """joint section definitions: the ORIGINAL K (3 folds + return) and X (5 rolls) layouts; frozen / approved handling"""
+    global JOINT_MODE
+    JOINT_MODE = True
+    for nm, rolls in (('K', ['bottom-K fold 1', 'bottom-K curl', 'bottom-K fold 2', 'k_return bend']),
+                      ('X', ['crossbar bend 1', 'crossbar bend 2', 'wrap curl', 'wrap twist 1', 'wrap twist 2'])):
+        d = [a for a in SEC_DEF if a[0] == nm][0]
+        pr.secs[nm] = Sec(pr, nm, d[1], rolls, d[3], d[4], d[5])
+    pr.lo, pr.hi = pr.bounds()
+    pr._stage.clear()
+
+
+def level_free(pr, nm, level):
+    sec = pr.secs[nm]
+    if nm == 'A':
+        return np.arange(6)
+    if nm in ('F', 'P', 'S') and level <= 2:
+        return np.array(sorted(list(range(6)) + [6 + 4 * NR + j for j in sec.ivs]))
+    return sec.free
+
+
+def pose_box(x):
+    b = {}
+    for i in range(3):
+        b[i] = (x[i] - 0.005, x[i] + 0.005)
+    for i in range(3, 6):
+        b[i] = (x[i] - 1.0, x[i] + 1.0)
+    return b
+
+
+APPROVED = {'F': 'sec_F_APPROVED.npz', 'P': 'sec_P_APPROVED.npz', 'S': 'sec_S_APPROVED.npz'}
+
+
+def joint_outputs(pr, J, z, tag):
+    pcs = J.pieces(z)
+    overlay_png(os.path.join(DIRS['overlays'], f'joint_{tag}.png'), pcs)
+    L = np.concatenate([p['L'] for p in pcs]); R = np.concatenate([p['R'] for p in pcs])
+    shaded_joint(L, R, os.path.join(DIRS['overlays'], f'joint_{tag}_shaded.png'))
+    return pcs
+
+
+def shaded_joint(L, R, path, box=(0, 450, 852, 1846), scale=0.8):
+    import chain_sheets as CS
+    m = max(1, int(len(L) / 1100))
+    off = offline_lit(L[::m], R[::m], box, scale)
+    mk = CS.mockup_crop(box).resize(off.size, Image.LANCZOS)
+    sh = Image.new('RGB', (off.width * 2 + 10, off.height + 24), (10, 10, 10))
+    sh.paste(mk, (0, 24)); sh.paste(off, (off.width + 10, 24))
+    d = ImageDraw.Draw(sh); d.text((4, 6), 'mockup', fill=(255, 255, 255)); d.text((off.width + 14, 6), 'offline shaded (lit)', fill=(255, 255, 255))
+    sh.save(path)
+
+
+def assemble(pr, XS):
+    """chain the independently-posed sections by rigid alignment of their junction samples, outward from the locked A (A fixed): K<-A, B<-K, X<-B, M<-X, P<-M and F<-A, S<-F, T<-S"""
     J = Joint(pr, XS, None, 1.0)
-    z = J.pack()
-    for wc in levels:
+    order = [('K', 'A', 1), ('B', 'K', 1), ('X', 'B', 1), ('M', 'X', 1), ('P', 'M', 1), ('F', 'A', -1), ('S', 'F', -1), ('T', 'S', -1)]
+    XS = {n: XS[n].copy() for n in SECN}
+    for nm, ref, direction in order:
+        if direction == 1:
+            a = J.eval_sec(ref, XS[ref], 0.0, full=False)['jr'][0]
+            b = J.eval_sec(nm, XS[nm], 0.0, full=False)['jl'][0]
+        else:
+            a = J.eval_sec(ref, XS[ref], 0.0, full=False)['jl'][0]
+            b = J.eval_sec(nm, XS[nm], 0.0, full=False)['jr'][0]
+        R, t = AA.kabsch(b, a)
+        x = XS[nm]
+        R0 = Rotation.from_rotvec(x[:3]).as_matrix()
+        x[:3] = Rotation.from_matrix(R @ R0).as_rotvec(); x[3:6] = R @ x[3:6] + t
+        gap = float(np.linalg.norm((b @ R.T + t) - a, axis=1).max())
+        log(f'  assemble {nm} <- {ref}: rigid residual at the junction samples {gap:.2f} css')
+    return XS
+
+
+def run_joint(pr, secs=480.0, levels=(1, 10, 100, 1000)):
+    joint_config(pr)
+    XS = load_all(pr)
+    p0 = os.path.join(DIRS['joint'], 'assembled.npz')
+    if os.path.exists(p0):
+        XS = joint_load(p0)[0]
+    else:
+        XS = assemble(pr, XS)
+        Jx = Joint(pr, XS, None, 1.0)
+        zx = Jx.pack()
+        joint_save(p0, Jx, zx)
+        mx, _ = Jx.level_metrics(zx)
+        log('  ASSEMBLED (rigid junction alignment) METRICS ' + json.dumps(mx, default=float))
+        joint_outputs(pr, Jx, zx, 'assembled')
+    appr = {nm: ldx(pr, os.path.join(DIRS['sections'], f)) for nm, f in APPROVED.items()}
+    delta = None
+    z = None
+    for li, wc in enumerate(levels, 1):
         path = os.path.join(DIRS['joint'], f'level_{wc}.npz')
         if os.path.exists(path):
-            XS_, dl = joint_load(path)
-            J.XS, J.delta = XS_, dl
-            z = J.pack()
-            log(f'## joint level wc={wc}: loaded {path}')
+            XS_, delta = joint_load(path)
+            XS = XS_
+            log(f'## joint level {li} wc={wc}: loaded {path}')
             continue
-        J.wc = float(wc)
-        log(f'## joint level wc={wc}: start')
+        free = {nm: level_free(pr, nm, li) for nm in SECN}
+        box = {'A': pose_box(XS['A'])}
+        prior = {nm: (appr[nm], 50.0) for nm in APPROVED} if li >= 3 else None
+        J = Joint(pr, XS, delta, float(wc), free=free, box=box, prior=prior)
+        z = J.pack()
+        log(f'## joint level {li} wc={wc}: start; free counts { {n: len(free[n]) for n in SECN} }; prior {"on" if prior else "off"}')
         z, cost, status = J.solve(z, secs, f'wc={wc}')
         J.set_z(z)
+        XS, delta = J.XS, J.delta
         m, _ = J.level_metrics(z)
         m['wc'] = wc; m['cost'] = cost; m['status'] = status
         log(f'  LEVEL wc={wc} METRICS ' + json.dumps(m, default=float))
         json.dump(m, open(os.path.join(DIRS['joint'], f'level_{wc}.json'), 'w'), indent=1, default=float)
-        overlay_png(os.path.join(DIRS['overlays'], f'joint_wc{wc}.png'), J.pieces(z))
+        joint_outputs(pr, J, z, f'wc{wc}')
         joint_save(path, J, z)
+    J = Joint(pr, XS, delta, float(levels[-1]))
+    z = J.pack()
     joint_save(JOINT_FINAL, J, z)
     return J, z
+
+
+SEQ = os.path.join(OUT, 'seq')
+os.makedirs(SEQ, exist_ok=True)
+SEQ_LOCKED = ('A',)
+
+
+def seq_J(pr, XS, delta, wc, active, free, dfree, zprior=None, prior=None, box_A=True):
+    fr = {nm: (np.asarray(free[nm]) if nm in free else np.array([], int)) for nm in SECN}
+    J = Joint(pr, XS, delta, float(wc), free=fr, box=None, prior=prior)
+    J.active = [n for n in SECN if n in active]
+    J.zprior = zprior or {}
+    J.dfree = set(dfree)
+    for j in range(len(JUNC)):
+        if j not in J.dfree:
+            i = J.nd0 + j
+            J.lo[i], J.hi[i] = -1e-6, 1e-6
+    return J
+
+
+def seq_metrics(pr, J, z, names):
+    m = {}
+    outs = J.eval_all(z)
+    gaps = {}
+    for j, (a, b) in enumerate(JUNC):
+        if a in J.active and b in J.active:
+            Pa, Na = outs[a]['jr']; Pb, Nb = outs[b]['jl']
+            g = np.linalg.norm(Pa - Pb, axis=1).max()
+            ang = np.degrees(np.arccos(np.clip((Na * Nb).sum(1), -1, 1))).max()
+            gaps[f'{a}-{b}'] = (round(float(g), 2), round(float(ang), 1))
+    m['gaps'] = gaps
+    for nm in names:
+        sec = pr.bind(nm)
+        pr.skip_ou = True
+        pr.bk_bottom = J.bkb if nm == 'K' else None
+        st = pr.stage_info(sec.act, sec.r0, sec.r1)
+        v = C.ring_dists(pr, J.xs_from(z, nm), st)
+        m.setdefault('rms', {})[nm] = None if not len(v) else round(float(np.sqrt(np.mean(v ** 2))), 2)
+        pr.skip_ou = False
+        pr.bk_bottom = pick_bk_bottom_sec(pr, J.xs_from(z, nm), sec) if nm == 'K' else None
+        rep, _ = realism(pr, sec, J.xs_from(z, nm))
+        m.setdefault('realism', {})[nm] = rep
+    zb = {}
+    for nm in J.active:
+        zb[nm] = round(float(outs[nm]['pts'][:, 2].mean()), 1)
+    m['mean_z'] = zb
+    return m
+
+
+def seq_run(pr):
+    joint_config(pr)
+    XS = load_all(pr)
+    ass = joint_load(os.path.join(DIRS['joint'], 'assembled.npz'))[0]
+    delta = np.zeros(len(JUNC))
+    base = {}
+    for nm in SECN:
+        sec = pr.secs[nm]
+        pr.bind(nm)
+        pr.bk_bottom = pick_bk_bottom_sec(pr, XS[nm], sec) if nm == 'K' else None
+        if sec.hi >= 0 and not sec.hidden:
+            base[nm] = len(realism(pr, sec, XS[nm])[0]['fails'])
+    log(f'SEQ isolated-best realism fail counts {base}')
+    done = []
+    state_p = os.path.join(SEQ, 'state.npz')
+
+    def save(step):
+        np.savez(os.path.join(SEQ, f'step_{step}.npz'), delta=delta, **{'x_' + n: XS[n] for n in SECN})
+
+    def align(nm, ref_nm, ref_is_prev):
+        Jt = Joint(pr, XS, None, 1.0)
+        if ref_is_prev:
+            a = Jt.eval_sec(ref_nm, XS[ref_nm], 0.0, full=False)['jr'][0]; b = Jt.eval_sec(nm, XS[nm], 0.0, full=False)['jl'][0]
+        else:
+            a = Jt.eval_sec(ref_nm, XS[ref_nm], 0.0, full=False)['jl'][0]; b = Jt.eval_sec(nm, XS[nm], 0.0, full=False)['jr'][0]
+        R, t = AA.kabsch(b, a)
+        x = XS[nm]; R0 = Rotation.from_rotvec(x[:3]).as_matrix()
+        x[:3] = Rotation.from_matrix(R @ R0).as_rotvec(); x[3:6] = R @ x[3:6] + t
+
+    def step(label, nm, active, dfree, wc=14.0, zprior=None, prior=None, free_names=None, secs=480.0):
+        nonlocal delta
+        sec = pr.secs[nm]
+        fr = {n: level_free(pr, n, 9) for n in (free_names or [nm])}
+        J = seq_J(pr, XS, delta, wc, active, fr, dfree, zprior, prior)
+        z = J.pack()
+        log(f'## SEQ {label}: active {J.active}, free {[n for n in fr]}, wc {wc}, dfree {sorted(dfree)}')
+        z, cost, status = J.solve(z, secs, label)
+        J.set_z(z)
+        for n in SECN:
+            XS[n] = J.XS[n]
+        delta = J.delta.copy()
+        m = seq_metrics(pr, J, z, [n for n in (free_names or [nm]) if not pr.secs[n].hidden] or [])
+        log(f'  SEQ {label} METRICS ' + json.dumps(m, default=float))
+        return J, z, m
+
+    def report(nm, m, hidden=False):
+        pr.bind(nm)
+        sec = pr.secs[nm]
+        pr.bk_bottom = pick_bk_bottom_sec(pr, XS[nm], sec) if nm == 'K' else None
+        rep, _ = realism(pr, sec, XS[nm])
+        draw_section(pr, sec, XS[nm])
+        np.savez(os.path.join(SEQ, f'sec_{nm}.npz'), x=XS[nm])
+        rms = m.get('rms', {}).get(nm)
+        log(f'SEQ {nm} done rms={rms} realism={rep["fails"]} gaps={m["gaps"]}')
+        if nm in base and len(rep['fails']) > base[nm]:
+            log(f'SEQ STOP {nm}: realism fails {len(rep["fails"])} > isolated best {base[nm]}')
+            return False
+        return True
+
+    # step 1 anchors
+    Jx = seq_J(pr, XS, delta, 1.0, ['T', 'S', 'A'], {}, [])
+    zA = float(Jx.eval_all(Jx.pack())['A']['pts'][:, 2].mean())
+    log(f'SEQ step 1 anchors: A locked (mean z {zA:.1f}); T+S block kept as is')
+    save(1)
+    zp = lambda nm: {nm: (zA, 150.0)}
+    # step 2: one-ended growth outward from the locked A: F (A end), S (F end), T (S end); shape prior OFF, presearch on the main roll, accept realism 0 and rms <= 15
+    base['T'] = 1
+
+    def multi(label, nm, ref, active, dfree, cands, nlm=4, secs=150.0, accept_rms=15.0):
+        nonlocal delta
+        pr.bind(nm)
+        sc = []
+        for tag, xc in cands:
+            XS[nm] = xc.copy()
+            align(nm, ref, False)
+            J = seq_J(pr, XS, delta, 14.0, active, {nm: level_free(pr, nm, 9)}, dfree)
+            z = J.pack(); r = J.fun(z)
+            sc.append((0.5 * float(r @ r), tag, XS[nm].copy()))
+        sc.sort(key=lambda q: q[0])
+        log(f'## SEQ {label}: {len(cands)} starts, init costs {[(q[1], round(q[0])) for q in sc[:6]]}')
+        best = None
+        for c0, tag, xc in sc[:nlm]:
+            XS[nm] = xc.copy()
+            J = seq_J(pr, XS, delta, 14.0, active, {nm: level_free(pr, nm, 9)}, dfree)
+            z = J.pack()
+            z, cost, status = J.solve(z, secs, f'{label} {tag}')
+            J.set_z(z)
+            XS_c = J.XS[nm].copy(); dl_c = J.delta.copy()
+            XS[nm] = XS_c
+            m = seq_metrics(pr, J, z, [nm])
+            fails = len(m['realism'][nm]['fails']); rms = m['rms'][nm] or 0.0
+            log(f'    start {tag}: realism fails {m["realism"][nm]["fails"]} rms {rms} gaps {m["gaps"]}')
+            key = (fails, rms)
+            if best is None or key < best[0]:
+                best = (key, XS_c, dl_c, m)
+        XS[nm] = best[1]; delta = best[2]
+        ok = best[0][0] <= base.get(nm, 0) and best[0][1] <= accept_rms
+        log(f'  SEQ {label} best (fails, rms) {best[0]} -> {"ACCEPT" if ok else "BELOW acceptance (kept as best found)"}')
+        return best[3], ok
+
+    pr.bind('F')
+    kF = ROLLS_IDX['far-left fold']; kS = ROLLS_IDX['sweep bend']
+    sbF = C.sil_beta(pr, kF); sbF = np.pi / 2 if sbF is None else sbF
+    candsF = []
+    for sg in (1, -1):
+        for db in (-20, 0, 20):
+            for rf in (0.3, 0.5, 0.8):
+                b = float(np.clip(sbF + np.radians(db), 0.3, np.pi - 0.3))
+                xx = C.set_roll(XS['F'], kF, pr.roll_tau0[kF], b, rf * pr.W, sg * np.pi)
+                candsF.append(([f's{sg:+d}', f'db{db}', f'rho{rf}'], xx))
+    candsF = [(f'{"/".join(t)}', x) for t, x in candsF] + [('warm-approved', XS['F'].copy())]
+    m, ok = multi('F one-ended', 'F', 'A', ['A', 'F'], {2}, candsF)
+    report('F', m)
+    pr.bind('S')
+    kS1 = ROLLS_IDX['S bend']; kS2 = ROLLS_IDX['S obl 4']
+    sbS = C.sil_beta(pr, kS1); sbS = np.pi / 2 if sbS is None else sbS
+    candsS = []
+    for sg in (1, -1):
+        for db in (-20, 0, 20):
+            for rf in (0.3, 0.6, 1.0):
+                b = float(np.clip(sbS + np.radians(db), 0.3, np.pi - 0.3))
+                xx = C.set_roll(XS['S'], kS1, pr.roll_tau0[kS1], b, rf * pr.W, sg * np.pi)
+                xx = C.set_roll(xx, kS2, pr.roll_tau0[kS2], np.pi / 2, 3 * pr.W, 0.0)
+                candsS.append((f's{sg:+d}/db{db}/rho{rf}', xx))
+    candsS.append(('warm-approved', XS['S'].copy()))
+    m, ok = multi('S one-ended', 'S', 'F', ['A', 'F', 'S'], {1}, candsS)
+    report('S', m)
+    pr.bind('T')
+    candsT = [('warm', XS['T'].copy())]
+    st_T = pr.stage_info(pr.secs['T'].act, pr.secs['T'].lo, pr.secs['T'].hi)
+    pr._active = set(pr.secs['T'].act)
+    for tg, xc in C.presearch(pr, kabsch_pose(pr, pr.secs['T'], XS['T'], 0), list(pr.secs['T'].act), st_T):
+        candsT.append(('/'.join(tg), xc))
+    for sg in (1, -1):
+        xx = XS['T'].copy()
+        for k in pr.secs['T'].act:
+            xx = C.set_roll(xx, k, pr.roll_tau0[k], np.pi / 2, 2 * pr.W, sg * 0.5)
+        candsT.append((f'bends{sg:+d}', xx))
+    m, ok = multi('T one-ended', 'T', 'S', ['A', 'F', 'S', 'T'], {0}, candsT, accept_rms=40.0)
+    report('T', m)
+    save(2)
+    # step 3 K, X, P
+    align('K', 'A', True)
+    J, z, m = step('K', 'K', ['T', 'S', 'F', 'A', 'K'], {3}, zprior=zp('K'))
+    if not report('K', m):
+        return
+    save(3)
+    align('X', 'K', True)
+    J, z, m = step('X', 'X', ['T', 'S', 'F', 'A', 'K', 'X'], set(), zprior=zp('X'))
+    if not report('X', m):
+        return
+    save(4)
+    align('P', 'X', True)
+    appr = ldx(pr, os.path.join(DIRS['sections'], 'sec_P_APPROVED.npz'))
+    XS['P'][6:6 + 4 * NR] = XS['P'][6:6 + 4 * NR]
+    J, z, m = step('P', 'P', ['T', 'S', 'F', 'A', 'K', 'X', 'P'], set(), zprior=zp('P'), prior={'P': (appr, 50.0)})
+    if not report('P', m):
+        return
+    save(5)
+    # step 4 bridges
+    for nm in ('B', 'M'):
+        pr.bind(nm)
+        XS[nm] = bridge(pr, XS, nm)
+        i = SECN.index(nm)
+        J, z, m = step(f'bridge {nm}', nm, list(SECN) if nm == 'M' else ['T', 'S', 'F', 'A', 'K', 'B', 'X', 'P'], {i - 1 + 0, i}, wc=14.0)
+        report(nm, m, True)
+        save(6 if nm == 'B' else 7)
+    # step 5 polish
+    pri = {n: (XS[n].copy(), 50.0) for n in SECN if n not in SEQ_LOCKED}
+    free_names = [n for n in SECN if n not in SEQ_LOCKED]
+    J, z, m = step('polish', 'K', list(SECN), set(range(len(JUNC))), wc=1000.0, prior=pri, free_names=free_names, secs=480.0)
+    save(8)
+    joint_save(JOINT_FINAL, J, z)
+    pcs = J.pieces(z)
+    L = np.concatenate([p['L'] for p in pcs]); R = np.concatenate([p['R'] for p in pcs])
+    overlay_png(os.path.join(DIRS['overlays'], 'joint_seq.png'), pcs)
+    shaded_joint(L, R, os.path.join(DIRS['overlays'], 'joint_seq_shaded.png'))
+    mm, _ = J.level_metrics(z)
+    log('  SEQ FINAL level metrics ' + json.dumps(mm, default=float))
+    joint_review(pr)
+
+
+def joint_review(pr):
+    """final: realism table of every section, zoom sheets for all windows (joint), junction table"""
+    joint_config(pr)
+    XS, delta = load_final()
+    J = Joint(pr, XS, delta, 1000.0)
+    z = J.pack()
+    m, outs = J.level_metrics(z)
+    pcs = J.pieces(z)
+    table = {}
+    for nm, pc in zip(SECN, pcs):
+        sec = pr.secs[nm]
+        pr.bk_bottom = pick_bk_bottom_sec(pr, XS[nm], sec) if nm == 'K' else None
+        rep, _ = realism(pr, sec, XS[nm])
+        rep['data_rms'] = m['data_rms_by_section'][nm]
+        table[nm] = rep
+    json.dump(dict(realism=table, level=m), open(os.path.join(OUT, 'joint_realism_table.json'), 'w'), indent=1, default=float)
+    log('  JOINT REALISM TABLE ' + json.dumps(table, default=float))
+    log('  JOINT JUNCTIONS ' + json.dumps(dict(gap_max=m['junction_gap_max_css'], gap_at_u=m['junction_gap_at_u_css'], normal_deg=m['junction_normal_deg'], delta=m['delta']), default=float))
+    import chain_sheets as CS
+    L = np.concatenate([p['L'] for p in pcs]); R = np.concatenate([p['R'] for p in pcs])
+    px = np.concatenate([AP.project(L), AP.project(R)])
+    done = []
+    for wn, box in WIN_BOXES.items():
+        inside = ((px[:, 0] >= box[0]) & (px[:, 0] <= box[2]) & (px[:, 1] >= box[1]) & (px[:, 1] <= box[3])).sum()
+        if inside < 12:
+            continue
+        secs_in = [nm for nm, pc in zip(SECN, pcs) if ((np.concatenate([AP.project(pc['L']), AP.project(pc['R'])])[:, 0] >= box[0]) & (np.concatenate([AP.project(pc['L']), AP.project(pc['R'])])[:, 0] <= box[2]) & (np.concatenate([AP.project(pc['L']), AP.project(pc['R'])])[:, 1] >= box[1]) & (np.concatenate([AP.project(pc['L']), AP.project(pc['R'])])[:, 1] <= box[3])).sum() > 12]
+        hdr = f'joint/{wn}  ' + '  '.join(f'{nm}: cross {table[nm]["crossings"]} sep {table[nm]["sep_violations"]} minrho {("%.2f" % table[nm]["min_fold_rho_over_W"]) if table[nm]["min_fold_rho_over_W"] is not None else "-"} kinks {table[nm]["curv_oscillations"]}+{table[nm]["corners"]} dips {table[nm]["dips"]} rms {table[nm]["data_rms"]}' for nm in secs_in)
+        S3 = 3
+        mk = CS.mockup_crop(box).resize(((box[2] - box[0]) * S3, (box[3] - box[1]) * S3), Image.LANCZOS)
+        ov = overlay_png(None, pcs, box=box, scale=S3, ret=True)
+        sh = offline_lit(L[::max(1, int(len(L) / 1100))], R[::max(1, int(len(L) / 1100))], box, S3)
+        sheet = Image.new('RGB', (mk.width * 3 + 20, mk.height + 26), (10, 10, 10))
+        for i, im_ in enumerate((mk, ov, sh)):
+            sheet.paste(im_.convert('RGB'), (i * (mk.width + 10), 26))
+        ImageDraw.Draw(sheet).text((6, 7), hdr[:400], fill=(255, 255, 255))
+        sheet.save(os.path.join(DIRS['overlays'], f'zoom_joint_{wn}_v_joint.png'))
+        done.append(wn)
+    log(f'REVIEW joint {done}')
 
 
 def load_final():
@@ -2482,10 +2899,17 @@ def main():
         pr.bk_bottom = pick_bk_bottom_sec(pr, xx, sec) if nm == 'K' else None
         draw_section(pr, sec, xx, '_v5' if ok else '_v5_rejected')
     elif cmd == 'bridges':
-        run_bridges(SecPrb())
+        pr_ = SecPrb()
+        joint_config(pr_)
+        run_bridges(pr_)
+    elif cmd == 'seq':
+        seq_run(SecPrb())
+    elif cmd == 'jreview':
+        joint_review(SecPrb())
     elif cmd == 'joint':
         pr = SecPrb()
         run_joint(pr, secs=arg('secs', 480.0))
+        joint_review(pr)
     elif cmd == 'report':
         pr = SecPrb()
         XS, delta = load_final()
