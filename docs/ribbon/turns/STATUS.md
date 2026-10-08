@@ -213,3 +213,7 @@ Fresh session after the Mac reset. The env is rebuilt and r23 reproduces byte-id
 - FIX: `ALIGN=1`: each section is located on the trace by position and resampled onto the trace's rings by arclength. For S the fade-in completes by ring 148 (`S_FADE_END`), before the pinned rings. Default `ALIGN_SECS=S`: aligning F/A/P too (r28) put a diagonal seam in the sweep and a notch at the left-leg corner.
 - Tried and rejected: no approved S (r24, r27: a sharper kink); longer index fade FADE_S_LO 70/110 (r25, r26: barely softer); an earlier S fade end 140 (r30: kinks at 124–134).
 - Still open at the S: a bright fan of shading converging toward the S's lower tip (the rulings rotate fast there). The mockup is a broad, even turn with a thin bright rim along the inner edge.
+
+## 2026-10-09: r33 = new best (S fan removed)
+- The S's bright fan came from the ruling pairing: at ring 135 the L edge advanced 7.4 px/ring and the R edge 1.2, so the rulings swept from one point. `EQS=a:b` re-pairs both edges at equal arclength fractions over rings a..b (blended in/out over EQS_RAMP=12). The default is 125:215 (r33): the fan is gone and the bend reads round. 118:243 (r32) is similar but adds more near-intersections; 140:200 (r34) misses ring 135 and changes nothing.
+- Still open at the S: a faint seam line running from the lower left into the S's tip (render ≈ x 540–675, y 1400–1435).

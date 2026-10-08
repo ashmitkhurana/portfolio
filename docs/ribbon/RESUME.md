@@ -5,7 +5,7 @@ Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/
 ## Where the work is
 - Branch: **`claude/upbeat-hellman-f92bb7`** on origin (pushed 2026-10-08 at the owner's request before the reset). It is `rebrand/ribbon` plus all of this session's work. Restore: `git clone`, then `git checkout claude/upbeat-hellman-f92bb7`, then `npm install`, then recreate the venv (below).
 - `ak-hero.json` is NOT changed: swapping in a pose needs the owner's OK.
-- **Current best AK: `docs/ribbon/turns/curve/best/pose.json`** (= **r31**, 2026-10-09: r23 + the arclength-aligned S splice, `ALIGN=1 ALIGN_SECS=S`, which removes the S crease; see STATUS.md 2026-10-09). r23 = `ALIGN=0`.
+- **Current best AK: `docs/ribbon/turns/curve/best/pose.json`** (= **r33**, 2026-10-09: r23 + the arclength-aligned S splice (`ALIGN=1 ALIGN_SECS=S`, r31: removes the S crease) + equal-fraction ruling pairing over the S (`EQS=125:215`: removes the S fan); see STATUS.md 2026-10-09). r23 = `ALIGN=0 EQS=`.
   - Build it with `scripts/curve/rotosurf.py best`.
 
 ## The approach that finally works: `scripts/curve/rotosurf.py`

@@ -304,6 +304,29 @@ if APPROVED:
     SECW = (wt, tot)
     if False:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
+EQS = os.environ.get("EQS", "125:215")  # "a:b": rings a..b keep both edge polylines but are re-paired at equal arclength FRACTIONS of each edge (kills the fan of rulings where one edge advances slowly), blended in/out over EQS_RAMP rings (default 125:215 = r33: removes the S fan)
+if EQS:
+    ea, eb = (int(x_) for x_ in EQS.split(":"))
+    er = int(os.environ.get("EQS_RAMP", 12))
+    def _rang(L_, R_):
+        a_ = np.arctan2(*(R_ - L_)[:, ::-1].T)
+        return np.degrees((np.diff(a_) + np.pi) % (2 * np.pi) - np.pi)
+    def _resamp(P_, t_):
+        d_ = np.linalg.norm(np.diff(P_, axis=0), axis=1)
+        s_ = np.concatenate([[0], np.cumsum(d_)]); s_ /= s_[-1]
+        keep = np.concatenate([[True], d_ > 1e-9])  # ignore zero-length steps
+        return np.stack([np.interp(t_, s_[keep], P_[keep, k_]) for k_ in range(P_.shape[1])], axis=1)
+    ti = (np.arange(ea, eb + 1) - ea) / float(eb - ea)
+    Lq, Rq = _resamp(Lraw[ea:eb + 1], ti), _resamp(Rraw[ea:eb + 1], ti)
+    def _ss(x_):
+        x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
+    k_ = np.arange(eb - ea + 1)
+    ew = _ss(np.minimum(k_, (eb - ea) - k_) / float(max(er, 1)))
+    ang0 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
+    Lraw[ea:eb + 1] = Lraw[ea:eb + 1] + ew[:, None] * (Lq - Lraw[ea:eb + 1])
+    Rraw[ea:eb + 1] = Rraw[ea:eb + 1] + ew[:, None] * (Rq - Rraw[ea:eb + 1])
+    ang1 = np.abs(_rang(Lraw[ea:eb + 1], Rraw[ea:eb + 1])).max()
+    print("  EQS %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (ea, eb, er, ang0, ang1))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
 if os.environ.get("DUMP_EDGES"):
