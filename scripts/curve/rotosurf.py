@@ -340,7 +340,7 @@ if EQS:
         print("  EQS %d..%d ramp %d: max ruling-angle step before %.2f deg, after %.2f deg" % (ea, eb, er, ang0, ang1))
 L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
 R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
-EDGE_SIGW = os.environ.get("EDGE_SIGW", "")  # "a:b:sigma[,...]": rings a..b of the smoothed edges are blended toward a wider gsmooth(raw, sigma) (smoothstep(min(k,n-k)/10) weight)
+EDGE_SIGW = os.environ.get("EDGE_SIGW", "490:535:8")  # "a:b:sigma[,...]": rings a..b of the smoothed edges are blended toward a wider gsmooth(raw, sigma) (smoothstep(min(k,n-k)/10) weight) (default 490:535:8 = r39: rounds the A apex's top-left corner)
 if EDGE_SIGW:
     def _ssw(x_):
         x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)

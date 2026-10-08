@@ -255,3 +255,9 @@ Fresh session after the Mac reset. The env is rebuilt and r23 reproduces byte-id
 - Environment AO in the engine (commit 3c84d8c): depth maps from 32 directions → soft PCF bake into a per-vertex texture → blur along the strip within each face; one fetch per vertex per frame; re-baked only when the geometry changes. No mottling at 1:1.
 - Site material (lib/ribbon/siteSettings.ts, owner-approved for this branch): metalness 0.7, env AO 1.0 (aoSpec 2), key strip 14 / width 5 / softness 0.7, exposure 1.2 (sweeps in docs/ribbon/turns/mat, ao3, ao4). Still missing vs the mockup: broad satin highlight gradients (needs a softbox-style env pass).
 - Comparison with the live hero pose: docs/ribbon/turns/live/compare.png.
+
+## 2026-10-09 (night): r39 = new best (apex corner) + key light moved off the tail
+- `EDGE_SIGW` default `490:535:8` (r39) rounds the A apex's top-left corner (g1; no new defect). Rounding the far-left fold corner the same way (g2–g4) raised dN 7.6° → 10.7–13.1°: rejected.
+- Site key strip moved to elevation 40 / azimuth −50 (h6): the blown-out glare on the near tail is gone (tail pixels > 220: 10.5 % → 0.08 %), deep-shade share 17 % → 24 % (mockup 28 %).
+- The return strand (pose rings 990–1070) matches the trace to < 1 %; it only reads thin because it emerges from behind the left leg as a wedge and is shaded dark with one specular streak (shading, not geometry).
+- New: `scripts/curve/silhouette.py` (render vs mockup silhouette diff, per-region IoU); r39 results in docs/ribbon/turns/curve/r39/sil/.

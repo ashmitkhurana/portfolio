@@ -11,7 +11,7 @@ import type { DeepPartial, RibbonSettings } from "./settings";
  * map / contact catcher are never motion-gated by a threshold (a frozen pose renders them once
  * and keeps them; a moving ribbon renders them every frame). Idle motion comes back in a later stage.
  */
-// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4)
+// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4); key raised to el 40 / az -50 to remove the tail glare (docs/ribbon/turns/glare, h6)
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
@@ -31,7 +31,7 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   env: {
     intensity: 1.0,
     autoRotate: false,
-    key: { intensity: 14, azimuth: -35, elevation: 28, width: 5, softness: 0.7 },
+    key: { intensity: 14, azimuth: -50, elevation: 40, width: 5, softness: 0.7 },
     fill: { intensity: 2.0 },
     top: { intensity: 0.45 },
     bounce: { intensity: 0.12 },
