@@ -11,7 +11,7 @@ import type { DeepPartial, RibbonSettings } from "./settings";
  * map / contact catcher are never motion-gated by a threshold (a frozen pose renders them once
  * and keeps them; a moving ribbon renders them every frame). Idle motion comes back in a later stage.
  */
-// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4); key raised to el 40 / az -50 to remove the tail glare (docs/ribbon/turns/glare, h6); rimNormalMix 0.85 turns the dark edge line into a bright rim (docs/ribbon/turns/rim); golden highlights: clearcoat 0, base #ff7a0a, specular tint #ffd060, key 17 (docs/ribbon/turns/gold2, z6)
+// 2026-10-09: metallic orange + baked env AO (sweep docs/ribbon/turns/ao4, variant u4); key raised to el 40 / az -50 to remove the tail glare (docs/ribbon/turns/glare, h6); rimNormalMix 0.85 turns the dark edge line into a bright rim (docs/ribbon/turns/rim); golden highlights: clearcoat 0, base #ff7a0a, specular tint #ffd060, key 17 (docs/ribbon/turns/gold2, z6); aoSpec 4 deepens inner faces (docs/ribbon/turns/ao5, w2)
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
@@ -25,7 +25,7 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
     envDiffuse: 0.8,
     metalness: 0.7,
     ao: 1.0,
-    aoSpec: 2,
+    aoSpec: 4,
     rimNormalMix: 0.85,
   },
   // strong form shading as in the sculpture: key from the upper left front, little fill / ambient, so inner and away-facing surfaces go deep
