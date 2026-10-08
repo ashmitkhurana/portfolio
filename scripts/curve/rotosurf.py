@@ -263,8 +263,8 @@ if APPROVED:
     SECW = (wt, tot)
     if False:
         print("  approved %s: rings %d..%d  relief %.0f..%.0f" % (nm, r0, r1, np.nanmin(RELZ[r0:r1 + 1]), np.nanmax(RELZ[r0:r1 + 1])))
-L2 = gsmooth(Lraw, 1.5)
-R2 = gsmooth(Rraw, 1.5)
+L2 = gsmooth(Lraw, float(os.environ.get('EDGE_SIG', 3.5)))
+R2 = gsmooth(Rraw, float(os.environ.get('EDGE_SIG', 3.5)))
 C2 = (L2 + R2) / 2
 T2 = np.gradient(gsmooth(C2, 3.0), axis=0)
 T2 /= np.linalg.norm(T2, axis=1, keepdims=True)
@@ -319,7 +319,7 @@ zc = gsmooth(zc, 4.0)
 # ---- roll: cos(theta) = w / true projected width; sigma: which edge comes forward, per stretch ----------------------------
 kz = D / (D - zc)
 cth = np.clip(w / (W_CUT * kz), -1.0, 1.0)
-th = np.arccos(cth)
+th = gsmooth(np.arccos(cth), float(os.environ.get('ROLL_SIG', 5)))
 SIGMA = {int(k): int(v) for k, v in (kv.split(":") for kv in os.environ.get("SIGMA", "").split(",") if kv)}
 sig = np.array([SIGMA.get(int(i), 1) for i in IV], float)
 sig = gsmooth(sig, 6.0)
