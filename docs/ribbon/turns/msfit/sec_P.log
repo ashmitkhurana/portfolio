@@ -1,18 +1,26 @@
-## section P: rings 1102..1298 (data 1087..1298), intervals [13, 14, 15], rolls ['top-K front bend', 'top-K tip fold', 'end bend'], free 21
-  6 starts; best init costs [(['tilt+25', 'end bend', 'b135', 'p-0.25'], 939373), (['tilt+25', 'end bend', 'b135', 'p-0.50'], 939374), (['tilt+0', 'end bend', 'b135', 'p-0.25'], 1619164), (['tilt+0', 'end bend', 'b135', 'p-0.50'], 1619165), (['tilt-25', 'end bend', 'b135', 'p-0.25'], 1918534), (['tilt-25', 'end bend', 'b135', 'p-0.50'], 1918535)]
-    [tilt+25/end bend/b135/p-0.25] timeout cost 124761.9 evals 9918 (240s)
-    [tilt+25/end bend/b135/p-0.50] timeout cost 132513.2 evals 9779 (240s)
-    [tilt+0/end bend/b135/p-0.25] timeout cost 385110.7 evals 9389 (240s)
-    [refine] ok cost 105088.3 evals 2213 (54s)
-  v1-rules result: data 39.32 px, realism fails ['separation', 'corners'], outline {'topk': {'mean_px': 4.15420064509836, 'max_px': 11.212039196538953, 'n': 17}}
-  RESEED pass for P: old score (fails, outline, rms) = (2, 4.15420064509836, 39.3182378824667)
-  window fit Pw14: rings 1126..1245, rolls ['top-K front bend', 'top-K tip fold', 'end bend']
-    [win/s+1/m2.6/rho0.25/db0/t-25] ok cost 7879.2 evals 698 (17s)
-    [win/s-1/m2.6/rho0.25/db0/t25] ok cost 10988.8 evals 1920 (38s)
-    [win/s-1/m2.6/rho0.25/db0/t0] timeout cost 5836.8 evals 3414 (60s)
-    [win/s-1/m2.6/rho0.25/db0/t-25] ok cost 6716.2 evals 1539 (26s)
-    [win/s+1/m2.6/rho0.25/db30/t0] ok cost 7598.6 evals 670 (11s)
-    [win/s+1/m2.6/rho0.25/db30/t-25] ok cost 7613.0 evals 1061 (18s)
-  window Pw14 best cost 5836.8 tags ['s-1', 'm2.6', 'rho0.25', 'db0', 't0'] data 8.000953251341736
-    [reseed-as-is] ok cost 31408.5 evals 1704 (31s)
-    reseed P iv14 as-is: cost 31408.5 score (3, 4.884320234715707, 21.19529171077292) fails ['separation', 'curv-oscillation', 'corners']
+## section P: rings 1102..1298 (data 1087..1298), intervals [13, 14, 15], rolls ['top-K front bend a', 'top-K front bend', 'top-K front bend c', 'top-K tip fold', 'end bend'], free 29
+  7 starts; best init costs [(['seed-v1'], 34066753), (['tilt+25', 'end bend', 'b90', 'p-0.50'], 2294515), (['tilt+25', 'end bend', 'b90', 'p-1.00'], 2294518), (['tilt+0', 'end bend', 'b90', 'p-0.50'], 3085839), (['tilt+0', 'end bend', 'b90', 'p-1.00'], 3085842), (['tilt-25', 'end bend', 'b135', 'p0.50'], 3140834), (['tilt-25', 'end bend', 'b135', 'p1.00'], 3140846)]
+    [seed-v1] ok cost 11612.3 evals 1956 (48s)
+    [tilt+25/end bend/b90/p-0.50] ok cost 439293.3 evals 1318 (34s)
+    [tilt+25/end bend/b90/p-1.00] ok cost 429966.6 evals 1016 (26s)
+    [tilt+0/end bend/b90/p-0.50] ok cost 2207095.5 evals 527 (14s)
+    [refine] ok cost 11355.4 evals 1259 (38s)
+  v1-rules result: data 11.67 px, realism fails ['separation', 'curv-oscillation', 'corners'], outline {'topk': {'mean_px': 2.0386370471917283, 'max_px': 6.561882355638769, 'n': 17}}
+  RESEED pass for P: old score (fails, outline, rms) = (3, 2.0386370471917283, 11.670831918246469)
+  window fit Pw14: rings 1126..1245, rolls ['top-K front bend', 'top-K front bend c', 'top-K tip fold', 'end bend']
+    [win/t25/top-K tip fold/b90/p3.14] ok cost 255506.3 evals 547 (24s)
+    [win/t25/top-K tip fold/b90/p1.00] timeout cost 311339.4 evals 1550 (60s)
+    [win/t0/top-K tip fold/b90/p1.00] timeout cost 295320.4 evals 2000 (60s)
+    [win/t0/top-K tip fold/b90/p3.14] timeout cost 218132.2 evals 2365 (60s)
+    [win/t-25/top-K tip fold/b90/p3.14] timeout cost 277911.4 evals 2612 (60s)
+    [win/t-25/top-K tip fold/b90/p1.57] timeout cost 297528.7 evals 2822 (60s)
+  window Pw14 best cost 218132.2 tags ['t0', 'top-K tip fold', 'b90', 'p3.14'] data 31.366482094344438
+    [reseed-as-is] ok cost 79357.5 evals 12365 (330s)
+    reseed P iv14 as-is: cost 79357.5 score (2, 7.295260168989168, 32.2015996437002) fails ['separation', 'corners']
+    [reseed-kabsch] ok cost 351829.4 evals 798 (23s)
+    reseed P iv14 kabsch: cost 351829.4 score (2, 2.8189855273861593, 62.91448576454343) fails ['separation', 'corners']
+  RESEED result for P: kept score (2, 2.8189855273861593, 62.91448576454343) (old (3, 2.0386370471917283, 11.670831918246469))
+REVIEW P_v2 ['bottomk', 'junction', 'topk', 'endstrand']
+REVIEW P ['bottomk', 'junction', 'topk', 'endstrand']
+  SECTION P DONE: data rms 62.91448576454343 (p95 100.78592789798171, max 124.9603619145009) gate <= 6.0: FAIL; cost 351829.4; 858s
+  METRICS {"section": "P", "cost": 351829.4, "blocks": {"pt": 220636.32, "slide": 47533.93, "anchor": 21.07, "cov": 737.2, "ou": 0.0, "face": 7933.65, "seen": 987.88, "overlap": 0.0, "bend": 0.0, "lam": 74.41, "prior": 46.15, "xing": 103.14, "ovm": 0.0, "smooth": 2354.42, "hidend-1": 50312.01, "hidend1": 21089.17}, "data_own": {"n": 271, "rms": 62.91448576454343, "p95": 100.78592789798171, "max": 124.9603619145009}, "ou": {"pairs": 10, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "tags": ["reseed", "kabsch"], "realism": {"section": "P", "roll_overlap_min_gap": 27.41810598691518, "crossings": 0, "sep_violations": 99, "min_fold_rho_over_W": 0.9992469050461485, "curv_oscillations": 0, "corners": 2, "outline": {"topk": {"mean_px": 2.8189855273861593, "max_px": 5.385164807134504, "n": 17}}, "fails": ["separation", "corners"]}, "gate_rms": 6.0, "gate": "FAIL", "rolls": [{"name": "top-K front bend a", "tau": 1930.9311071921936, "beta_deg": 63.17170652349663, "rho_css": 214.21876309764647, "rho_over_W": 4.101487098611133, "phi_deg": 16.48603675094366}, {"name": "top-K front bend", "tau": 1983.7206176803795, "beta_deg": 102.54655452391823, "rho_css": 148.64727183691318, "rho_over_W": 2.8460385956244916, "phi_deg": 23.983368808342934}, {"name": "top-K front bend c", "tau": 2048.672006288374, "beta_deg": 103.84849692647298, "rho_css": 129.33576783239388, "rho_over_W": 2.476295612405001, "phi_deg": 68.27122040802323}, {"name": "top-K tip fold", "tau": 2140.397138329511, "beta_deg": 78.48474351075065, "rho_css": 52.190200988471375, "rho_over_W": 0.9992469050461485, "phi_deg": 153.51539642827365}, {"name": "end bend", "tau": 2215.2046529201984, "beta_deg": 13.360944567442536, "rho_css": 26.13625567619421, "rho_over_W": 0.500411420138063, "phi_deg": -68.29052155177656}], "lam": {"13": 3.120704576245436, "14": 3.8216784523000915, "15": 3.1448200726121667}, "seconds": 857.9219868183136}

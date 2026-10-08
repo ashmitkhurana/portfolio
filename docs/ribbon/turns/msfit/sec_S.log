@@ -1,5 +1,26 @@
 ## section S: rings 132..225 (data 117..240), intervals [1], rolls ['S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4'], free 27
-  18 starts; best init costs [(['tilt+0', 'b+30', '-+-+'], 5782329), (['tilt+0', 'b-30', '-+-+'], 7871599), (['tilt+0', 'b+0', '-+-+'], 7946094), (['tilt+0', 'b+30', '+-+-'], 32374291), (['tilt+0', 'b+0', '+-+-'], 33844857), (['tilt+0', 'b-30', '+-+-'], 34075388), (['tilt+25', 'b+30', '-+-+'], 61310637), (['tilt-25', 'b-30', '+-+-'], 68043952)]
-    [tilt+0/b+30/-+-+] timeout cost 33385.5 evals 4075 (360s)
-    [tilt+0/b-30/-+-+] timeout cost 6873.4 evals 3905 (360s)
-    [tilt+0/b+0/-+-+] ok cost 24190.4 evals 3806 (282s)
+  18 starts; best init costs [(['tilt+0', 'b+30', '-+-+'], 5894545), (['tilt+0', 'b+0', '-+-+'], 8555365), (['tilt+0', 'b-30', '-+-+'], 8991484), (['tilt+0', 'b+30', '+-+-'], 33514049), (['tilt+0', 'b+0', '+-+-'], 37238427), (['tilt+0', 'b-30', '+-+-'], 40309718), (['tilt+25', 'b+30', '-+-+'], 61317269), (['tilt-25', 'b-30', '+-+-'], 68047534)]
+    [tilt+0/b+30/-+-+] ok cost 178225.2 evals 861 (66s)
+    [tilt+0/b+0/-+-+] ok cost 142839.3 evals 1253 (110s)
+    [tilt+0/b-30/-+-+] ok cost 195757.3 evals 1037 (132s)
+    [tilt+0/b+30/+-+-] ok cost 148600.0 evals 663 (61s)
+    [refine] ok cost 141738.5 evals 438 (38s)
+  v1-rules result: data 22.59 px, realism fails ['separation', 'corners'], outline {'s': {'mean_px': 18.540321928420987, 'max_px': 31.64209463445141, 'n': 112}}
+  RESEED pass for S: old score (fails, outline, rms) = (2, 18.540321928420987, 22.587564132679976)
+  window fit Sw1: rings 117..240, rolls ['tail bend 2', 'S bend', 'S obl 1', 'S obl 2', 'S obl 3', 'S obl 4', 'sweep bend']
+    [win/t0/b+30/-+-+] timeout cost 191826.8 evals 744 (60s)
+    [win/t0/b+0/-+-+] timeout cost 131785.8 evals 768 (60s)
+    [win/t0/b-30/-+-+] timeout cost 918839.1 evals 762 (60s)
+    [win/t0/b+30/+-+-] timeout cost 205899.4 evals 762 (60s)
+    [win/t0/b+0/+-+-] timeout cost 861666.5 evals 686 (60s)
+    [win/t0/b-30/+-+-] timeout cost 796040.3 evals 649 (60s)
+  window Sw1 best cost 131785.8 tags ['t0', 'b+0', '-+-+'] data 29.87344371660604
+    [reseed-as-is] ok cost 172956.3 evals 809 (75s)
+    reseed S iv1 as-is: cost 172956.3 score (2, 45.677818172190314, 37.37161972259112) fails ['separation', 'corners']
+    [reseed-kabsch] ok cost 73472.0 evals 639 (56s)
+    reseed S iv1 kabsch: cost 73472.0 score (2, 6.626506401422454, 19.073546913636175) fails ['separation', 'corners']
+  RESEED result for S: kept score (2, 6.626506401422454, 19.073546913636175) (old (2, 18.540321928420987, 22.587564132679976))
+REVIEW S_v2 ['scurve', 'bottomk', 'endstrand']
+REVIEW S ['scurve', 'bottomk', 'endstrand']
+  SECTION S DONE: data rms 19.073546913636175 (p95 35.6711908027985, max 38.64555400418801) gate <= 6.0: FAIL; cost 73472.0; 907s
+  METRICS {"section": "S", "cost": 73472.0, "blocks": {"pt": 58080.17, "slide": 13278.71, "anchor": 42.36, "cov": 962.93, "ou": 0.0, "overlap": 0.0, "bend": 0.0, "lam": 29.3, "xing": 0.06, "ovm": 1.4, "smooth": 1077.07}, "data_own": {"n": 146, "rms": 19.073546913636175, "p95": 35.6711908027985, "max": 38.64555400418801}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "tags": ["reseed", "kabsch"], "realism": {"section": "S", "roll_overlap_min_gap": 0.9617514516864674, "crossings": 0, "sep_violations": 12, "min_fold_rho_over_W": 0.30419029118862373, "curv_oscillations": 0, "corners": 5, "outline": {"s": {"mean_px": 6.626506401422454, "max_px": 22.653936584189168, "n": 112}}, "fails": ["separation", "corners"]}, "gate_rms": 6.0, "gate": "FAIL", "rolls": [{"name": "S bend", "tau": 245.31820024425446, "beta_deg": 73.65090247180946, "rho_css": 135.2850051515879, "rho_over_W": 2.590201228133571, "phi_deg": 1.1919639308850478}, {"name": "S obl 1", "tau": 247.36410383687252, "beta_deg": 69.84357971901844, "rho_css": 15.887717395674805, "rho_over_W": 0.30419029118862373, "phi_deg": -28.102751705647645}, {"name": "S obl 2", "tau": 293.6600043732775, "beta_deg": 105.14083613577849, "rho_css": 46.26694830390034, "rho_over_W": 0.8858387977623438, "phi_deg": 45.3565365139137}, {"name": "S obl 3", "tau": 308.06274120595515, "beta_deg": 109.15531600781537, "rho_css": 46.567948493930025, "rho_over_W": 0.8916018242042596, "phi_deg": -23.837665465601663}, {"name": "S obl 4", "tau": 362.74028429305855, "beta_deg": 160.91536302582762, "rho_css": 20.639262338713888, "rho_over_W": 0.39516458307855706, "phi_deg": 107.59878805700664}], "lam": {"1": 2.844613864886974}, "seconds": 906.9399919509888}

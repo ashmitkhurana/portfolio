@@ -1,0 +1,97 @@
+{
+ "A": {
+  "section": "A",
+  "roll_overlap_min_gap": -0.0188320514625957,
+  "crossings": 70,
+  "sep_violations": 0,
+  "min_fold_rho_over_W": 0.9874951067240476,
+  "curv_oscillations": 0,
+  "corners": 0,
+  "outline": {
+   "apex": {
+    "mean_px": 0.8800730390517393,
+    "max_px": 2.0,
+    "n": 42
+   }
+  },
+  "fails": [
+   "crossing",
+   "roll-overlap"
+  ],
+  "data_rms": 5.566440015279298
+ },
+ "T": {
+  "section": "T",
+  "roll_overlap_min_gap": 14.994926271541207,
+  "crossings": 0,
+  "sep_violations": 0,
+  "min_fold_rho_over_W": null,
+  "curv_oscillations": 0,
+  "corners": 0,
+  "outline": {},
+  "fails": [],
+  "data_rms": 18.603813835776787
+ },
+ "P": {
+  "section": "P",
+  "roll_overlap_min_gap": 11.850005363391574,
+  "crossings": 0,
+  "sep_violations": 67,
+  "min_fold_rho_over_W": 0.32202113872308463,
+  "curv_oscillations": 1,
+  "corners": 2,
+  "outline": {
+   "topk": {
+    "mean_px": 2.191250723057535,
+    "max_px": 3.7285645925237114,
+    "n": 17
+   }
+  },
+  "fails": [
+   "separation",
+   "curv-oscillation",
+   "corners"
+  ],
+  "data_rms": 8.893229744747465
+ },
+ "P_v2": {
+  "section": "P",
+  "roll_overlap_min_gap": 11.850005363391574,
+  "crossings": 0,
+  "sep_violations": 67,
+  "min_fold_rho_over_W": 0.32202113872308463,
+  "curv_oscillations": 1,
+  "corners": 2,
+  "outline": {
+   "topk": {
+    "mean_px": 2.191250723057535,
+    "max_px": 3.7285645925237114,
+    "n": 17
+   }
+  },
+  "fails": [
+   "separation",
+   "curv-oscillation",
+   "corners"
+  ],
+  "data_rms": 8.893229744747465
+ },
+ "F": {
+  "section": "F",
+  "roll_overlap_min_gap": 130.67243244186693,
+  "crossings": 0,
+  "sep_violations": 0,
+  "min_fold_rho_over_W": 0.30000000000000004,
+  "curv_oscillations": 0,
+  "corners": 0,
+  "outline": {
+   "farleft": {
+    "mean_px": 5.784084795340793,
+    "max_px": 19.849433241279208,
+    "n": 50
+   }
+  },
+  "fails": [],
+  "data_rms": 8.760195624024261
+ }
+}

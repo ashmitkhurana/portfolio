@@ -40,15 +40,26 @@ ROLLS_IDX = C.ROLLS_IDX
 ROLLS_RING = {n: r for n, _, r in C.ROLLS}
 EXT = 15
 log = C.log
+_i = [n for n, _, _ in C.ROLLS].index('top-K front bend')
+C.ROLLS[_i:_i + 1] = [('top-K front bend a', 'bend', 1108), ('top-K front bend', 'bend', 1130), ('top-K front bend c', 'bend', 1152)]
+C.NR = len(C.ROLLS)
+C.ROLLS_IDX = {n: i for i, (n, _, _) in enumerate(C.ROLLS)}
+NR_OLD = 28
+C.BEND_SP = 0.6
+NR, ROLLS_IDX = C.NR, C.ROLLS_IDX
+ROLLS_RING = {n: r for n, _, r in C.ROLLS}
+
 C.W_OVL = 20.0           # roll regions must not overlap (the exporter refuses overlapping rolls)
 C.W_COV = 60.0           # owner priority: window coverage x3 (realism over overlap)
 DATA_HALF = math.sqrt(0.5)   # data weight halved relative to coverage / realism terms
 W_X = 5.0
 W_VISW = 20.0
-W_TWIST = 5.0
+W_TWIST = 25.0
 W_FIXED = 10.0
 W_LOOP = 20.0
 LOOP_POLY = [(600, 1150), (760, 1120), (790, 1215), (640, 1240)]
+import guides_overlay as GO   # noqa: E402
+WIN_BOXES = GO.WINDOWS
 WINNAME = {1: 's', 3: 'farleft', 5: 'apex', 7: 'bottomk', 11: 'wrap', 14: 'topk'}
 
 # (name, intervals, roll names, data weight, rms gate, hidden)
@@ -61,7 +72,7 @@ SEC_DEF = [
     ('B', [9], ['back-layer bend'], 1.0, None, True),
     ('X', [10, 11], ['crossbar bend 1', 'crossbar bend 2', 'wrap curl', 'wrap twist 1', 'wrap twist 2'], 1.0, 6.0, False),
     ('M', [12], ['middle-layer bend'], 1.0, None, True),
-    ('P', [13, 14, 15], ['top-K front bend', 'top-K tip fold', 'end bend'], 1.0, 6.0, False),
+    ('P', [13, 14, 15], ['top-K front bend a', 'top-K front bend', 'top-K front bend c', 'top-K tip fold', 'end bend'], 1.0, 6.0, False),
 ]
 OU_PAD = 8000
 CLR_PAD = 4000
@@ -110,13 +121,21 @@ class SecPrb(C.Chain):
             if self.kind[k] in ('fold', 'obl'):
                 lo[6 + 4 * k + 2] = 0.3 * W
                 hi[6 + 4 * k + 2] = max(hi[6 + 4 * k + 2], 3.0 * W)
+            if self.rname[k].startswith('top-K front bend'):
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 2.0 * W, 6.0 * W
+            if self.rname[k] in ('crossbar bend 1', 'crossbar bend 2'):
+                lo[6 + 4 * k + 2] = 2.0 * W
+            if self.rname[k] == 'wrap curl':
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.3 * W, 0.8 * W
+            if self.rname[k] == 'top-K tip fold':
+                lo[6 + 4 * k + 2], hi[6 + 4 * k + 2] = 0.35 * W, 1.0 * W
         return lo, hi
 
     def foot(self):
         """projected footprint of A's left leg (interval 4): distance (px) outside it"""
         if self._foot is None:
             from scipy import ndimage as ndi
-            xa = np.load(sec_path('A'))['x']
+            xa = ldx(self, sec_path('A'))
             sa = self.secs['A']
             keep = self.sec
             self.bind(sa)
@@ -209,12 +228,46 @@ class SecPrb(C.Chain):
             out.append(np.concatenate([c1, c2, sepL, sepR]) * SC * W_X)
         return np.concatenate(out) if out else np.zeros(0)
 
+    def ovm_block(self, r):
+        """roll regions must keep >= 1 css between consecutive rolls at both edges (exporter refuses overlaps; crossings otherwise)"""
+        W = self.W
+        g = []
+        for a in range(len(r) - 1):
+            u0, b0, r0, p0 = r[a]; u1, b1, r1, p1 = r[a + 1]
+            for v in (-W / 2, W / 2):
+                g.append((u1 + v / np.tan(b1)) - (u0 + v / np.tan(b0) + r0 * abs(p0) / np.sin(b0)))
+        return np.maximum(0.0, 1.0 - np.array(g)) * SC * 20.0 if g else np.zeros(0)
+
+    def smooth_block(self, x, cx):
+        """curvature-oscillation penalty on both projected edges: opposite-sign curvature (|k W| product) at lag 0.45 W"""
+        (G, E), r = cx
+        W = self.W
+        sec = self.sec
+        u_lo = float(self.F(x, np.array([sec.tau_in]))[0]); u_hi = float(self.F(x, np.array([sec.tau_out]))[0])
+        n = max(20, int((sec.tau_out - sec.tau_in) / 1.5))
+        u = np.linspace(u_lo, u_hi, n)
+        ds = (u_hi - u_lo) / (n - 1)
+        lag = max(2, int(0.45 * W / 1.5))
+        out = []
+        for v in (-W / 2, W / 2):
+            P = AP.project_css(C.chain_surface(G, r, u, np.full(n, v)))
+            t = np.diff(P, axis=0)
+            sl = np.maximum(np.linalg.norm(t, axis=1), 1e-9)
+            ang = np.arctan2(t[1:, 0] * t[:-1, 1] - t[1:, 1] * t[:-1, 0], (t[1:] * t[:-1]).sum(1))
+            k = ang / ((sl[1:] + sl[:-1]) / 2) * W
+            k = np.where(np.abs(k) < 0.25, 0.0, k)
+            prod = -k[:-lag] * k[lag:]
+            out.append(np.maximum(0.0, prod - 0.02) * 20.0)
+        return np.concatenate(out)
+
     def parts(self, x, st):
         d = super().parts(x, st)
         cx = self.ctx(x, st['act'])
         (G, E), r = cx
         W = self.W
         d['xing'] = self.xing_block(cx, st)
+        d['ovm'] = self.ovm_block(r)
+        d['smooth'] = self.smooth_block(x, cx)
         act = st['act']
         names = [self.rname[k] for k in act]
         if 'wrap curl' in names:
@@ -235,6 +288,23 @@ class SecPrb(C.Chain):
                     P = AP.project(C.chain_surface(G, r, np.array([u0]), np.array([0.0])))
                     tw.append(ndi.map_coordinates(dist, [[P[0, 1]], [P[0, 0]]], order=1, mode='nearest') * W_TWIST)
             d['twist'] = np.concatenate(tw) if tw else np.zeros(0)
+            ic = names.index('wrap curl')
+            u_in = float(self.F(x, np.array([self.sec.tau_in]))[0])
+            d['curlstart'] = np.array([max(0.0, 1.5 * W - (r[ic, 0] - u_in)) * SC * 20.0])
+            d['curlface'] = self.curlface(x, st, cx, ic)
+            idx2 = np.array([i for i in range(ring0, int(self.i1[11]) + 1) if (self.v1[i] or self.v2[i]) and st['lo'] <= i <= st['hi']], int)
+            n2 = len(idx2)
+            u2 = self.u_ring(x)[idx2]
+            q1 = AP.project(C.chain_surface(G, r, u2, np.full(n2, -W / 2))); q2 = AP.project(C.chain_surface(G, r, u2, np.full(n2, W / 2)))
+            m1 = self.v1[idx2][:, None]; m2 = self.v2[idx2][:, None]
+            d['return2'] = np.concatenate([((q1 - self.e1[idx2]) * m1).ravel(), ((q2 - self.e2[idx2]) * m2).ravel()]) * math.sqrt(1.0) * C.DATA_X2 if False else np.concatenate([((q1 - self.e1[idx2]) * m1).ravel(), ((q2 - self.e2[idx2]) * m2).ravel()]) * DATA_HALF
+        if 'end bend' in names:
+            W_ = self.W
+            for e_, v_, sg_ in ((self.e1, self.v1, -1), (self.e2, self.v2, 1)):
+                ii = np.array([i for i in range(int(self.i0[15]), int(self.i1[15]) + 1) if not v_[i] and st['lo'] <= i <= st['hi']], int)
+                u = self.u_ring(x)[ii]
+                p_ = AP.project(C.chain_surface(G, r, u, np.full(len(ii), sg_ * W_ / 2)))
+                d['hidend' + str(sg_)] = ((p_ - e_[ii]) * math.sqrt(0.2)).ravel()
         if 'bottom-K fold 1' in names:
             ii = np.array([i for i in range(706, 724) if st['lo'] <= i <= st['hi'] and self.v1[i]], int)
             u = self.u_ring(x)[ii]
@@ -242,6 +312,35 @@ class SecPrb(C.Chain):
             d['fixed1'] = ((p1 - self.e1[ii]) * math.sqrt(W_FIXED)).ravel()
             d['loopface'] = self.loopface(x, st, cx)
         return d
+
+    def curlface(self, x, st, cx, ic):
+        """the visible (front-most) surface of the curl roll must show face A (dark): hinge on n.view over the curl's samples that are front-most in their cell"""
+        (G, E), r = cx
+        W = self.W
+        u0, b, rho, phi = r[ic]
+        t = abs(phi) * np.linspace(0.1, 0.9, 30)
+        vv = np.linspace(-0.45, 0.45, 9) * W
+        T, V = np.meshgrid(t, vv, indexing='ij')
+        Xp = (rho * T).ravel(); V = V.ravel()
+        Yp = (V + Xp * np.cos(b)) / np.sin(b)
+        U = u0 + Yp * np.cos(b) + Xp * np.sin(b)
+        h = 0.4
+        P0 = C.chain_surface(G, r, U, V); Pu = C.chain_surface(G, r, U + h, V); Pv = C.chain_surface(G, r, U, V + h)
+        N = np.cross(Pu - P0, Pv - P0); N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+        vh = self.cam - P0; vh /= np.linalg.norm(vh, axis=1, keepdims=True)
+        sh = (N * vh).sum(1)
+        # dense z-buffer of the section (cells 6 px)
+        ur = np.linspace(self.F(x, np.array([self.sec.tau_in]))[0], self.F(x, np.array([self.sec.tau_out]))[0], 220)
+        vz = np.linspace(-W / 2, W / 2, 15)
+        Pd = C.chain_surface(G, r, np.repeat(ur, 15), np.tile(vz, 220))
+        def key(P):
+            p2 = AP.project(P)
+            return (np.floor(p2[:, 0] / 6).astype(np.int64) + 2000) * 4000 + (np.floor(p2[:, 1] / 6).astype(np.int64) + 2000)
+        kd = key(Pd); order = np.lexsort((Pd[:, 2], kd)); ks = kd[order]; last = np.r_[ks[1:] != ks[:-1], True]
+        kk = ks[last]; zz = Pd[order][last][:, 2]
+        k0 = key(P0); i = np.minimum(np.searchsorted(kk, k0), len(kk) - 1)
+        front = (kk[i] == k0) & (P0[:, 2] >= zz[i] - 2.0)
+        return np.where(front, np.maximum(0.0, sh + 0.05), 0.0) * 20.0
 
     def loopface(self, x, st, cx):
         (G, E), r = cx
@@ -280,6 +379,24 @@ class SecPrb(C.Chain):
 
     def sec_x(self, name=None):
         return self.x0.copy()
+
+
+def upgrade_x(pr, x):
+    """x vectors saved with the 28-roll layout -> current layout (P got two extra front bends)"""
+    x = np.asarray(x, float)
+    if len(x) == pr.nx:
+        return x
+    assert len(x) == 6 + 4 * NR_OLD + NI, len(x)
+    xn = pr.x0.copy(); xn[:6] = x[:6]
+    mp = {**{k: k for k in range(25)}, 25: 26, 26: 28, 27: 29}
+    for ko, kn in mp.items():
+        xn[6 + 4 * kn:10 + 4 * kn] = x[6 + 4 * ko:10 + 4 * ko]
+    xn[6 + 4 * NR:] = x[6 + 4 * NR_OLD:]
+    return xn
+
+
+def ldx(pr, path):
+    return upgrade_x(pr, np.load(path)['x'])
 
 
 def sec_path(name):
@@ -352,6 +469,53 @@ def trace_rings():
     return _trace
 
 
+def sec_rulings(pr, x, sec, u_lo=None, u_hi=None, step=0.5, hidden=True):
+    """TRUE rulings of one section (roll: segments parallel to the roll axis through the flat line at angle beta; flat runs: beta interpolated between the adjacent
+    rolls, chain_fit.emit_chain rule) mapped through the surface. Returns dict(L, R, uc, inroll, hidL, hidR, regs, gaps, cx). Edge points hidden by another part of the
+    same section's dense surface (z-buffer, 3 px cells) are flagged."""
+    pr.bind(sec)
+    W = pr.W
+    cx = pr.ctx(x, sec.act)
+    rolls = cx[1]
+    if u_lo is None:
+        u_lo = float(pr.F(x, np.array([sec.tau_in]))[0])
+    if u_hi is None:
+        u_hi = float(pr.F(x, np.array([sec.tau_out]))[0])
+    r_lo = min([u_lo] + [r[0] for r in rolls]) - 1.0
+    r_hi = max([u_hi] + [r[0] + r[2] * abs(r[3]) / np.sin(r[1]) for r in rolls]) + 1.0
+    regs, gaps = sec_regions(rolls, W, r_lo, r_hi)
+    n_ = max(2, int(math.ceil((u_hi - u_lo) / step)))
+    uc = np.r_[np.linspace(u_lo, u_hi, n_, endpoint=False), u_hi]
+    UL = np.zeros(len(uc)); UR = np.zeros(len(uc)); inroll = np.zeros(len(uc), bool)
+    for i, c in enumerate(uc):
+        for rg in regs:
+            if rg[1] - 1e-9 <= c <= rg[2] + 1e-9 and rg[2] - rg[1] > 1e-9:
+                UL[i], UR[i] = rg[3](c); inroll[i] = rg[0] == 'roll'
+                break
+    G = cx[0][0]
+    L3 = C.chain_surface(G, rolls, UL, np.full(len(uc), -W / 2)); R3 = C.chain_surface(G, rolls, UR, np.full(len(uc), W / 2))
+    out = dict(L=L3, R=R3, uc=uc, inroll=inroll, regs=regs, gaps=gaps, cx=cx, UL=UL, UR=UR)
+    if hidden:
+        un = np.linspace(u_lo, u_hi, max(10, int((u_hi - u_lo) / 0.8)))
+        vv = np.linspace(-W / 2, W / 2, 21)
+        U = np.repeat(un, 21); V = np.tile(vv, len(un))
+        P = C.chain_surface(G, rolls, U, V)
+        p2 = AP.project(P)
+        cell = 3.0
+        key = (np.floor(p2[:, 0] / cell).astype(np.int64) + 2000) * 4000 + (np.floor(p2[:, 1] / cell).astype(np.int64) + 2000)
+        order = np.lexsort((P[:, 2], key))
+        ks = key[order]; last = np.r_[ks[1:] != ks[:-1], True]
+        kk = ks[last]; zz = P[order][last][:, 2]
+
+        def hid(Q):
+            q2 = AP.project(Q)
+            k = (np.floor(q2[:, 0] / cell).astype(np.int64) + 2000) * 4000 + (np.floor(q2[:, 1] / cell).astype(np.int64) + 2000)
+            i = np.minimum(np.searchsorted(kk, k), len(kk) - 1)
+            return (kk[i] == k) & (zz[i] > Q[:, 2] + 2.0)
+        out['hidL'], out['hidR'] = hid(L3), hid(R3)
+    return out
+
+
 def dashed(dr, pts, dash=6.0, gap=4.0, fill=(255, 255, 255, 160)):
     pts = [np.asarray(p, float) for p in pts]
     on = True; left = dash
@@ -370,10 +534,14 @@ def dashed(dr, pts, dash=6.0, gap=4.0, fill=(255, 255, 255, 160)):
                 on = not on; left = dash if on else gap
 
 
-def overlay_png(path, pieces, every=5, rings=None):
-    """pieces: list of (L3, R3) world ring arrays. Underneath: the APPROVED trace (edges_v3 visible samples, ring range `rings`=[(r0, r1)] or all) as thin white dashed lines;
-    on top: projected L (magenta) / R (green) polylines and cyan cross-lines, cropped (0,450)-(852,1846)."""
-    im = cutout_dim().convert('RGBA')
+def overlay_png(path, pieces, every=12, rings=None, box=(0, 450, 852, 1846), scale=1.0, header=None, ret=False):
+    """pieces: list of sec_rulings() dicts. Underneath: the APPROVED trace (edges_v3 visible samples, ring range `rings`) as thin white dashed lines (alpha 160, 6 on / 4 off);
+    on top: projected TRUE-ruling edges L (magenta) / R (green) (parts hidden by the section's own surface dashed) and cyan TRUE rulings every `every` samples; cropped to `box`."""
+    x0, y0, x1, y1 = box
+    im = cutout_dim().crop(box).convert('RGBA')
+    if scale != 1.0:
+        im = im.resize((int((x1 - x0) * scale), int((y1 - y0) * scale)), Image.LANCZOS)
+    tf = lambda P: (np.asarray(P, float) - np.array([x0, y0])) * scale
     lay = Image.new('RGBA', im.size, (0, 0, 0, 0))
     dl = ImageDraw.Draw(lay)
     T = trace_rings()
@@ -382,7 +550,7 @@ def overlay_png(path, pieces, every=5, rings=None):
             run = []
             for i in range(r0, r1 + 1):
                 if v[i]:
-                    run.append(e[i])
+                    run.append(tf(e[i]))
                 else:
                     if len(run) > 1:
                         dashed(dl, run)
@@ -392,16 +560,99 @@ def overlay_png(path, pieces, every=5, rings=None):
     im.alpha_composite(lay)
     im = im.convert('RGB')
     dr = ImageDraw.Draw(im)
-    for L3, R3 in pieces:
-        pl, pr_ = AP.project(L3), AP.project(R3)
+
+    def draw_edge(P, hid, col):
+        pp = tf(AP.project(P))
+        i = 0
+        n = len(pp)
+        while i < n - 1:
+            j = i
+            while j < n - 1 and hid[j] == hid[i]:
+                j += 1
+            seg = [tuple(p) for p in pp[i:j + 1]]
+            if len(seg) > 1:
+                if hid[i]:
+                    dashed(dr, seg, 5.0, 4.0, col)
+                else:
+                    dr.line(seg, fill=col, width=2)
+            i = j if j > i else i + 1
+
+    for pc in pieces:
+        L3, R3 = pc['L'], pc['R']
+        pl, pr_ = tf(AP.project(L3)), tf(AP.project(R3))
         for i in range(0, len(pl), every):
             dr.line([tuple(pl[i]), tuple(pr_[i])], fill=(0, 255, 255), width=1)
-        dr.line([tuple(p) for p in pl], fill=(255, 0, 255), width=2)
-        dr.line([tuple(p) for p in pr_], fill=(0, 255, 0), width=2)
-    im = im.crop((0, 450, 852, 1846))
+        draw_edge(L3, pc.get('hidL', np.zeros(len(L3), bool)), (255, 0, 255))
+        draw_edge(R3, pc.get('hidR', np.zeros(len(R3), bool)), (0, 255, 0))
     ImageDraw.Draw(im).text((8, 8), 'white dashed = approved trace, magenta/green = 3D model edges', fill=(255, 255, 255))
+    if ret:
+        return im
     im.save(path)
     return path
+
+
+def shaded_img(pr, pc, box, scale):
+    import chain_sheets as CS
+    L, R = pc['L'], pc['R']
+    m = max(1, int(len(L) / 700))
+    return CS.offline(L[::m], R[::m], box, scale)
+
+
+def shaded_png(pr, pc, path):
+    """offline shaded render of the true-ruling rings (chain_sheets.offline: face A #5a1c04 / B #ff7a12, |n.view| shading), cropped to the bbox, next to the mockup crop"""
+    import chain_sheets as CS
+    L, R = pc['L'], pc['R']
+    p = np.concatenate([AP.project(L), AP.project(R)])
+    x0, y0 = np.maximum(0, p.min(0) - 25).astype(int); x1, y1 = np.minimum([852, 1846], p.max(0) + 25).astype(int)
+    box = (int(x0), int(y0), int(x1), int(y1))
+    scale = min(2.0, 900.0 / max(x1 - x0, y1 - y0))
+    off = shaded_img(pr, pc, box, scale)
+    mk = CS.mockup_crop(box).resize(off.size, Image.LANCZOS)
+    sheet = Image.new('RGB', (off.width * 2 + 10, off.height + 24), (10, 10, 10))
+    sheet.paste(mk, (0, 24)); sheet.paste(off, (off.width + 10, 24))
+    d = ImageDraw.Draw(sheet)
+    d.text((4, 6), 'mockup', fill=(255, 255, 255)); d.text((off.width + 14, 6), 'offline shaded (face A dark, face B orange)', fill=(255, 255, 255))
+    sheet.save(path)
+
+
+def zoom_sheets(pr, sec, x, tag='', pc=None, rep=None):
+    """overlays/zoom_<section>_<window><tag>.png at 3x for every turn window (guides_overlay.WINDOWS) the section's strip overlaps: [mockup | overlay | shaded] + metrics header"""
+    import chain_sheets as CS
+    pc = pc or sec_rulings(pr, x, sec)
+    rep = rep or realism(pr, sec, x)[0]
+    px = np.concatenate([AP.project(pc['L']), AP.project(pc['R'])])
+    ds = data_stats(pr, x, sec)
+    done = []
+    for wn, box in WIN_BOXES.items():
+        inside = ((px[:, 0] >= box[0]) & (px[:, 0] <= box[2]) & (px[:, 1] >= box[1]) & (px[:, 1] <= box[3])).sum()
+        if inside < 12:
+            continue
+        ow = {'scurve': 's'}.get(wn, wn)
+        ol = rep['outline'].get(ow)
+        hdr = (f'{sec.name}/{wn}{tag}  crossings {rep["crossings"]}  sep {rep["sep_violations"]}  min fold rho/W '
+               f'{("%.2f" % rep["min_fold_rho_over_W"]) if rep["min_fold_rho_over_W"] is not None else "-"}  outline mean/max '
+               f'{("%.1f/%.1f px" % (ol["mean_px"], ol["max_px"])) if ol else "-"}  kinks {rep["curv_oscillations"]}+{rep["corners"]} dips {rep["dips"]}  data rms {ds["rms"] if ds["rms"] is None else round(ds["rms"], 1)} px  fails {rep["fails"]}')
+        S3 = 3
+        mk = CS.mockup_crop(box).resize(((box[2] - box[0]) * S3, (box[3] - box[1]) * S3), Image.LANCZOS)
+        ov = overlay_png(None, [pc], rings=[(sec.r0, sec.r1)], box=box, scale=S3, ret=True)
+        sh = shaded_img(pr, pc, box, S3)
+        sheet = Image.new('RGB', (mk.width * 3 + 20, mk.height + 26), (10, 10, 10))
+        for i, im_ in enumerate((mk, ov, sh)):
+            sheet.paste(im_.convert('RGB'), (i * (mk.width + 10), 26))
+        ImageDraw.Draw(sheet).text((6, 7), hdr, fill=(255, 255, 255))
+        sheet.save(os.path.join(DIRS['overlays'], f'zoom_{sec.name}_{wn}{tag}.png'))
+        done.append(wn)
+    log(f'REVIEW {sec.name}{tag} {done}')
+    return done
+
+
+def draw_section(pr, sec, x, tag='', zoom=True):
+    pc = sec_rulings(pr, x, sec)
+    overlay_png(os.path.join(DIRS['overlays'], f'section_{sec.name}{tag}.png'), [pc], rings=[(sec.r0, sec.r1)])
+    shaded_png(pr, pc, os.path.join(DIRS['overlays'], f'section_{sec.name}{tag}_shaded.png'))
+    if zoom:
+        zoom_sheets(pr, sec, x, tag, pc)
+    return pc
 
 
 # ================================================================== section fit
@@ -428,6 +679,8 @@ def fit_section(pr, name, secs_final=300.0, secs_group=240.0, ncf=3):
                 r = pr.res(xc, st)
                 starts.append(([f'tilt{tilt:+d}'] + list(tags), xc, 0.5 * float(r @ r)))
         starts = [(a, b) for a, b, c in sorted(starts, key=lambda q: q[2])]
+        if name == 'P':
+            starts.insert(0, (['seed-v1'], seed_P(pr)))
         costs = [round(0.5 * float(pr.res(b, st) @ pr.res(b, st))) for a, b in starts[:8]]
         log(f'  {len(starts)} starts; best init costs {[(a, c) for (a, b), c in zip(starts[:8], costs)]}')
     gs = secs_group
@@ -444,6 +697,7 @@ def fit_section(pr, name, secs_final=300.0, secs_group=240.0, ncf=3):
     if cost <= best[0]:
         x = xo
     tags = best[1]
+    np.savez(os.path.join(DIRS['sections'], f'sec_{name}_pre.npz'), x=x)
     rep, _ = realism(pr, sec, x)
     log(f'  v1-rules result: data {data_stats(pr, x, sec)["rms"]:.2f} px, realism fails {rep["fails"]}, outline {rep["outline"]}')
     if name in ('F', 'P', 'S', 'K', 'X') and (rep['fails'] or (sec.gate and data_stats(pr, x, sec)['rms'] > 10.0)):
@@ -497,6 +751,8 @@ def window_fit(pr, sec, iv, x_ref, secs_start=60.0):
                 cands = C.s_combos(pr, xp, wk)
             elif sec.name == 'K':
                 cands = C.bk_combos(pr, xp, wk)
+            elif sec.name == 'X':
+                cands = x_combos(pr, xp)
             else:
                 cands = C.presearch(pr, xp, wk, st)
             for tags, xc in cands:
@@ -539,9 +795,18 @@ def reseed_pass(pr, sec, x_old, tags_old, rep_old, secs_final):
                 best = (sc, xo, ['reseed', tg])
                 xcur = xo.copy()
     log(f'  RESEED result for {sec.name}: kept score {best[0]} (old {sc_old})')
-    L, R = sec_edges(pr, best[1], sec)
-    overlay_png(os.path.join(DIRS['overlays'], f'section_{sec.name}_v2.png'), [(L, R)], rings=[(sec.r0, sec.r1)])
+    draw_section(pr, sec, best[1], '_v2')
     return best[1], best[2]
+
+
+def seed_P(pr):
+    """v1 P solution (pose, lambdas, tip fold, end bend) with the three gentle front bends re-seeded (rho 3W, phi 0.3-0.4)"""
+    p = os.path.join(DIRS['sections'], '..', 'v1', 'sections', 'sec_P.npz')
+    x = upgrade_x(pr, np.load(p)['x'])
+    for nm, phi in (('top-K front bend a', 0.3), ('top-K front bend', 0.4), ('top-K front bend c', 0.3)):
+        k = ROLLS_IDX[nm]
+        x[6 + 4 * k:10 + 4 * k] = [pr.roll_tau0[k], np.pi / 2, 3 * pr.W, phi]
+    return x
 
 
 def seed_A(pr):
@@ -585,7 +850,27 @@ def section_combos(pr, name, xp, g, st):
         for tags, xc in C.bk_combos(pr, xp, g3):
             out.append((tags, C.set_roll(xc, k4, pr.roll_tau0[k4], np.pi / 2, 3 * pr.W, 0.0)))
         return out
+    if name == 'X':
+        return x_combos(pr, xp)
     return C.presearch(pr, xp, g, st)
+
+
+def x_combos(pr, x):
+    """X: ONE curl fold (axis ~ the window's silhouette direction +-20 deg, phi ~ +-pi, rho 0.5 W) + the two half-twist folds (sign patterns); crossbar bends stay straight"""
+    W = pr.W
+    kc = ROLLS_IDX['wrap curl']; k1 = ROLLS_IDX['wrap twist 1']; k2 = ROLLS_IDX['wrap twist 2']
+    sb = C.sil_beta(pr, kc)
+    sb = np.pi / 2 if sb is None else sb
+    out = []
+    for db in (-20, 0, 20):
+        b = float(np.clip(sb + np.radians(db), 0.3, np.pi - 0.3))
+        for sg in (1, -1):
+            for tw in ((1, -1), (-1, 1), (1, 1), (-1, -1)):
+                xx = C.set_roll(x, kc, pr.roll_tau0[kc], b, 0.5 * W, sg * 0.95 * np.pi)
+                xx = C.set_roll(xx, k1, pr.roll_tau0[k1], np.pi / 2, 0.4 * W, tw[0] * 1.6)
+                xx = C.set_roll(xx, k2, pr.roll_tau0[k2], np.pi / 2, 0.4 * W, tw[1] * 1.6)
+                out.append(([f'db{db}', f'c{sg:+d}', f'tw{tw[0]:+d}{tw[1]:+d}'], xx))
+    return out
 
 
 def pick_bk_bottom_sec(pr, x, sec):
@@ -639,39 +924,35 @@ def edge_kinks(P, W_css):
         length = (b_ - a_ + 1) * ds
         if length < 0.5 * W_css and amp > 0.25 and lobes[j - 1][3] > 0.25 and lobes[j + 1][3] > 0.25 and amp < 3.0:
             osc += 1
+    # corners (refined): turning over a 0.15 W arc window > 12 deg AND a curvature spike (> 3x the median |curvature| of the surrounding 1 W)
     Qs = np.stack([ndi.gaussian_filter1d(np.stack([np.interp(u, s, P[:, 0]), np.interp(u, s, P[:, 1])], 1)[:, c], 1.0) for c in (0, 1)], 1)
     t = np.diff(Qs, axis=0)
-    ang = np.degrees(np.abs(np.arctan2(t[1:, 0] * t[:-1, 1] - t[1:, 1] * t[:-1, 0], (t[1:] * t[:-1]).sum(1))))
-    idx = np.nonzero(ang > 6.0)[0]
-    corners = 0; last = -1e9
-    for i in idx:
-        if i - last > 0.5 * W_css / ds:
+    th = np.unwrap(np.arctan2(t[:, 1], t[:, 0]))
+    w = max(2, int(0.15 * W_css / ds))
+    dth = np.degrees(np.abs(th[w:] - th[:-w]))
+    kap = np.abs(np.gradient(th)) / ds
+    half = int(0.5 * W_css / ds)
+    corners = 0; last = -10 ** 9
+    a1, a2 = int(0.1 * W_css / ds), int(0.35 * W_css / ds)
+    for i in np.nonzero(dth > 12.0)[0]:
+        j = i + int(np.argmax(kap[i:i + w]))
+        left = kap[max(0, j - a2):max(0, j - a1)]; right = kap[min(len(kap), j + a1):min(len(kap), j + a2)]
+        if len(left) < 2 or len(right) < 2:
+            continue          # at a section end: not a local spike
+        if kap[j] > 3.0 * max(float(np.median(left)), 1e-4) and kap[j] > 3.0 * max(float(np.median(right)), 1e-4) and i - last > 0.5 * W_css / ds:
             corners += 1
-        last = i
+            last = i
     return osc, corners
 
 
 def realism(pr, sec, x, outline=True):
     """realism report of one section: crossings of consecutive true rulings INSIDE the band, adjacent-ruling separation along the edges (>= 0.15 x nominal),
     min fold rho / W, curvature oscillation + polygonal corners on both projected edges, outline distance to the window roll-outline (SIL) guide"""
-    pr.bind(sec)
     W = pr.W
-    cx = pr.ctx(x, sec.act)
-    rolls = cx[1]
-    u_lo = float(pr.F(x, np.array([sec.tau_in]))[0]); u_hi = float(pr.F(x, np.array([sec.tau_out]))[0])
-    r_lo = min([u_lo] + [r[0] for r in rolls]) - 1.0
-    r_hi = max([u_hi] + [r[0] + r[2] * abs(r[3]) / np.sin(r[1]) for r in rolls]) + 1.0
-    regs, gaps = sec_regions(rolls, W, r_lo, r_hi)
+    pc = sec_rulings(pr, x, sec, hidden=False)
+    rolls = pc['cx'][1]; gaps = pc['gaps']; inroll = pc['inroll']; uc = pc['uc']
+    L3, R3 = pc['L'], pc['R']
     rep = dict(section=sec.name, roll_overlap_min_gap=float(min(gaps)) if gaps else None)
-    uc = np.r_[np.arange(u_lo, u_hi, 0.5), u_hi]
-    UL = np.zeros(len(uc)); UR = np.zeros(len(uc)); inroll = np.zeros(len(uc), bool)
-    for i, c in enumerate(uc):
-        for rg in regs:
-            if rg[1] - 1e-9 <= c <= rg[2] + 1e-9 and rg[2] - rg[1] > 1e-9:
-                UL[i], UR[i] = rg[3](c); inroll[i] = rg[0] == 'roll'
-                break
-    G = cx[0][0]
-    L3 = C.chain_surface(G, rolls, UL, np.full(len(uc), -W / 2)); R3 = C.chain_surface(G, rolls, UR, np.full(len(uc), W / 2))
     pl, pr_ = AP.project_css(L3), AP.project_css(R3)
     xm = C._seg_cross(pl[:-1], pr_[:-1], pl[1:], pr_[1:])
     rep['crossings'] = int(xm.sum())
@@ -683,6 +964,27 @@ def realism(pr, sec, x, outline=True):
     rep['min_fold_rho_over_W'] = float(min(folds)) if folds else None
     osc1, cor1 = edge_kinks(pl, W); osc2, cor2 = edge_kinks(pr_, W)
     rep['curv_oscillations'] = int(osc1 + osc2); rep['corners'] = int(cor1 + cor2)
+    # surface dip check: signed dihedral between consecutive true-ruling quads; short sandwiched lobes (< 1 W of arc, >= 3 deg) = dip / crease
+    rul = R3 - L3
+    ed = L3[1:] - L3[:-1]
+    nq = np.cross(rul[:-1], ed); nq /= np.maximum(np.linalg.norm(nq, axis=1, keepdims=True), 1e-12)
+    tdir = (rul[:-2] + rul[1:-1]) / 2; tdir /= np.maximum(np.linalg.norm(tdir, axis=1, keepdims=True), 1e-12)
+    cr = np.cross(nq[:-1], nq[1:])
+    dh = np.degrees(np.arctan2((cr * tdir).sum(1), (nq[:-1] * nq[1:]).sum(1)))
+    sg = np.sign(np.where(np.abs(dh) < 0.02, 0, dh))
+    lobes = []; a0 = 0
+    for i in range(1, len(sg) + 1):
+        if i == len(sg) or sg[i] != sg[a0]:
+            if sg[a0] != 0:
+                lobes.append((a0, i - 1, float(np.abs(dh[a0:i]).sum())))
+            a0 = i
+    step = float(np.median(np.diff(uc)))
+    dips = 0
+    for j in range(1, len(lobes) - 1):
+        ln = (lobes[j][1] - lobes[j][0] + 1) * step
+        if ln < 1.0 * W and lobes[j][2] >= 3.0 and lobes[j - 1][2] >= 3.0 and lobes[j + 1][2] >= 3.0:
+            dips += 1
+    rep['dips'] = dips
     rep['outline'] = {}
     if outline:
         from scipy import ndimage as ndi
@@ -711,6 +1013,8 @@ def realism(pr, sec, x, outline=True):
         fails.append('curv-oscillation')
     if rep['corners']:
         fails.append('corners')
+    if rep['dips']:
+        fails.append('surface-dip')
     if rep['roll_overlap_min_gap'] is not None and rep['roll_overlap_min_gap'] < 0:
         fails.append('roll-overlap')
     rep['fails'] = fails
@@ -743,8 +1047,7 @@ def finish_section(pr, sec, x, t00, tags):
     m['seconds'] = time.time() - t00
     np.savez(sec_path(sec.name), x=x, bk_bottom=-1 if pr.bk_bottom is None else pr.bk_bottom)
     json.dump(m, open(os.path.join(DIRS['sections'], f'sec_{sec.name}.json'), 'w'), indent=1, default=float)
-    L, R = sec_edges(pr, x, sec)
-    overlay_png(os.path.join(DIRS['overlays'], f'section_{sec.name}.png'), [(L, R)], rings=[(sec.r0, sec.r1)])
+    draw_section(pr, sec, x)
     log(f'  SECTION {sec.name} DONE: data rms {rms} (p95 {m["data_own"]["p95"]}, max {m["data_own"]["max"]}) gate <= {sec.gate}: {m["gate"]}; cost {m["cost"]}; {m["seconds"]:.0f}s')
     log('  METRICS ' + json.dumps(m, default=float))
     return x, m
@@ -767,7 +1070,7 @@ HV = 0.05
 def load_all(pr):
     XS = {}
     for n in SECN:
-        XS[n] = np.load(sec_path(n))['x'].copy()
+        XS[n] = ldx(pr, sec_path(n)).copy()
     return XS
 
 
@@ -1146,12 +1449,14 @@ class Joint:
         return m, outs
 
     def pieces(self, z):
-        """per section (L3, R3) over the OWN rings"""
+        """per section true rulings over the section's trimmed u range (junction delta applied at the start)"""
         pr = self.pr
         out = []
-        for nm in SECN:
-            pr.bind(nm)
-            out.append(sec_edges(pr, self.xs_from(z, nm), pr.secs[nm]))
+        for i, nm in enumerate(SECN):
+            sec = pr.bind(nm)
+            xs = self.xs_from(z, nm)
+            u_lo = float(pr.F(xs, np.array([sec.tau_in]))[0]) + (z[self.nd0 + i - 1] if i > 0 else 0.0)
+            out.append(sec_rulings(pr, xs, sec, u_lo=u_lo, step=1.0))
         return out
 
 
@@ -1433,9 +1738,7 @@ def run_bridges(pr):
                 continue
         XS[nm] = bridge(pr, XS, nm)
         np.savez(sec_path(nm), x=XS[nm], bk_bottom=-1)
-        sec = pr.secs[nm]
-        L, R = sec_edges(pr, XS[nm], sec)
-        overlay_png(os.path.join(DIRS['overlays'], f'section_{nm}.png'), [(L, R)], rings=[(sec.r0, sec.r1)])
+        draw_section(pr, pr.secs[nm], XS[nm])
     J = Joint(pr, XS, None, 1.0)
     z = J.pack()
     m, _ = J.level_metrics(z)
@@ -1503,7 +1806,29 @@ def cmd_sheets(pr):
         sheet.paste(p, (xo, 30)); xo += p.width + 10
     sheet.save(os.path.join(DIRS['sheets'], 'sheet_overview.png'))
     # final overlay of the exported rings over the dimmed mockup
-    overlay_png(os.path.join(DIRS['overlays'], 'final_export.png'), [(Lw, Rw)], every=3)
+    overlay_png(os.path.join(DIRS['overlays'], 'final_export.png'), [dict(L=Lw, R=Rw)], every=3)
+
+
+def cmd_redraw(pr, names, zoom=True):
+    table = {}
+    for nm in names:
+        sec = pr.secs[nm]
+        x = ldx(pr, sec_path(nm))
+        variants = [('', x)]
+        pp = os.path.join(DIRS['sections'], f'sec_{nm}_pre.npz')
+        if os.path.exists(pp):
+            xp = ldx(pr, pp)
+            if np.abs(xp - x).max() > 1e-6:
+                variants = [('', xp), ('_v2', x)]
+        for tag, xx in variants:
+            pr.bind(sec)
+            pr.bk_bottom = pick_bk_bottom_sec(pr, xx, sec) if nm == 'K' else None
+            rep, _ = realism(pr, sec, xx)
+            rep['data_rms'] = data_stats(pr, xx, sec)['rms']
+            table[nm + tag] = rep
+            draw_section(pr, sec, xx, tag, zoom=zoom)
+            log(f'  REALISM {nm}{tag}: ' + json.dumps(rep, default=float))
+    return table
 
 
 def arg(name, default):
@@ -1519,6 +1844,13 @@ def main():
                 log(f'section {nm}: done already (skip; --force to redo)')
                 continue
             fit_section(pr, nm, secs_final=arg('secs', 300.0), secs_group=arg('gsecs', 240.0), ncf=arg('nc', 3))
+    elif cmd == 'redraw':
+        pr = SecPrb()
+        t = cmd_redraw(pr, sys.argv[2].split(','))
+        p = os.path.join(OUT, 'realism_table.json')
+        old = json.load(open(p)) if os.path.exists(p) else {}
+        old.update(t)
+        json.dump(old, open(p, 'w'), indent=1, default=float)
     elif cmd == 'bridges':
         run_bridges(SecPrb())
     elif cmd == 'joint':
