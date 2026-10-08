@@ -60,3 +60,19 @@
   - smooth curvature (no curvature oscillation shorter than 1W along either edge);
   - over/under correct; the end tip hidden; faces correct.
 - **Soft:** data RMS is a target (≈ 6–10 px), not a gate. When fidelity and realism conflict, realism wins.
+
+## Step 2b (replaces the global joint ramp): depth-consistent sequential joining
+**Diagnosis (junctions.json):** the sections agree in 2D (gaps of 7–90 px) but disagree in DEPTH by 40–1300 css. That's single-view tilt/depth ambiguity: each isolated fit picked its own depth/tilt trade-off. Forcing continuity then bent the shapes. A single shared depth layout is needed BEFORE joining.
+
+**Plan:**
+1. **Fixed anchors:** A (locked, z ≈ 100–220). T+S as one block, keeping their shapes (they agree, z ≈ 1040–1060, near the camera as the tail's flare implies).
+2. **F between S and A:** two-ended continuity (S end and A end, position at 5 points plus the normal, weight 200). F's rolls and λ free, warm-started from approved F; data + window rules + realism. The sweep recedes in depth from ~1040 to ~100, which is expected.
+3. **K, X, P** (visible, behind or around A): fit each with:
+   - over/under constraints against the locked A (and against already-fitted sections), from overunder_v1;
+   - a soft depth prior: section mean z within ±150 css of A's mean z (weight 1);
+   - its own data + window rules + realism;
+   - K also gets continuity with A at the A–K junction.
+   - P warm-starts from approved v5 with a shape prior (weight 50) while its pose moves.
+4. **Bridges B and M (hidden):** fit each as a flat run plus up to 2 gentle bends, with two-ended continuity to their now-fixed neighbours, plus over/under (both behind the right leg) and the end-hidden rule.
+5. **Final light polish:** all non-locked sections, continuity at weight 1000, priors to the step 1–4 results at weight 50, realism at full weight. 8 min.
+6. Zoom sheets for all windows plus the full overlay/shaded, then "REVIEW joint".

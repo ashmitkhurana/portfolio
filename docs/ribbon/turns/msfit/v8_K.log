@@ -6,3 +6,10 @@ K v7 start init costs: [(['Apose', 'rho1.0', 's-1', 'db-15'], 106654935), (['Apo
     [warm rw1.0] ok cost 711537.8 evals 536 (47s)
     [warm rw4.0] ok cost 711537.8 evals 55 (5s)
     start warm: score (1, 14.513561013564916, 68.29225574275391) fails ['corners']
+    [alt0 rw0.25] timeout cost 2728760.1 evals 1508 (120s)
+    [alt0 rw1.0] ok cost 2700222.2 evals 1041 (71s)
+    [alt0 rw4.0] ok cost 2634908.9 evals 542 (37s)
+    start alt0: score (1, 24.04029400441027, 101.86539579112005) fails ['corners']
+  DECISION numbers: candidate fails 1 rms 68.3 | previous best fails 1 rms 13.6 | limit rms 20.4
+  WARM REDO K_v8: best start warm score (1, 14.513561013564916, 68.29225574275391) fails ['corners'] -> REJECTED (keeping previous)
+REVIEW K_v8_rejected ['scurve', 'bottomk', 'junction', 'topk', 'endstrand']
