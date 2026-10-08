@@ -16,6 +16,8 @@
  * "hero-name"; its box is the union of its display lines).
  */
 
+import type { PaperRoll } from "../paper";
+
 export type ScreenClass = "phone" | "tablet" | "desktop" | "ultrawide";
 
 export const SCREEN_CLASSES: readonly ScreenClass[] = ["phone", "tablet", "desktop", "ultrawide"];
@@ -60,6 +62,11 @@ export interface PoseVariant {
   faceSign?: 1 | -1;
   /** centreline through the points: `catmull` (default, interpolating) or `bspline` (C2, approximating) */
   spline?: "catmull" | "bspline";
+  /**
+   * PAPER SPANS: the stretch between control points `from` and `to` (indices into `points`) is replaced by an
+   * exact paper-folded strip (see ../paper.ts); `rolls` are in the span's flat frame (u in px along the strip).
+   */
+  spans?: { from: number; to: number; rolls: PaperRoll[]; name?: string }[];
 }
 
 export interface PoseFile {

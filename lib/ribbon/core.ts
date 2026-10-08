@@ -288,6 +288,7 @@ export class RibbonCore {
     this.ribbon.frameMode = pose.orientation ?? "rmf";
     this.ribbon.setFolds(pose.folds);
     this.ribbon.setHairpins(pose.hairpins);
+    this.ribbon.setSpans(pose.spans);
     this.sim.setRuled(pose.ruled);
     this.sim.setTargetPose(pose.points, pose.twists, pose.widths, snap);
   }

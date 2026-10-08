@@ -11,6 +11,25 @@ import {
 const num = (v: unknown, d: number): number =>
   typeof v === "number" && Number.isFinite(v) ? v : d;
 
+function parseSpans(raw: unknown): NonNullable<PoseVariant["spans"]> {
+  if (!Array.isArray(raw)) return [];
+  const out: NonNullable<PoseVariant["spans"]> = [];
+  for (const s of raw as Record<string, unknown>[]) {
+    if (!s || typeof s !== "object" || !Array.isArray(s.rolls)) continue;
+    const from = Math.round(num(s.from, -1));
+    const to = Math.round(num(s.to, -1));
+    if (from < 0 || to <= from) continue;
+    const rolls = (s.rolls as Record<string, unknown>[]).map((r) => ({
+      u: num(r?.u, 0),
+      beta: num(r?.beta, Math.PI / 2),
+      rho: num(r?.rho, 20),
+      phi: num(r?.phi, 0),
+    }));
+    out.push({ from, to, rolls, ...(typeof s.name === "string" ? { name: s.name } : {}) });
+  }
+  return out;
+}
+
 export function parsePoint(raw: unknown): PosePoint {
   const r = (raw ?? {}) as Record<string, unknown>;
   const f = r.fold as Record<string, unknown> | undefined | null;
@@ -40,7 +59,7 @@ export function parsePoseFile(raw: unknown): PoseFile {
   const variants: PoseFile["variants"] = {};
   const rv = (r.variants ?? {}) as Record<string, unknown>;
   for (const cls of SCREEN_CLASSES) {
-    const v = rv[cls] as { points?: unknown; spline?: unknown; ruled?: unknown; faceSign?: unknown } | undefined;
+    const v = rv[cls] as { points?: unknown; spline?: unknown; ruled?: unknown; faceSign?: unknown; spans?: unknown } | undefined;
     if (!v) continue;
     if (Array.isArray(v.ruled) && v.ruled.length >= 2) {
       const tri = (a: unknown): [number, number, number] => {
@@ -53,7 +72,13 @@ export function parsePoseFile(raw: unknown): PoseFile {
     }
     if (!Array.isArray(v.points)) continue;
     const points = v.points.map(parsePoint);
-    if (points.length >= 2) variants[cls] = { points, ...(v.spline === "bspline" ? { spline: "bspline" as const } : {}) };
+    const spans = parseSpans(v.spans);
+    if (points.length >= 2)
+      variants[cls] = {
+        points,
+        ...(v.spline === "bspline" ? { spline: "bspline" as const } : {}),
+        ...(spans.length ? { spans } : {}),
+      };
   }
   if (Object.keys(variants).length === 0) throw new Error("pose file has no usable variant");
   return {
@@ -93,6 +118,16 @@ export function formatPoseJson(file: PoseFile): string {
       return;
     }
     if (v.spline === "bspline") out.push(`      "spline": "bspline",`);
+    if (v.spans?.length) {
+      out.push(`      "spans": [`);
+      v.spans.forEach((s, i) => {
+        const rolls = s.rolls.map((r) => `{ "u": ${r4(r.u)}, "beta": ${r4(r.beta)}, "rho": ${r4(r.rho)}, "phi": ${r4(r.phi)} }`).join(", ");
+        out.push(
+          `        { "from": ${s.from}, "to": ${s.to}${s.name ? `, "name": ${JSON.stringify(s.name)}` : ""}, "rolls": [${rolls}] }${i < v.spans!.length - 1 ? "," : ""}`,
+        );
+      });
+      out.push(`      ],`);
+    }
     out.push(`      "points": [`);
     v.points.forEach((p, i) => {
       const fold = p.fold

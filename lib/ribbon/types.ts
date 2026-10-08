@@ -20,6 +20,7 @@ export interface ProxyData {
 
 import type { FoldSpec } from "./fold";
 import type { RuledData } from "./ruled";
+import type { PaperRoll } from "./paper";
 
 export interface RibbonPose {
   /** xyz triples, world px (1 unit = 1 css px at z = 0, +y up) */
@@ -38,6 +39,8 @@ export interface RibbonPose {
   hairpins?: HairpinSpec[];
   /** ruled pose: per-control-point ruling direction and half width (the geometry bypasses frames, folds and relaxation) */
   ruled?: RuledData;
+  /** paper spans: body stretches (arc fractions) replaced by an exact paper-folded strip */
+  spans?: { at0: number; at1: number; rolls: PaperRoll[]; name?: string }[];
 }
 
 export interface HairpinSpec {

@@ -81,6 +81,7 @@ try {
       c, B, N, T, hw, s,
       foldReports: plain(g.foldReports),
       hairpinReports: plain(g.hairpinReports),
+      spanReports: plain(g.spanReports),
       folds: plain(g.folds),
       smoothness: plain(g.smoothnessReport()),
       edge: plain(g.edgeReport(cam, e.width, e.height)),

@@ -146,6 +146,7 @@ export function resolvePose(
   count: number,
   orientation: "curvature" | "rmf" = "curvature",
   spline: SplineKind = "catmull",
+  spans?: PoseVariant["spans"],
 ): RibbonPose {
   const src = resolveControlPoints(points.slice(0, MAX_POSE_POINTS), ctx);
   const n = Math.min(points.length, MAX_POSE_POINTS);
@@ -165,11 +166,20 @@ export function resolvePose(
     const h = points[i].hairpin;
     if (h) hairpins.push({ at: curve.arcFractionAtControl(i), name: h.name, radius: h.radius });
   }
+  const outSpans = (spans ?? [])
+    .filter((s) => s.from >= 0 && s.to > s.from && s.to < n)
+    .map((s) => ({
+      at0: curve.arcFractionAtControl(s.from),
+      at1: curve.arcFractionAtControl(s.to),
+      rolls: s.rolls,
+      ...(s.name ? { name: s.name } : {}),
+    }));
   return {
     points: outPos,
     twists: outTw,
     widths: outWd,
     orientation,
+    ...(outSpans.length ? { spans: outSpans } : {}),
     ...(folds.length ? { folds } : {}),
     ...(hairpins.length ? { hairpins } : {}),
   };

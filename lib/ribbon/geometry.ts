@@ -36,6 +36,7 @@ import {
 } from "./frames";
 import { HAIRPIN_TURN, applyFolds, foldMask, foldOverrides, type FoldReport, type FoldSpec } from "./fold";
 import type { HairpinSpec } from "./types";
+import { buildPaperSpan, type PaperRoll } from "./paper";
 import { edgeSmoothness, smoothness, type EdgeSmoothnessReport, type SmoothnessReport } from "./smooth";
 import type { RibbonSettings } from "./settings";
 import type { SweepUniforms } from "./sweep";
@@ -219,6 +220,9 @@ export class RibbonGeometry {
   /** rolled hairpins of the pose (reports only: the curvature frames do the turn) */
   hairpins: HairpinSpec[] = [];
   readonly hairpinReports: HairpinReport[] = [];
+  /** paper spans (see paper.ts): body stretches rebuilt as an exact paper-folded strip; set from the pose */
+  spans: { at0: number; at1: number; rolls: PaperRoll[]; name?: string }[] = [];
+  readonly spanReports: { name?: string; ring0: number; ring1: number; exitGap: number; exitAngle: number }[] = [];
   private rShear!: Float32Array; // per-ring half-width multiplier (folds shear the rulings)
   private rFoldMask!: Uint8Array; // rings inside a fold zone (body index)
   private rOvW!: Float32Array; // curvature frames: fold zone weight (0..1) and wanted normal
@@ -272,6 +276,104 @@ export class RibbonGeometry {
 
   setFolds(list: readonly FoldSpec[] | undefined): void {
     this.folds = list ? [...list].sort((a, b) => a.at - b.at) : [];
+  }
+
+  setSpans(list: { at0: number; at1: number; rolls: PaperRoll[]; name?: string }[] | undefined): void {
+    this.spans = list ? [...list].sort((a, b) => a.at0 - b.at0) : [];
+  }
+
+  /**
+   * Paper spans: rings i0..i1 (body indices) are replaced by buildPaperSpan(). Frame convention: the engine has
+   * B = T x N, paper.ts has N = T x B (B = ruling direction, local +y = N x T at the entry). We keep paper's N
+   * (continuous with the engine's N at the entry, same face) and take B = T x N, i.e. B_engine = -B_paper; the
+   * rulings are symmetric about the centre, so the sign of B only changes labelling, not the surface.
+   * The rest of the ribbon after the span is blended onto the span's exit frame over ~1 width.
+   */
+  private applySpans(M: number, E: number, ds: number): void {
+    const rep = this.spanReports;
+    rep.length = 0;
+    const { rPos, rTan, rN, rB, rWidth, rShear } = this;
+    const W0 = this.params.width;
+    for (const sp of this.spans) {
+      const i0 = Math.max(0, Math.round(sp.at0 * (M - 1)));
+      const i1 = Math.min(M - 1, Math.round(sp.at1 * (M - 1)));
+      if (i1 - i0 < 4 || !sp.rolls.length) continue;
+      let L = 0;
+      for (let k = i0; k < i1; k++) {
+        const a = (E + k) * 3;
+        L += Math.hypot(rPos[a + 3] - rPos[a], rPos[a + 4] - rPos[a + 1], rPos[a + 5] - rPos[a + 2]);
+      }
+      const e0 = (E + i0) * 3;
+      const width = W0 * rWidth[E + i0];
+      const n = i1 - i0 + 1;
+      const s = buildPaperSpan({
+        length: L,
+        width,
+        rolls: sp.rolls,
+        rings: n,
+        entry: {
+          pos: [rPos[e0], rPos[e0 + 1], rPos[e0 + 2]],
+          T: [rTan[e0], rTan[e0 + 1], rTan[e0 + 2]],
+          N: [rN[e0], rN[e0 + 1], rN[e0 + 2]],
+        },
+      });
+      // authored state at the exit ring, before overwriting
+      const x0 = (E + i1) * 3;
+      const aPos = [rPos[x0], rPos[x0 + 1], rPos[x0 + 2]];
+      const aTan = [rTan[x0], rTan[x0 + 1], rTan[x0 + 2]];
+      for (let k = 0; k < n; k++) {
+        const j = (E + i0 + k) * 3;
+        const k3 = k * 3;
+        let tx = s.T[k3], ty = s.T[k3 + 1], tz = s.T[k3 + 2];
+        let l = Math.hypot(tx, ty, tz) || 1;
+        tx /= l; ty /= l; tz /= l;
+        let nx = s.N[k3], ny = s.N[k3 + 1], nz = s.N[k3 + 2];
+        // re-orthogonalise N against T
+        const d = nx * tx + ny * ty + nz * tz;
+        nx -= d * tx; ny -= d * ty; nz -= d * tz;
+        l = Math.hypot(nx, ny, nz) || 1;
+        nx /= l; ny /= l; nz /= l;
+        rPos[j] = s.pos[k3]; rPos[j + 1] = s.pos[k3 + 1]; rPos[j + 2] = s.pos[k3 + 2];
+        rTan[j] = tx; rTan[j + 1] = ty; rTan[j + 2] = tz;
+        rN[j] = nx; rN[j + 1] = ny; rN[j + 2] = nz;
+        rB[j] = ty * nz - tz * ny; rB[j + 1] = tz * nx - tx * nz; rB[j + 2] = tx * ny - ty * nx;
+        rShear[E + i0 + k] = s.hw[k] / (0.5 * width);
+        rWidth[E + i0 + k] = rWidth[E + i0];
+      }
+      // blend the rest of the body onto the span's exit
+      const dx = s.exit.pos[0] - aPos[0], dy = s.exit.pos[1] - aPos[1], dz = s.exit.pos[2] - aPos[2];
+      const nb = Math.max(3, Math.round(width / Math.max(ds, 1e-6)));
+      const eN = s.exit.N;
+      for (let k = 1; k <= nb; k++) {
+        const ib = i1 + k;
+        if (ib > M - 1) break;
+        const j = (E + ib) * 3;
+        const t = 1 - k / nb;
+        const w = t * t * (3 - 2 * t);
+        rPos[j] += dx * w; rPos[j + 1] += dy * w; rPos[j + 2] += dz * w;
+        // the exit normal carried onto this ring's tangent, blended with the authored normal
+        let nx = rN[j] * (1 - w) + eN[0] * w;
+        let ny = rN[j + 1] * (1 - w) + eN[1] * w;
+        let nz = rN[j + 2] * (1 - w) + eN[2] * w;
+        const tx = rTan[j], ty = rTan[j + 1], tz = rTan[j + 2];
+        const dd = nx * tx + ny * ty + nz * tz;
+        nx -= dd * tx; ny -= dd * ty; nz -= dd * tz;
+        const l = Math.hypot(nx, ny, nz);
+        if (l > 1e-6) {
+          nx /= l; ny /= l; nz /= l;
+          rN[j] = nx; rN[j + 1] = ny; rN[j + 2] = nz;
+          rB[j] = ty * nz - tz * ny; rB[j + 1] = tz * nx - tx * nz; rB[j + 2] = tx * ny - ty * nx;
+        }
+      }
+      const cosA = Math.min(1, Math.max(-1, s.exit.T[0] * aTan[0] + s.exit.T[1] * aTan[1] + s.exit.T[2] * aTan[2]));
+      rep.push({
+        ...(sp.name ? { name: sp.name } : {}),
+        ring0: i0,
+        ring1: i1,
+        exitGap: Math.hypot(dx, dy, dz),
+        exitAngle: (Math.acos(cosA) * 180) / Math.PI,
+      });
+    }
   }
 
   setHairpins(list: readonly HairpinSpec[] | undefined): void {
@@ -637,6 +739,9 @@ export class RibbonGeometry {
         this.foldReports,
       );
     }
+
+    this.spanReports.length = 0;
+    if (this.spans.length) this.applySpans(M, E, ringDs);
 
     this.measureHairpins(M, E, ringDs);
     }
