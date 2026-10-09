@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **57** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3 (baseline: X3 = v267) |
-| | **Running total** | | **299** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **62** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35 (baseline: X3 = v267) |
+| | **Running total** | | **304** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -29,9 +29,9 @@ How era 1 splits (86):
 
 How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numbers still have folders (r7, r8, r14, r19, r23, r31, r33-r40), plus the variant `r39b`. **27 numbers are "from notes"** (r0-r6, r9-r13, r15-r18, r20-r22, r24-r30, r32; STATUS names r11, r12, r17, r18, r20, r21, r24-r28, r30 and r32 explicitly, the rest are implied by the contiguous numbering). The remaining 53 are one-off experiment folders around the main line: `c1-c8`, `b1-b5`, `f1-f5`, `g1-g4`, `k1-k4`, `n0-n4`, `s1-s4`, `e1-e4`, `sg1-sg3`, `lt0-lt7`, `at1-at3`. In total 14 + 1 + 27 + 53 = 95 (68 with a folder, 27 from notes).
 
-Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299).
+Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299), `L1-L3` (v300-v302), `Q50`, `Q35` (v303-v304).
 
-**Current latest version: `real/K3` = v299. Baseline (owner's reference): `real/X3` = v267.** **The next new version is v300** (round L: L1-L3 = v300-v302).
+**Current latest version: `real/Q35` = v304. Baseline (owner's reference): `real/X3` = v267.** **The next new version is v305** (`real/P1`, the depth edit).
 
 ### Numbering scheme
 
@@ -192,6 +192,8 @@ About 267 shapes in four days. The first 86 were methods that either invented ge
 
 ## Lessons learned
 
+- **When a hundred rounds of tuning fail, the problem is upstream of the knobs.** Here it was the inherited 3D depth layout: a picture-identical shape can still be physically absurd in depth. Measure the 3D shape ring by ring before adding another term.
+
 - **Single-image 3D is ill-posed.** A picture does not say which way a fold rolls. Any method that fits a 3D shape to one view will find many wrong answers that match the view.
 - **An AI mockup is not physically consistent.** It is art, not a photograph of an object. Chasing it pixel for pixel means chasing a shape that cannot exist.
 - **Realism beats pixel match.** The owner's rule, and the one that finally worked. A believable strand that follows the flow looks better than an exact copy of impossible geometry.
@@ -273,4 +275,12 @@ Each new round is appended, not rewritten.
   - K1/K2 lost the wrap (wrapcheck FAIL; K2 also intersects). Rejected.
   - K3: the top-K front strand now shows its lit top surface (the owner's "how is it dark" point), and the bottom-K is a bigger, rounder loop like the mockup. But the wrap ends in a cut-off vertical sheet and the return wiggles. Not better than X3 everywhere, so not shown.
 - **Why every wrap was a sliver (2026-10-10).** The wrap's curl axis was held in the screen plane (along the left leg, via `--faceon`). A band coiled around an axis lying in the screen plane is always seen exactly edge-on at its sides. In the mockup the loop around the leg is seen at an angle, like a tilted ring you look into. Its axis must tilt toward the camera (`--bz` about 0.45–0.6), with the loop loose enough to clear the leg.
-- Running total: 299 versions.
+- L (v300–v302): the wrap alone, from K3, with the curl axis tilted toward the camera. All three render the same edge-on cut as X3. Rejected.
+- The owner: "maybe just stop and think for a minute that what could be a good fix cause you are just degrading dude ffs please" and "shouldnt that have been fucking obvious that if its still failing at 300 versions fucking stop and think about it??" They were right: the handoff already said the 3D depth layout was too deep, and I kept adding optimiser terms on top of it.
+- **What stopping to think found (2026-10-10).** Measured ring by ring in X3:
+  - The wrap crosses in front of the left leg at depth +88, turns 90° and dives straight away from the camera for ~100 px of depth while moving only ~15 px on screen, then returns behind the leg at −51. That straight dive is a flat sheet pointed at the camera: the "vertical cut". Wrapping a thin flat leg needs only about ±20 px of depth. The wrap's SCREEN path was already fine (it stands ~20 px off the leg's edge).
+  - The A's left leg itself waves in depth: 46 → 8 → 7 → 22 → 55 from its foot to the apex, tilting ±0.7 toward and away from the camera. Those are exactly the owner's two ripples (at the base of the leg and approaching the apex). The old layering step dented the leg to let the wrap pass over it.
+  - Physically, the wrap is a ribbon draped over the leg's edge, like over a ruler: the crossbar comes in at a slant, rolls round the edge, and the return leaves at the mirrored slant (the upper/lower "V" of the spec). Our curl term forced the band square to its path, which forbids that slant. The trace, the deep layering and the curl term were all fighting the correct shape, so no tuning could converge.
+- Q50/Q35 (v303–v304): X3 with all depth squeezed to 50% / 35% around its median, keeping every screen position. The outline is pixel-identical, no new intersections, the wrap still goes round the leg; the cut gets thinner but remains. A uniform squeeze isn't enough; the depth needs to be designed where it's wrong.
+- Next, `real/P1`: a targeted depth edit, no optimiser: straighten the left leg in depth, and rebuild the wrap's depth as a round roll (front pass ~22 px in front of the leg, a half-turn round its edge, back pass ~22 px behind). The screen image stays identical.
+- Running total: 304 versions.
