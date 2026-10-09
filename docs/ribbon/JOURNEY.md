@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **45** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3 (E2 = v283, best so far) |
-| | **Running total** | | **287** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **48** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3 (H3 = v290, smoothest so far) |
+| | **Running total** | | **290** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -29,9 +29,9 @@ How era 1 splits (86):
 
 How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numbers still have folders (r7, r8, r14, r19, r23, r31, r33-r40), plus the variant `r39b`. **27 numbers are "from notes"** (r0-r6, r9-r13, r15-r18, r20-r22, r24-r30, r32; STATUS names r11, r12, r17, r18, r20, r21, r24-r28, r30 and r32 explicitly, the rest are implied by the contiguous numbering). The remaining 53 are one-off experiment folders around the main line: `c1-c8`, `b1-b5`, `f1-f5`, `g1-g4`, `k1-k4`, `n0-n4`, `s1-s4`, `e1-e4`, `sg1-sg3`, `lt0-lt7`, `at1-at3`. In total 14 + 1 + 27 + 53 = 95 (68 with a folder, 27 from notes).
 
-Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287).
+Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290).
 
-**Current latest version: `real/G3` = v287; current best `real/E2` = v283.** **The next new version is v288** (round H, the curl rebuild).
+**Current latest version: `real/H3` = v290 (smoothest so far; the apex still wrong).** **The next new version is v291** (round I: I1-I3 = v291-v293).
 
 ### Numbering scheme
 
@@ -255,4 +255,11 @@ Each new round is appended, not rewritten.
 - Owner review of E2 (2026-10-10), boxes drawn on the side-by-side: "ive boxed everything thats wrong the apex and the fodls thats it" (apex, top-K tip, far-left fold, bottom-K corner at the right leg), then "also just noticed this wrap around is also wrong not phsycally possible" (the wrap's curl down the outside of the left leg). Everything else (tail, S, sweep, crossbar, return, legs) passed.
 - G (v285–v287): wider flattening around the apex/top-K (G1), plus the in-plane fold line (G2), plus a stronger face rule (G3). The apex now changes face cleanly, but as a creased flat top with a short ledge, and the worst normal change climbs back to 63–67°. Rejected.
 - **The breakthrough diagnosis (2026-10-10).** Close crops of the five boxed turns against the mockup show that NONE of the mockup's turns is a crease. Every one is a ring-like CURL: the band bends around one axis, keeps its full width, its width stays square to the path, and its edges stay smooth concentric curves. The visible face changes only because the curl is seen at an angle (outside face on one side, the darker inside face on the other); the two edges then cross over in projection, exactly as the owner's "edge crossover" rule describes. Since round W we had been building oblique paper folds (the ruling at 30–60° to the path at the crease), which is what produced the gooseneck apex, the edge-on stretches, the chamfered far-left and the sliver at the wrap.
-- Running total: 287 versions.
+- The owner, on seeing this: "please dude for gods sake just imagine for yourself ... get it done apple level polish and detail and attention to detail and smoothness everythingggg".
+- New fitter term `--curl a:b:R:w` (commit facf876): inside a turn window the band is a true cylinder band: its width stays square to the path, it does not rotate (no twist), and the radius has a minimum. A regression test confirmed the old settings give identical results.
+- H (v288–v290), the curl rebuild: all five turns (far-left, apex, bottom-K, wrap, top-K tip) as curls, no creases.
+  - H1 (weight 30, smaller radii): the smoothest yet (normal change 6°), but the wrap no longer goes round the leg. Rejected.
+  - H2 (H1 + flattening): the curls coiled into extra loops, and one intersection. Rejected: flattening fights curls.
+  - **H3 (weight 60, radii 35–55): v290.** Normal change at most 9.8° (E2 17°), wrap verified, no intersections. The wrap is finally a full-width curl round the leg, and the bottom-K a round ring showing its inner face. But the apex reads as a flat ledge (its curl axis lies in the screen plane, so it rolls backward in depth), the top-K tip pinches, and the far-left is a stepped overlap.
+  - Lesson: a curl also needs the right AXIS. To read as a round arch from the front, the apex's axis must point mostly at the viewer (tilted about 45°); the wrap's axis must lie along the leg. New term `--bz a:b:t:w` targets the axis's depth component.
+- Running total: 290 versions.

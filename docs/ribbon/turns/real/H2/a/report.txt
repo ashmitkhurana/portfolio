@@ -1,0 +1,30 @@
+a  K=160  init=perp  [round 0 nfev=103 status=2 (ftol`) cost 9763.358]  [round 1 nfev=94 status=2 (ftol`) cost 9661.054]  [round 2 nfev=26 status=2 (ftol`) cost 9650.525]  [round 3 nfev=24 status=2 (ftol`) cost 9644.395]
+args: {"K": 160, "bend": 30.0, "box_pose": "", "box_rings": "", "box_trace": 0.15, "clear": 5.0, "clear_range": "860:1066-388:483", "curl": "340:405:30:30,488:552:40:30,700:790:45:30,925:1025:30:30,1160:1230:45:30", "dbend": 500.0, "delta": 60.0, "dtwist": 500.0, "edge_fair": 0.0, "edge_w": "", "end_pin": 50.0, "energy_ranges": "", "eps": 0.3, "face_margin": 0.3, "faceon": "925:1025:20", "faces": "docs/ribbon/turns/real/faces.json", "flat": 6.0, "flat_ranges": "470:560,1140:1240", "flip_guard": 20.0, "fold": "", "fold2": "", "fold_axis": "", "fold_convex": "", "fold_eq": false, "fold_legs": 5.0, "fold_legs_len": "20", "gap": 14.0, "hide": "", "hide_auto": "", "hmax": 25.5, "hmin": 25.5, "init": "perp", "inside": 0.0, "kappa": 2.0, "lam": 15.0, "lam_h": 50.0, "mask": "", "max_nfev": 150, "mu": 300.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/real/H2/a", "outer": 4, "outline": 0.0, "outline_assign": "nearest", "outline_boxes": "", "outline_drop_near": "", "outline_excl": "", "outline_fixed": false, "outline_incl": "", "outline_loss": "linear", "outline_pose": "", "pin_range": "", "pose": "docs/ribbon/turns/fit/kk4/pose.json", "redge": 24.0, "rim_pose": "", "rim_side_mode": "centre", "rimlines": "", "rmin": 45.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "", "sigma": 2.0, "trace_w": 0.15, "twist": 30.0, "w_box": 2.0, "w_face": 15.0, "w_hmin": 50.0, "w_redge": 5.0, "w_rim": 0.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/fit/kk4/pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 9.899  p95 40.607  max 57.114
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean  14.90  p95  32.31  max  43.40           25.5/ 25.5/ 25.5      0.133         1
+[ 132, 288]  mean   1.74  p95   4.71  max  11.17           25.5/ 25.5/ 25.5      0.446         0
+[ 289, 483]  mean   8.01  p95  20.11  max  24.19           25.5/ 25.5/ 25.5      0.185         22
+[ 484, 554]  mean  31.31  p95  54.79  max  57.11           25.5/ 25.5/ 25.5      0.033         0
+[ 555, 658]  mean   4.02  p95  10.16  max  18.75           25.5/ 25.5/ 25.5      0.346         0
+[ 659, 764]  mean  15.34  p95  39.54  max  41.30           25.5/ 25.5/ 25.5      0.265         17
+[ 765, 940]  mean   5.12  p95  18.07  max  36.32           25.5/ 25.5/ 25.5      0.104         0
+[ 941,1066]  mean  22.67  p95  54.59  max  55.72           25.5/ 25.5/ 25.5      0.004         9
+[1067,1298]  mean   4.45  p95  16.81  max  21.60           25.5/ 25.5/ 25.5      0.060         26
+worst window by mean: [484,554] 31.31 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 2.158 deg  p99 1.946 deg
+   angle per world px of centreline arclength: max 4.3936 deg/px  (p99 3.6464)
+   worst dense samples (t, deg, |b.T|): 537.19, 2.2, 0.038; 536.94, 2.1, 0.039; 536.69, 2.1, 0.039; 536.44, 2.1, 0.039; 520.70, 2.1, 0.041
+   dense steps > 3 deg: 0, > 6 deg: 0
+ripple (|second difference of unit N| per world px^2, dense): max 1.917e-02  p99 9.534e-03  median 5.475e-04
+max |b.T| outside fold windows: 0.716   (inside: 0.970)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 13.94 px; pairs < gap 14.0: 2
+GATE: screen-overlap pairs (3 px) 1727, order violations (z_front - z_back < 0): 6, (< gap): 7; unique ring pairs violating: 1
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 2.060  max 47.44  frac>0.5px 0.181
+outline residual (css px, matched <=25 px: 1596 of 1634 pts): mean 7.399  p95 19.275  max 24.99
+run time: 211.9 s
+residual block norms (sum of squares): edge 2203.31, smooth 3036.86, jerk 274.37, perp 3548.67, dev 1483.06, depth 746.03, hsm 0.00, wpr 0.00, speed 62.93, hmin 0.01, hmax 2.46, face 5.05, rmin 470.62, scrw 0.00, wf 0.00, ins 0.00, fcr 25.13, bnd 746.19, twi 181.18, dbn 158.14, dtw 743.82, rmf 0.00, crl 231.31, lgb 0.00, cvx 0.00

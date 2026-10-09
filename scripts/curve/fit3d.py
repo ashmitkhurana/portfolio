@@ -537,6 +537,18 @@ class Problem:
             r = np.minimum(ramp(np.clip((k - a0) / 10.0, 0, 1)), ramp(np.clip((b0 - k) / 10.0, 0, 1)))
             fw = float(w0) * np.where((k >= a0) & (k <= b0), r, 0.0)
         self.fw = fw
+        self.bzw = np.zeros(N); self.bzt = np.zeros(N)
+        if getattr(a, "bz", ""):
+            kk = np.arange(N).astype(float)
+            smc = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            for spec in [q for q in a.bz.split(",") if q]:
+                a0, b0, t0, w0 = spec.split(":"); a0, b0, t0, w0 = int(a0), int(b0), float(t0), float(w0)
+                r = smc((kk - a0 + 0.5) / 4.0) * smc((b0 - kk + 0.5) / 4.0)
+                r = np.where((kk >= a0) & (kk <= b0), r, 0.0)
+                m = (w0 * r) > self.bzw
+                self.bzw = np.where(m, w0 * r, self.bzw)
+                self.bzt = np.where(m, t0, self.bzt)
+                print("bz rings %d..%d t %.2f w %.1f" % (a0, b0, t0, w0), flush=True)
         self.fz = np.zeros(N)
         self.Rz = np.full(N, 1e9)
         self.wz = np.zeros(N)
@@ -772,7 +784,7 @@ class Problem:
             speed=speed[:, None],
             hmin=(a.w_hmin * np.maximum(0.0, a.hmin - h))[:, None],
             hmax=(a.w_hmin * np.maximum(0.0, h - a.hmax))[:, None],
-            face=(self.fw * b[:, 2])[:, None],
+            face=(self.fw * b[:, 2] + self.bzw * (np.sqrt(b[:, 2] ** 2 + 1e-6) - self.bzt))[:, None],
             fcr=self.face_rule(c, T, b)[:, None],
             **self.elastic(c1, c2, T, b, g, kap),
             rmin=((((1.0 - self.fz) * (1.0 - self.curlz) * a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin)) if a.rmin > 0 else 0.0) + self.curlw * self.curlR * np.maximum(0.0, kap - 1.0 / self.curlR))[:, None] if (a.rmin > 0 or a.curl) else np.zeros((self.N, 1)),
@@ -1388,6 +1400,7 @@ def main():
     ap.add_argument("--hide", default="")
     ap.add_argument("--edge_w", default="", help="a:b:SIDE:w[,...] multiply the edge-fit weight of one edge (L or R)")
     ap.add_argument("--faceon", default="", help="a:b:w residual w*b_z (pull the ruling into the screen plane)")
+    ap.add_argument("--bz", default="", help="a:b:t:w[,...] target |b_z| = t (ruling depth component; 0 face-on width, 1 pointing at the camera) over pose rings a..b with 4-ring smoothstep ramps: w*(sqrt(b_z^2+1e-6)-t); default off")
     ap.add_argument("--hide_auto", default="", help="l0:l1:start, e.g. 388:483:945 (hidden path inside the left leg footprint)")
     ap.add_argument("--rmin", type=float, default=0.0, help="curvature hinge: radius R (world px); residual w_rmin*R*max(0, kappa-1/R)")
     ap.add_argument("--w_rmin", type=float, default=0.0)
