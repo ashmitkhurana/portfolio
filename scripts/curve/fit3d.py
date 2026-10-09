@@ -54,6 +54,321 @@ def inside_field(path=None):
 
 
 UB = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
+OUT_EXCL = "67:393:127:497;265:475:335:555"
+_OUT = {}
+
+
+def outline_points(path=None, excl=None, pitch=2.0, incl=None):
+    """Mockup silhouette boundary (alpha>128 xor eroded) as css points, ~1 per `pitch` css px, minus exclusion boxes and y>820."""
+    from PIL import Image
+    from scipy import ndimage as ndi
+    path = path or os.path.join(ROOT, "docs", "ribbon", "ref", "ak-signature-cutout.webp")
+    excl = OUT_EXCL if excl is None or excl == "" else excl
+    incl = incl or ""
+    key = (path, excl, pitch, incl)
+    if key not in _OUT:
+        al = np.asarray(Image.open(path).convert("RGBA").split()[3]) > 128
+        h_, w_ = al.shape
+        bd = al & ~ndi.binary_erosion(al, border_value=1)
+        yy, xx = np.nonzero(bd)
+        P = np.stack([xx * VW / w_, yy * VH / h_], 1)
+        cell = (np.floor(P[:, 0] / pitch).astype(np.int64) * 100003 + np.floor(P[:, 1] / pitch).astype(np.int64))
+        _, first = np.unique(cell, return_index=True)
+        P = P[np.sort(first)]
+        keep = P[:, 1] <= 820
+        for box in [q for q in excl.split(";") if q]:
+            x0, y0, x1, y1 = [float(v) for v in box.split(":")]
+            keep &= ~((P[:, 0] >= x0) & (P[:, 0] <= x1) & (P[:, 1] >= y0) & (P[:, 1] <= y1))
+        ib = [q for q in incl.split(";") if q]
+        if ib:
+            inc = np.zeros(len(P), bool)
+            for box in ib:
+                x0, y0, x1, y1 = [float(v) for v in box.split(":")]
+                inc |= (P[:, 0] >= x0) & (P[:, 0] <= x1) & (P[:, 1] >= y0) & (P[:, 1] <= y1)
+            keep &= inc
+        _OUT[key] = P[keep]
+    return _OUT[key]
+
+
+def _samples(pL, pR):
+    """(2, 2N-1, 2): per side the ring points interleaved with ring midpoints."""
+    N = len(pL)
+    QQ = np.empty((2, 2 * N - 1, 2))
+    for s_, P in enumerate((pL, pR)):
+        QQ[s_, 0::2] = P
+        QQ[s_, 1::2] = (P[:-1] + P[1:]) / 2
+    return QQ
+
+
+def outline_assign(pL, pR, O, dmax=12.0, margin=6.0, far=40):
+    """Assign each outline point ONCE to (side, ring) = its nearest projected edge sample; drop ambiguous / far points.
+    Ambiguous: a competing sample (same side with |ring diff|>far, or the other side of the same strand) within `margin`
+    css px of the nearest distance. Returns side, ring, keep (bool) and counts."""
+    N = len(pL)
+    QQ = _samples(pL, pR)
+    flat = QQ.reshape(-1, 2)
+    lab_side = np.repeat(np.arange(2), 2 * N - 1)
+    lab_ring = np.tile(np.arange(2 * N - 1) // 2, 2)
+    tree = cKDTree(flat)
+    d1, k1 = tree.query(O)
+    side, ring = lab_side[k1], lab_ring[k1]
+    keep = d1 <= dmax
+    n_far = int((~keep).sum())
+    amb = np.zeros(len(O), bool)
+    for j in np.nonzero(keep)[0]:
+        idx = np.array(tree.query_ball_point(O[j], d1[j] + margin), int)
+        if len(idx) == 0:
+            continue
+        other_side = lab_side[idx] != side[j]
+        far_ring = np.abs(lab_ring[idx] - ring[j]) > far
+        # competitor: another strand (ring differs by > far, either side), or the other side of the same ring neighbourhood
+        comp = far_ring | other_side
+        if comp.any():
+            amb[j] = True
+    keep &= ~amb
+    return side, ring, keep, dict(far=n_far, ambiguous=int(amb.sum()), kept=int(keep.sum()), total=len(O))
+
+
+def outline_fixed_res(pL, pR, O, side, ring, half=8):
+    """Vector from each outline point to the nearest point of its ASSIGNED edge polyline (rings ring+-half only). (M,2), (M,)."""
+    N = len(pL)
+    QQ = _samples(pL, pR)
+    base = 2 * ring
+    idx = np.clip(base[:, None] + np.arange(-2 * half, 2 * half + 1)[None, :], 0, 2 * N - 2)
+    Qw = QQ[side[:, None], idx]  # (M, W, 2)
+    A_, B_ = Qw[:, :-1], Qw[:, 1:]
+    ab = B_ - A_
+    t = np.clip(((O[:, None, :] - A_) * ab).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-9), 0, 1)
+    C_ = A_ + ab * t[..., None]
+    d2 = ((C_ - O[:, None, :]) ** 2).sum(-1)
+    j = np.argmin(d2, 1)
+    C = C_[np.arange(len(O)), j]
+    return C - O, np.sqrt(d2[np.arange(len(O)), j])
+
+
+def parse_boxes(spec):
+    return [tuple(float(v) for v in b.split(":")) for b in (spec or "").split(";") if b]
+
+
+def in_boxes(P, boxes, pad=0.0):
+    m = np.zeros(len(P), bool)
+    for x0, y0, x1, y1 in boxes:
+        m |= (P[:, 0] >= x0 - pad) & (P[:, 0] <= x1 + pad) & (P[:, 1] >= y0 - pad) & (P[:, 1] <= y1 + pad)
+    return m
+
+
+def box_candidates(c, boxes, rings_spec, pad=25.0):
+    """Per box: candidate rings = rings whose projected centreline lies in the box (+pad), or the explicit ranges."""
+    specs = (rings_spec or "").split(";") if rings_spec else []
+    out = []
+    for k, bx in enumerate(boxes):
+        sp = specs[k] if k < len(specs) else ""
+        if sp:
+            idx = np.concatenate([np.arange(int(r.split(":")[0]), int(r.split(":")[1]) + 1) for r in sp.split(",")])
+        else:
+            idx = np.nonzero(in_boxes(c, [bx], pad))[0]
+        out.append(np.unique(idx))
+    return out
+
+
+def runs_of(idx, gap=3):
+    idx = np.sort(idx)
+    if len(idx) == 0:
+        return []
+    r, st, pv = [], idx[0], idx[0]
+    for k in idx[1:]:
+        if k > pv + gap:
+            r.append((int(st), int(pv))); st = k
+        pv = k
+    r.append((int(st), int(pv)))
+    return r
+
+
+def outline_centre_assign(pL, pR, P, boxes, cands, dmax=70.0, rej=1.3, far=40):
+    """Assign outline points P (inside the boxes) to the nearest CENTRELINE ring of their box's candidate set (<= dmax css px);
+    side from the sign of cross(screen tangent, p - c_i) mapped to whichever of the ring's projected L/R is on that side.
+    Reject when a centreline ring of another strand (|ring diff| > far) is within rej x the chosen distance."""
+    N = len(pL)
+    c = (pL + pR) / 2
+    pad = np.pad(c, ((3, 3), (0, 0)), mode="edge")
+    t = pad[6:] - pad[:-6]
+    t /= np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
+    tree = cKDTree(c)
+    M = len(P)
+    ring = np.zeros(M, int); side = np.zeros(M, int); keep = np.zeros(M, bool); dist = np.full(M, np.inf)
+    cross = lambda a_, b_: a_[..., 0] * b_[..., 1] - a_[..., 1] * b_[..., 0]
+    box_of = np.full(M, -1)
+    for k, bx in enumerate(boxes):
+        box_of[(box_of < 0) & in_boxes(P, [bx])] = k
+    n_far = n_amb = 0
+    for j in range(M):
+        cand = cands[box_of[j]]
+        d = np.linalg.norm(c[cand] - P[j], axis=1)
+        m = int(np.argmin(d)); i = int(cand[m]); dj = d[m]
+        ring[j], dist[j] = i, dj
+        if dj > dmax:
+            n_far += 1
+            continue
+        near = np.array(tree.query_ball_point(P[j], rej * dj), int)
+        if len(near) and (np.abs(near - i) > far).any():
+            n_amb += 1
+            continue
+        sp_ = cross(t[i], P[j] - c[i]); sl = cross(t[i], pL[i] - c[i])
+        side[j] = 0 if sp_ * sl >= 0 else 1
+        keep[j] = True
+    return side, ring, keep, dict(far=n_far, ambiguous=n_amb, kept=int(keep.sum()), total=M, box_of=box_of)
+
+
+RIM_CAND = os.path.join(ROOT, "docs", "ribbon", "turns", "rims", "candidates.json")
+
+
+def rim_points(spec_path, pitch=2.0):
+    """Picked interior rim polylines (cutout px in candidates.json) -> css points every `pitch` css px.
+    spec: json list of {"id": "T9-01", "rings": [a, b]}. Returns list of (id, (a, b), pts (n,2) css)."""
+    spec = json.load(open(spec_path))
+    cand = json.load(open(RIM_CAND))
+    out = []
+    for e in spec:
+        if "src" in e:  # ["owner", file, "solid"|"dashed", index]: owner strokes in cutout px
+            _, fn, kind, idx = e["src"]
+            P = np.asarray(json.load(open(os.path.join(os.path.dirname(RIM_CAND), "owner", fn)))[kind][idx], float) / SCUT
+        else:
+            P = np.asarray(cand[e["id"]], float) / SCUT
+        seg = np.linalg.norm(np.diff(P, axis=0), axis=1)
+        cum = np.r_[0.0, np.cumsum(seg)]
+        tt = np.r_[np.arange(0.0, cum[-1], pitch), cum[-1]]
+        Q = np.stack([np.interp(tt, cum, P[:, 0]), np.interp(tt, cum, P[:, 1])], 1)
+        out.append((e["id"], (int(e["rings"][0]), int(e["rings"][1])), Q, e.get("rel", "opposite"), e.get("box", -1)))
+    return out
+
+
+def own_silhouette(pL, pR, boxes, r0, r1, dmax=45.0):
+    """Outline points (NO exclusion boxes) inside `boxes` whose nearest centreline ring over ALL rings is in r0..r1 and <= dmax css px:
+    the strand's own silhouette points, for strands the default outline exclusion / centre assignment leaves without any (the left leg).
+    Returns (ring, side) with the side by the sign rule."""
+    c = (pL + pR) / 2
+    pad = np.pad(c, ((3, 3), (0, 0)), mode="edge")
+    t = pad[6:] - pad[:-6]
+    t /= np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
+    O = outline_points(excl="0:0:0:0")
+    O = O[in_boxes(O, boxes)]
+    dd, ii = cKDTree(c).query(O)
+    m = (ii >= r0) & (ii <= r1) & (dd <= dmax)
+    cross = lambda a_, b_: a_[..., 0] * b_[..., 1] - a_[..., 1] * b_[..., 0]
+    sd = np.array([0 if cross(t[i], P - c[i]) * cross(t[i], pL[i] - c[i]) >= 0 else 1 for P, i in zip(O[m], ii[m])], int)
+    return ii[m], sd, O[m]
+
+
+def rim_assign(pL, pR, entries, sil=None, boxes=None, win=10, ksp=3):
+    """Assign each rim point ONCE to (side, ring): ring = nearest projected centreline ring inside the entry's ring range,
+    side from the sign of cross(screen tangent, p - c_i) mapped to that ring's projected L/R (as outline_centre_assign).
+    sil=(ring, side, box index, xy) of the box silhouette points (centre assignment): the side is then FORCED, ONE side per line:
+    rel "opposite": 1 - S_out, S_out = majority side of the same-box silhouette points whose ring lies in [min ring, max ring] of the
+    line's points (+-win); rel "same": the majority side of the ksp silhouette points nearest in the screen to each line point (the
+    line coincides with that silhouette edge). Entries with no same-box silhouette points in range use the strand's own outline
+    (own_silhouette). Returns pts (M,2), side (M,), ring (M,), eid (M,), dist (M,) to the centre ring."""
+    c = (pL + pR) / 2
+    pad = np.pad(c, ((3, 3), (0, 0)), mode="edge")
+    t = pad[6:] - pad[:-6]
+    t /= np.maximum(np.linalg.norm(t, axis=1, keepdims=True), 1e-9)
+    cross = lambda a_, b_: a_[..., 0] * b_[..., 1] - a_[..., 1] * b_[..., 0]
+    PT, SD, RG, EI, DS = [], [], [], [], []
+    for k, (nm, (r0, r1), Q, rel, bx) in enumerate(entries):
+        cand = np.arange(r0, r1 + 1)
+        rr, ss, dd_, sd0 = [], [], [], []
+        for q in Q:
+            d = np.linalg.norm(c[cand] - q, axis=1)
+            m = int(np.argmin(d)); i = int(cand[m])
+            sp_ = cross(t[i], q - c[i]); sl = cross(t[i], pL[i] - c[i])
+            rr.append(i); dd_.append(d[m]); sd0.append(0 if sp_ * sl >= 0 else 1)
+        rr = np.array(rr)
+        if sil is None:
+            sdv = np.array(sd0)
+        else:
+            sm = (sil[0] >= r0) & (sil[0] <= r1) & (sil[2] == bx)
+            if sm.any():
+                sr_, ss_, sx_ = sil[0][sm], sil[1][sm], sil[3][sm]
+            else:
+                sr_, ss_, sx_ = own_silhouette(pL, pR, boxes, r0, r1)
+                print("rim_assign: %s rings %d:%d has no box-assigned silhouette points; own strand outline (no exclusion): %d pts, L %d R %d" % (nm, r0, r1, len(sr_), (ss_ == 0).sum(), (ss_ == 1).sum()))
+                if len(sr_) == 0:
+                    raise SystemExit("rim_assign: no silhouette points for rings %d:%d" % (r0, r1))
+            if rel == "same":
+                votes = []
+                for q in Q:
+                    nn = np.argsort(np.linalg.norm(sx_ - q, axis=1))[:ksp]
+                    votes.extend(ss_[nn].tolist())
+                sout = 1 if np.mean(votes) > 0.5 else 0
+                sdv = np.full(len(Q), sout)
+            else:
+                w = (sr_ >= rr.min() - win) & (sr_ <= rr.max() + win)
+                if not w.any():
+                    w = np.argsort(np.abs(sr_ - np.median(rr)))[:15]
+                sout = 1 if ss_[w].mean() > 0.5 else 0
+                sdv = np.full(len(Q), 1 - sout)
+            print("rim_assign: %-6s rel %-8s rings %d..%d -> forced side %s" % (nm, rel, rr.min(), rr.max(), "L" if sdv[0] == 0 else "R"))
+        for j in range(len(Q)):
+            PT.append(Q[j]); SD.append(int(sdv[j])); RG.append(int(rr[j])); EI.append(k); DS.append(dd_[j])
+    return np.array(PT).reshape(-1, 2), np.array(SD, int), np.array(RG, int), np.array(EI, int), np.array(DS)
+
+
+def draw_assign(prob, path):
+    from PIL import Image, ImageDraw
+    cut = Image.open(os.path.join(ROOT, "docs", "ribbon", "ref", "ak-signature-cutout.webp")).convert("RGBA")
+    bg = Image.new("RGBA", cut.size, (17, 17, 17, 255)); bg.alpha_composite(cut)
+    im = bg.convert("RGB").resize((780, 1688), Image.LANCZOS)
+    d = ImageDraw.Draw(im)
+    S2 = 2.0
+    for x0, y0, x1, y1 in prob.box_boxes:
+        d.rectangle([x0 * S2, y0 * S2, x1 * S2, y1 * S2], outline=(255, 255, 255), width=1)
+    bL, bR = prob.box_cpose
+    c = (bL + bR) / 2
+    d.line([tuple(q) for q in c * S2], fill=(255, 255, 0), width=1)
+    for pt, kp, sd in zip(prob.box_all, prob.box_keep, prob.box_side_all):
+        col = ((0, 255, 255) if sd == 0 else (255, 0, 255)) if kp else (130, 130, 130)
+        x, y = pt * S2
+        d.ellipse([x - 2, y - 2, x + 2, y + 2], fill=col)
+    # connect each kept point to its assigned centre ring
+    for pt, kp, ri in zip(prob.box_all, prob.box_keep, prob.box_ring_all):
+        if kp:
+            d.line([tuple(pt * S2), tuple(c[ri] * S2)], fill=(90, 90, 40), width=1)
+    im.save(path)
+
+
+def soft_l1(vec, f=2.0):
+    r = np.linalg.norm(vec, axis=1, keepdims=True)
+    rho = np.sqrt(2.0 * (np.sqrt(1.0 + (r / f) ** 2) - 1.0)) * f
+    return vec * rho / np.maximum(r, 1e-9)
+
+
+def outline_match(pL, pR, O, rmax=25.0):
+    """For each outline point O (M,2): vector to the nearest point of the projected band-edge polylines (rings + midpoints), the
+    nearest ring index and distance. pL, pR: (N,2) css. Distance > rmax -> matched False."""
+    N = len(pL)
+    res = []
+    for P in (pL, pR):
+        Q = np.empty((2 * N - 1, 2))
+        Q[0::2] = P
+        Q[1::2] = (P[:-1] + P[1:]) / 2
+        tree = cKDTree(Q)
+        d, k = tree.query(O)
+        best = None
+        cand = []
+        for dk in (-1, 0):  # segments (k-1,k) and (k,k+1)
+            a_ = np.clip(k + dk, 0, len(Q) - 2)
+            A_, B_ = Q[a_], Q[a_ + 1]
+            ab = B_ - A_
+            t = np.clip(((O - A_) * ab).sum(1) / np.maximum((ab * ab).sum(1), 1e-9), 0, 1)
+            C_ = A_ + ab * t[:, None]
+            cand.append((((C_ - O) ** 2).sum(1), C_))
+        use = cand[1][0] < cand[0][0]
+        C_ = np.where(use[:, None], cand[1][1], cand[0][1])
+        res.append((np.sqrt(np.where(use, cand[1][0], cand[0][0])), C_, np.minimum(k // 2, N - 1)))
+    useR = res[1][0] < res[0][0]
+    dist = np.where(useR, res[1][0], res[0][0])
+    C = np.where(useR[:, None], res[1][1], res[0][1])
+    ring = np.where(useR, res[1][2], res[0][2])
+    return C - O, dist, ring, dist <= rmax
 
 
 def pose_to_world(p):
@@ -95,6 +410,8 @@ class Basis:
         self.B = sp(self.t)
         self.B1 = sp.derivative(1)(self.t)
         self.B2 = sp.derivative(2)(self.t)
+        self.t2 = np.linspace(0, N - 1, 2 * N - 1)
+        self.Bh = sp(self.t2)
         self.B3 = sp.derivative(3)(self.t)
 
     def fit(self, Y):
@@ -145,7 +462,66 @@ class Problem:
         we = np.ones(N)
         we[CURL[0]:CURL[1] + 1] = 0.3
         we[LOOP[0]:LOOP[1] + 1] = 0.5
-        self.we = we / a.sigma
+        self.we = we / a.sigma * a.trace_w
+        self.outline_pts = outline_points(a.mask or None, a.outline_excl, incl=a.outline_incl) if a.outline > 0 else None
+        self.out_rings = None
+        self.out_info = None
+        self.out_fixed = False
+        if a.outline > 0 and a.outline_fixed:
+            ap_ = json.load(open(a.outline_pose or a.pose))["variants"]["phone"]["ruled"]
+            qL = project(pose_to_world([r["L"] for r in ap_])); qR = project(pose_to_world([r["R"] for r in ap_]))
+            self.box_pts = np.zeros((0, 2)); self.box_side = np.zeros(0, int); self.box_ring = np.zeros(0, int); self.box_info = None
+            boxes = parse_boxes(a.outline_boxes) if a.outline_assign == "centre" else []
+            if boxes:
+                bp = json.load(open(a.box_pose or a.outline_pose or a.pose))["variants"]["phone"]["ruled"]
+                bL = project(pose_to_world([r["L"] for r in bp])); bR = project(pose_to_world([r["R"] for r in bp]))
+                inb = in_boxes(self.outline_pts, boxes)
+                Pin = self.outline_pts[inb]
+                self.outline_pts = self.outline_pts[~inb]
+                cands = box_candidates((bL + bR) / 2, boxes, a.box_rings)
+                bs_, br_, bk_, binfo = outline_centre_assign(bL, bR, Pin, boxes, cands)
+                self.box_all = Pin; self.box_keep = bk_; self.box_side_all = bs_; self.box_ring_all = br_
+                self.box_pts, self.box_side, self.box_ring = Pin[bk_], bs_[bk_], br_[bk_]
+                self.box_info = binfo; self.box_cands = cands; self.box_boxes = boxes
+                self.box_cpose = (bL, bR)
+                # trace weight x0.15 for rings whose init centreline lies inside a box
+                inr = in_boxes((bL + bR) / 2, boxes)
+                self.we = self.we * np.where(inr, a.box_trace, 1.0)
+            if a.outline_drop_near:
+                sites = []
+                for spec in [q for q in a.outline_drop_near.split(",") if q]:
+                    a0, b0 = spec.split(":")
+                    sites.append(np.vstack([qL[int(a0):int(b0) + 1], qR[int(a0):int(b0) + 1]]))
+                sites = np.vstack(sites)
+                dn, _ = cKDTree(sites).query(self.outline_pts)
+                nd = dn < 10.0
+                self.outline_pts = self.outline_pts[~nd]
+                n_drop_near = int(nd.sum())
+            else:
+                n_drop_near = 0
+            side, ring, keep, info = outline_assign(qL, qR, self.outline_pts)
+            info["near_dropped"] = n_drop_near
+            self.outline_pts = self.outline_pts[keep]
+            self.out_side, self.out_ring = side[keep], ring[keep]
+            self.out_rings = self.out_ring
+            self.out_info = info
+            self.out_fixed = True
+        self.rim_pts = np.zeros((0, 2)); self.rim_side = np.zeros(0, int); self.rim_ring = np.zeros(0, int)
+        self.rim_eid = np.zeros(0, int); self.rim_entries = []
+        if a.rimlines and a.w_rim > 0:
+            rp_ = json.load(open(a.rim_pose or a.box_pose or a.outline_pose or a.pose))["variants"]["phone"]["ruled"]
+            rL = project(pose_to_world([r["L"] for r in rp_])); rR = project(pose_to_world([r["R"] for r in rp_]))
+            self.rim_entries = rim_points(a.rimlines)
+            sil = None
+            if a.rim_side_mode == "opposite":
+                if not hasattr(self, "box_ring_all"):
+                    raise SystemExit("--rim_side_mode opposite needs --outline_assign centre --outline_boxes")
+                sil = (self.box_ring_all[self.box_keep], self.box_side_all[self.box_keep], self.box_info["box_of"][self.box_keep], self.box_all[self.box_keep])
+            self.rim_pts, self.rim_side, self.rim_ring, self.rim_eid, self.rim_dist = rim_assign(rL, rR, self.rim_entries, sil, boxes=self.box_boxes)
+            for k_, (nm_, rg_, _, rel_, _) in enumerate(self.rim_entries):
+                m_ = self.rim_eid == k_
+                print("rim line %-6s rings %d:%d rel %-8s forced sides L %d R %d" % (nm_, rg_[0], rg_[1], rel_ if sil is not None else "-", (self.rim_side[m_] == 0).sum(), (self.rim_side[m_] == 1).sum()), flush=True)
+            self.rim_cpose = (rL, rR)
         self.mulL = np.ones(N)
         self.mulR = np.ones(N)
         for spec in [q for q in a.edge_w.split(",") if q]:
@@ -172,6 +548,14 @@ class Problem:
             sw = np.where(m, float(w0) * r, sw)
             swt = np.where(m, float(tg), swt)
         self.sw, self.swt = sw, swt
+        wfW = np.full(N, float(a.wfloor))
+        for spec in [q for q in a.wfloor_ranges.split(",") if q]:
+            a0, b0, W0 = spec.split(":")
+            wfW[int(a0):int(b0) + 1] = float(W0)
+        for spec in [q for q in a.wfloor_except.split(",") if q]:
+            a0, b0 = spec.split(":")
+            wfW[int(a0):int(b0) + 1] = 0.0
+        self.wfW = wfW
         nu = np.ones(N)
         for lo, hi in FOLDS:
             nu[lo:hi + 1] = a.nu_fold
@@ -241,6 +625,19 @@ class Problem:
         eR = (pR - self.near(pR, self.SA_R, self.SB_R)) * (self.we * self.mulR)[:, None]
         edge = np.concatenate([eL, eR], 1)  # (N, 4)
         wscr = np.linalg.norm(pR - pL, axis=1)
+        if a.wfloor > 0 or a.wfloor_ranges:
+            if a.wfloor_mode == "perp":
+                cs = (pL + pR) / 2
+                pad = np.pad(cs, ((3, 3), (0, 0)), mode="edge")
+                tt = pad[6:] - pad[:-6]
+                tt = tt / np.maximum(np.linalg.norm(tt, axis=1, keepdims=True), 1e-9)
+                dd = pR - pL
+                wvis = np.abs(dd[:, 0] * tt[:, 1] - dd[:, 1] * tt[:, 0])
+            else:
+                wvis = wscr
+            wf = a.w_wfloor * np.maximum(0.0, self.wfW - wvis) / np.maximum(self.wfW, 1e-9) * (self.wfW > 0)
+        else:
+            wf = np.zeros(self.N)
         b2 = np.zeros_like(b)
         b2[1:-1] = b[2:] - 2 * b[1:-1] + b[:-2]
         bp = np.gradient(b, axis=0)
@@ -263,6 +660,7 @@ class Problem:
             face=(self.fw * b[:, 2])[:, None],
             rmin=(a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin))[:, None] if a.rmin > 0 else np.zeros((self.N, 1)),
             scrw=(self.sw * (wscr - self.swt) / self.swt)[:, None],
+            wf=wf[:, None],
             ins=(a.inside * self.field(project(c[:, None, :] + UB[None, :, None] * h[:, None, None] * b[:, None, :]))) if self.field is not None else np.zeros((self.N, 5)),
         )
 
@@ -291,7 +689,46 @@ class Problem:
             if a.order > 0 and len(self.pairs_o[0]):
                 dz = P[self.pairs_o[0], 2] - P[self.pairs_o[1], 2]
                 out.append(a.order * np.maximum(0.0, a.gap - dz))
+        if self.outline_pts is not None:
+            Lw, Rw = self.edges(x)
+            if self.out_fixed:
+                vec, _ = outline_fixed_res(project(Lw), project(Rw), self.outline_pts, self.out_side, self.out_ring)
+                if a.outline_loss == "soft":
+                    vec = soft_l1(vec, 2.0)
+                out.append((a.outline * vec).ravel())
+                if len(self.box_pts):
+                    vb, _ = outline_fixed_res(project(Lw), project(Rw), self.box_pts, self.box_side, self.box_ring, half=10)
+                    out.append((a.w_box * vb).ravel())
+            else:
+                vec, dist, ring, ok = outline_match(project(Lw), project(Rw), self.outline_pts, 25.0)
+                out.append((a.outline * np.where(ok[:, None], vec, 0.0)).ravel())
+        if len(self.rim_pts):
+            Lw, Rw = self.edges(x)
+            vr, _ = outline_fixed_res(project(Lw), project(Rw), self.rim_pts, self.rim_side, self.rim_ring, half=10)
+            out.append((a.w_rim * vr).ravel())
+        if a.redge > 0 and a.w_redge > 0:
+            C, G, H = self.unpack(x)
+            bs = self.bs
+            c2, g2, h2 = bs.Bh @ C, bs.Bh @ G, bs.Bh @ H
+            b2 = unit(g2)
+            kap_all = []
+            for sg in (-1.0, 1.0):
+                E = c2 + sg * h2[:, None] * b2
+                d1 = (E[2:] - E[:-2]) / 1.0  # per 2 samples = per ring
+                d2 = (E[2:] - 2 * E[1:-1] + E[:-2]) * 4.0  # step 0.5 ring
+                kk = np.linalg.norm(np.cross(d1, d2), axis=1) / np.maximum(np.linalg.norm(d1, axis=1), 1e-9) ** 3
+                kap_all.append(np.r_[0.0, kk, 0.0])
+            kap = np.concatenate(kap_all)
+            out.append(a.w_redge * a.redge * np.maximum(0.0, kap - 1.0 / a.redge))
         return np.concatenate(out)
+
+    # ---- outline sparsity: rings the nearest edge point belongs to, +-10 ring window
+    def update_outline(self, x):
+        if self.outline_pts is None or self.out_fixed:
+            return
+        Lw, Rw = self.edges(x)
+        _, _, ring, _ = outline_match(project(Lw), project(Rw), self.outline_pts, 25.0)
+        self.out_rings = ring
 
     # ---- pair lists (rebuilt per outer round)
     def build_pairs(self, x, want_c=True, want_o=True, rebuild_only=False):
@@ -348,6 +785,41 @@ class Problem:
                 M = sel(pr[0]) @ Sup + sel(pr[1]) @ Sup
                 M.data[:] = 1.0
                 blocks.append(M.tocsr())
+        if self.outline_pts is not None:
+            ring = self.out_rings if self.out_rings is not None else np.zeros(len(self.outline_pts), int)
+            if self.out_fixed and len(self.box_pts):
+                ring = np.r_[ring, self.box_ring]
+            M = len(ring)
+            rows, cols = [], []
+            for off in range(-12, 13):
+                rows.append(np.arange(M))
+                cols.append(np.clip(ring + off, 0, N - 1))
+            W = sparse.csr_matrix((np.ones(M * 25), (np.concatenate(rows), np.concatenate(cols))), shape=(M, N))
+            Wm = (W @ Sup)
+            Wm.data[:] = 1.0
+            Wm = Wm.tocsr()
+            # two residual rows per outline point, interleaved (x, y)
+            R2 = sparse.csr_matrix((np.ones(2 * M), (np.arange(2 * M), np.repeat(np.arange(M), 2))), shape=(2 * M, M))
+            blocks.append((R2 @ Wm).tocsr())
+        if len(self.rim_pts):
+            M = len(self.rim_ring)
+            rows, cols = [], []
+            for off in range(-12, 13):
+                rows.append(np.arange(M))
+                cols.append(np.clip(self.rim_ring + off, 0, N - 1))
+            W = sparse.csr_matrix((np.ones(M * 25), (np.concatenate(rows), np.concatenate(cols))), shape=(M, N))
+            Wm = (W @ Sup)
+            Wm.data[:] = 1.0
+            R2 = sparse.csr_matrix((np.ones(2 * M), (np.arange(2 * M), np.repeat(np.arange(M), 2))), shape=(2 * M, M))
+            blocks.append((R2 @ Wm.tocsr()).tocsr())
+        if a.redge > 0 and a.w_redge > 0:
+            M2 = 2 * N - 1
+            Bhn = (abs(sparse.csr_matrix(bs.Bh)) > 0).astype(float)
+            Sh3 = sparse.diags([1, 1, 1], [-1, 0, 1], (M2, M2))
+            Bhd = (abs(Sh3 @ Bhn) > 0).astype(float)
+            ones3_ = sparse.csr_matrix(np.ones((1, 3)))
+            Rr = sparse.hstack([sparse.kron(Bhd, ones3_, format="csr")] * 2 + [Bhd], format="csr")
+            blocks.append(sparse.vstack([Rr, Rr], format="csr"))
         self.jac_sparsity = sparse.vstack(blocks, format="csr")
 
     def _sparsity(self):
@@ -361,6 +833,9 @@ class Problem:
         Sh = sparse.diags([1, 1, 1], [-1, 0, 1], (N, N))
         Bd = nz(Sh @ Bn)  # +-1 sample dilation (finite differences)
         Bd1 = nz(Sh @ B1n)
+        Sh7 = sparse.diags([1] * 7, list(range(-3, 4)), (N, N))
+        B7 = nz(Sh7 @ Bn)
+        B7h = nz(Sh7 @ Bn)
         ones3 = sparse.csr_matrix(np.ones((1, 3)))
         k3 = lambda M: sparse.kron(M, ones3, format="csr")  # N x 3K
         zero = lambda cols: sparse.csr_matrix((N, cols))
@@ -385,6 +860,7 @@ class Problem:
             rmin=(1, row(k3(nz(B1n + B2n)), Z3, ZH)),
             scrw=(1, row(k3(Bn), k3(Bn), Bn)),
             ins=(5, row(k3(Bn), k3(Bn), Bn)),
+            wf=(1, row(k3(B7), k3(B7), B7h)),
         )
         tot = sum(spec[k][0] for k in ORDER)
         # assemble explicit coo with the per-sample row layout
@@ -402,7 +878,7 @@ class Problem:
         return sparse.csr_matrix((np.ones(len(r)), (r, c)), shape=(N * tot, 7 * K))
 
 
-ORDER = ["edge", "smooth", "jerk", "perp", "dev", "depth", "hsm", "wpr", "speed", "hmin", "hmax", "face", "rmin", "scrw", "ins"]
+ORDER = ["edge", "smooth", "jerk", "perp", "dev", "depth", "hsm", "wpr", "speed", "hmin", "hmax", "face", "rmin", "scrw", "wf", "ins"]
 
 
 def hide_targets(tgtL, tgtR, a, b, ha, hb, nblend=8):
@@ -590,6 +1066,24 @@ def metrics(x, prob, tgtL, tgtR, tag, elapsed, a, info=""):
     fld = inside_field(a.mask or None)
     dd = fld(project(c[:, None, :] + UB[None, :, None] * h[:, None, None] * b[:, None, :]))
     lines.append("outside-mockup distance (5 pts across band, css px): mean %.3f  max %.2f  frac>0.5px %.3f" % (dd.mean(), dd.max(), (dd > 0.5).mean()))
+    O = outline_points(a.mask or None, a.outline_excl, incl=a.outline_incl)
+    if prob.out_info is not None:
+        lines.append("outline_fixed: kept %(kept)d of %(total)d (dropped: %(far)d farther than 12 px, %(ambiguous)d ambiguous, %(near_dropped)d near pinch sites; total counted after near-drop)" % prob.out_info)
+        if getattr(prob, 'box_info', None) is not None:
+            bi = prob.box_info
+            lines.append("box centre assignment: kept %d of %d box points (far %d, ambiguous %d); candidate ring runs per box: %s" % (bi["kept"], bi["total"], bi["far"], bi["ambiguous"], "; ".join("B%d %s" % (k + 1, runs_of(cd)) for k, cd in enumerate(prob.box_cands))))
+            vb, db = outline_fixed_res(pL, pR, prob.box_pts, prob.box_side, prob.box_ring, half=10)
+            lines.append("box residual to ASSIGNED edge: mean %.3f  p95 %.3f  max %.2f" % (db.mean(), np.percentile(db, 95), db.max()))
+        vf, df = outline_fixed_res(pL, pR, prob.outline_pts, prob.out_side, prob.out_ring)
+        lines.append("outline residual to ASSIGNED edge (kept pts): mean %.3f  p95 %.3f  max %.2f" % (df.mean(), np.percentile(df, 95), df.max()))
+    vec, dist_, _, ok = outline_match(pL, pR, O)
+    lines.append("outline residual (css px, matched <=25 px: %d of %d pts): mean %.3f  p95 %.3f  max %.2f" % (ok.sum(), len(O), dist_[ok].mean(), np.percentile(dist_[ok], 95), dist_[ok].max()))
+    if len(prob.rim_pts):
+        vr, dr = outline_fixed_res(pL, pR, prob.rim_pts, prob.rim_side, prob.rim_ring, half=10)
+        lines.append("rim lines: %d points, residual to ASSIGNED edge: mean %.3f  p95 %.3f  max %.2f" % (len(dr), dr.mean(), np.percentile(dr, 95), dr.max()))
+        for k, (nm, rg_, _, _, _) in enumerate(prob.rim_entries):
+            mk = prob.rim_eid == k
+            lines.append("   %-6s rings %d:%d  n %3d  mean %.2f  p95 %.2f" % (nm, rg_[0], rg_[1], mk.sum(), dr[mk].mean(), np.percentile(dr[mk], 95)))
     lines.append("run time: %.1f s" % elapsed)
     return "\n".join(lines), e
 
@@ -630,6 +1124,31 @@ def main():
     ap.add_argument("--inside", type=float, default=0.0, help="w: residual w*dist(mockup silhouette) at 5 points across the band (0 inside the mockup)")
     ap.add_argument("--mask", default="", help="cutout image whose alpha is the mockup silhouette (default docs/ribbon/ref/ak-signature-cutout.webp)")
     ap.add_argument("--pin_range", default="", help="a:b:step:w extra centreline pins every `step` rings over a..b")
+    ap.add_argument("--outline", type=float, default=0.0, help="w: pull the band edges onto the mockup silhouette boundary (2D vector to nearest edge point within 25 css px)")
+    ap.add_argument("--outline_excl", default="", help="x0:y0:x1:y1;... css exclusion boxes for the outline points (default: %s; y>820 always dropped)" % OUT_EXCL)
+    ap.add_argument("--outline_incl", default="", help="x0:y0:x1:y1;... css boxes: when given only outline points inside them are used (after the exclusions)")
+    ap.add_argument("--outline_fixed", action="store_true", help="assign each outline point once (side, ring) from --outline_pose (default: the init pose); drop ambiguous / far points")
+    ap.add_argument("--outline_pose", default="", help="pose.json used for the fixed assignment")
+    ap.add_argument("--outline_loss", default="linear", choices=["linear", "soft"], help="soft: soft-L1 shape (f=2 css px) on the outline residuals only")
+    ap.add_argument("--wfloor", type=float, default=0.0, help="W: hinge w_wfloor*max(0, W - visible width)/W at every ring (visible width: see --wfloor_mode)")
+    ap.add_argument("--w_wfloor", type=float, default=0.0)
+    ap.add_argument("--wfloor_mode", default="perp", choices=["perp", "ring"], help="perp: |(pR-pL) x t_screen| (band width perpendicular to the screen centreline tangent); ring: |pR-pL|")
+    ap.add_argument("--wfloor_ranges", default="", help="a:b:W,... per-range floor override")
+    ap.add_argument("--wfloor_except", default="", help="a:b,... ranges with no floor (edge-on allowed)")
+    ap.add_argument("--outline_drop_near", default="", help="a:b,... ring ranges (of --outline_pose): drop outline points within 10 css px of their edges")
+    ap.add_argument("--redge", type=float, default=0.0, help="R: bound the curvature of both edge curves L(t), R(t) (world px): residual w_redge*R*max(0, kappa-1/R)")
+    ap.add_argument("--w_redge", type=float, default=0.0)
+    ap.add_argument("--outline_assign", default="nearest", choices=["nearest", "centre"], help="centre: assign outline points inside --outline_boxes to the nearest CENTRELINE ring (<=70 px)")
+    ap.add_argument("--outline_boxes", default="", help="x0:y0:x1:y1;... css boxes for --outline_assign centre")
+    ap.add_argument("--box_rings", default="", help="per box (';' separated) candidate ring ranges a:b,c:d (empty = rings whose init centreline is in the box +25 px)")
+    ap.add_argument("--box_pose", default="", help="pose.json for the centre assignment (default --outline_pose)")
+    ap.add_argument("--w_box", type=float, default=2.0, help="outline weight inside the boxes")
+    ap.add_argument("--box_trace", type=float, default=0.15, help="trace edge weight multiplier for rings inside the boxes")
+    ap.add_argument("--trace_w", type=float, default=1.0, help="scale of every trace edge-fit weight")
+    ap.add_argument("--rimlines", default="", help="json [{\"id\": \"T9-01\", \"rings\": [a, b]}, ...]: picked interior rim polylines (docs/ribbon/turns/rims/candidates.json), each point assigned once to (side, ring) from --rim_pose")
+    ap.add_argument("--w_rim", type=float, default=0.0, help="weight of the rim-line residual (point -> assigned edge polyline, rings i+-10)")
+    ap.add_argument("--rim_side_mode", default="centre", choices=["centre", "opposite"], help="centre: side from the sign rule vs the init centreline; opposite: forced from the box silhouette points' side (per rim entry rel opposite/same)")
+    ap.add_argument("--rim_pose", default="", help="pose.json used for the rim assignment (default --box_pose, --outline_pose, --pose)")
     ap.add_argument("--zprior", default="", help="pose.json whose centre z the depth prior points at")
     a = ap.parse_args()
     t0 = time.time()
@@ -661,6 +1180,9 @@ def main():
     bs = Basis(N, a.K)
     C, G, H = make_init(L, R, bs, a.init)
     prob = Problem(a, L, R, tgtL, tgtR, bs, C)
+    if getattr(prob, "box_info", None) is not None:
+        os.makedirs(a.out, exist_ok=True)
+        draw_assign(prob, os.path.join(a.out, "assign_boxes.png"))
     if a.hide:
         prob.we[ha_:hb_ + 1] = 0.5 / a.sigma
     if a.zprior:
@@ -674,11 +1196,12 @@ def main():
     if not a.no_opt:
         r0 = prob.fun(x0)
         print("init cost %.3f, residuals %d, params %d" % (0.5 * r0 @ r0, len(r0), len(x0)), flush=True)
-        rounds = a.outer if (a.clear > 0 or a.order > 0) else 1
+        rounds = a.outer if (a.clear > 0 or a.order > 0 or a.outline > 0) else 1
         x = x0
         nf = 0
         for rd in range(rounds):
-            if rounds > 1 or a.end_pin > 0 or a.pin_range:
+            if rounds > 1 or a.end_pin > 0 or a.pin_range or a.outline > 0 or a.redge > 0:
+                prob.update_outline(x)
                 pr = prob.build_pairs(x, a.clear > 0, a.order > 0) if rounds > 1 else {}
                 prob.set_pairs(pr.get("c", prob.pairs_c), pr.get("o", prob.pairs_o))
                 print("round %d: clearance pairs %d, order pairs %d, residuals %d" % (rd, len(prob.pairs_c[0]), len(prob.pairs_o[0]), prob.jac_sparsity.shape[0]), flush=True)
