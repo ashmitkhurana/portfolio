@@ -549,6 +549,18 @@ class Problem:
                 self.bzw = np.where(m, w0 * r, self.bzw)
                 self.bzt = np.where(m, t0, self.bzt)
                 print("bz rings %d..%d t %.2f w %.1f" % (a0, b0, t0, w0), flush=True)
+        self.litw = np.zeros(N); self.litt = np.zeros(N)
+        if getattr(a, "lit", ""):
+            kk = np.arange(N).astype(float)
+            smc = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            for spec in [q for q in a.lit.split(",") if q]:
+                a0, b0, t0, w0 = spec.split(":"); a0, b0, t0, w0 = int(a0), int(b0), float(t0), float(w0)
+                r = smc((kk - a0 + 0.5) / 4.0) * smc((b0 - kk + 0.5) / 4.0)
+                r = np.where((kk >= a0) & (kk <= b0), r, 0.0)
+                m = (w0 * r) > self.litw
+                self.litw = np.where(m, w0 * r, self.litw)
+                self.litt = np.where(m, t0, self.litt)
+                print("lit rings %d..%d t %.2f w %.1f" % (a0, b0, t0, w0), flush=True)
         self.fz = np.zeros(N)
         self.Rz = np.full(N, 1e9)
         self.wz = np.zeros(N)
@@ -808,7 +820,7 @@ class Problem:
             hmin=(a.w_hmin * np.maximum(0.0, a.hmin - h))[:, None],
             hmax=(a.w_hmin * np.maximum(0.0, h - a.hmax))[:, None],
             face=(self.fw * b[:, 2] + self.bzw * (np.sqrt(b[:, 2] ** 2 + 1e-6) - self.bzt))[:, None],
-            fcr=self.face_rule(c, T, b)[:, None],
+            fcr=(self.face_rule(c, T, b) + self.lit_term(c, T, b))[:, None],
             **self.elastic(c1, c2, T, b, g, kap),
             rmin=((((1.0 - self.fz) * (1.0 - self.curlz) * a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin)) if a.rmin > 0 else 0.0) + self.curlw * self.curlR * np.maximum(0.0, kap - 1.0 / self.curlR))[:, None] if (a.rmin > 0 or a.curl) else np.zeros((self.N, 1)),
             **self.fold_terms(c1, g, b, kap, c2, c, T),
@@ -874,6 +886,15 @@ class Problem:
         of = 1.0 - self.fz
         return dict(bnd=(a.bend * sq * kap)[:, None], twi=(of * a.twist * sq * tau)[:, None],
                     dbn=(self.ew * a.dbend * sq * dk)[:, None], dtw=(self.ew * of * a.dtwist * sq * dt)[:, None])
+
+    def lit_term(self, c, T, b):
+        """--lit: w*r*max(0, t - n_vis_y), n_vis = the face normal that points at the camera (smooth sign)."""
+        if not np.any(self.litw):
+            return 0.0
+        Nn = unit(np.cross(T, b))
+        v = unit(np.array([0.0, 0.0, D]) - c)
+        nvy = Nn[:, 1] * np.tanh(np.einsum("ij,ij->i", Nn, v) / 0.1)
+        return self.litw * np.maximum(0.0, self.litt - nvy)
 
     def face_rule(self, c, T, b):
         """w * max(0, m - e * s), s = sign_A * (N . unit(cam - c)), N = unit(T x b); zero where no face is expected / flip zones."""
@@ -1432,6 +1453,7 @@ def main():
     ap.add_argument("--edge_w", default="", help="a:b:SIDE:w[,...] multiply the edge-fit weight of one edge (L or R)")
     ap.add_argument("--faceon", default="", help="a:b:w residual w*b_z (pull the ruling into the screen plane)")
     ap.add_argument("--bz", default="", help="a:b:t:w[,...] target |b_z| = t (ruling depth component; 0 face-on width, 1 pointing at the camera) over pose rings a..b with 4-ring smoothstep ramps: w*(sqrt(b_z^2+1e-6)-t); default off")
+    ap.add_argument("--lit", default="", help="a:b:t:w[,...] the visible face's normal must tilt up (world +y) by >= t over pose rings a..b (4-ring ramps): w*max(0, t - n_vis_y); default off")
     ap.add_argument("--hide_auto", default="", help="l0:l1:start, e.g. 388:483:945 (hidden path inside the left leg footprint)")
     ap.add_argument("--rmin", type=float, default=0.0, help="curvature hinge: radius R (world px); residual w_rmin*R*max(0, kappa-1/R)")
     ap.add_argument("--w_rmin", type=float, default=0.0)
