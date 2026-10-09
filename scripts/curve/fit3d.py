@@ -696,12 +696,35 @@ class Problem:
             ex = [k for k in range(int(a0), int(b0) + 1, int(st)) if k not in set(self.ts_pin.tolist())]
             self.ts_pin = np.r_[self.ts_pin, ex].astype(int)
             self.pin_w = np.r_[self.pin_w, np.full(len(ex), float(w0))]
-        self.use_pin = a.end_pin > 0 or bool(a.pin_range)
+        self.ts_keep = np.zeros(0, int)
+        self.kw_keep = np.zeros(0)
+        self.b0keep = np.zeros((0, 3))
+        if a.keep > 0:
+            kw = np.ones(N)
+            kidx = np.arange(N)
+            for spec in [q for q in a.keep_free.split(",") if q]:
+                fa, fb = [int(v) for v in spec.split(":")]
+                dist = np.where(kidx < fa, fa - kidx, np.where(kidx > fb, kidx - fb, 0)).astype(float)
+                xx = np.clip(dist / 10.0, 0.0, 1.0)
+                kw *= xx * xx * (3.0 - 2.0 * xx)
+            kw *= float(a.keep)
+            self.ts_keep = np.where(kw > 1e-6)[0].astype(int)
+            self.kw_keep = kw[self.ts_keep]
+            have = set(self.ts_pin.tolist())
+            ex = [k for k in self.ts_keep.tolist() if k not in have]
+            self.ts_pin = np.r_[self.ts_pin, ex].astype(int)
+            self.pin_w = np.r_[self.pin_w, kw[ex]]
+            print("keep: %d rings held (w=%.2f), %d new centreline pins" % (len(self.ts_keep), a.keep, len(ex)), flush=True)
+        self.use_pin = a.end_pin > 0 or bool(a.pin_range) or a.keep > 0
         self.field = inside_field(a.mask or None) if a.inside > 0 else None
         self.c0pin = bs.B[self.ts_pin] @ C0
         self.pairs_c = (np.zeros(0, int), np.zeros(0, int))
         self.pairs_o = (np.zeros(0, int), np.zeros(0, int))
         self.n_extra = 0
+
+    def set_keep_ruling(self, G0):
+        if len(self.ts_keep):
+            self.b0keep = unit(self.bs.B[self.ts_keep] @ G0)
 
     # ---- parameters
     def unpack(self, x):
@@ -889,6 +912,10 @@ class Problem:
         if self.use_pin:
             c, _, _ = self.curves(x)
             out.append((self.pin_w[:, None] * (c[self.ts_pin] - self.c0pin)).ravel())
+        if a.keep > 0:
+            _, G_, _ = self.unpack(x)
+            b_k = unit(self.bs.B[self.ts_keep] @ G_)
+            out.append((self.kw_keep[:, None] * 30.0 * (b_k - self.b0keep)).ravel())
         if (a.clear > 0 and len(self.pairs_c[0])) or (a.order > 0 and len(self.pairs_o[0])):
             P = self.surface(x).reshape(-1, 3)
             if a.clear > 0 and len(self.pairs_c[0]):
@@ -1022,6 +1049,10 @@ class Problem:
             Cm = sparse.kron(Bn[self.ts_pin], ones3, format="csr")
             rows = sparse.kron(Cm, sparse.csr_matrix(np.ones((3, 1))), format="csr")
             blocks.append(sparse.hstack([rows, sparse.csr_matrix((rows.shape[0], 4 * K))], format="csr"))
+        if a.keep > 0:
+            Gk = sparse.kron(Bn[self.ts_keep], ones3, format="csr")
+            rowsk = sparse.kron(Gk, sparse.csr_matrix(np.ones((3, 1))), format="csr")
+            blocks.append(sparse.hstack([sparse.csr_matrix((rowsk.shape[0], 3 * K)), rowsk, sparse.csr_matrix((rowsk.shape[0], K))], format="csr"))
         for use, pr in ((a.clear > 0, c_pairs), (a.order > 0, o_pairs)):
             if use and len(pr[0]):
                 ring = np.repeat(np.arange(N), 5)
@@ -1407,6 +1438,8 @@ def main():
     ap.add_argument("--screenw", default="", help="a:b:target:w residual w*(|proj(R)-proj(L)|-target)/target for rings a..b (10-ring smoothstep ramps)")
     ap.add_argument("--inside", type=float, default=0.0, help="w: residual w*dist(mockup silhouette) at 5 points across the band (0 inside the mockup)")
     ap.add_argument("--mask", default="", help="cutout image whose alpha is the mockup silhouette (default docs/ribbon/ref/ak-signature-cutout.webp)")
+    ap.add_argument("--keep", type=float, default=0.0, help="w: pin the centreline AND the ruling to the starting pose at every ring outside --keep_free windows; 10-ring smoothstep release at the window borders; default off")
+    ap.add_argument("--keep_free", default="", help="a:b[,...] pose-ring windows released from --keep")
     ap.add_argument("--pin_range", default="", help="a:b:step:w extra centreline pins every `step` rings over a..b")
     ap.add_argument("--outline", type=float, default=0.0, help="w: pull the band edges onto the mockup silhouette boundary (2D vector to nearest edge point within 25 css px)")
     ap.add_argument("--outline_excl", default="", help="x0:y0:x1:y1;... css exclusion boxes for the outline points (default: %s; y>820 always dropped)" % OUT_EXCL)
@@ -1485,6 +1518,7 @@ def main():
     bs = Basis(N, a.K)
     C, G, H = make_init(L, R, bs, a.init)
     prob = Problem(a, L, R, tgtL, tgtR, bs, C)
+    prob.set_keep_ruling(G)
     if getattr(prob, "box_info", None) is not None:
         os.makedirs(a.out, exist_ok=True)
         draw_assign(prob, os.path.join(a.out, "assign_boxes.png"))
@@ -1507,7 +1541,7 @@ def main():
         x = x0
         nf = 0
         for rd in range(rounds):
-            if rounds > 1 or a.end_pin > 0 or a.pin_range or a.outline > 0 or a.redge > 0:
+            if rounds > 1 or a.end_pin > 0 or a.pin_range or a.keep > 0 or a.outline > 0 or a.redge > 0:
                 prob.update_outline(x)
                 pr = prob.build_pairs(x, a.clear > 0, a.order > 0) if rounds > 1 else {}
                 prob.set_pairs(pr.get("c", prob.pairs_c), pr.get("o", prob.pairs_o))

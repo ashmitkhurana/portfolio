@@ -1,0 +1,21 @@
+clusters: 12 (rule-decided 7, vote-decided 5); input-sample disagreements with the decided order: 0 of 1643 raw sample pairs
+top clusters by required separation (px short at input): rings_a-range x rings_b-range | front | rule | disagree/total | need
+   207- 250 x  696- 714 | front=a-range | vote | 0/191 | 0.0
+   292- 320 x 1037-1048 | front=a-range | vote | 0/54 | 0.0
+   328- 337 x 1019-1031 | front=a-range | vote | 0/22 | 0.0
+   366- 426 x  957-1025 | front=a-range | R3 | 0/280 | 0.0
+   431- 458 x  891- 921 | front=b-range | R2 | 0/137 | 0.0
+   581- 620 x 1070-1107 | front=a-range | R1 | 0/166 | 0.0
+   587- 622 x  793- 860 | front=a-range | R1 | 0/273 | 0.0
+   612- 643 x 1283-1298 | front=a-range | R1 | 0/89 | 0.0
+   627- 632 x 1068-1070 | front=a-range | R1 | 0/10 | 0.0
+   650- 674 x 1290-1298 | front=a-range | R1 | 0/70 | 0.0
+   775- 800 x 1266-1286 | front=a-range | vote | 0/116 | 0.0
+   819- 858 x 1065-1112 | front=b-range | vote | 0/235 | 0.0
+layer.py docs/ribbon/turns/real/I1/c/pose.json -> docs/ribbon/turns/real/I1/pose.json  gap 12.4 kz 160
+screen-overlap sample pairs (raw) 1643, constraints (ring pairs) 1508, violated at input 0 (worst -6.4 px short)
+solver SLSQP status 0 iterations 1 objective 0 time 0.0 s
+max constraint violation after solve (deduped): 0.000 px; violated constraints (> 0.01): 0
+all raw sample pairs after: z_front - z_back min 18.83 px, pairs with < 0: 0, < gap-0.5: 0
+dz: max |dz| 0.0 px (min 0.0, max 0.0); max |dz''| 0.0000 px/ring^2
+unit check: max change of projected edge screen position 0.00e+00 css px
