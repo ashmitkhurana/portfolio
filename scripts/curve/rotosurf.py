@@ -304,7 +304,7 @@ if APPROVED:
         w_ = w_ * w_ * (3 - 2 * w_)
         wsum[idx] += w_
         accL[idx] += sL * w_[:, None]; accR[idx] += sR * w_[:, None]
-        zsrc.append((idx, w_, zl, zr))
+        zsrc.append((idx, w_, zl, zr, nm))
         print("  approved %s: rings %d..%d (own %d..%d)" % (nm, lo_, hi_, r0, r1))
     wt = np.clip(1 - wsum, 0, 1)
     tot = np.maximum(wsum + wt, 1e-9)
@@ -533,7 +533,20 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
 if APPROVED:
     wt, tot = SECW
     accZL, accZR = zL * wt, zR * wt
-    for idx, w_, zl, zr in zsrc:
+    SEC_RELIEF = os.environ.get("SEC_RELIEF", "A:395:478:0.5:40")  # "NAME:a:b:k[:ramp]": scale the section NAME's half-depth-difference (zR-zL)/2 by k over rings a..b (smoothstep ramp in/out) (default = r40: halves the A section's depth relief along the left leg so it faces the light; smooth satin highlight instead of a dark leg)
+    for idx, w_, zl, zr, nm_ in zsrc:
+        if SEC_RELIEF and SEC_RELIEF.split(":")[0] == nm_:
+            _p = SEC_RELIEF.split(":")
+            _a, _b, _k = int(_p[1]), int(_p[2]), float(_p[3])
+            _rp = float(_p[4]) if len(_p) > 4 else 15.0
+            _zs0, _dz0 = (zl + zr) / 2, (zr - zl) / 2
+            _s = np.clip(np.minimum(idx - _a, _b - idx) / max(_rp, 1e-9), 0, 1)
+            _s = _s * _s * (3 - 2 * _s)
+            _s[(idx < _a) | (idx > _b)] = 0
+            _dz1 = _dz0 * (1 + (_k - 1) * _s)
+            _in = (idx >= _a) & (idx <= _b)
+            print("  SEC_RELIEF %s %d..%d k=%g: mean dz before %.2f after %.2f" % (nm_, _a, _b, _k, _dz0[_in].mean(), _dz1[_in].mean()))
+            zl, zr = _zs0 - _dz1, _zs0 + _dz1
         zs = (zl + zr) / 2
         k = 10
         off0 = zc[idx[:k]].mean() - zs[:k].mean()

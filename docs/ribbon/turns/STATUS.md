@@ -285,3 +285,7 @@ QA source: docs/ribbon/turns/live/ak-hero-r39/ribbon_crop_*.png vs the mockup wi
 4. **Apex top**: flatter than the mockup's round arch; ~3 px rim seam at the right shoulder.
 5. **Near tail highlight** slightly hot after the soft-box fill (S crop).
 Good now: top-K loop, wrap, junction, S shape, material hue (golden), rims, AO, desktop placement.
+
+## 2026-10-09 (night): r40 = new best (A left leg lit)
+- `SEC_RELIEF="NAME:a:b:k[:ramp]"` scales an approved section's own depth relief (half-difference zR−zL) over rings a..b. Default `A:395:478:0.5:40` (r40): the left leg's tilt halves, so it turns toward the light; it renders as a smooth satin highlight along its lit edge (left-leg patch 59 → 73 mean R; max dN in rings 380–500 6.3° → 5.5°; rings > 6°: 41 → 35). Short ramps (15) make a crease-like streak near the apex; flipping the relief (k ≤ 0) flips the wrap/leg front order: rejected (docs/ribbon/turns/curve/legtilt_compare.png, legtilt2_compare.png).
+- Phone and desktop hero poses regenerated from r40.
