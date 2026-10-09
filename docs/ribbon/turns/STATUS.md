@@ -276,3 +276,12 @@ Fresh session after the Mac reset. The env is rebuilt and r23 reproduces byte-id
 - Site fill light = a large soft box from upper-front-left (az −20, el 50, 20×40, softness 1, intensity 3; docs/ribbon/turns/soft, f1): broad satin gradients; foreground luminance p5/p50/%<60 = 26/93/26 % vs the mockup's 28/98/28 %.
 - Far-left fold chamfer: `EDGE_SIGW1="a:b:sigma:L|R"` (default off) smooths only one edge; the outer edge there is R. Sigma 8–12 changes nothing visible; 18–25 rounds the corner but pulls the outline inside the mockup and adds a crease (farleft IoU 0.81 → 0.76, dN 7.5° → 15°). Rejected: the chamfer comes from the F section's 3D fold (a tight roll), not from the outline; it needs a fold with a larger roll radius.
 - Overall silhouette IoU is now 0.881 with the brighter material (the mask threshold picks up the soft glow; r39 geometry unchanged).
+
+## 2026-10-09 (night, end of window 1): close-crop QA of the live hero vs the mockup (next steps)
+QA source: docs/ribbon/turns/live/ak-hero-r39/ribbon_crop_*.png vs the mockup windows.
+1. **A left leg too dark.** It renders ~(59,21,0) vs the right leg ~(160,72,3); the mockup's left leg is bright orange. Bisect (docs/ribbon/turns/leg): direct light and self-shadow have no effect there, AO only lifts it to ~(85,30,0), so the leg FACES AWAY from the lights. Cause: the approved A section seats the leg with a steep tilt (iv 4 mean zR−zL ≈ −96 for a ~51 css band). `SIGMA` has no effect inside the approved section (sg1–sg3). Next: re-seat the A section's leg tilt (flip/reduce its relief over rings ~388–480 while keeping its apex fold), or rotate the key/fill so the leg catches light without washing the rest.
+2. **Bottom-K + end strand**: the biggest structural gap (the mockup shows a clean ring with a dark interior and the dark end strand in the gap; ours shows crossing bands). Every ring refit needs a 65–117° twist at the entry from the right leg (rejected attempts: BK_FIT3, BK_WSCALE, BK_TWIST). Needs a new construction or a re-trace with the owner.
+3. **Far-left fold**: chamfer + small kink where the wrap meets the leg; needs a larger roll radius in the F section (outline smoothing rejected).
+4. **Apex top**: flatter than the mockup's round arch; ~3 px rim seam at the right shoulder.
+5. **Near tail highlight** slightly hot after the soft-box fill (S crop).
+Good now: top-K loop, wrap, junction, S shape, material hue (golden), rims, AO, desktop placement.

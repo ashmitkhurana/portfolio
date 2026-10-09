@@ -11,6 +11,8 @@
 
 Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/ribbon/HANDOFF.md` §1 and §5a (the owner's ribbon flow, faces and over/under). My memory notes from this machine are copied into `docs/ribbon/agent-memory/`. Restore them into the new machine's Claude memory dir, or just read them: they carry the owner's working rules.
 
+- **Next (from the end-of-window QA, STATUS.md last section):** A left leg faces away from the lights (re-seat the A section tilt), bottom-K/end strand construction, far-left fold roll radius, apex top roundness.
+
 ## Where the work is
 - Branch: **`claude/upbeat-hellman-f92bb7`** on origin (pushed 2026-10-08 at the owner's request before the reset). It is `rebrand/ribbon` plus all of this session's work. Restore: `git clone`, then `git checkout claude/upbeat-hellman-f92bb7`, then `npm install`, then recreate the venv (below).
 - `ak-hero.json` is NOT changed: swapping in a pose needs the owner's OK.
