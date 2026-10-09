@@ -1,5 +1,14 @@
 # RESUME HERE (updated 2026-10-09 evening; weekly usage exhausted)
 
+## CURRENT PLAN (owner, 2026-10-09 morning) — supersedes the morning summary's verdicts
+- The owner REJECTED r40: "still a lot of wrinkles along the whole way" and "the wrap around the left leg of A is completely fucked up". Bar: Apple-level polish; nothing is adopted or shown unless it passes hard gates: no visible ripples or streaks in full-res close crops of every region, engine normal change ≲ 3° everywhere, zero clearance INTERSECTs (hidden ones included), silhouette no worse than r40.
+- Root cause: rotosurf copies the hand-traced outline ring by ring and splices approved sections, so trace noise and splices become 3D wrinkles; with screen positions locked, the wrap curl cannot go around the left leg (it passes through it).
+- New method: `scripts/curve/fit3d.py`, ONE smooth ribbon (B-spline centreline + B-spline ruling, constant width) fitted to the trace as a soft target, smoothness/developability/ruling-⊥-tangent as residuals, initialised from r40.
+  - Phase A: smooth fit (wrinkles).
+  - Phase B: clearance + over/under constraints (the wrap goes over the front of the left leg, curls down its outside, tucks behind; nothing passes through anything).
+  - Phase C: gates + close-crop review, then the hero swap.
+- Material/lighting work is paused until the shape is clean.
+
 ## Morning summary 2026-10-09 (overnight autonomous session; read this first)
 - **Live hero phone pose = rotosurf r40** (owner-approved swap on this branch; desktop variant unchanged). Old file: docs/ribbon/turns/live/ak-hero.prev.json (restore: `cp docs/ribbon/turns/live/ak-hero.prev.json lib/ribbon/poses/ak-hero.json`). Current look: docs/ribbon/turns/live/ak-hero-r40/hero.png and ribbon.png.
 - **Desktop hero = the same r40 sculpture** (uniformly scaled into the old desktop placement; screens docs/ribbon/turns/live/desk_r39_1440x900.png etc.; old: docs/ribbon/turns/live/ak-hero.prev2.json).
