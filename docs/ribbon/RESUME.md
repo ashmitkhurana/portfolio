@@ -1,9 +1,9 @@
 # RESUME HERE (updated 2026-10-09 evening; weekly usage exhausted)
 
 ## Morning summary 2026-10-09 (overnight autonomous session; read this first)
-- **Live hero phone pose = rotosurf r39** (owner-approved swap on this branch; desktop variant unchanged). Old file: docs/ribbon/turns/live/ak-hero.prev.json (restore: `cp docs/ribbon/turns/live/ak-hero.prev.json lib/ribbon/poses/ak-hero.json`). Current look: docs/ribbon/turns/live/ak-hero-r39/hero.png and ribbon.png.
-- **Desktop hero = the same r39 sculpture** (uniformly scaled into the old desktop placement; screens docs/ribbon/turns/live/desk_r39_1440x900.png etc.; old: docs/ribbon/turns/live/ak-hero.prev2.json).
-- **Geometry (r37 → r39):** top-K loop rebuilt as a constant-ruling band (`CYL`, rounder/wider, the notch where it leaves the right leg is gone); the crease at the right leg's foot removed (`EQS` second window 620:700); the apex top-left corner rounded (`EDGE_SIGW` 490:535:8).
+- **Live hero phone pose = rotosurf r40** (owner-approved swap on this branch; desktop variant unchanged). Old file: docs/ribbon/turns/live/ak-hero.prev.json (restore: `cp docs/ribbon/turns/live/ak-hero.prev.json lib/ribbon/poses/ak-hero.json`). Current look: docs/ribbon/turns/live/ak-hero-r40/hero.png and ribbon.png.
+- **Desktop hero = the same r40 sculpture** (uniformly scaled into the old desktop placement; screens docs/ribbon/turns/live/desk_r39_1440x900.png etc.; old: docs/ribbon/turns/live/ak-hero.prev2.json).
+- **Geometry (r37 → r40):** top-K loop rebuilt as a constant-ruling band (`CYL`, rounder/wider, the notch where it leaves the right leg is gone); the crease at the right leg's foot removed (`EQS` second window 620:700); the apex top-left corner rounded (`EDGE_SIGW` 490:535:8). r40: the A left leg's tilt halved (`SEC_RELIEF` A:395:478:0.5:40) so it catches the light with a smooth satin highlight.
 - **Engine/material:** baked environment AO (inner faces darken from occlusion only; both faces stay the same colour); bright rims instead of dark edge lines (`rimNormalMix`); golden-orange metallic material (metalness 0.7, no clearcoat, base #ff7a0a, warm specular tint, key strip el 40 / az −50 to avoid tail glare, exposure 1.2). All in lib/ribbon/siteSettings.ts.
 - **Tools added:** scripts/curve/diagnose.py (per-ring dN/obliquity + overlays), clearance.py (3D strand clearance), cylfit.py, silhouette.py (render vs mockup silhouette diff + region IoU, overall 0.897), bkfit2.py; scripts/render-pose.mjs `--settings '<json>'` (live engine settings patch).
 - **Still open (in order):** (1) bottom-K loop smaller than the mockup's; ring refits match the silhouette better (IoU 0.87) but render with normal flips — needs a twist-free entry from the right leg; (2) end strand #12 should be visible in the gap between the right leg and the bottom-K loop down to ~y 1100 (ours hides higher); (3) far-left fold reads as a chamfer with a small bright inner sliver; (4) a ~3 px rim seam at the apex's right shoulder (needs a rim fade-in in the engine); (5) the mockup's broad satin highlight gradients (env softbox pass); (6) hidden intersections behind the right leg (clearance clusters).
@@ -11,7 +11,7 @@
 
 Read this first, then `docs/ribbon/turns/STATUS.md` (latest sections) and `docs/ribbon/HANDOFF.md` §1 and §5a (the owner's ribbon flow, faces and over/under). My memory notes from this machine are copied into `docs/ribbon/agent-memory/`. Restore them into the new machine's Claude memory dir, or just read them: they carry the owner's working rules.
 
-- **Next (from the end-of-window QA, STATUS.md last section):** A left leg faces away from the lights (re-seat the A section tilt), bottom-K/end strand construction, far-left fold roll radius, apex top roundness.
+- **Next (from the end-of-window QA, STATUS.md last section):** bottom-K/end strand construction, far-left fold roll radius, apex top roundness.
 
 ## Where the work is
 - Branch: **`claude/upbeat-hellman-f92bb7`** on origin (pushed 2026-10-08 at the owner's request before the reset). It is `rebrand/ribbon` plus all of this session's work. Restore: `git clone`, then `git checkout claude/upbeat-hellman-f92bb7`, then `npm install`, then recreate the venv (below).
