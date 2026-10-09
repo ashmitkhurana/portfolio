@@ -1,0 +1,8 @@
+sigQ = +1, angle(bA[505], sigQ*bQ[505]) = 72.743 deg
+sigK = +1, angle(bA[1100], sigK*bQ[1100]) = 5.627 deg
+max screen step of centre, rings 375..390: 2.152 px (between 389 and 390)
+max screen step of centre, rings 495..515: 1.635 px (between 502 and 503)
+max screen step of centre, rings 640..665: 2.000 px (between 640 and 641)
+max screen step of centre, rings 1095..1120: 1.767 px (between 1118 and 1119)
+max per-ring ruling change rings 370..670: 3.695 deg (at ring 386)
+max per-ring ruling change rings 1090..1130: 2.166 deg (at ring 1091)

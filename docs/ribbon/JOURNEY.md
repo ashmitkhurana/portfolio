@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **76** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X5 (baseline: X3 = v267; latest X5 = v314) |
-| | **Running total** | | **318** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **77** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6 (baseline: X3 = v267; latest X6 = v319) |
+| | **Running total** | | **319** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -31,7 +31,7 @@ How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numb
 
 Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299), `L1-L3` (v300-v302), `Q50`, `Q35` (v303-v304), `P1-P9` (v305-v313; P8 was captioned v308 to the owner by mistake), `X4` (v314... see below), `S1-S3` (v315-v317, polish fits of P4, never shown), `X5` (v318).
 
-**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **The next new version is v319.**
+**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319. The next new version is v320.**
 
 ### Numbering scheme
 
@@ -289,4 +289,9 @@ Each new round is appended, not rewritten.
 - The owner on the far-left: "why does it fucking bend forwards for no fucking reason????" The leg base rose toward the camera (36 → 47) right after the fold, a leftover of X3's depth. Fixed by letting the leg leave the fold at a straight, even slope (37 → 62).
 - X5 (v318, shown as v314): X4 + the straight leg + a round top-K tip (one steady axis square to both strands) + small depth nudges (return in front of the back layer, end strand further back). No intersections. Left: a small hook where the flip's end peeks out from behind the leg, and a small kink at the top-K tip's outer edge.
 - Lesson: when the owner gives a concrete fix, do exactly that, on the baseline they named, and nothing else.
-- Running total: 318 versions.
+- The owner's review of X5, item by item (no work until their green light): the A's left leg still bends at its base and near the apex ("why cant it be fucking straight"); the apex is wrong ("we have gotten the apex right multiple times in the past just use that"); a glitch (little triangle) where the wrap comes back; the top-K loop and the strand coming back fold the wrong way.
+  - Measured: the leg's depth was already smooth; the bends were in its traced screen outline (heading −40° → −76° → −62° at the base, −54° → −95° near the apex).
+- X6 (v319), on the owner's green light for one round: the left leg rebuilt as a straight band (straight centreline on screen and in depth, the band's orientation turning evenly); r40's approved apex and right leg and r40's approved top-K loop transplanted in (same ring numbering, crossfaded joins, the top-K join within 6°); the flip shortened to end by ring 997.
+  - Fixed: the straight leg; the top-K loop rolls the right way.
+  - Not fixed: r40's apex reads as a flat squared top in the full view; a crease on the right leg at the transplant join; the little triangle on the return is still there (so it was not the flip); the straight leg touches the wrap's front pass at one point.
+- Running total: 319 versions.
