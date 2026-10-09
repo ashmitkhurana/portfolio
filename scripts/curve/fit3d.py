@@ -600,6 +600,19 @@ class Problem:
                 self.cvxw = np.maximum(self.cvxw, eq * cvx_map.get(c0, cvx_all))
                 self.legw = np.maximum(self.legw, lg)
                 print("fold2 crease %d R %.0f: ds %.2f n %d (eq %d..%d, ruling %d..%d, legs to +-%d)" % (c0, R0, dsm, n, c0 - n, c0 + n, c0 - n - 6, c0 + n + 6, n + int(nl)), flush=True)
+        self.curlz = np.zeros(N); self.curlw = np.zeros(N); self.curlR = np.full(N, 1e9)
+        if a.curl:
+            kk = np.arange(N).astype(float)
+            smc = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            for spec in [q for q in a.curl.split(",") if q]:
+                a0, b0, R0, w0 = spec.split(":"); a0, b0, R0, w0 = int(a0), int(b0), float(R0), float(w0)
+                r = smc((kk - a0 + 0.5) / 4.0) * smc((b0 - kk + 0.5) / 4.0)
+                r = np.where((kk >= a0) & (kk <= b0), r, 0.0)
+                m = r > self.curlz
+                self.curlz = np.where(m, r, self.curlz)
+                self.curlw = np.where(m, w0 * r, self.curlw)
+                self.curlR = np.where(m, R0, self.curlR)
+                print("curl rings %d..%d R %.0f w %.1f" % (a0, b0, R0, w0), flush=True)
         self.flatw = np.zeros(N)
         if a.flat > 0:
             if a.flat_ranges:
@@ -751,7 +764,7 @@ class Problem:
             edge=edge,
             smooth=a.mu * b2,
             jerk=a.lam * c3,
-            perp=(self.nu * (1.0 - self.fz) * (b * T).sum(1))[:, None],
+            perp=((self.nu * (1.0 - self.fz) + self.curlw) * (b * T).sum(1))[:, None],
             dev=a.delta * np.einsum("ij,ij->i", np.cross(T, b), bp)[:, None],
             depth=(a.eps * (c[:, 2] - self.c0z))[:, None],
             hsm=(a.lam_h * h2)[:, None],
@@ -762,7 +775,7 @@ class Problem:
             face=(self.fw * b[:, 2])[:, None],
             fcr=self.face_rule(c, T, b)[:, None],
             **self.elastic(c1, c2, T, b, g, kap),
-            rmin=((1.0 - self.fz) * a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin))[:, None] if a.rmin > 0 else np.zeros((self.N, 1)),
+            rmin=((((1.0 - self.fz) * (1.0 - self.curlz) * a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin)) if a.rmin > 0 else 0.0) + self.curlw * self.curlR * np.maximum(0.0, kap - 1.0 / self.curlR))[:, None] if (a.rmin > 0 or a.curl) else np.zeros((self.N, 1)),
             **self.fold_terms(c1, g, b, kap, c2, c, T),
             scrw=(self.sw * (wscr - self.swt) / self.swt)[:, None],
             wf=wf[:, None],
@@ -789,7 +802,7 @@ class Problem:
 
     def fold_terms(self, c1, g, b, kap, c2=None, c=None, T=None):
         z1, z3 = np.zeros((self.N, 1)), np.zeros((self.N, 3))
-        if not (self.a.fold or self.a.fold2):
+        if not (self.a.fold or self.a.fold2 or self.a.curl):
             return dict(rmf=z1, crl=z3, lgb=z1, cvx=z1)
         ds = np.maximum(np.linalg.norm(c1, axis=1), 1e-9)
         g1 = self.bs.B1 @ self._G
@@ -808,7 +821,7 @@ class Problem:
             kv = (c2 - (c2 * T).sum(1, keepdims=True) * T) / ds[:, None] ** 2
             sv = self.Rz * np.einsum("ij,ij->i", kv, Nn) * sg
             cvx = (self.cvxw * np.maximum(0.0, 0.3 + sv))[:, None]
-        return dict(rmf=rmf[:, None], crl=wf * bp / ds[:, None], lgb=(self.a.fold_legs * self.legw * self.Rz * kap)[:, None], cvx=cvx)
+        return dict(rmf=rmf[:, None], crl=(wf + self.curlw[:, None]) * bp / ds[:, None], lgb=(self.a.fold_legs * self.legw * self.Rz * kap)[:, None], cvx=cvx)
 
     def elastic(self, c1, c2, T, b, g, kap):
         a = self.a
@@ -1417,6 +1430,7 @@ def main():
     ap.add_argument("--dtwist", type=float, default=0.0, help="w: w*sqrt(ds)*dtau_r/ds")
     ap.add_argument("--fold", default="", help="a:b:R:w[,...] true-fold zones (pose rings): inside, --rmin/--redge/ruling-perp/--twist/--dtwist are off, curvature radius >= R (w), constant ruling (w*|db/ds|); 8-ring smoothstep ramps")
     ap.add_argument("--fold2", default="", help="c:R:w[,...] fold at crease pose ring c: radius TARGET R over c+-n (n=round(pi R/(2 ds))), constant ruling + rmin/redge/perp/twist off over c+-(n+6), leg bending penalty (--fold_legs) over n+6..n+20; 4-ring smoothstep ramps")
+    ap.add_argument("--curl", default="", help="a:b:R:w[,...] curl (cylinder-band) zones over pose rings a..b (4-ring smoothstep ramps inside the window): constant ruling w*|db/ds|, ruling perpendicular to the centreline w*(b.T), curvature radius >= R w*R*max(0,kappa-1/R); the global --rmin hinge is faded out inside; default off")
     ap.add_argument("--fold_legs", type=float, default=0.0, help="w: w*R*kappa on the legs leaving a --fold2 roll")
     ap.add_argument("--fold_convex", default="", help="w or c:w,...(per fold crease c): over each --fold2 roll the visible surface must be the OUTSIDE of the roll: w*max(0, 0.3 + s), s = R * kvec.n_vis (kvec = curvature vector of the centreline, n_vis = visible-face normal); default off")
     ap.add_argument("--fold_legs_len", default="20", help="L or c:L,...: outer end (rings beyond the roll end n) of the --fold2 leg ramp (default 20; the ramp starts at n+6)")
