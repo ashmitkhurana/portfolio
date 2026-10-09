@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 21:52 | **25** | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3 |
-| | **Running total** | | **267** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **39** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4 (D4 = v281, best so far) |
+| | **Running total** | | **281** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -29,9 +29,9 @@ How era 1 splits (86):
 
 How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numbers still have folders (r7, r8, r14, r19, r23, r31, r33-r40), plus the variant `r39b`. **27 numbers are "from notes"** (r0-r6, r9-r13, r15-r18, r20-r22, r24-r30, r32; STATUS names r11, r12, r17, r18, r20, r21, r24-r28, r30 and r32 explicitly, the rest are implied by the contiguous numbering). The remaining 53 are one-off experiment folders around the main line: `c1-c8`, `b1-b5`, `f1-f5`, `g1-g4`, `k1-k4`, `n0-n4`, `s1-s4`, `e1-e4`, `sg1-sg3`, `lt0-lt7`, `at1-at3`. In total 14 + 1 + 27 + 53 = 95 (68 with a folder, 27 from notes).
 
-Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (25): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`.
+Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281).
 
-**Current latest version: `real/X3` = v267.** In flight at the time of writing (fits running, no final `pose.json` yet, so not counted): `real/Y1`, `Y2`, `Y3`. They are reserved as v268, v269, v270. **The next new round continues at v268 / v271.**
+**Current latest version: `real/D4` = v281** (also the current best). **The next new version is v282.**
 
 ### Numbering scheme
 
@@ -228,9 +228,9 @@ All in `scripts/` (Python in `scripts/mockup/.venv`).
 
 Each new round is appended, not rewritten.
 
-1. Give every new shape the next number: **the next new version is v268** (if Y1-Y3 complete, they take v268-v270 in that order and the next new round starts at v271). Use `v<N> = <folder>`.
+1. Give every new shape the next number (see the "Current latest version" line above). Use `v<N> = <folder>`.
 2. Count a folder as a version only if it contains a `pose.json` (same exclusions as the tally section).
-3. Add one row to the "Version tally" table when a new era starts, or bump the count of the current era (era 4 now: 25). Update the running total (now 267) and the "Current latest version" line.
+3. Add one row to the "Version tally" table when a new era starts, or bump the count of the current era (era 4). Update the running total and the "Current latest version" line.
 4. Append the new `v<N>=<folder>` entries to the numbering block for that era.
 5. Add a short section to the Timeline in the same format as above: date, method, what worked, what failed and why, the owner's words if they matter.
 6. If a lesson changes, update "Lessons learned"; if a tool is added, add one line under "Tools built".
@@ -239,5 +239,11 @@ Each new round is appended, not rewritten.
 - Y (v268–v273): far-left convexity, apex hand-off, local smoothing, edge fairness — no improvement over X3; strong edge fairness distorts the figure.
 - Z (v274–v277): forcing the fold line from the leg directions made folds worse; narrowing the face-rule zones helped the K-junction streak only in combination.
 - Key insight: the A legs run steeply in depth in our 3D shape (they barely reverse direction in 3D), so the apex can only twist, not fold — the depth layout inherited from the old trace pipeline is too deep.
-- D (v278–v281): flatten the sculpture to a realistic shallow depth while keeping every over/under — results pending evaluation in the next session.
-- Running total: about 281 versions.
+- D (v278–v281): flatten the sculpture. A new residual (`--flat w`) pushes the centreline's direction toward the screen plane, so the A legs can lie across the view and the folds can really reverse.
+  - D1 (flat 2 everywhere): little change; the top-K tip turned into a pinched point. Rejected.
+  - D2 (flat 6 everywhere): the whole figure distorted and the wrap no longer went round the leg (wrapcheck FAIL). Rejected.
+  - D3 (flat 6 + far-left roll R30 + narrower face rule): the far-left fold finally showed its outside, but the wrap broke and the apex went edge-on. Rejected.
+  - **D4 (flat 6 only around the apex and the top-K tip, `--flat_ranges 470:560,1140:1240`): the new best (v281).** The apex became a true rounded arch like the mockup's, and the top-K tip a clean big loop: in 3D its legs now reverse almost exactly (T_in·T_out −0.996 vs −0.83 for X3). The worst ring-to-ring normal change fell from 64° to 35°. Zero intersections, and the wrap still truly encircles the leg.
+  - Lesson: flatten locally, where a fold must reverse, not globally. Global flattening moves everything else and breaks the over/unders.
+  - Still open on D4: the far-left fold still shows its inside (25 % outside), the right leg runs nearly edge-on for a short stretch just below the apex, and a thin edge-on rim at the right of the top-K tip.
+- Running total: 281 versions.
