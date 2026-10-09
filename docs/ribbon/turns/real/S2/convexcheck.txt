@@ -1,0 +1,2 @@
+apex     crease 516 roll +-32: 57 roll samples, outside shown 95%  (mean s -0.0111)  PASS
+topK_tip crease 1188 roll +-32: 60 roll samples, outside shown 97%  (mean s -0.0081)  PASS

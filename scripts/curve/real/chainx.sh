@@ -4,7 +4,7 @@ PY=scripts/mockup/.venv/bin/python
 run=$1; base=$2; shift 2; EXTRA="$@"
 O=docs/ribbon/turns/real/$run; B=docs/ribbon/turns/real/$base/pose.json
 ROTO=/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz
-CP=860:1066-388:483:16
+CP=${CP:-860:1066-388:483:16}
 mkdir -p $O
 COMMON="--roto $ROTO --K 160 --init perp --trace_w 0.15 --outline 0 --inside 0 --hmin 25.5 --hmax 25.5 --w_hmin 50 --mu 300 --lam 15 --lam_h 50 --delta 60 --nu_fold 0.4 --rmin 45 --w_rmin 5 --redge 24 --w_redge 5 --kappa 2 --end_pin 50 --omega 0.01 --max_nfev 150 --faces docs/ribbon/turns/real/faces.json --w_face 15 --face_margin 0.3 --clear 5 --gap 14 --clear_range 860:1066-388:483 --bend 30 --twist 30 --dbend 500 --dtwist 500 --flip_guard 20 --fold_legs 5 --fold2 516:40:20,1188:40:20 --fold_convex 516:10,1188:10 $EXTRA"
 $PY scripts/curve/fit3d.py $COMMON --pose $B --zprior $B --eps 1.0 --out $O/c > $O/fit_c.log 2>&1

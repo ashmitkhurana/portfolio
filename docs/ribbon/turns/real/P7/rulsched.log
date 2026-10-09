@@ -1,0 +1,61 @@
+segment 895..925: rotation 12.33 deg
+segment 925..984: same spec 'ax(-0.26;-0.66;0.71)' per-ring
+segment 984..1006: rotation -115.86 deg
+segment 1006..1135: same spec 'flat' per-ring
+segment 1135..1155: rotation 39.41 deg
+angle bn[A] vs b0[A]: 12.731 deg
+angle bn[B] vs b0[B]: 19.743 deg
+max per-ring change of bn: 8.658 deg (at ring 995)
+ring 895  theta 41.61 deg  angle(b0,bn) 12.73 deg  bn_z 0.6010
+ring 900  theta 42.52 deg  angle(b0,bn) 13.58 deg  bn_z 0.6390
+ring 905  theta 44.80 deg  angle(b0,bn) 14.07 deg  bn_z 0.6932
+ring 910  theta 47.77 deg  angle(b0,bn) 12.06 deg  bn_z 0.7404
+ring 915  theta 50.74 deg  angle(b0,bn) 13.74 deg  bn_z 0.7732
+ring 920  theta 53.02 deg  angle(b0,bn) 17.44 deg  bn_z 0.7960
+ring 925  theta 53.93 deg  angle(b0,bn) 20.83 deg  bn_z 0.8019
+ring 930  theta 60.57 deg  angle(b0,bn) 18.82 deg  bn_z 0.8388
+ring 935  theta 67.99 deg  angle(b0,bn) 15.63 deg  bn_z 0.8516
+ring 940  theta 74.25 deg  angle(b0,bn) 9.77 deg  bn_z 0.8245
+ring 945  theta 76.51 deg  angle(b0,bn) 6.84 deg  bn_z 0.6608
+ring 950  theta 74.83 deg  angle(b0,bn) 23.23 deg  bn_z 0.4593
+ring 955  theta 71.69 deg  angle(b0,bn) 31.97 deg  bn_z 0.3724
+ring 960  theta 75.89 deg  angle(b0,bn) 26.62 deg  bn_z 0.5202
+ring 965  theta 84.00 deg  angle(b0,bn) 18.87 deg  bn_z 0.6944
+ring 970  theta 93.67 deg  angle(b0,bn) 14.94 deg  bn_z 0.8104
+ring 975  theta 102.59 deg  angle(b0,bn) 17.26 deg  bn_z 0.8545
+ring 980  theta 110.55 deg  angle(b0,bn) 23.11 deg  bn_z 0.8535
+ring 985  theta 115.17 deg  angle(b0,bn) 28.58 deg  bn_z 0.8461
+ring 990  theta 94.71 deg  angle(b0,bn) 23.95 deg  bn_z 0.9446
+ring 995  theta 57.93 deg  angle(b0,bn) 39.97 deg  bn_z 0.8263
+ring 1000  theta 21.15 deg  angle(b0,bn) 67.89 deg  bn_z 0.3552
+ring 1005  theta 0.70 deg  angle(b0,bn) 79.81 deg  bn_z 0.0121
+ring 1010  theta 0.00 deg  angle(b0,bn) 73.21 deg  bn_z 0.0000
+ring 1015  theta -0.00 deg  angle(b0,bn) 67.59 deg  bn_z -0.0000
+ring 1020  theta 0.00 deg  angle(b0,bn) 63.98 deg  bn_z 0.0000
+ring 1025  theta 0.00 deg  angle(b0,bn) 60.99 deg  bn_z 0.0000
+ring 1030  theta 0.00 deg  angle(b0,bn) 58.04 deg  bn_z 0.0000
+ring 1035  theta 0.00 deg  angle(b0,bn) 55.73 deg  bn_z 0.0000
+ring 1040  theta 0.00 deg  angle(b0,bn) 54.27 deg  bn_z 0.0000
+ring 1045  theta 0.00 deg  angle(b0,bn) 52.86 deg  bn_z 0.0000
+ring 1050  theta 0.00 deg  angle(b0,bn) 50.57 deg  bn_z 0.0000
+ring 1055  theta -0.00 deg  angle(b0,bn) 48.01 deg  bn_z -0.0000
+ring 1060  theta 0.00 deg  angle(b0,bn) 45.74 deg  bn_z 0.0000
+ring 1065  theta 0.00 deg  angle(b0,bn) 44.12 deg  bn_z 0.0000
+ring 1070  theta 0.00 deg  angle(b0,bn) 42.75 deg  bn_z 0.0000
+ring 1075  theta 0.00 deg  angle(b0,bn) 40.93 deg  bn_z 0.0000
+ring 1080  theta 0.00 deg  angle(b0,bn) 39.22 deg  bn_z 0.0000
+ring 1085  theta -0.00 deg  angle(b0,bn) 38.58 deg  bn_z -0.0000
+ring 1090  theta 0.00 deg  angle(b0,bn) 38.35 deg  bn_z 0.0000
+ring 1095  theta 0.00 deg  angle(b0,bn) 38.32 deg  bn_z 0.0000
+ring 1100  theta 0.00 deg  angle(b0,bn) 38.37 deg  bn_z 0.0000
+ring 1105  theta 0.00 deg  angle(b0,bn) 38.53 deg  bn_z 0.0000
+ring 1110  theta -0.00 deg  angle(b0,bn) 38.84 deg  bn_z -0.0000
+ring 1115  theta 0.00 deg  angle(b0,bn) 38.90 deg  bn_z 0.0000
+ring 1120  theta -0.00 deg  angle(b0,bn) 38.53 deg  bn_z -0.0000
+ring 1125  theta 0.00 deg  angle(b0,bn) 38.23 deg  bn_z 0.0000
+ring 1130  theta 0.00 deg  angle(b0,bn) 38.27 deg  bn_z 0.0000
+ring 1135  theta 0.00 deg  angle(b0,bn) 38.66 deg  bn_z 0.0000
+ring 1140  theta 6.16 deg  angle(b0,bn) 33.75 deg  bn_z 0.0976
+ring 1145  theta 19.71 deg  angle(b0,bn) 24.37 deg  bn_z 0.3079
+ring 1150  theta 33.25 deg  angle(b0,bn) 21.11 deg  bn_z 0.5051
+ring 1155  theta 39.41 deg  angle(b0,bn) 19.74 deg  bn_z 0.6082
