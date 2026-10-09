@@ -2,6 +2,7 @@
 
 ## Morning summary 2026-10-09 (overnight autonomous session; read this first)
 - **Live hero phone pose = rotosurf r39** (owner-approved swap on this branch; desktop variant unchanged). Old file: docs/ribbon/turns/live/ak-hero.prev.json (restore: `cp docs/ribbon/turns/live/ak-hero.prev.json lib/ribbon/poses/ak-hero.json`). Current look: docs/ribbon/turns/live/ak-hero-r39/hero.png and ribbon.png.
+- **Desktop hero = the same r39 sculpture** (uniformly scaled into the old desktop placement; screens docs/ribbon/turns/live/desk_r39_1440x900.png etc.; old: docs/ribbon/turns/live/ak-hero.prev2.json).
 - **Geometry (r37 → r39):** top-K loop rebuilt as a constant-ruling band (`CYL`, rounder/wider, the notch where it leaves the right leg is gone); the crease at the right leg's foot removed (`EQS` second window 620:700); the apex top-left corner rounded (`EDGE_SIGW` 490:535:8).
 - **Engine/material:** baked environment AO (inner faces darken from occlusion only; both faces stay the same colour); bright rims instead of dark edge lines (`rimNormalMix`); golden-orange metallic material (metalness 0.7, no clearcoat, base #ff7a0a, warm specular tint, key strip el 40 / az −50 to avoid tail glare, exposure 1.2). All in lib/ribbon/siteSettings.ts.
 - **Tools added:** scripts/curve/diagnose.py (per-ring dN/obliquity + overlays), clearance.py (3D strand clearance), cylfit.py, silhouette.py (render vs mockup silhouette diff + region IoU, overall 0.897), bkfit2.py; scripts/render-pose.mjs `--settings '<json>'` (live engine settings patch).

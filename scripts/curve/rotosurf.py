@@ -485,9 +485,21 @@ if os.environ.get("BK_RING", "1") == "1":  # experimental (r11: the 12-ring fade
         hw = BK_HW_OVERRIDE
     tin = float(os.environ.get('BK_TURN', 0.409))
     rul = []
-    for t in tq:
+    _tw = os.environ.get("BK_TWIST", "")  # "slerp": turn the ruling about the centre tangent (no pass through zero) instead of the linear r0v -> ax blend
+    for j, t in enumerate(tq):
         f = min(1.0, t / tin); f = f * f * (3 - 2 * f)
-        v = r0v * (1 - f) + ax * f
+        if _tw == "slerp":
+            _n = len(cen)
+            _T = cen[min(j + 1, _n - 1)] - cen[max(j - 1, 0)]; _T = _T / np.linalg.norm(_T)
+            _a0 = r0v - _T * np.dot(r0v, _T); _a0 /= np.linalg.norm(_a0)
+            _a1 = ax - _T * np.dot(ax, _T); _a1 /= np.linalg.norm(_a1)
+            _ph = math.atan2(float(np.dot(_T, np.cross(_a0, _a1))), float(np.dot(_a0, _a1)))
+            if j == 0:
+                print("  BK_TWIST slerp: entry twist %.0f deg" % abs(math.degrees(_ph)))
+            _ang = f * _ph
+            v = _a0 * math.cos(_ang) + np.cross(_T, _a0) * math.sin(_ang)  # Rodrigues (a0 is perpendicular to T)
+        else:
+            v = r0v * (1 - f) + ax * f
         rul.append(v / np.linalg.norm(v))
     rul = np.array(rul)
     Lc, Rc = cen - rul * hw, cen + rul * hw
