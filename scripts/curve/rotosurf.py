@@ -353,6 +353,22 @@ if EDGE_SIGW:
         L2[wa:wb + 1] = L2[wa:wb + 1] + ew[:, None] * (Ls_[wa:wb + 1] - L2[wa:wb + 1])
         R2[wa:wb + 1] = R2[wa:wb + 1] + ew[:, None] * (Rs_[wa:wb + 1] - R2[wa:wb + 1])
         print("  EDGE_SIGW %d..%d sigma %g" % (wa, wb, wsg))
+EDGE_SIGW1 = os.environ.get("EDGE_SIGW1", "")  # "a:b:sigma:L|R[,...]": like EDGE_SIGW but only the named edge (default off)
+if EDGE_SIGW1:
+    def _ssw(x_):
+        x_ = np.clip(x_, 0, 1); return x_ * x_ * (3 - 2 * x_)
+    for w_ in EDGE_SIGW1.split(","):
+        f_ = w_.split(":")
+        wa, wb, wsg, we_ = int(f_[0]), int(f_[1]), float(f_[2]), f_[3].strip().upper()
+        k_ = np.arange(wb - wa + 1)
+        ew = _ssw(np.minimum(k_, (wb - wa) - k_) / 10.0)
+        if we_ == "L":
+            Ls_ = gsmooth(Lraw, wsg)
+            L2[wa:wb + 1] = L2[wa:wb + 1] + ew[:, None] * (Ls_[wa:wb + 1] - L2[wa:wb + 1])
+        else:
+            Rs_ = gsmooth(Rraw, wsg)
+            R2[wa:wb + 1] = R2[wa:wb + 1] + ew[:, None] * (Rs_[wa:wb + 1] - R2[wa:wb + 1])
+        print("  EDGE_SIGW1 %d..%d sigma %g edge %s" % (wa, wb, wsg, we_))
 L2_TR, R2_TR = L2.copy(), R2.copy()
 if os.environ.get("DUMP_EDGES"):
     np.savez(os.environ["DUMP_EDGES"], L2=L2, R2=R2, Lraw_a=Lraw_a, Rraw_a=Rraw_a, IV=IV)
