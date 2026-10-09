@@ -1,6 +1,12 @@
 # RESUME HERE (updated 2026-10-09 evening; weekly usage exhausted)
 
-## HANDOFF 2026-10-10 (read first; supersedes older plans below)
+## HANDOFF 2026-10-10 (later; read first)
+- **Baseline = real/X3 (v267).** The owner rejected H3 (v290) as a whole-figure regression vs X3 ("how can you be fucking going backwards"). Every round now starts FROM X3 and pins everything outside the turn windows to it (fit3d `--keep W --keep_free a:b,...`, runner scripts/curve/real/chainx.sh <run> X3 ...). Compare the WHOLE figure with X3 before sending anything.
+- Owner's open issues (boxed on E2/X3): far-left fold, bottom-K lower-right corner + K-junction streak, the wrap's curl down the outside of the left leg (a physically impossible edge-on sliver), the kink below the apex. X3's apex and top-K arches are accepted as "clean solid arches".
+- Key finding: the mockup's turns are ring-like CURLS (constant ruling, ruling perpendicular to the path), not creases. fit3d `--curl a:b:R:w` builds them; `--bz a:b:t:w` aims the curl axis; `--faceon` keeps the wrap's width in the screen plane. scripts/curve/real/curlcheck.py checks them.
+- Rounds this session: D4 v281, E2 v283, G v285-287 (creases, rejected), H v288-290 (curls but whole-figure regression), I v291-293 (curl axes, from kk4, same regression risk), J (from X3 with --keep) next.
+
+## HANDOFF 2026-10-10 (earlier)
 - **Owner's goal (final, after many corrections):** a REALISTIC, thick, luxurious satin ribbon: one strand with two ends forming the AK signature pose as naturally as possible, flowing and folding like a real ribbon.
   - The AI mockup and the trace are only a rough idea; do NOT chase an exact match.
   - The owner's TEXTUAL spec (HANDOFF.md §5a: segment order, the face per segment, fold/flip points, edge crossover, over/under) defines the flow and wins every ambiguity.
