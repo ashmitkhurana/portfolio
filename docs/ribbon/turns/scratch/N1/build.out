@@ -1,0 +1,25 @@
+inverse-perspective check on X3 centre: max err 1.1368683772161603e-13
+screen smoothing: lam=4.771e+04 RMS=1.5000 px
+initial raw mean s[0:150] 0.6369434459558747 label factor 1.0
+over/under pairs: all 25432 used 5087
+one residual eval: 0.004s, nres 6485
+initial cost (soft_l1) 340252.8401 {'faces': 369271.089, 'overunder': 181001268.02, 'smooth': 263344.148, 'shallow': 2018.673, 'keep': 490.336}
+optimiser: 3 `xtol` termination condition is satisfied. nfev 45 njev 25 cost 42801.902278885864
+final cost (soft_l1) 42801.9023 {'faces': 102724.781, 'overunder': 20832298.091, 'smooth': 2102615.451, 'shallow': 2177.061, 'keep': 15341.58} time 9.6s
+final raw mean s[0:150] -0.8599 label factor -1
+zc final: [260.1, 260.8, 261.9, 258.6, 261.3, 259.8, 258.7, 230.8, 194.5, 172.7, 137.0, 101.1, 68.8, 58.7, 53.5, 63.6, 87.2, 68.4, 190.9, 74.8, -28.1, 22.3, 17.7, 34.1, 24.5, 63.5, 110.8, 121.9, 132.7, 134.9, 117.8, 93.9, 67.9, 37.6, 7.1, -23.4, -20.2, -1.7, -12.6, -7.3, 13.5, -40.6, -30.5, -42.7, 86.6, 77.4, 117.4, 104.2, 51.1, -57.9, -27.5, -23.4, 52.5, 3.4, 6.3, -0.1, -0.2, 60.6, 24.8, 14.6, -11.6, -28.5, -52.9, -77.3, -77.2, -66.3]
+leg 380..488 straightness: max deviation of centre from 3D line 0.2372 px (at ring 427)
+leg 555..635 straightness: max deviation of centre from 3D line 0.4210 px (at ring 588)
+faces seg tail->S [0,186] A: 1.0000 match (152 rings counted)
+faces seg after S through the sweep [194,354] B: 0.0000 match (141 rings counted)
+faces seg left leg [366,513] A: 1.0000 match (115 rings counted)
+faces seg right leg [528,672] B: 1.0000 match (121 rings counted)
+faces seg return to junction + crossbar [724,925] B: 0.9586 match (169 rings counted)
+faces seg return strand after the wrap + top-K front [1015,1177] B: 1.0000 match (143 rings counted)
+faces seg after top-K tip through the end strand [1193,1298] A: 0.9271 match (96 rings counted)
+over/under violated (z_front-z_back<14): all pairs 350 / 25432 ; subsample 67 / 5087
+big ruling steps (>20deg): [(29, 71.4), (32, 20.9), (73, 21.6), (74, 28.0), (88, 43.0), (89, 26.3), (157, 29.7), (158, 26.2), (160, 26.6), (161, 36.8), (162, 49.6), (163, 24.4), (170, 23.7), (171, 46.2), (172, 34.6), (185, 85.1), (186, 39.4), (187, 33.6), (188, 21.3), (350, 40.3)]
+max per-ring ruling change 147.336 deg between rings 664 and 665
+max |dot(kv,b)| in curved stretches (w>=0.5): 5.883e-03 (1/px) at ring 186 ; kappa there 5.904e-03
+max |dot(kv,b)|/kappa in curved stretches: 0.9964 at ring 186
+straight runs (w<0.5): [(9, 32), (45, 51), (68, 73), (89, 91), (103, 107), (159, 162), (173, 176), (180, 185), (206, 208), (226, 238), (257, 278), (306, 307), (325, 326), (344, 354), (369, 374), (385, 483), (495, 497), (501, 506), (558, 632), (643, 643), (648, 674), (680, 686), (785, 789), (806, 809), (831, 831), (846, 846), (864, 876), (893, 893), (910, 912), (953, 972), (1026, 1032), (1050, 1054), (1075, 1077), (1103, 1104), (1123, 1132), (1150, 1154), (1220, 1220), (1278, 1291)]
