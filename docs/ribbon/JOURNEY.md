@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **39** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4 (D4 = v281, best so far) |
-| | **Running total** | | **281** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **42** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3 (E2 = v283, best so far) |
+| | **Running total** | | **284** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -29,9 +29,9 @@ How era 1 splits (86):
 
 How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numbers still have folders (r7, r8, r14, r19, r23, r31, r33-r40), plus the variant `r39b`. **27 numbers are "from notes"** (r0-r6, r9-r13, r15-r18, r20-r22, r24-r30, r32; STATUS names r11, r12, r17, r18, r20, r21, r24-r28, r30 and r32 explicitly, the rest are implied by the contiguous numbering). The remaining 53 are one-off experiment folders around the main line: `c1-c8`, `b1-b5`, `f1-f5`, `g1-g4`, `k1-k4`, `n0-n4`, `s1-s4`, `e1-e4`, `sg1-sg3`, `lt0-lt7`, `at1-at3`. In total 14 + 1 + 27 + 53 = 95 (68 with a folder, 27 from notes).
 
-Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281).
+Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284).
 
-**Current latest version: `real/D4` = v281** (also the current best). **The next new version is v282.**
+**Current latest version: `real/E3` = v284; current best `real/E2` = v283.** **The next new version is v285** (round G: G1-G3 = v285-v287).
 
 ### Numbering scheme
 
@@ -246,4 +246,10 @@ Each new round is appended, not rewritten.
   - **D4 (flat 6 only around the apex and the top-K tip, `--flat_ranges 470:560,1140:1240`): the new best (v281).** The apex became a true rounded arch like the mockup's, and the top-K tip a clean big loop: in 3D its legs now reverse almost exactly (T_in·T_out −0.996 vs −0.83 for X3). The worst ring-to-ring normal change fell from 64° to 35°. Zero intersections, and the wrap still truly encircles the leg.
   - Lesson: flatten locally, where a fold must reverse, not globally. Global flattening moves everything else and breaks the over/unders.
   - Still open on D4: the far-left fold still shows its inside (25 % outside), the right leg runs nearly edge-on for a short stretch just below the apex, and a thin edge-on rim at the right of the top-K tip.
-- Running total: 281 versions.
+- E (v282–v284), 2026-10-10: building on D4.
+  - E1 (D4 + flattening and an outside-shown roll at the far-left fold): the far-left became a pinched vertical twist (normal jump 113°). Rejected.
+  - **E2 (D4 + the narrower face rule `faces_v2.json`): the new best (v283).** By eye it is the same as D4, but twice as smooth: the worst ring-to-ring normal change is 17° (D4 35°, X3 64°).
+  - E3 (E1 + E2): the same far-left pinch as E1. Rejected.
+  - Lesson: the far-left fold cannot be forced to show its outside by local terms; the roll pinches instead. It needs a different approach later.
+  - Still open on E2: the right leg runs edge-on for a short stretch below the apex (the fold line still points into depth); the far-left still shows its inside.
+- Running total: 284 versions.
