@@ -40,8 +40,10 @@ def project(pts):
 
 
 def ang(a, b):
-    d = np.clip(np.einsum("ij,ij->i", a, b) / (np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1) + 1e-12), -1, 1)
-    return np.degrees(np.arccos(d))
+    # normalise first, then atan2(|a x b|, a.b): well conditioned for small angles and robust to rounded dump vectors
+    a = a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-12)
+    b = b / np.maximum(np.linalg.norm(b, axis=1, keepdims=True), 1e-12)
+    return np.degrees(np.arctan2(np.linalg.norm(np.cross(a, b), axis=1), np.einsum("ij,ij->i", a, b)))
 
 
 obl = np.abs(np.einsum("ij,ij->i", T, B))
