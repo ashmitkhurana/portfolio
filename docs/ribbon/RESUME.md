@@ -1,5 +1,30 @@
 # RESUME HERE (updated 2026-10-09 evening; weekly usage exhausted)
 
+## HANDOFF 2026-10-10 (read first; supersedes older plans below)
+- **Owner's goal (final, after many corrections):** a REALISTIC, thick, luxurious satin ribbon: one strand with two ends forming the AK signature pose as naturally as possible, flowing and folding like a real ribbon.
+  - The AI mockup and the trace are only a rough idea; do NOT chase an exact match.
+  - The owner's TEXTUAL spec (HANDOFF.md §5a: segment order, the face per segment, fold/flip points, edge crossover, over/under) defines the flow and wins every ambiguity.
+  - The wrap must truly encircle the A left leg in 3D (needed for the slide animation).
+  - Bar: Apple-level. Never show or adopt anything with wrinkles, ripples, wavy edges, creases, pinches or pass-throughs.
+  - Never ask the owner to model or tune geometry.
+- **Owner preferences:**
+  - Send ONLY the latest render next to the mockup (mockup | render, 780×1688 box 0,440,780,1688, mockup cutout on (17,17,17)) as soon as each round finishes.
+  - Keep docs/ribbon/JOURNEY.md updated every round: a version tally (v267 = real/X3; v268+ = later rounds) and the story, for the owner's blog.
+- **Method:** scripts/curve/fit3d.py (one smooth B-spline ribbon: centreline c, ruling g→b, half-width h, fitted to the trace as a WEAK guide) → scripts/curve/layer.py (front/back order along camera rays) → refit with --pose/--zprior = the layered pose → layer.py. Every run folder's fit_a.log / fit_c.log holds the full arg list.
+  - Checks: diagnose.py, clearance.py, silhouette.py, wrapcheck.py (wrap encircles the leg), faceaudit.py (visible face per segment vs the spec), edgecheck.py, convexcheck.py (a fold shows its outside), ripple.py, plus the scratchpad wavy.py (edge waviness).
+  - Render with the thick satin band: render-pose --settings '{"geometry":{"thicknessRatio":0.147,"edgeBevel":2.4}}'.
+- **Current best: docs/ribbon/turns/real/X3 (v267).** It has the T4 smooth-flow energies, the faces rule (faces.json), the wrap/leg clearance, and true folds at the apex (516) and top-K tip (1188): --fold2 R 40 + --fold_convex 10 + --flip_guard 20.
+  - Good: smooth, no pass-throughs, wrap verified around the leg, apex/top-K tip are big soft arches.
+  - Still open (owner): every fold and loop edge is WAVY (far-left, bottom-K, K loops, wrap); a kink just below the apex (pose ~525); a thin streak where the K strands meet the right leg (pose 668–716, the right leg's bottom going edge-on inside the bottom-K face-rule flip zone); the far-left fold is a wavy S, not a clean roll.
+- **Rounds after X3 (none beat X3):**
+  - Y1–Y6: far-left convexity, apex leg ramp, local energy boost, --edge_fair 50/200 (distorts the figure).
+  - Z1–Z4: --fold_axis (fold line ∥ T_in+T_out) makes the folds worse; faces_v2.json (narrower flip zones) helps the streak only together with fold_axis.
+  - KEY FINDING: at the creases T_in·T_out ≈ +0.7, i.e. the A legs barely reverse in 3D: they run steeply in DEPTH, so the folds can only twist. The 3D depth layout (inherited from the old trace pipeline) is too deep.
+- **Round D (flatten the sculpture: --flat w = residual on the centreline tangent's depth component; chain keeps all over/unders): D1 (flat 2), D2 (flat 6), D3 (flat 6 + far-left R30/convex 10 + faces_v2), D4 (extra variant by the agent).** All four FINISHED (pose, render, all checks in docs/ribbon/turns/real/D1..D4), but the agent's report was lost in a session restart.
+  - NEXT STEP: evaluate D1–D4 (T_in·T_out and |b·T| at the creases 376/516/1188; z-range; dN; wrapcheck; convexcheck; edgecheck; wavy; full-res crops vs X3).
+  - If flattening lets the folds become true folds, continue from the best D. Otherwise rethink the depth layout explicitly: a shallow sculpture with the legs and loops across the view, depth only for crossings.
+- **Engine and site (committed):** baked env AO, bright rims, golden-orange metallic material, soft-box fill, key light off the tail; the hero (phone + desktop) is still r40 (the owner rejected it; replace it only when a new pose passes all gates).
+
 ## CURRENT PLAN (owner, 2026-10-09 morning) — supersedes the morning summary's verdicts
 - The owner REJECTED r40: "still a lot of wrinkles along the whole way" and "the wrap around the left leg of A is completely fucked up". Bar: Apple-level polish; nothing is adopted or shown unless it passes hard gates: no visible ripples or streaks in full-res close crops of every region, engine normal change ≲ 3° everywhere, zero clearance INTERSECTs (hidden ones included), silhouette no worse than r40.
 - Root cause: rotosurf copies the hand-traced outline ring by ring and splices approved sections, so trace noise and splices become 3D wrinkles; with screen positions locked, the wrap curl cannot go around the left leg (it passes through it).

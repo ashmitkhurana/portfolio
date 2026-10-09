@@ -1,0 +1,4 @@
+docs/ribbon/turns/real/F2/dump/dump.json: 1500 rings, gap 14.36, skip 60: 361 ring pairs closer than gap
+2 clusters, 0 INTERSECT (<2px)
+  #0 eng i 414-427 x j 1103-1115  min 10.09px at (419,1108)  pairs 135  front=i(i strand)  pose i 396-403 x j 948-962
+  #1 eng i 975-996 x j 1241-1256  min 5.47px at (988,1248)  pairs 226  front=i(i strand)  pose i 862-870 x j 1049-1058

@@ -1,0 +1,13 @@
+{"note": "pose-ring ranges; segments per HANDOFF 5a / faceaudit; rule is off inside flip_zones (union of the kk4 and R3 audits +-10 rings)",
+ "segments": [
+  {"rings": [0, 186], "face": "A", "name": "tail->S"},
+  {"rings": [194, 354], "face": "B", "name": "after S through the sweep"},
+  {"rings": [366, 513], "face": "A", "name": "left leg"},
+  {"rings": [528, 672], "face": "B", "name": "right leg"},
+  {"rings": [724, 925], "face": "B", "name": "return to junction + crossbar"},
+  {"rings": [1015, 1177], "face": "B", "name": "return strand after the wrap + top-K front"},
+  {"rings": [1193, 1298], "face": "A", "name": "after top-K tip through the end strand"}
+ ],
+ "flip_zones": [[152, 203], [345, 387], [503, 537], [659, 746], [916, 1024], [1168, 1202]],
+ "flip_zone_names": ["S right-hand bend flip", "far-left fold flip", "apex flip", "bottom-K curl (A glimpse)", "wrap curl (crossbar end through A glimpse to B again)", "top-K tip flip"]
+}

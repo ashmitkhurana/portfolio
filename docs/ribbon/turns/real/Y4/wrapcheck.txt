@@ -1,0 +1,9 @@
+leg engine rings 338..452 (115)  wrap engine rings 888..1138 (251)
+overlapping wrap rings: 44 of 251; sign runs (sign, eng ring a..b, count):
+   +  953..971  (19)  pose 904..925
+   -  1036..1060  (25)  pose 981..1000
+sign changes between engine rings: [(971, 1036)]
+condition 2 (goes round the outer-left edge): 64 rings between 971 and 1036: 64 left of the leg's left edge, 0 at heights the leg does not reach, 0 violations []
+condition 3: min 3D distance wrap sample -> leg surface 13.87 px at wrap engine ring 1023 (pose 972); rings below 12 px: 0
+condition 1 (signs go + then - exactly once): True   sequence runs +-
+WRAPCHECK PASS  (c1 True, c2 True, c3 True)

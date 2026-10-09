@@ -412,6 +412,7 @@ class Basis:
         self.B2 = sp.derivative(2)(self.t)
         self.t2 = np.linspace(0, N - 1, 2 * N - 1)
         self.Bh = sp(self.t2)
+        self.B1h = sp.derivative(1)(self.t2)
         self.B3 = sp.derivative(3)(self.t)
 
     def fit(self, Y):
@@ -536,6 +537,106 @@ class Problem:
             r = np.minimum(ramp(np.clip((k - a0) / 10.0, 0, 1)), ramp(np.clip((b0 - k) / 10.0, 0, 1)))
             fw = float(w0) * np.where((k >= a0) & (k <= b0), r, 0.0)
         self.fw = fw
+        self.fz = np.zeros(N)
+        self.Rz = np.full(N, 1e9)
+        self.wz = np.zeros(N)
+        ramp8 = lambda x: x * x * (3 - 2 * x)
+        for spec in [q for q in a.fold.split(",") if q]:
+            a0, b0, R0, w0 = spec.split(":")
+            a0, b0 = int(a0), int(b0)
+            k = np.arange(N)
+            r = np.minimum(ramp8(np.clip((k - a0) / 8.0, 0, 1)), ramp8(np.clip((b0 - k) / 8.0, 0, 1)))
+            r = np.where((k >= a0) & (k <= b0), r, 0.0)
+            m = r > self.fz
+            self.fz = np.where(m, r, self.fz)
+            self.Rz = np.where(m, float(R0), self.Rz)
+            self.wz = np.where(m, float(w0), self.wz)
+        self.eqw = np.zeros(N)
+        self.legw = np.zeros(N)
+        self.cvxw = np.zeros(N)
+        cvx_map, cvx_all = {}, 0.0
+        for q in [q for q in str(a.fold_convex).split(",") if q]:
+            if ":" in q:
+                cq, wq = q.split(":"); cvx_map[int(cq)] = float(wq)
+            else:
+                cvx_all = float(q)
+        self.fold_n = {}
+        len_map, len_all = {}, 20.0
+        for q in [q for q in str(a.fold_legs_len).split(",") if q]:
+            if ":" in q:
+                cq, wq = q.split(":"); len_map[int(cq)] = float(wq)
+            else:
+                len_all = float(q)
+        self.ew = np.ones(N)
+        for q in [q for q in str(a.energy_ranges).split(",") if q]:
+            e0, e1, ef = q.split(":")
+            kk_ = np.arange(N).astype(float)
+            smr = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            win = smr((kk_ - int(e0) + 3.0) / 6.0) * smr((int(e1) - kk_ + 3.0) / 6.0)
+            self.ew = self.ew * (1.0 + (float(ef) - 1.0) * win)
+        if a.fold2:
+            cc_ = (np.asarray(L) + np.asarray(R)) / 2
+            dsr = np.linalg.norm(np.diff(cc_, axis=0), axis=1)
+            k = np.arange(N).astype(float)
+            sm = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            for spec in [q for q in a.fold2.split(",") if q]:
+                c0, R0, w0 = spec.split(":")
+                c0, R0, w0 = int(c0), float(R0), float(w0)
+                dsm = float(dsr[max(c0 - 15, 0):c0 + 15].mean())
+                n = int(round(math.pi * R0 / (2 * dsm)))
+                d = np.abs(k - c0)
+                eq = sm((n + 0.5 - d) / 4.0)
+                rl = sm((n + 6 + 0.5 - d) / 4.0)
+                nl = len_map.get(c0, len_all)
+                self.fold_n[c0] = n
+                lg = sm((d - (n + 6) + 2.0) / 4.0) * sm((n + nl + 0.5 - d) / 4.0) * (1.0 - rl)
+                lg = np.where(d > n + 4, lg, 0.0)
+                m = rl > self.fz
+                self.fz = np.where(m, rl, self.fz)
+                zone_ = np.maximum(rl, np.maximum(eq, lg)) > 0
+                self.Rz = np.where(zone_, R0, self.Rz)
+                self.wz = np.where(zone_, w0, self.wz)
+                self.eqw = np.maximum(self.eqw, eq)
+                self.cvxw = np.maximum(self.cvxw, eq * cvx_map.get(c0, cvx_all))
+                self.legw = np.maximum(self.legw, lg)
+                print("fold2 crease %d R %.0f: ds %.2f n %d (eq %d..%d, ruling %d..%d, legs to +-%d)" % (c0, R0, dsm, n, c0 - n, c0 + n, c0 - n - 6, c0 + n + 6, n + int(nl)), flush=True)
+        self.flatw = np.zeros(N)
+        if a.flat > 0:
+            if a.flat_ranges:
+                for q in [q for q in str(a.flat_ranges).split(",") if q]:
+                    f0, f1 = q.split(":")
+                    self.flatw[int(f0):int(f1) + 1] = a.flat
+            else:
+                self.flatw[:] = a.flat
+        self.axw = np.zeros(N)
+        self.axL = np.zeros((N, 3))
+        self.ax_info = []
+        for q in [q for q in str(a.fold_axis).split(",") if q]:
+            cq, wq = q.split(":")
+            cq, wq = int(cq), float(wq)
+            nq = self.fold_n[cq]
+            dd = np.abs(np.arange(N) - cq).astype(float)
+            smx = lambda x: np.clip(x, 0, 1) ** 2 * (3 - 2 * np.clip(x, 0, 1))
+            self.axw = np.maximum(self.axw, wq * smx((nq + 6 + 0.5 - dd) / 4.0))
+            self.ax_info.append((cq, nq, wq))
+        self.face_e = np.zeros(N)
+        self.sign_A = 1.0
+        if a.faces and a.w_face > 0:
+            fj = json.load(open(a.faces))
+            e = np.zeros(N)
+            for sg in fj["segments"]:
+                e[int(sg["rings"][0]):int(sg["rings"][1]) + 1] = 1.0 if sg["face"] == "A" else -1.0
+            zone = np.zeros(N, bool)
+            for z0, z1 in fj.get("flip_zones", []):
+                zone[int(z0):int(z1) + 1] = True
+            dist = np.full(N, 1e9)
+            zi = np.nonzero(zone)[0]
+            if len(zi):
+                dist = np.abs(np.arange(N)[:, None] - zi[None, :]).min(1).astype(float)
+            ramp_ = np.clip(dist / 6.0, 0.0, 1.0)
+            self.face_e = e * ramp_ * a.w_face  # signed expectation scaled by weight/ramp (hinge uses sign and weight separately below)
+            self.face_s = np.sign(e)
+            self.face_wt = np.abs(e) * ramp_ * a.w_face
         sw = np.zeros(N)
         swt = np.ones(N)
         ramp = lambda x: x * x * (3 - 2 * x)
@@ -610,6 +711,7 @@ class Problem:
     def blocks(self, x):
         a, bs = self.a, self.bs
         C, G, H = self.unpack(x)
+        self._G = G
         c = bs.B @ C
         g = bs.B @ G
         h = bs.B @ H
@@ -649,7 +751,7 @@ class Problem:
             edge=edge,
             smooth=a.mu * b2,
             jerk=a.lam * c3,
-            perp=(self.nu * (b * T).sum(1))[:, None],
+            perp=(self.nu * (1.0 - self.fz) * (b * T).sum(1))[:, None],
             dev=a.delta * np.einsum("ij,ij->i", np.cross(T, b), bp)[:, None],
             depth=(a.eps * (c[:, 2] - self.c0z))[:, None],
             hsm=(a.lam_h * h2)[:, None],
@@ -658,11 +760,92 @@ class Problem:
             hmin=(a.w_hmin * np.maximum(0.0, a.hmin - h))[:, None],
             hmax=(a.w_hmin * np.maximum(0.0, h - a.hmax))[:, None],
             face=(self.fw * b[:, 2])[:, None],
-            rmin=(a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin))[:, None] if a.rmin > 0 else np.zeros((self.N, 1)),
+            fcr=self.face_rule(c, T, b)[:, None],
+            **self.elastic(c1, c2, T, b, g, kap),
+            rmin=((1.0 - self.fz) * a.w_rmin * a.rmin * np.maximum(0.0, kap - 1.0 / a.rmin))[:, None] if a.rmin > 0 else np.zeros((self.N, 1)),
+            **self.fold_terms(c1, g, b, kap, c2, c, T),
             scrw=(self.sw * (wscr - self.swt) / self.swt)[:, None],
             wf=wf[:, None],
             ins=(a.inside * self.field(project(c[:, None, :] + UB[None, :, None] * h[:, None, None] * b[:, None, :]))) if self.field is not None else np.zeros((self.N, 5)),
         )
+
+    def update_axis(self, x, tag=""):
+        """per fold: unit(T_in + T_out) (mean tangents over [c-n-20, c-n-5] / [c+n+5, c+n+20]) = the physical fold line; stored per ring in the zone."""
+        if not self.ax_info:
+            return
+        C, G, H = self.unpack(x)
+        T = unit(self.bs.B1 @ C)
+        b = unit(self.bs.B @ G)
+        for cq, nq, wq in self.ax_info:
+            lo1, hi1 = max(cq - nq - 20, 0), max(cq - nq - 5, 1)
+            lo2, hi2 = min(cq + nq + 5, self.N - 2), min(cq + nq + 20, self.N - 1)
+            Tin = unit(T[lo1:hi1 + 1].mean(0, keepdims=True))[0]
+            Tout = unit(T[lo2:hi2 + 1].mean(0, keepdims=True))[0]
+            lh = unit((Tin + Tout)[None, :])[0]
+            zone = np.abs(np.arange(self.N) - cq) <= nq + 7
+            self.axL[zone] = lh
+            ang = math.degrees(math.acos(np.clip(Tin @ (-Tout), -1, 1)))
+            print("fold_axis %s crease %d: |b.T| at crease %.3f, |b.l| %.3f, expected cos(half angle(T_in,-T_out)=%.1f deg) = %.3f" % (tag, cq, abs(b[cq] @ T[cq]), abs(b[cq] @ lh), ang, math.cos(math.radians(ang / 2))), flush=True)
+
+    def fold_terms(self, c1, g, b, kap, c2=None, c=None, T=None):
+        z1, z3 = np.zeros((self.N, 1)), np.zeros((self.N, 3))
+        if not (self.a.fold or self.a.fold2):
+            return dict(rmf=z1, crl=z3, lgb=z1, cvx=z1)
+        ds = np.maximum(np.linalg.norm(c1, axis=1), 1e-9)
+        g1 = self.bs.B1 @ self._G
+        gn = np.maximum(np.linalg.norm(g, axis=1, keepdims=True), 1e-9)
+        bp = (g1 - b * (b * g1).sum(1, keepdims=True)) / gn
+        wf = (self.wz * self.fz)[:, None]
+        if self.a.fold2:
+            rmf = self.wz * self.eqw * self.Rz * np.abs(kap - 1.0 / self.Rz)
+        else:
+            rmf = self.wz * self.fz * self.Rz * (np.abs(kap - 1.0 / self.Rz) if self.a.fold_eq else np.maximum(0.0, kap - 1.0 / self.Rz))
+        cvx = z1
+        if self.cvxw.any() and self.a.fold2:
+            Nn = unit(np.cross(T, b))
+            v = unit(np.array([0.0, 0.0, D]) - c)
+            sg = np.tanh(np.einsum("ij,ij->i", Nn, v) / 0.1)
+            kv = (c2 - (c2 * T).sum(1, keepdims=True) * T) / ds[:, None] ** 2
+            sv = self.Rz * np.einsum("ij,ij->i", kv, Nn) * sg
+            cvx = (self.cvxw * np.maximum(0.0, 0.3 + sv))[:, None]
+        return dict(rmf=rmf[:, None], crl=wf * bp / ds[:, None], lgb=(self.a.fold_legs * self.legw * self.Rz * kap)[:, None], cvx=cvx)
+
+    def elastic(self, c1, c2, T, b, g, kap):
+        a = self.a
+        z = np.zeros((self.N, 1))
+        if not (a.bend > 0 or a.twist > 0 or a.dbend > 0 or a.dtwist > 0):
+            return dict(bnd=z, twi=z, dbn=z, dtw=z)
+        ds = np.maximum(np.linalg.norm(c1, axis=1), 1e-9)
+        sq = np.sqrt(ds)
+        g1 = self.bs.B1 @ self._G
+        gn = np.maximum(np.linalg.norm(g, axis=1, keepdims=True), 1e-9)
+        bp = (g1 - b * (b * g1).sum(1, keepdims=True)) / gn  # db/dt
+        tau = (bp / ds[:, None] * np.cross(T, b)).sum(1)
+        dk = np.gradient(kap) / ds
+        dt = np.gradient(tau) / ds
+        of = 1.0 - self.fz
+        return dict(bnd=(a.bend * sq * kap)[:, None], twi=(of * a.twist * sq * tau)[:, None],
+                    dbn=(self.ew * a.dbend * sq * dk)[:, None], dtw=(self.ew * of * a.dtwist * sq * dt)[:, None])
+
+    def face_rule(self, c, T, b):
+        """w * max(0, m - e * s), s = sign_A * (N . unit(cam - c)), N = unit(T x b); zero where no face is expected / flip zones."""
+        if not (self.a.faces and self.a.w_face > 0):
+            return np.zeros(self.N)
+        Nn = unit(np.cross(T, b))
+        v = unit(np.array([0.0, 0.0, D]) - c)
+        s_ = self.sign_A * np.einsum("ij,ij->i", Nn, v)
+        return self.face_wt * np.maximum(0.0, self.a.face_margin - self.face_s * s_)
+
+    def calib_face(self, x):
+        """sign_A so that the tail (pose rings 20..80) shows face A (s > 0) at x."""
+        if not (self.a.faces and self.a.w_face > 0):
+            return
+        c, b, h = self.curves(x)
+        C, G, H = self.unpack(x)
+        T = unit(self.bs.B1 @ C)
+        s_ = np.einsum("ij,ij->i", unit(np.cross(T, b)), unit(np.array([0.0, 0.0, D]) - c))
+        self.sign_A = 1.0 if np.median(s_[20:81]) >= 0 else -1.0
+        print("face rule: sign_A %.0f (tail median N.v %.3f)" % (self.sign_A, np.median(s_[20:81])), flush=True)
 
     U = np.array([-1.0, -0.5, 0.0, 0.5, 1.0])
 
@@ -719,7 +902,35 @@ class Problem:
                 kk = np.linalg.norm(np.cross(d1, d2), axis=1) / np.maximum(np.linalg.norm(d1, axis=1), 1e-9) ** 3
                 kap_all.append(np.r_[0.0, kk, 0.0])
             kap = np.concatenate(kap_all)
-            out.append(a.w_redge * a.redge * np.maximum(0.0, kap - 1.0 / a.redge))
+            fzh = np.interp(np.linspace(0, self.N - 1, 2 * self.N - 1), np.arange(self.N), self.fz)
+            out.append(a.w_redge * a.redge * np.maximum(0.0, kap - 1.0 / a.redge) * np.tile(1.0 - fzh, 2))
+        if a.edge_fair > 0:
+            C, G, H = self.unpack(x)
+            bs = self.bs
+            c2, g2, h2 = bs.Bh @ C, bs.Bh @ G, bs.Bh @ H
+            b2 = unit(g2)
+            for sg in (-1.0, 1.0):
+                E = c2 + sg * h2[:, None] * b2
+                d1 = (E[2:] - E[:-2]) / 1.0
+                d2 = (E[2:] - 2 * E[1:-1] + E[:-2]) * 4.0
+                kk = np.linalg.norm(np.cross(d1, d2), axis=1) / np.maximum(np.linalg.norm(d1, axis=1), 1e-9) ** 3
+                sl = np.maximum(np.linalg.norm(E[2:] - E[1:-1], axis=1), 1e-9)[:-1]
+                out.append(a.edge_fair * np.diff(kk) / sl * np.sqrt(sl))
+        if a.flip_guard > 0:
+            C, G, H = self.unpack(x)
+            bs = self.bs
+            bh = unit(bs.Bh @ G)
+            Th = unit(bs.B1h @ C)
+            Nh = unit(np.cross(Th, bh))
+            out.append(a.flip_guard * np.maximum(0.0, 0.9 - (bh[1:] * bh[:-1]).sum(1)))
+            out.append(a.flip_guard * np.maximum(0.0, 0.9 - (Nh[1:] * Nh[:-1]).sum(1)))
+        if a.fold_axis:
+            C, G, H = self.unpack(x)
+            bq = unit(self.bs.B @ G)
+            out.append(self.axw * (1.0 - (bq * self.axL).sum(1) ** 2))
+        if a.flat > 0:
+            C, G, H = self.unpack(x)
+            out.append(self.flatw * unit(self.bs.B1 @ C)[:, 2])
         return np.concatenate(out)
 
     # ---- outline sparsity: rings the nearest edge point belongs to, +-10 ring window
@@ -740,6 +951,15 @@ class Problem:
             tree = cKDTree(P)
             pr = tree.query_pairs(a.gap + 8.0, output_type="ndarray")
             pr = pr[np.abs(ring[pr[:, 0]] - ring[pr[:, 1]]) > 60]
+            if a.clear_range:
+                ri_, rj_ = ring[pr[:, 0]], ring[pr[:, 1]]
+                keep_ = np.zeros(len(pr), bool)
+                for spec in [q for q in a.clear_range.split(",") if q]:
+                    r1, r2 = spec.split("-")
+                    a0, a1 = [int(v) for v in r1.split(":")]
+                    b0, b1 = [int(v) for v in r2.split(":")]
+                    keep_ |= ((ri_ >= a0) & (ri_ <= a1) & (rj_ >= b0) & (rj_ <= b1)) | ((rj_ >= a0) & (rj_ <= a1) & (ri_ >= b0) & (ri_ <= b1))
+                pr = pr[keep_]
             res["c"] = (pr[:, 0], pr[:, 1])
         if want_o:
             sc = project(P)
@@ -820,6 +1040,31 @@ class Problem:
             ones3_ = sparse.csr_matrix(np.ones((1, 3)))
             Rr = sparse.hstack([sparse.kron(Bhd, ones3_, format="csr")] * 2 + [Bhd], format="csr")
             blocks.append(sparse.vstack([Rr, Rr], format="csr"))
+        if a.edge_fair > 0:
+            M2 = 2 * N - 1
+            Bhn = (abs(sparse.csr_matrix(bs.Bh)) > 0).astype(float)
+            Sh4 = sparse.diags([1, 1, 1, 1], [0, 1, 2, 3], (M2, M2))
+            Bf = (abs(Sh4 @ Bhn) > 0).astype(float)[:M2 - 3]
+            ones3_ = sparse.csr_matrix(np.ones((1, 3)))
+            Rf = sparse.hstack([sparse.kron(Bf, ones3_, format="csr")] * 2 + [Bf], format="csr")
+            blocks.append(sparse.vstack([Rf, Rf], format="csr"))
+        if a.flip_guard > 0:
+            M2 = 2 * N - 1
+            Bhn = (abs(sparse.csr_matrix(bs.Bh)) > 0).astype(float)
+            B1hn = (abs(sparse.csr_matrix(bs.B1h)) > 0).astype(float)
+            Sh3 = sparse.diags([1, 1, 1], [-1, 0, 1], (M2, M2))
+            Bg = (abs(Sh3 @ (Bhn + B1hn)) > 0).astype(float)[:-1]
+            ones3_ = sparse.csr_matrix(np.ones((1, 3)))
+            Rg = sparse.hstack([sparse.kron(Bg, ones3_, format="csr")] * 2 + [sparse.csr_matrix((Bg.shape[0], K))], format="csr")
+            blocks.append(sparse.vstack([Rg, Rg], format="csr"))
+        if a.fold_axis:
+            Bn_ = (abs(sparse.csr_matrix(bs.B)) > 0).astype(float)
+            ones3_ = sparse.csr_matrix(np.ones((1, 3)))
+            blocks.append(sparse.hstack([sparse.csr_matrix((N, 3 * K)), sparse.kron(Bn_, ones3_, format="csr"), sparse.csr_matrix((N, K))], format="csr"))
+        if a.flat > 0:
+            B1n_ = (abs(sparse.csr_matrix(bs.B1)) > 0).astype(float)
+            ones3_ = sparse.csr_matrix(np.ones((1, 3)))
+            blocks.append(sparse.hstack([sparse.kron(B1n_, ones3_, format="csr"), sparse.csr_matrix((N, 3 * K)), sparse.csr_matrix((N, K))], format="csr"))
         self.jac_sparsity = sparse.vstack(blocks, format="csr")
 
     def _sparsity(self):
@@ -861,6 +1106,15 @@ class Problem:
             scrw=(1, row(k3(Bn), k3(Bn), Bn)),
             ins=(5, row(k3(Bn), k3(Bn), Bn)),
             wf=(1, row(k3(B7), k3(B7), B7h)),
+            fcr=(1, row(k3(nz(B1n + Bn)), k3(Bn), ZH)),
+            bnd=(1, row(k3(nz(B1n + B2n)), Z3, ZH)),
+            twi=(1, row(k3(B1n), k3(nz(B1n + Bn)), ZH)),
+            dbn=(1, row(k3(nz(Sh @ nz(B1n + B2n))), Z3, ZH)),
+            dtw=(1, row(k3(nz(Sh @ B1n)), k3(nz(Sh @ nz(B1n + Bn))), ZH)),
+            rmf=(1, row(k3(nz(B1n + B2n)), Z3, ZH)),
+            crl=(3, row(k3(B1n), k3(nz(B1n + Bn)), ZH)),
+            lgb=(1, row(k3(nz(B1n + B2n)), Z3, ZH)),
+            cvx=(1, row(k3(nz(Bn + B1n + B2n)), k3(Bn), ZH)),
         )
         tot = sum(spec[k][0] for k in ORDER)
         # assemble explicit coo with the per-sample row layout
@@ -878,7 +1132,7 @@ class Problem:
         return sparse.csr_matrix((np.ones(len(r)), (r, c)), shape=(N * tot, 7 * K))
 
 
-ORDER = ["edge", "smooth", "jerk", "perp", "dev", "depth", "hsm", "wpr", "speed", "hmin", "hmax", "face", "rmin", "scrw", "wf", "ins"]
+ORDER = ["edge", "smooth", "jerk", "perp", "dev", "depth", "hsm", "wpr", "speed", "hmin", "hmax", "face", "rmin", "scrw", "wf", "ins", "fcr", "bnd", "twi", "dbn", "dtw", "rmf", "crl", "lgb", "cvx"]
 
 
 def hide_targets(tgtL, tgtR, a, b, ha, hb, nblend=8):
@@ -1052,6 +1306,10 @@ def metrics(x, prob, tgtL, tgtR, tag, elapsed, a, info=""):
     lines.append("   worst dense samples (t, deg, |b.T|): " + "; ".join("%.2f, %.1f, %.3f" % (td[i], ang[i], btd[i]) for i in top))
     n_gt = lambda thr: int(((ang > thr)).sum())
     lines.append("   dense steps > 3 deg: %d, > 6 deg: %d" % (n_gt(3), n_gt(6)))
+    if len(Nn) > 2:
+        dsr = 0.5 * (np.linalg.norm(cd[2:] - cd[1:-1], axis=1) + np.linalg.norm(cd[1:-1] - cd[:-2], axis=1))
+        rip = np.linalg.norm(Nn[2:] - 2 * Nn[1:-1] + Nn[:-2], axis=1) / np.maximum(dsr, 1e-6) ** 2
+        lines.append("ripple (|second difference of unit N| per world px^2, dense): max %.3e  p99 %.3e  median %.3e" % (rip.max(), np.percentile(rip, 99), np.median(rip)))
     out = np.ones(N, bool)
     for lo, hi in FOLDS:
         out[lo:hi + 1] = False
@@ -1150,6 +1408,26 @@ def main():
     ap.add_argument("--rim_side_mode", default="centre", choices=["centre", "opposite"], help="centre: side from the sign rule vs the init centreline; opposite: forced from the box silhouette points' side (per rim entry rel opposite/same)")
     ap.add_argument("--rim_pose", default="", help="pose.json used for the rim assignment (default --box_pose, --outline_pose, --pose)")
     ap.add_argument("--zprior", default="", help="pose.json whose centre z the depth prior points at")
+    ap.add_argument("--faces", default="", help="json {segments:[{rings:[a,b],face:A|B}], flip_zones:[[a,b],...]}: visible-face rule (pose rings), default off")
+    ap.add_argument("--w_face", type=float, default=0.0, help="weight of the visible-face hinge w*max(0, m - e*s), s = sign_A*(N . unit(cam-c))")
+    ap.add_argument("--face_margin", type=float, default=0.3)
+    ap.add_argument("--bend", type=float, default=0.0, help="w: elastic bending w*sqrt(ds)*kappa (kappa=|c'xc''|/|c'|^3), default off")
+    ap.add_argument("--twist", type=float, default=0.0, help="w: w*sqrt(ds)*tau_r, tau_r=(db/ds).(TxB)")
+    ap.add_argument("--dbend", type=float, default=0.0, help="w: w*sqrt(ds)*dkappa/ds")
+    ap.add_argument("--dtwist", type=float, default=0.0, help="w: w*sqrt(ds)*dtau_r/ds")
+    ap.add_argument("--fold", default="", help="a:b:R:w[,...] true-fold zones (pose rings): inside, --rmin/--redge/ruling-perp/--twist/--dtwist are off, curvature radius >= R (w), constant ruling (w*|db/ds|); 8-ring smoothstep ramps")
+    ap.add_argument("--fold2", default="", help="c:R:w[,...] fold at crease pose ring c: radius TARGET R over c+-n (n=round(pi R/(2 ds))), constant ruling + rmin/redge/perp/twist off over c+-(n+6), leg bending penalty (--fold_legs) over n+6..n+20; 4-ring smoothstep ramps")
+    ap.add_argument("--fold_legs", type=float, default=0.0, help="w: w*R*kappa on the legs leaving a --fold2 roll")
+    ap.add_argument("--fold_convex", default="", help="w or c:w,...(per fold crease c): over each --fold2 roll the visible surface must be the OUTSIDE of the roll: w*max(0, 0.3 + s), s = R * kvec.n_vis (kvec = curvature vector of the centreline, n_vis = visible-face normal); default off")
+    ap.add_argument("--fold_legs_len", default="20", help="L or c:L,...: outer end (rings beyond the roll end n) of the --fold2 leg ramp (default 20; the ramp starts at n+6)")
+    ap.add_argument("--energy_ranges", default="", help="a:b:f[,...] multiply the --dbend/--dtwist weights by f over pose rings a..b (3-ring smoothstep edges); default off")
+    ap.add_argument("--edge_fair", type=float, default=0.0, help="w: both edge curves E = c -+ h b (half-ring samples): w*sqrt(ds)*dkappa_E/ds, everywhere incl. fold zones (fair edges, no wobble); default off")
+    ap.add_argument("--fold_axis", default="", help="c:w[,...] physical fold line: inside each --fold2 roll c+-(n+6) (smoothstep edge), w*(1-(b.l)^2) with l = unit(T_in + T_out), T_in/T_out = mean centreline tangents over [c-n-20,c-n-5] / [c+n+5,c+n+20], recomputed each outer round; default off")
+    ap.add_argument("--flat", type=float, default=0.0, help="w: residual w*T_z (depth component of the unit centreline tangent) at every ring (or --flat_ranges); default off")
+    ap.add_argument("--flat_ranges", default="", help="a:b[,...] pose rings the --flat term applies to (default all)")
+    ap.add_argument("--flip_guard", type=float, default=0.0, help="w: at consecutive half-ring samples w*max(0, 0.9 - b_i.b_(i+1)) and w*max(0, 0.9 - N_i.N_(i+1)): forbids instantaneous ruling / normal flips; default off")
+    ap.add_argument("--fold_eq", action="store_true", help="with --fold: curvature TARGETS 1/R inside the zone (two-sided residual w*R*|kappa-1/R|) instead of only bounding the radius from below")
+    ap.add_argument("--clear_range", default="", help="a:b-c:d[,...] restrict the --clear pairs to rings a..b x c..d (default: all non-adjacent pairs)")
     a = ap.parse_args()
     t0 = time.time()
     d = json.load(open(a.pose))
@@ -1190,7 +1468,9 @@ def main():
         zL = pose_to_world([r["L"] for r in zp]); zR = pose_to_world([r["R"] for r in zp])
         prob.c0z = ((zL + zR) / 2)[:, 2]
     x0 = prob.pack(C, G, H)
+    prob.calib_face(x0)
     prob.set_x0(x0)
+    prob.update_axis(x0, "init")
     x = x0
     info = "init=%s" % a.init
     if not a.no_opt:
@@ -1205,10 +1485,12 @@ def main():
                 pr = prob.build_pairs(x, a.clear > 0, a.order > 0) if rounds > 1 else {}
                 prob.set_pairs(pr.get("c", prob.pairs_c), pr.get("o", prob.pairs_o))
                 print("round %d: clearance pairs %d, order pairs %d, residuals %d" % (rd, len(prob.pairs_c[0]), len(prob.pairs_o[0]), prob.jac_sparsity.shape[0]), flush=True)
+            prob.update_axis(x, "round %d" % rd)
             res = least_squares(prob.fun, x, jac_sparsity=prob.jac_sparsity, method="trf", x_scale="jac", max_nfev=a.max_nfev, verbose=2)
             x = res.x
             nf += res.nfev
             info += "  [round %d nfev=%d status=%d (%s) cost %.3f]" % (rd, res.nfev, res.status, res.message.strip("`").split(" ")[0], res.cost)
+    prob.update_axis(x, "final")
     elapsed = time.time() - t0
     os.makedirs(a.out, exist_ok=True)
     rep, _ = metrics(x, prob, tgtL, tgtR, os.path.basename(os.path.normpath(a.out)), elapsed, a, info)

@@ -1,0 +1,95 @@
+{
+ "note": "faces_v2: flip zones narrowed to the X3 faceaudit edge-on/A glimpses +-6 pose rings (bottom-K: ~687-692 + A 693-737 -> 681..744; wrap: edge-on 936-1007 -> 930..1013); adjacent B segments extended up to the zones",
+ "segments": [
+  {
+   "rings": [
+    0,
+    186
+   ],
+   "face": "A",
+   "name": "tail->S"
+  },
+  {
+   "rings": [
+    194,
+    354
+   ],
+   "face": "B",
+   "name": "after S through the sweep"
+  },
+  {
+   "rings": [
+    366,
+    513
+   ],
+   "face": "A",
+   "name": "left leg"
+  },
+  {
+   "rings": [
+    528,
+    680
+   ],
+   "face": "B",
+   "name": "right leg"
+  },
+  {
+   "rings": [
+    745,
+    929
+   ],
+   "face": "B",
+   "name": "return to junction + crossbar"
+  },
+  {
+   "rings": [
+    1014,
+    1177
+   ],
+   "face": "B",
+   "name": "return strand after the wrap + top-K front"
+  },
+  {
+   "rings": [
+    1193,
+    1298
+   ],
+   "face": "A",
+   "name": "after top-K tip through the end strand"
+  }
+ ],
+ "flip_zones": [
+  [
+   152,
+   203
+  ],
+  [
+   345,
+   387
+  ],
+  [
+   503,
+   537
+  ],
+  [
+   681,
+   744
+  ],
+  [
+   930,
+   1013
+  ],
+  [
+   1168,
+   1202
+  ]
+ ],
+ "flip_zone_names": [
+  "S right-hand bend flip",
+  "far-left fold flip",
+  "apex flip",
+  "bottom-K curl (A glimpse 693-737 +-6)",
+  "wrap curl (edge-on 936-1007 +-6)",
+  "top-K tip flip"
+ ]
+}

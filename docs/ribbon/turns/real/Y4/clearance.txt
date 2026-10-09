@@ -1,0 +1,12 @@
+docs/ribbon/turns/real/Y4/dump/dump.json: 1500 rings, gap 14.36, skip 60: 2529 ring pairs closer than gap
+10 clusters, 1 INTERSECT (<2px)
+  #0 eng i 166-246 x j 615-691  min 6.26px at (172,620)  pairs 1190  front=i(i strand)  pose i 208-276 x j 654-696
+  #1 eng i 363-365 x j 1022-1025  min 13.87px at (364,1023)  pairs 10  front=i(i strand)  pose i 409-410 x j 972-974
+  #2 eng i 703-709 x j 1495-1499  min 10.97px at (706,1498)  pairs 31  front=i(i strand)  pose i 702-705 x j 1293-1298
+  #3 eng i 828-835 x j 1363-1371  min 11.81px at (832,1366)  pairs 47  front=i(i strand)  pose i 786-793 x j 1234-1237
+  #4 eng i 845-853 x j 1388-1396  min 12.93px at (849,1392)  pairs 35  front=i(i strand)  pose i 810-821 x j 1243-1246
+  #5 eng i 861-868 x j 1409-1414  min 12.22px at (864,1412)  pairs 38  front=i(i strand)  pose i 830-838 x j 1251-1253
+  #6 eng i 864-871 x j 1156-1167  min 11.52px at (866,1163)  pairs 62  front=j(j strand)  pose i 834-841 x j 1079-1092
+  #7 eng i 910-920 x j 1131-1142  min 5.82px at (915,1136)  pairs 107  front=j(j strand)  pose i 872-876 x j 1061-1069
+  #8 eng i 1228-1251 x j 1322-1336  min 11.23px at (1244,1332)  pairs 146  front=i(i strand)  pose i 1179-1194 x j 1223-1226
+  #9 eng i 1344-1393 x j 1436-1487  min 0.63px at (1354,1448)  pairs 863  front=i(i strand)  pose i 1228-1245 x j 1263-1286  INTERSECT

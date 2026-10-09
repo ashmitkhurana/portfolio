@@ -1,0 +1,4 @@
+fit (dense, K=160): max 4.058e+00  p99 3.624e-02  median 3.421e-04
+   fit sweep  pose 194..354: p95 3.409e-03  max 3.890e-03  median 3.674e-04
+   fit topK   pose 1015..1177: p95 1.555e-03  max 2.025e-03  median 3.399e-04
+engine (rings):    max 3.609e-01  p99 3.932e-02  median 5.258e-04

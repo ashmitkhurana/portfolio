@@ -234,3 +234,10 @@ Each new round is appended, not rewritten.
 4. Append the new `v<N>=<folder>` entries to the numbering block for that era.
 5. Add a short section to the Timeline in the same format as above: date, method, what worked, what failed and why, the owner's words if they matter.
 6. If a lesson changes, update "Lessons learned"; if a tool is added, add one line under "Tools built".
+
+## 2026-10-09/10: rounds after X3 (v268+)
+- Y (v268–v273): far-left convexity, apex hand-off, local smoothing, edge fairness — no improvement over X3; strong edge fairness distorts the figure.
+- Z (v274–v277): forcing the fold line from the leg directions made folds worse; narrowing the face-rule zones helped the K-junction streak only in combination.
+- Key insight: the A legs run steeply in depth in our 3D shape (they barely reverse direction in 3D), so the apex can only twist, not fold — the depth layout inherited from the old trace pipeline is too deep.
+- D (v278–v281): flatten the sculpture to a realistic shallow depth while keeping every over/under — results pending evaluation in the next session.
+- Running total: about 281 versions.

@@ -24,6 +24,7 @@ ap.add_argument("out")
 ap.add_argument("--gap", type=float, default=12.4)
 ap.add_argument("--kz", type=int, default=160)
 ap.add_argument("--report")
+ap.add_argument("--clear_pairs", default="", help="a:b-c:d:gap[,...] larger gap for sample pairs with one ring in a..b and the other in c..d (default off)")
 ap.add_argument("--maxiter", type=int, default=3000)
 ap.add_argument("--method", default="SLSQP")
 a = ap.parse_args()
@@ -67,6 +68,15 @@ setf(ia & ~ja, 1, 1); setf(ja & ~ia, -1, 1)
 setf(inr(i, 859, 945) & inr(j, 388, 483), 1, 2); setf(inr(j, 859, 945) & inr(i, 388, 483), -1, 2)
 setf(inr(j, 946, 1066) & inr(i, 388, 483), 1, 3); setf(inr(i, 946, 1066) & inr(j, 388, 483), -1, 3)
 dzi = flat[pa, 2] - flat[pb, 2]
+gp = np.full(len(pa), float(a.gap))  # per raw sample pair required separation
+for spec in [q for q in a.clear_pairs.split(",") if q]:
+    rg, gq = spec.rsplit(":", 1)
+    r1, r2 = rg.split("-")
+    a0, a1 = [int(v) for v in r1.split(":")]
+    b0, b1 = [int(v) for v in r2.split(":")]
+    mk = (inr(i, a0, a1) & inr(j, b0, b1)) | (inr(j, a0, a1) & inr(i, b0, b1))
+    gp = np.where(mk, np.maximum(gp, float(gq)), gp)
+    print("clear_pairs %s: %d raw sample pairs get gap %s" % (spec, int(mk.sum()), gq), flush=True)
 inp = np.where(dzi >= 0, 1, -1)  # the input's own order at the sample pair
 # --- crossing clusters over unique ring pairs (i,j): connected if |di|<=6 and |dj|<=6
 from scipy.sparse import coo_matrix  # noqa: E402
@@ -107,7 +117,9 @@ rf = np.where(dec_u > 0, ui, uj)
 rb = np.where(dec_u > 0, uj, ui)
 n = len(ukey)
 A = B[rf] - B[rb]
-lb = a.gap - worst
+gpu = np.full(len(ukey), float(a.gap))
+np.maximum.at(gpu, inv, gp)
+lb = gpu - worst
 need = np.zeros(ncl)
 np.maximum.at(need, ucl, lb)
 cl_rings = [(ui[ucl == c_].min(), ui[ucl == c_].max(), uj[ucl == c_].min(), uj[ucl == c_].max()) for c_ in range(ncl)]
@@ -160,7 +172,7 @@ lines = ctab + [
     "screen-overlap sample pairs (raw) %d, constraints (ring pairs) %d, violated at input %d (worst %.1f px short)" % (len(pa), n, int(viol.sum()), lb.max() if n else 0),
     "solver %s status %s iterations %d objective %.4g time %.1f s" % (a.method, res.status, res.nit, f(res.x), time.time() - t0),
     "max constraint violation after solve (deduped): %.3f px; violated constraints (> 0.01): %d" % (mv.max() if n else 0, int((mv > 0.01).sum())),
-    "all raw sample pairs after: z_front - z_back min %.2f px, pairs with < 0: %d, < gap-0.5: %d" % (gap_all.min() if len(gap_all) else 0, int((gap_all < 0).sum()), int((gap_all < a.gap - 0.5).sum())),
+    "all raw sample pairs after: z_front - z_back min %.2f px, pairs with < 0: %d, < gap-0.5: %d" % (gap_all.min() if len(gap_all) else 0, int((gap_all < 0).sum()), int((gap_all < gp - 0.5).sum())),
     "dz: max |dz| %.1f px (min %.1f, max %.1f); max |dz''| %.4f px/ring^2" % (np.abs(dzr).max(), dzr.min(), dzr.max(), np.abs(d2).max()),
     "unit check: max change of projected edge screen position %.2e css px" % err,
 ]

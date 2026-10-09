@@ -1,0 +1,4 @@
+S         pose 152..203: 44 engine rings, edge-on 12, longest edge-on run 12, A/B changes 1, sequence A16 ~12 B16  FAIL
+farleft   pose 345..387: 36 engine rings, edge-on 16, longest edge-on run 16, A/B changes 1, sequence B16 ~16 A4  FAIL
+apex      pose 503..537: 30 engine rings, edge-on 3, longest edge-on run 3, A/B changes 0, sequence A27 ~3  PASS
+topK_tip  pose 1168..1202: 59 engine rings, edge-on 17, longest edge-on run 17, A/B changes 0, sequence B33 ~17 B9  FAIL

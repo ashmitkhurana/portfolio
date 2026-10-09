@@ -1,0 +1,3 @@
+farleft  crease 376 roll +-68: 113 roll samples, outside shown 99%  (mean s -0.0092)  PASS
+apex     crease 516 roll +-46: 82 roll samples, outside shown 90%  (mean s -0.0075)  PASS
+topK_tip crease 1188 roll +-16: 62 roll samples, outside shown 84%  (mean s -0.0045)  PASS
