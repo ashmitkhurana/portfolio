@@ -51,6 +51,23 @@ export interface RuledRing {
   R: [number, number, number];
 }
 
+/**
+ * Responsive leading end of a ruled pose: rings 0..fromRing are replaced, per viewport, by a smooth face-on
+ * band from an exit point just below the bottom edge to ring `fromRing` (tangent-continuous there).
+ */
+export interface TailSpec {
+  /** last replaced ring; the authored pose is kept from here on */
+  fromRing: number;
+  /** where the band's RIGHT edge crosses the bottom edge, as a fraction of the view width (0.5 = dead centre) */
+  rightEdgeX: number;
+  /** screen direction of the tail where it leaves the screen, degrees from straight down (+ = towards the right) */
+  exitAngleDeg: number;
+  /** handle length of the curve as a fraction of the exit->fromRing distance (bigger = wider swing) */
+  swing: number;
+  /** depth of the exit point, world px (+ = towards the camera) */
+  zExit: number;
+}
+
 export interface PoseVariant {
   points: PosePoint[];
   /**
@@ -60,6 +77,8 @@ export interface PoseVariant {
   ruled?: RuledRing[];
   /** ruled: +1 / -1, which side of the band is face A */
   faceSign?: 1 | -1;
+  /** ruled: rebuild the leading end per viewport so it leaves the screen at the bottom (see resolve.ts steerTail) */
+  tail?: TailSpec;
   /** centreline through the points: `catmull` (default, interpolating) or `bspline` (C2, approximating) */
   spline?: "catmull" | "bspline";
   /**

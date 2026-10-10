@@ -9,7 +9,7 @@ import { RibbonCurve, type SplineKind } from "../frames";
 import type { FoldSpec } from "../fold";
 import type { HairpinSpec, RibbonPose } from "../types";
 import { DEFAULT_FOV, cameraDistance } from "./camera";
-import type { AnchorRect, PoseFile, PosePoint, PoseVariant, RuledRing, ScreenClass } from "./types";
+import type { AnchorRect, PoseFile, PosePoint, PoseVariant, RuledRing, ScreenClass, TailSpec } from "./types";
 
 /** phone < 768, tablet 768-1099, desktop 1100-2199, ultrawide >= 2200 (the CSS screen classes) */
 export function screenClassFor(viewW: number): ScreenClass {
@@ -192,6 +192,98 @@ export function resolvePose(
  * `count` control points are chosen along the centreline with density rising with turning x width (the
  * hairpins keep their shape), each carrying B and half width; the geometry interpolates those to its rings.
  */
+/**
+ * Responsive leading end (see TailSpec): rings 0..fromRing are rebuilt for THIS viewport as a cubic Bezier in world
+ * space from an exit point just below the bottom edge (the band's right edge at `rightEdgeX` of the width) to ring
+ * `fromRing`, tangent-continuous there. The band is turned face-on to the camera along the new tail and blends back
+ * into the authored ruling over the last 24 rings. Rings after `fromRing` are returned unchanged.
+ */
+export function steerTail(rings: readonly RuledRing[], ctx: ResolveContext, tail: TailSpec): RuledRing[] {
+  const n = rings.length;
+  const k0 = Math.max(8, Math.min(n - 8, Math.round(tail.fromRing)));
+  const D = cameraDistance(ctx.viewH, ctx.fov ?? DEFAULT_FOV);
+  const l: [number, number, number] = [0, 0, 0];
+  const r: [number, number, number] = [0, 0, 0];
+  const cen = (i: number): number[] => {
+    pointToWorld({ x: rings[i].L[0], y: rings[i].L[1], z: rings[i].L[2] } as PosePoint, ctx, l);
+    pointToWorld({ x: rings[i].R[0], y: rings[i].R[1], z: rings[i].R[2] } as PosePoint, ctx, r);
+    return [(l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2, r[0] - l[0], r[1] - l[1], r[2] - l[2]];
+  };
+  const norm = (v: number[]): number[] => {
+    const m = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / m, v[1] / m, v[2] / m];
+  };
+  const c0 = cen(k0);
+  const cA = cen(k0 - 4);
+  const cB = cen(k0 + 4);
+  const P0 = [c0[0], c0[1], c0[2]];
+  const hw = Math.hypot(c0[3], c0[4], c0[5]) / 2;
+  const b0 = norm([c0[3], c0[4], c0[5]]);
+  const T0 = norm([cB[0] - cA[0], cB[1] - cA[1], cB[2] - cA[2]]);
+  // exit point: screen position of the centre so the RIGHT edge crosses the bottom edge at rightEdgeX
+  const a = (tail.exitAngleDeg * Math.PI) / 180;
+  const zE = tail.zExit;
+  const kE = D / Math.max(D - zE, 1); // world px -> screen px at that depth
+  const hwPx = hw * kE;
+  const cosA = Math.max(Math.cos(a), 0.2);
+  const sxE = tail.rightEdgeX * ctx.viewW - hwPx / cosA;
+  const syE = ctx.viewH + hwPx * Math.abs(Math.tan(a)) + 24;
+  const E = [(sxE - ctx.viewW / 2) / kE, (ctx.viewH / 2 - syE) / kE, zE];
+  // into-the-screen direction at the exit (world, y up): opposite of the outward screen direction (sin a, cos a)
+  const dIn = norm([-Math.sin(a), Math.cos(a), (P0[2] - zE) / (Math.hypot(P0[0] - E[0], P0[1] - E[1]) || 1)]);
+  const dist = Math.hypot(P0[0] - E[0], P0[1] - E[1], P0[2] - E[2]);
+  const L = tail.swing * dist;
+  const B1 = [E[0] + dIn[0] * L, E[1] + dIn[1] * L, E[2] + dIn[2] * L];
+  const B2 = [P0[0] - T0[0] * L, P0[1] - T0[1] * L, P0[2] - T0[2] * L];
+  const bez = (t: number): number[] => {
+    const u = 1 - t;
+    return [0, 1, 2].map((q) => u * u * u * E[q] + 3 * u * u * t * B1[q] + 3 * u * t * t * B2[q] + t * t * t * P0[q]);
+  };
+  // arc-length table, then k0+1 rings evenly spaced (ring 0 = exit, ring k0 = P0)
+  const NS = 400;
+  const pts: number[][] = [];
+  const acc: number[] = [0];
+  for (let j = 0; j <= NS; j++) {
+    pts.push(bez(j / NS));
+    if (j) acc.push(acc[j - 1] + Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1], pts[j][2] - pts[j - 1][2]));
+  }
+  const total = acc[NS];
+  const pos: number[][] = [];
+  let jj = 0;
+  for (let i = 0; i <= k0; i++) {
+    const target = (total * i) / k0;
+    while (jj < NS - 1 && acc[jj + 1] < target) jj++;
+    const f = (target - acc[jj]) / ((acc[jj + 1] - acc[jj]) || 1);
+    pos.push([0, 1, 2].map((q) => pts[jj][q] + (pts[jj + 1][q] - pts[jj][q]) * f));
+  }
+  // rulings: face-on (perpendicular to the tangent and the view ray), sign continuous with the authored ruling at k0
+  const out: RuledRing[] = rings.slice() as RuledRing[];
+  let prev = b0;
+  const bs: number[][] = new Array(k0 + 1);
+  for (let i = k0; i >= 0; i--) {
+    const pa = pos[Math.max(i - 1, 0)], pb = pos[Math.min(i + 1, k0)];
+    const T = norm([pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]]);
+    const v = norm([-pos[i][0], -pos[i][1], D - pos[i][2]]);
+    let bf = norm([T[1] * v[2] - T[2] * v[1], T[2] * v[0] - T[0] * v[2], T[0] * v[1] - T[1] * v[0]]);
+    if (bf[0] * prev[0] + bf[1] * prev[1] + bf[2] * prev[2] < 0) bf = [-bf[0], -bf[1], -bf[2]];
+    // blend from the authored ruling (at k0) to face-on over 24 rings
+    const x = Math.min(Math.max((k0 - i) / 24, 0), 1);
+    const w = x * x * (3 - 2 * x);
+    let bb = [(1 - w) * b0[0] + w * bf[0], (1 - w) * b0[1] + w * bf[1], (1 - w) * b0[2] + w * bf[2]];
+    const d = bb[0] * T[0] + bb[1] * T[1] + bb[2] * T[2];
+    bb = norm([bb[0] - d * T[0], bb[1] - d * T[1], bb[2] - d * T[2]]);
+    bs[i] = bb;
+    prev = bb;
+  }
+  for (let i = 0; i <= k0; i++) {
+    const p = pos[i], b = bs[i];
+    const Lw = worldToPoint(p[0] - hw * b[0], p[1] - hw * b[1], p[2] - hw * b[2], ctx);
+    const Rw = worldToPoint(p[0] + hw * b[0], p[1] + hw * b[1], p[2] + hw * b[2], ctx);
+    out[i] = { L: [Lw.x, Lw.y, Lw.z], R: [Rw.x, Rw.y, Rw.z] };
+  }
+  return out;
+}
+
 export function resolveRuled(
   rings: readonly RuledRing[],
   ctx: ResolveContext,

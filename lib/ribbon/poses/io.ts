@@ -60,7 +60,7 @@ export function parsePoseFile(raw: unknown): PoseFile {
   const variants: PoseFile["variants"] = {};
   const rv = (r.variants ?? {}) as Record<string, unknown>;
   for (const cls of SCREEN_CLASSES) {
-    const v = rv[cls] as { points?: unknown; spline?: unknown; ruled?: unknown; faceSign?: unknown; spans?: unknown } | undefined;
+    const v = rv[cls] as { points?: unknown; spline?: unknown; ruled?: unknown; faceSign?: unknown; spans?: unknown; tail?: unknown } | undefined;
     if (!v) continue;
     if (Array.isArray(v.ruled) && v.ruled.length >= 2) {
       const tri = (a: unknown): [number, number, number] => {
@@ -68,7 +68,11 @@ export function parsePoseFile(raw: unknown): PoseFile {
         return [num(q[0], 0), num(q[1], 0), num(q[2], 0)];
       };
       const ruled = v.ruled.map((r) => ({ L: tri((r as { L?: unknown }).L), R: tri((r as { R?: unknown }).R) }));
-      variants[cls] = { points: [], ruled, faceSign: v.faceSign === -1 ? -1 : 1 };
+      const tv = v.tail as Record<string, unknown> | undefined;
+      const tail = tv
+        ? { fromRing: num(tv.fromRing, 110), rightEdgeX: num(tv.rightEdgeX, 0.5), exitAngleDeg: num(tv.exitAngleDeg, -25), swing: num(tv.swing, 0.4), zExit: num(tv.zExit, 60) }
+        : undefined;
+      variants[cls] = { points: [], ruled, faceSign: v.faceSign === -1 ? -1 : 1, ...(tail ? { tail } : {}) };
       continue;
     }
     if (!Array.isArray(v.points)) continue;
