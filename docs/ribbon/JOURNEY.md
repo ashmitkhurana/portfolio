@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **78** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1 (baseline: X6 = v319, the owner's "best one yet") |
-| | **Running total** | | **320** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **83** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1-N6 (baseline: X6 = v319; from-scratch line: N6 = v325) |
+| | **Running total** | | **325** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -31,7 +31,7 @@ How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numb
 
 Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299), `L1-L3` (v300-v302), `Q50`, `Q35` (v303-v304), `P1-P9` (v305-v313; P8 was captioned v308 to the owner by mistake), `X4` (v314... see below), `S1-S3` (v315-v317, polish fits of P4, never shown), `X5` (v318).
 
-**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320. The next new version is v321.**
+**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320, N2 = v321, N3 = v322, N4 = v323, N5 = v324, N6 = v325. The next new version is v326.**
 
 ### Numbering scheme
 
@@ -296,4 +296,12 @@ Each new round is appended, not rewritten.
   - Not fixed: r40's apex reads as a flat squared top in the full view; a crease on the right leg at the transplant join; the little triangle on the return is still there (so it was not the flip); the straight leg touches the wrap's front pass at one point.
 - The owner on X6: "okay this is the best one yet like literally some tweaks left". Their tweak list: the translucent look at every fold and on the top-K strand; the left leg still bends at its base; the wrap entry passes through the left leg; the glitch (triangle) where the wrap comes back; the top-K loop not as beautiful as the mockup's; the A's right leg broken (the r40 transplant brought r40's whole right leg); a crumple behind the right leg (the top-K transplant join).
 - N1 (v320), the owner's "try once from complete scratch": a new builder (scripts/curve/scratch/build.py). Screen path = the smoothed trace with straight legs; depth optimised for the face spec, the over/unders, smoothness and shallowness; band orientation from physics (no in-plane bending: the width follows the centreline's binormal in turns, minimal twist on straights). It failed badly: crumpled everywhere. The binormal is unstable where the curve is nearly straight or inflects, so the band flipped back and forth; the depth optimiser also stopped early with wild depths and left the sweep on the wrong face. The principle (a ribbon's shape follows from its centreline) stands, but it needs a robust, explicitly controlled frame, not one read from noisy curvature.
-- Running total: 320 versions.
+- The owner on N1: "why is it so fucked up??" and "what have i told you?? you decide every single thing what is supposed to be done and execution agent only executes doesnt think at all". The N1 brief had left four design choices to the agent.
+- N2 (v321), from scratch again, every number decided by me in a config file (docs/ribbon/turns/scratch/N2/config.json): each turn is a section of a cylinder (one tilted plane; the band's width held on the plane's axis: physically exact, cannot crease or crumple); straights are straight in depth with an even, minimal twist; the screen path is the approved trace, smoothed, with straight legs. Result: smooth everywhere (worst normal change 8°). The owner (after waking): "yes a lot of things in this is right except a few wrong twists". The right leg twisted 87° and the crossbar 74°.
+- The owner then asked me to work end to end myself without subagents, for this session only.
+- N3 (v322): turn axes solved for zero twist; the right leg came out on the wrong face (the solver didn't know faces).
+- N4 (v323): a full solver over every ring: faces per the spec, X3's over/unders (with the spec's order at the junction, where X3 itself was wrong), gentle climbs, minimal visible twist, a helical pitch per turn (a ribbon spiralling round a cylinder is still exact), and the owner's own trick: unavoidable twists hidden behind the A right leg, with a deliberate half twist allowed there. Visible twists 1–22°.
+- N5 (v324): + a visible-width target, so bands read wide (the sweep and right leg had been edge-on-ish).
+- N6 (v325): + junction clearance. Zero intersections, worst normal change 12°, no visible twists. Open: the sweep is still narrowish and dark, the tail dark, the apex top flat.
+- Lesson: a ribbon's look is set by the axes of its turns; the right parametrisation (cylinder turns + straights) makes it smooth by construction, and then a solver on a smooth model actually works.
+- Running total: 325 versions.
