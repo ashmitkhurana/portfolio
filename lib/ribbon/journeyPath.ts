@@ -449,7 +449,7 @@ export function buildPortraitFlow(inp: {
   top: number;
   amp: number;
   lambda: number;
-}): { pos: Float32Array; ruled: Float32Array; k: number } {
+}): JourneyPath {
   const { W, H, end, ds, y2, c, top, lambda } = inp;
   const D = inp.camZ;
   const hw = end.hw;
@@ -457,12 +457,14 @@ export function buildPortraitFlow(inp: {
   const world = (vx: number, vy: number, z = 0): V3 => [vx - W / 2, H / 2 - vy, z];
   const step = ds / 3;
   const t1 = norm(end.t);
-  // 1. the connector: a cubic from End 1 (its own direction) to the wave's top centre (heading straight down)
-  const C = world(c, top, 0);
+  // 1. the connector: a cubic from End 1 (its own direction) to the wave's top centre (heading straight down). The
+  //    wave sits at the depth the tail is already heading to, so the curve never comes back toward the camera
+  //    (that foreshortened return read as an elbow).
+  const gap0 = len(sub(world(c, top, end.p[2]), end.p));
+  const C = world(c, top, end.p[2] + t1[2] * 0.45 * gap0);
   const down: V3 = [0, -1, 0];
   const gap = len(sub(C, end.p));
-  // (a short first handle: following the tail's dive into the screen for long makes the curve fold back)
-  const conn = bezier(end.p, add(end.p, t1, 0.18 * gap), add(C, down, -0.5 * gap), C, 200);
+  const conn = bezier(end.p, add(end.p, t1, 0.4 * gap), add(C, down, -0.5 * gap), C, 200);
   // 2. the wave straight down from C (tilted plane, same as desktop), envelope over the first half wavelength
   const dW = norm([Math.cos(tilt), 0, Math.sin(tilt)]);
   const amp = inp.amp / Math.cos(tilt);
@@ -480,8 +482,9 @@ export function buildPortraitFlow(inp: {
   const pos = new Float32Array(k * 3), ruled = new Float32Array(k * 4);
   const nW = perp(cross(down, dW), down);
   let seg = 0;
-  let prevT = t1;
-  let b = perp(end.b, t1);
+  const prevT = t1;
+  const b = perp(end.b, t1);
+  let bPrevF: V3 = b;
   const alphaMax = y2 / D;
   for (let j = 0; j < k; j++) {
     const s = (j + 1) * ds;
@@ -489,22 +492,27 @@ export function buildPortraitFlow(inp: {
     const f = (s - cum[seg]) / (cum[seg + 1] - cum[seg] || 1);
     const p = add(pts[seg], sub(pts[seg + 1], pts[seg]), f);
     const t = norm(sub(pts[seg + 1], pts[seg]));
-    // rotation-minimizing transport (no twist about the path)
-    const ax = cross(prevT, t);
-    const sa = len(ax);
-    if (sa > 1e-9) b = rotate(b, norm(ax), Math.atan2(sa, dot(prevT, t)));
-    prevT = t;
-    let bt = perp(b, t);
-    // ease into the wave's band orientation over the connector's last third and the wave's first half wavelength
+    // the band faces the viewer along the whole connector (its width = the path's in-screen perpendicular), eased
+    // from End 1's own orientation at the start and into the wave's orientation at the end: never edge-on, no pinch
+    void prevT;
+    const faceOn = perp(norm(cross([0, 0, 1], t)), t);
+    let w0 = perp(b, t);
+    let fo = faceOn;
+    if (dot(fo, w0) < 0) fo = scl(fo, -1);
+    const gIn = smoother(s / Math.max(ds, 0.35 * connLen));
+    let bt = norm(add(scl(w0, 1 - gIn), scl(fo, gIn)));
     const g = smoother((s - 0.66 * connLen) / (0.34 * connLen + 0.5 * lambda));
     if (g > 0) {
       let target = perp(nW, t);
       if (dot(target, bt) < 0) target = scl(target, -1);
       bt = norm(add(scl(bt, 1 - g), scl(target, g)));
     }
-    // view shear (section 2 seen head-on through the lens shift), ramped in slowly along the connector
-    const vy = H / 2 - p[1];
-    const al = alphaMax * smoother((vy - 0.75 * H) / Math.max(1, y2 + 0.45 * H - 0.75 * H));
+    if (dot(bt, bPrevF) < 0) bt = scl(bt, -1);
+    bPrevF = bt;
+    w0 = bt;
+    // view shear (section 2 seen head-on through the lens shift), ramped in ALONG THE CONNECTOR from exactly 0 at
+    // End 1 (the pose is unsheared: any shear at the join is a visible corner)
+    const al = alphaMax * smoother(s / Math.max(ds, connLen + 0.25 * lambda));
     const bs: V3 = [bt[0], bt[1] + al * bt[2], bt[2]];
     const bl = len(bs);
     pos[j * 3] = p[0];
@@ -515,7 +523,10 @@ export function buildPortraitFlow(inp: {
     ruled[j * 4 + 2] = bs[2] / bl;
     ruled[j * 4 + 3] = hw * bl;
   }
-  return { pos, ruled, k };
+  // per ring: screen y + V (the head-follows-the-user mapping)
+  const yv = new Float32Array(k);
+  for (let j = 0; j < k; j++) yv[j] = H / 2 - pos[j * 3 + 1] * (D / Math.max(1, D - pos[j * 3 + 2]));
+  return { pos, ruled, k, yv, sWave: 0, sWaveEnd: k * ds };
 }
 
 /** cubic Bezier sampled densely */

@@ -88,7 +88,7 @@ export function createJourney(engine: RibbonEngine): () => void {
   const spiralJ = 0;
   let tailM = -1;
   let pathD: JourneyPathDesktop | null = null;
-  const ymax = new Float32Array(0);
+  let ymax = new Float32Array(0);
   return () => {
     const sl = engine.sim.slide;
     const pins = readPins();
@@ -136,24 +136,34 @@ export function createJourney(engine: RibbonEngine): () => void {
         if (portrait) {
           // PHONE (owner): one continuous ribbon, the desktop's look: the hero's tail flows on screen into one gentle
           // curve to the centre and straight down the middle as the same tilted-plane wave; rigid (all of it moves)
+          // End 1's true end direction (last two rings): a 3-ring chord blurs it and leaves a corner at the join
+          const e0 = sl.end1(), r1 = sl.poseRing(1);
+          const tx = e0.p[0] - r1.p[0], ty = e0.p[1] - r1.p[1], tz = e0.p[2] - r1.p[2];
+          const tl = Math.hypot(tx, ty, tz) || 1;
           const flow = buildPortraitFlow({
             W,
             H,
-            end: sl.end1(),
+            end: { ...e0, t: [tx / tl, ty / tl, tz / tl] },
             ds: sl.spacing,
             y2: unravel.vTop,
             camZ: sl.cameraZ,
             c: W / 2,
-            top: unravel.vTop + 0.38 * H,
+            top: unravel.vTop + 0.46 * H,
             amp: Math.max(16, Math.min(0.12 * W, (rb.left - ra.right) / 2 - hwS - 8)),
             lambda: 0.32 * H,
           });
           pathD = null;
-          flowK = flow.k;
+          flowK = 0;
+          path = flow;
           sl.setHeadPath(flow.pos, flow.ruled, flow.k);
+          // running max of each ring's screen height: the head may advance while its path stays above the follow line
+          ymax = new Float32Array(flow.k);
+          let mx = -Infinity;
+          for (let q = 0; q < flow.k; q++) ymax[q] = mx = Math.max(mx, flow.yv[q]);
         } else {
         // DESKTOP: the approved v335 choreography (off the left edge, back in from the left drawing the wave)
         flowK = 0;
+        path = null;
         pathD = buildJourneyPathDesktop({
           W,
           H,
@@ -170,7 +180,6 @@ export function createJourney(engine: RibbonEngine): () => void {
         });
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
         }
-        path = null;
         if (spiral) {
           spiral = null;
           tailM = -1;
@@ -222,8 +231,9 @@ export function createJourney(engine: RibbonEngine): () => void {
         } else {
           lead = Math.min(followArc(V + unravel.p * PORTRAIT_PIN_FOLLOW * H), path.sWaveEnd);
         }
-        // the ribbon never gets longer than the pose: the tail follows once the head has drawn that much
-        sigma = Math.max(clear, lead);
+        // the whole ribbon moves on with the head (constant length after the hero exit): the S above flows forward
+        // as the head draws ahead of the user
+        sigma = clear + lead;
       }
     }
     sl.driveTarget = sigma;
