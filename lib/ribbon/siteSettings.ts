@@ -18,6 +18,7 @@ import type { DeepPartial, RibbonSettings } from "./settings";
 // 2026-10-10d: material d3 (docs/ribbon/turns/scratch/N11/mat2): glossy metallic satin (metalness 0.7, roughness 0.22, envDiffuse 0.25) reflecting narrow strip lights (key az -25 el 25, fill az 60 el 30) for the mockup's highlight streaks; weak shadow light. prev: docs/ribbon/turns/live/siteSettings.prev4.ts.txt
 // 2026-10-10e: matte front-lit (owner: back faces were highlighted, wanted matte): metalness 0, roughness 0.4, key just upper-left of the camera (az -15 el 20), depthShade 0.6 so nearer faces read brightest; intro slowed (stiffness 1.6). prev: docs/ribbon/turns/live/siteSettings.prev5.ts.txt
 // 2026-10-10f: softer baked occlusion (ao 0.45, aoSpec 1): the full-strength AO painted dark bands inside every roll (owner's 'hitches').
+// 2026-10-10g: key + shadow light straight above the camera at 45 degrees (owner).
 export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   // the AK desktop pose was fitted to the mockup with this fov (scripts/fit)
   camera: { fov: 26.4 },
@@ -42,12 +43,12 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
   env: {
     intensity: 1.7,
     autoRotate: false,
-    key: { intensity: 24, azimuth: -15, elevation: 20, width: 12, softness: 0.9 },
+    key: { intensity: 24, azimuth: 0, elevation: 45, width: 12, softness: 0.9 },
     fill: { azimuth: -20, elevation: 50, width: 20, length: 40, softness: 1, roll: 0, intensity: 0.2 },
     top: { intensity: 0.25 },
     bounce: { intensity: 0.02 },
   },
-  light: { intensity: 1.5, azimuth: -15, elevation: 20 },
+  light: { intensity: 1.5, azimuth: 0, elevation: 45 },
   // intro (2026-10-10, owner): the pose stays locked; the ribbon grows out of its hidden end (behind the A's right leg)
   // and slides along the whole flow until the leading end reaches the bottom (slide.ts, critically damped, no scroll/sway)
   sim: { mode: "slide", slide: { intro: true, scroll: false, hiddenEntry: true, introStiffness: 1.6, introDamping: 1, introMaxSeconds: 11, swayDeg: 0 } },
