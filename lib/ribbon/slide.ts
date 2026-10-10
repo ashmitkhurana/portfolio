@@ -23,6 +23,8 @@ export interface SlideParams {
   intro: boolean;
   /** after the intro, sigma follows scrollState.y x scrollK */
   scroll: boolean;
+  /** after the intro, sigma follows `driveTarget` (set every frame by the page's scroll journey); wins over `scroll` */
+  driven: boolean;
   /** intro spring stiffness (1/s^2) */
   introStiffness: number;
   /** intro damping ratio (1 = critical; 0.63 is about 8% overshoot) */
@@ -43,6 +45,7 @@ export interface SlideParams {
 export const DEFAULT_SLIDE_PARAMS: SlideParams = {
   intro: true,
   scroll: true,
+  driven: false,
   hiddenEntry: false,
   introStiffness: 32,
   introDamping: 0.63,
@@ -73,6 +76,10 @@ export class SlideMotion {
   cameraZ = 0;
   /** the sway angle (radians) applied last frame, for debugging */
   swayAngle = 0;
+  /** `driven` mode: the sigma the spring follows (world px) */
+  driveTarget = 0;
+  /** world px added to every ring's y (the ribbon moves with its section once that section's pin releases) */
+  offsetY = 0;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
   get animating(): boolean {
     return this.ready && (!this.introSettled || Math.abs(this.velocity) > 0.05 || Math.abs(this.sigma - this.target) > 0.05);
@@ -339,7 +346,7 @@ export class SlideMotion {
       }
     }
     if (this.introSettled) {
-      this.target = p.scroll ? scrollY * p.scrollK : 0;
+      this.target = p.driven ? this.driveTarget : p.scroll ? scrollY * p.scrollK : 0;
       this.integrate(dt, p.scrollStiffness, p.scrollDamping);
     }
     let sway = 0;
@@ -373,6 +380,42 @@ export class SlideMotion {
   private compose(sway: number): void {
     const n = this.count;
     this.swayAngle = sway;
+    this.composeWindow(sway);
+    if (this.offsetY !== 0) for (let k = 0; k < n; k++) this.outPos[k * 3 + 1] += this.offsetY;
+  }
+
+  /**
+   * The sigma at which the trailing end (ring n-1) has slid past every pose ring that covers one of `boxes`
+   * (viewport css px of the composition at rest; W x H viewport; camera at cameraZ): the ribbon is then clear of
+   * them. `margin` world px beyond that. 0 when nothing overlaps.
+   */
+  sigmaToClear(boxes: { x0: number; y0: number; x1: number; y1: number }[], W: number, H: number, margin = 0): number {
+    const n = this.count;
+    const P = this.poseCtr, B = this.poseRuled, D = this.cameraZ;
+    if (!this.ready || !(D > 0) || !boxes.length) return 0;
+    let first = -1;
+    for (let i = 0; i < n && first < 0; i++) {
+      const hw = B[i * 4 + 3];
+      for (const t of [-1, -0.5, 0, 0.5, 1]) {
+        const x = P[i * 3] + B[i * 4] * hw * t, y = P[i * 3 + 1] + B[i * 4 + 1] * hw * t, z = P[i * 3 + 2] + B[i * 4 + 2] * hw * t;
+        const s = D / (D - z);
+        const sx = W / 2 + x * s, sy = H / 2 - y * s;
+        if (boxes.some((b) => sx >= b.x0 && sx <= b.x1 && sy >= b.y0 && sy <= b.y1)) {
+          first = i;
+          break;
+        }
+      }
+    }
+    if (first < 0) return 0;
+    let arc = 0;
+    for (let i = first + 1; i < n; i++) {
+      arc += Math.hypot(P[i * 3] - P[i * 3 - 3], P[i * 3 + 1] - P[i * 3 - 2], P[i * 3 + 2] - P[i * 3 - 1]);
+    }
+    return Math.min(arc + margin, this.length);
+  }
+
+  private composeWindow(sway: number): void {
+    const n = this.count;
     if (this.sigma === 0) {
       // exactly the pose
       this.outPos.set(this.poseCtr);

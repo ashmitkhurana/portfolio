@@ -4,15 +4,17 @@
  * the composition at scroll 0 whatever the current scroll offset is.
  */
 import type { AnchorRect, InkBox } from "./types";
+import { restOffsetY } from "../pin";
 
 export function findAnchor(name: string, root: ParentNode = document): HTMLElement | null {
   return root.querySelector<HTMLElement>(`[data-ribbon-anchor="${CSS.escape(name)}"]`);
 }
 
-function pageRect(r: DOMRect): AnchorRect {
+/** page rect; inside a pinned block, at the pin's rest position (lib/ribbon/pin.ts) */
+function pageRect(r: DOMRect, el?: Element): AnchorRect {
   return {
     left: r.left + window.scrollX,
-    top: r.top + window.scrollY,
+    top: r.top + (el ? restOffsetY(el) : window.scrollY),
     width: r.width,
     height: r.height,
   };
@@ -37,9 +39,9 @@ export function measureAnchor(el: HTMLElement): AnchorRect | null {
       x1 = Math.max(x1, b.right);
       y1 = Math.max(y1, b.bottom);
     });
-    r = pageRect(new DOMRect(x0, y0, x1 - x0, y1 - y0));
+    r = pageRect(new DOMRect(x0, y0, x1 - x0, y1 - y0), el);
   } else {
-    r = pageRect(el.getBoundingClientRect());
+    r = pageRect(el.getBoundingClientRect(), el);
   }
   return r.width > 1 && r.height > 1 ? r : null;
 }
@@ -62,6 +64,7 @@ export function measureInk(el: HTMLElement): InkBox[] {
   } catch {
     ctx = null;
   }
+  const oy = restOffsetY(el);
   lines.forEach((line, li) => {
     const cs = getComputedStyle(line);
     const size = parseFloat(cs.fontSize) || 100;
@@ -89,8 +92,8 @@ export function measureInk(el: HTMLElement): InkBox[] {
       out.push({
         x0: b.left + window.scrollX,
         x1: b.right + window.scrollX,
-        y0: baseline - cap + window.scrollY,
-        y1: baseline + window.scrollY,
+        y0: baseline - cap + oy,
+        y1: baseline + oy,
         line: li,
         ch: g.textContent ?? "",
       });

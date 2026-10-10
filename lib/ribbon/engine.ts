@@ -295,6 +295,9 @@ export class RibbonEngine {
 
   // ---- public API -------------------------------------------------------
 
+  /** called every rendered frame before the sim steps (the page's scroll journey drives the slide from here) */
+  beforeFrame: (() => void) | null = null;
+
   /** Convert a viewport CSS-px position (y down) to world coords at z = 0. */
   domToWorld(x: number, y: number, out = new THREE.Vector3()): THREE.Vector3 {
     return out.set(x - this.width / 2, this.height / 2 - y, 0);
@@ -683,6 +686,11 @@ export class RibbonEngine {
     const sim = this.core.sim;
     if (sim.params.mode === "slide") {
       sim.slideScrollY = window.__scrollState?.y ?? window.scrollY;
+      try {
+        this.beforeFrame?.();
+      } catch {
+        /* the journey must never break the render loop */
+      }
       // the intro / the scroll follow-through must run at full rate and never be capped as "idle"
       if (sim.slide.animating) this.markActive(ACTIVE_MS);
     }

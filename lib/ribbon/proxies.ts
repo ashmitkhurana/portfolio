@@ -13,6 +13,7 @@
  * ones whose rect intersects the viewport (plus a margin) are handed to the core.
  */
 import { MAX_PROXIES, type ProxyData } from "./types";
+import { pinOf } from "./pin";
 
 export { MAX_PROXIES };
 
@@ -25,6 +26,8 @@ const CULL_MARGIN = 200;
 
 interface Entry {
   el: HTMLElement;
+  /** the pinned block it lives in: pageY is then relative to the pin's top */
+  pin: HTMLElement | null;
   pageX: number;
   pageY: number;
   w: number;
@@ -123,10 +126,14 @@ export class ProxyRegistry {
       const rad = parseFloat(el.dataset.ribbonRadius ?? "0");
       const pd = parseFloat(el.dataset.ribbonPad ?? "0");
       const pad = Number.isFinite(pd) ? pd : 0;
+      // inside a pinned (sticky) block the rect follows the pin, not the page scroll: keep it relative to the pin
+      const pin = pinOf(el);
+      const pinTop = pin ? pin.getBoundingClientRect().top : 0;
       return {
         el,
+        pin,
         pageX: r.left + sx - pad,
-        pageY: r.top + sy - pad,
+        pageY: pin ? r.top - pinTop - pad : r.top + sy - pad,
         w: r.width + pad * 2,
         h: r.height + pad * 2,
         depth: Number.isFinite(d) ? d : 0,
@@ -149,10 +156,21 @@ export class ProxyRegistry {
     const d = this.data;
     let n = 0;
     let minD = Infinity;
+    const pinTops = new Map<HTMLElement, number>();
     for (let i = 0; i < this.entries.length && n < MAX_PROXIES; i++) {
       const e = this.entries[i];
       const x = e.pageX - sx;
-      const y = e.pageY - sy;
+      let y: number;
+      if (e.pin) {
+        let t = pinTops.get(e.pin);
+        if (t === undefined) {
+          t = e.pin.getBoundingClientRect().top;
+          pinTops.set(e.pin, t);
+        }
+        y = e.pageY + t;
+      } else {
+        y = e.pageY - sy;
+      }
       if (
         x > vw + CULL_MARGIN ||
         x + e.w < -CULL_MARGIN ||

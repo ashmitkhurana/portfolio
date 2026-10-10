@@ -6,6 +6,7 @@ import { RibbonStage } from "@/components/ribbon/RibbonStage";
 import { rlog } from "@/lib/ribbon/debugLog";
 import { SITE_SETTINGS } from "@/lib/ribbon/siteSettings";
 import type { RibbonEngine } from "@/lib/ribbon/engine";
+import { createJourney } from "@/components/site/journey";
 
 /**
  * Ribbon mount for the real site. The home route shows the authored AK pose
@@ -92,6 +93,7 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
   const onEngine = useCallback(
     (e: RibbonEngine | null) => {
       engineRef.current = e;
+      if (e) e.beforeFrame = createJourney(e);
       posed.current = { w: 0, h: 0, sig: "" };
       applyPose(true, true);
     },

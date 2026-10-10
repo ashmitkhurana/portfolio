@@ -9,11 +9,31 @@
 
 /* ── 01 hero ───────────────────────────────────────────── */
 
+/* the hero is one screen (.hero__pin, sticky) plus scroll room while the live ribbon slides off the name
+   (--hero-pin-room; only when the ribbon is live and motion is allowed, else the hero is just one screen) */
 .hero {
   /* 100svh, but never so short (phone landscape) that the intro runs into the foot */
-  --section-h: max(var(--h-hero), 34rem);
+  --hero-h: max(var(--h-hero), 34rem);
+  --hero-pin-room: 0px;
+  --section-h: calc(var(--hero-h) + var(--hero-pin-room));
+}
+
+:root[data-ribbon="live"] .hero {
+  --hero-pin-room: 110svh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .hero {
+    --hero-pin-room: 0px;
+  }
+}
+
+.hero__pin {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
+  height: var(--hero-h);
   padding-bottom: max(var(--space-m), env(safe-area-inset-bottom));
 }
 
