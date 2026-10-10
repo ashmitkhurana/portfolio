@@ -1,0 +1,12 @@
+<anonymous_script>:1
+{"geometry":{"thicknessRatio":0.147,"edgeBevel":2.4,"capLengthRatio":0},"material":{"metalness":0,"rimNormalMix":0,"edge":{"mode":"faceA"},"envDiffuse":0.3,"lightSpecular":0.2,"anisotropy":0.2,"faceA":{"color":"#ff5a00","roughness":},"faceB":{"color":"#ff5a00","roughness":}},"env":{"intensity":1.0,"key":{"intensity":16,"azimuth":-15,"elevation":20,"width":10,"softness":0.9},"fill":{"intensity":0.4},"top":{"intensity":0.3},"bounce":{"intensity":0.02}},"light":{"intensity":,"azimuth":-15,"elevation":20},"post":{"exposure":,"bloomIntensity":0}}
+                                                                                                                                                                                                                                        ^
+
+SyntaxError: Unexpected token '}', ..."oughness":},"faceB":"... is not valid JSON
+    at JSON.parse (<anonymous>)
+    at file:///Users/ashmitkhurana/Development/Personal/portfolio/scripts/render-pose.mjs:29:23
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.21.0
