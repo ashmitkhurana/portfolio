@@ -1,0 +1,30 @@
+c  K=160  init=perp  [round 0 nfev=150 status=4 (Both) cost 2487.420]  [round 1 nfev=150 status=0 (The) cost 1846.276]  [round 2 nfev=50 status=3 (xtol`) cost 1766.269]  [round 3 nfev=150 status=0 (The) cost 1695.871]
+args: {"K": 160, "bend": 30.0, "box_pose": "", "box_rings": "", "box_trace": 0.15, "clear": 5.0, "clear_range": "860:1066-388:483", "dbend": 500.0, "delta": 60.0, "dtwist": 500.0, "edge_w": "", "end_pin": 50.0, "eps": 1.0, "face_margin": 0.3, "faceon": "", "faces": "docs/ribbon/turns/real/faces.json", "fold": "", "fold2": "376:60:20,516:60:20,1188:60:20", "fold_convex": 10.0, "fold_eq": false, "fold_legs": 5.0, "gap": 14.0, "hide": "", "hide_auto": "", "hmax": 25.5, "hmin": 25.5, "init": "perp", "inside": 0.0, "kappa": 2.0, "lam": 15.0, "lam_h": 50.0, "mask": "", "max_nfev": 150, "mu": 300.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/real/W5/c", "outer": 4, "outline": 0.0, "outline_assign": "nearest", "outline_boxes": "", "outline_drop_near": "", "outline_excl": "", "outline_fixed": false, "outline_incl": "", "outline_loss": "linear", "outline_pose": "", "pin_range": "", "pose": "docs/ribbon/turns/real/W5/b_pose.json", "redge": 24.0, "rim_pose": "", "rim_side_mode": "centre", "rimlines": "", "rmin": 45.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "", "sigma": 2.0, "trace_w": 0.15, "twist": 30.0, "w_box": 2.0, "w_face": 15.0, "w_hmin": 50.0, "w_redge": 5.0, "w_rim": 0.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/real/W5/b_pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 7.761  p95 20.951  max 43.385
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean  14.89  p95  32.31  max  43.39           25.5/ 25.5/ 25.5      0.128         0
+[ 132, 288]  mean   1.74  p95   4.98  max  11.50           25.5/ 25.5/ 25.5      0.431         0
+[ 289, 483]  mean  13.95  p95  27.72  max  31.23           25.5/ 25.5/ 25.5      0.837         0
+[ 484, 554]  mean   9.14  p95  25.52  max  28.60           25.5/ 25.5/ 25.5      0.974         0
+[ 555, 658]  mean   1.62  p95   5.40  max   6.35           25.5/ 25.5/ 25.5      0.038         0
+[ 659, 764]  mean   7.02  p95  13.60  max  14.68           25.5/ 25.5/ 25.5      0.660         0
+[ 765, 940]  mean   2.11  p95   5.09  max   8.81           25.5/ 25.5/ 25.5      0.193         0
+[ 941,1066]  mean   9.97  p95  19.67  max  21.07           25.5/ 25.5/ 25.5      0.238         5
+[1067,1298]  mean   8.33  p95  18.34  max  21.48           25.5/ 25.5/ 25.5      0.401         15
+worst window by mean: [0,131] 14.89 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 175.546 deg  p99 3.373 deg
+   angle per world px of centreline arclength: max 521.6688 deg/px  (p99 6.9437)
+   worst dense samples (t, deg, |b.T|): 380.03, 175.5, 1.000; 518.45, 119.8, 1.000; 414.26, 108.7, 1.000; 486.72, 80.2, 1.000; 414.51, 52.4, 1.000
+   dense steps > 3 deg: 71, > 6 deg: 24
+ripple (|second difference of unit N| per world px^2, dense): max 1.836e+01  p99 3.782e-02  median 3.856e-04
+max |b.T| outside fold windows: 1.000   (inside: 1.000)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 18.70 px; pairs < gap 14.0: 0
+GATE: screen-overlap pairs (3 px) 1690, order violations (z_front - z_back < 0): 0, (< gap): 0; unique ring pairs violating: 0
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.812  max 20.81  frac>0.5px 0.131
+outline residual (css px, matched <=25 px: 1609 of 1634 pts): mean 8.056  p95 20.407  max 24.88
+run time: 359.8 s
+residual block norms (sum of squares): edge 1439.16, smooth 152.76, jerk 103.34, perp 93.06, dev 40.29, depth 63.00, hsm 0.00, wpr 0.00, speed 16.89, hmin 0.00, hmax 0.00, face 0.00, rmin 6.28, scrw 0.00, wf 0.00, ins 0.00, fcr 245.09, bnd 526.27, twi 2.36, dbn 118.44, dtw 0.52, rmf 275.86, crl 29.07, lgb 94.10, cvx 184.99

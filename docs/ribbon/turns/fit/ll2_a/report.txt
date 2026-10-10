@@ -1,0 +1,33 @@
+ll2_a  K=160  init=perp  [round 0 nfev=100 status=0 (The) cost 1213.551]  [round 1 nfev=53 status=3 (xtol`) cost 1206.620]  [round 2 nfev=14 status=3 (xtol`) cost 1206.620]  [round 3 nfev=14 status=3 (xtol`) cost 1206.620]
+args: {"K": 160, "box_pose": "docs/ribbon/turns/fit/kk4/pose.json", "box_rings": "", "box_trace": 0.15, "clear": 0.0, "delta": 20.0, "edge_w": "935:990:R:0.1,480:560:L:0.2,480:560:R:0.2,1140:1210:L:0.2,1140:1210:R:0.2,320:400:L:0.2,320:400:R:0.2", "end_pin": 50.0, "eps": 0.05, "faceon": "", "gap": 12.4, "hide": "", "hide_auto": "", "hmax": 60.0, "hmin": 22.0, "init": "perp", "inside": 3.0, "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "mask": "", "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/fit/ll2_a", "outer": 4, "outline": 1.0, "outline_assign": "centre", "outline_boxes": "39.5:355:166.5:477.5;260:290.5:382.5:414.5;8.5:472.5:110:556;214:497.5:390:563;212:570:385.5:732", "outline_drop_near": "", "outline_excl": "", "outline_fixed": true, "outline_incl": "", "outline_loss": "linear", "outline_pose": "docs/ribbon/turns/fit/f3/pose.json", "pin_range": "", "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "redge": 16.0, "rmin": 35.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "935:990:25:2", "sigma": 2.0, "trace_w": 1.0, "w_box": 4.0, "w_hmin": 10.0, "w_redge": 5.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": ""}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 3.614  p95 16.137  max 45.737
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.99  p95   4.70  max   5.62           36.8/ 40.9/ 59.4      0.114         2
+[ 132, 288]  mean   2.98  p95   9.86  max  13.20           22.1/ 34.1/ 50.4      0.437         0
+[ 289, 483]  mean   4.90  p95  17.68  max  19.22           22.3/ 35.7/ 59.2      0.381         20
+[ 484, 554]  mean   3.71  p95   9.54  max   9.97           24.5/ 25.8/ 32.6      0.142         2
+[ 555, 658]  mean   0.68  p95   2.06  max   2.36           25.4/ 26.6/ 32.8      0.086         0
+[ 659, 764]  mean   7.88  p95  18.89  max  20.35           33.0/ 40.8/ 44.1      0.125         0
+[ 765, 940]  mean   1.08  p95   6.09  max   9.61           25.1/ 31.4/ 42.7      0.047         0
+[ 941,1066]  mean   8.58  p95  40.15  max  45.74           26.1/ 40.3/ 47.1      0.140         0
+[1067,1298]  mean   3.01  p95  14.63  max  17.36           22.0/ 27.8/ 34.9      0.105         0
+worst window by mean: [941,1066] 8.58 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 13.829 deg  p99 1.877 deg
+   angle per world px of centreline arclength: max 19.3558 deg/px  (p99 3.0882)
+   worst dense samples (t, deg, |b.T|): 189.14, 13.8, 0.993; 188.89, 13.6, 0.993; 189.39, 12.4, 0.993; 188.64, 11.9, 0.992; 189.64, 10.1, 0.991
+   dense steps > 3 deg: 14, > 6 deg: 8
+max |b.T| outside fold windows: 0.918   (inside: 0.993)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 1.16 px; pairs < gap 12.4: 2529
+GATE: screen-overlap pairs (3 px) 1881, order violations (z_front - z_back < 0): 168, (< gap): 303; unique ring pairs violating: 37
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.013  max 0.79  frac>0.5px 0.003
+outline_fixed: kept 776 of 837 (dropped: 8 farther than 12 px, 53 ambiguous, 0 near pinch sites; total counted after near-drop)
+box centre assignment: kept 760 of 797 box points (far 0, ambiguous 37); candidate ring runs per box: B1 [(372, 459), (848, 1061)]; B2 [(793, 822), (1089, 1264)]; B3 [(293, 393), (958, 1024)]; B4 [(211, 259), (648, 772), (1289, 1298)]; B5 [(66, 261), (697, 730)]
+box residual to ASSIGNED edge: mean 0.180  p95 0.464  max 0.89
+outline residual to ASSIGNED edge (kept pts): mean 0.283  p95 0.925  max 2.63
+outline residual (css px, matched <=25 px: 1634 of 1634 pts): mean 0.282  p95 0.865  max 7.70
+run time: 176.5 s
+residual block norms (sum of squares): edge 530.00, smooth 315.26, jerk 93.36, perp 64.09, dev 72.49, depth 115.03, hsm 130.58, wpr 21.39, speed 22.86, hmin 0.00, hmax 0.00, face 0.00, rmin 30.61, scrw 4.06, wf 0.00, ins 198.68

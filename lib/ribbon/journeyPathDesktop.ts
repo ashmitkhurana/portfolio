@@ -169,7 +169,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     const dDown: V3 = [0, -1, 0];
     const d: V3 = [Math.cos(tilt), 0, Math.sin(tilt)];
     waveNormal = norm(cross(dDown, d));
-    const amp = (0.26 * W) / Math.cos(tilt);
+    const amp = (inp.waveAmp ?? 0.26 * W) / Math.cos(tilt);
     const lambda = 0.36 * H;
     wave = [];
     const yEnd = H / 2 - (y2 + H + margin); // world y of virtual y2 + H + margin: below section 2's bottom

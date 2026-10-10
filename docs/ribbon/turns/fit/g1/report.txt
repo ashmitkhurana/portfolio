@@ -1,0 +1,24 @@
+g1  K=160  init=perp  nfev=44 status=3 (`xtol` termination condition is satisfied.) cost 145867.169 -> 51.583
+args: {"K": 160, "delta": 20.0, "eps": 0.05, "hmax": 60.0, "hmin": 22.0, "init": "perp", "kappa": 2.0, "lam": 6.0, "lam_h": 5.0, "max_nfev": 300, "mu": 120.0, "no_opt": false, "nu_fold": 0.15, "omega": 0.01, "out": "docs/ribbon/turns/fit/g1", "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "sigma": 2.0, "w_hmin": 10.0}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 0.070  p95 0.312  max 1.522
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.02  p95   0.08  max   0.47           31.2/ 37.3/ 52.3      0.075         0
+[ 132, 288]  mean   0.04  p95   0.17  max   0.31           22.0/ 23.5/ 38.5      0.291         0
+[ 289, 483]  mean   0.06  p95   0.25  max   1.52           24.8/ 27.3/ 32.5      0.209         0
+[ 484, 554]  mean   0.04  p95   0.15  max   0.21           22.7/ 24.6/ 25.5      0.275         0
+[ 555, 658]  mean   0.03  p95   0.09  max   0.64           23.8/ 27.4/ 35.3      0.041         0
+[ 659, 764]  mean   0.18  p95   0.49  max   1.03           22.4/ 31.5/ 40.7      0.308         0
+[ 765, 940]  mean   0.02  p95   0.07  max   0.16           22.0/ 25.6/ 31.1      0.063         0
+[ 941,1066]  mean   0.26  p95   0.78  max   1.14           22.0/ 22.1/ 22.7      0.080         0
+[1067,1298]  mean   0.04  p95   0.15  max   0.34           22.0/ 23.1/ 24.1      0.038         0
+worst window by mean: [941,1066] 0.26 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 17.430 deg  p99 1.901 deg
+   angle per world px of centreline arclength: max 41.8503 deg/px  (p99 5.5486)
+   worst dense samples (t, deg, |b.T|): 190.89, 17.4, 0.999; 190.64, 16.8, 0.999; 191.14, 15.6, 0.999; 190.39, 14.1, 0.999; 191.39, 12.6, 0.999
+   dense steps > 3 deg: 17, > 6 deg: 10
+max |b.T| outside fold windows: 0.620   (inside: 0.999)
+run time: 6.1 s
+residual block norms (sum of squares): edge 5.61, smooth 14.15, jerk 6.76, perp 27.68, dev 30.69, depth 5.51, hsm 7.82, wpr 4.94, speed 0.00, hmin 0.01, hmax 0.00

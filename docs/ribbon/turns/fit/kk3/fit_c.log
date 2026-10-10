@@ -1,0 +1,151 @@
+init cost 984697.348, residuals 43239, params 1120
+round 0: clearance pairs 0, order pairs 0, residuals 43239
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         9.8470e+05                                    1.97e+07    
+       1              3         3.0056e+05      6.84e+05       2.47e+01       2.37e+06    
+       2              4         1.2740e+05      1.73e+05       4.55e+01       8.30e+04    
+       3              5         2.0329e+04      1.07e+05       4.02e+01       1.55e+05    
+       4              6         8.1196e+03      1.22e+04       4.36e+01       3.75e+04    
+       5              8         5.8804e+03      2.24e+03       1.17e+01       7.10e+03    
+       6             10         5.2395e+03      6.41e+02       6.87e+00       1.93e+03    
+       7             11         4.6292e+03      6.10e+02       1.39e+01       2.67e+03    
+       8             12         4.1361e+03      4.93e+02       2.27e+01       6.36e+03    
+       9             13         3.5048e+03      6.31e+02       3.03e+01       1.37e+04    
+      10             14         2.6227e+03      8.82e+02       2.62e+01       1.94e+03    
+      11             15         2.4301e+03      1.93e+02       1.97e+01       2.03e+03    
+      12             16         2.3934e+03      3.67e+01       1.81e+01       1.23e+04    
+      13             17         2.2611e+03      1.32e+02       1.14e+01       4.56e+03    
+      14             18         2.1998e+03      6.13e+01       1.01e+01       2.85e+03    
+      15             20         2.1689e+03      3.09e+01       3.51e+00       3.60e+02    
+      16             21         2.1443e+03      2.46e+01       8.35e+00       1.39e+03    
+      17             23         2.1281e+03      1.61e+01       2.31e+00       2.61e+02    
+      18             24         2.1235e+03      4.64e+00       3.03e+00       1.33e+03    
+      19             25         2.1217e+03      1.75e+00       2.34e+00       2.28e+02    
+      20             26         2.1134e+03      8.34e+00       1.10e+00       1.67e+02    
+      21             27         2.1110e+03      2.40e+00       1.25e+00       1.67e+02    
+      22             28         2.1108e+03      1.89e-01       1.05e+00       1.66e+02    
+      23             29         2.1061e+03      4.64e+00       5.91e-01       1.67e+02    
+      24             32         2.1060e+03      1.84e-01       5.28e-02       1.67e+02    
+      25             36         2.1059e+03      1.47e-02       3.47e-03       1.67e+02    
+      26             41         2.1059e+03      1.11e-04       2.71e-05       1.67e+02    
+      27             43         2.1059e+03      5.52e-05       1.35e-05       1.67e+02    
+`xtol` termination condition is satisfied.
+Function evaluations 43, initial cost 9.8470e+05, final cost 2.1059e+03, first-order optimality 1.67e+02.
+round 1: clearance pairs 0, order pairs 0, residuals 43239
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         2.1059e+03                                    1.67e+02    
+       1              3         2.0325e+03      7.35e+01       1.28e+01       5.07e+02    
+       2              6         1.9964e+03      3.61e+01       4.30e+00       2.89e+02    
+       3              7         1.9640e+03      3.24e+01       3.47e+00       5.62e+02    
+       4              8         1.9333e+03      3.07e+01       7.58e+00       1.36e+02    
+       5              9         1.9062e+03      2.71e+01       1.43e+01       4.92e+02    
+       6             11         1.8901e+03      1.61e+01       3.47e+00       2.79e+02    
+       7             12         1.8767e+03      1.35e+01       2.83e+00       3.18e+02    
+       8             13         1.8631e+03      1.36e+01       5.84e+00       2.53e+02    
+       9             14         1.8564e+03      6.62e+00       6.39e+00       2.09e+02    
+      10             15         1.8467e+03      9.78e+00       6.48e+00       2.75e+02    
+      11             17         1.8446e+03      2.08e+00       3.37e+00       3.29e+02    
+      12             18         1.8380e+03      6.55e+00       7.49e-01       3.78e+02    
+      13             20         1.8367e+03      1.32e+00       3.80e-01       2.82e+02    
+      14             21         1.8357e+03      1.01e+00       3.98e-01       2.78e+02    
+      15             22         1.8338e+03      1.95e+00       3.86e-01       1.49e+02    
+      16             23         1.8318e+03      1.96e+00       7.91e-01       2.48e+02    
+      17             24         1.8300e+03      1.82e+00       6.67e-01       3.01e+02    
+      18             25         1.8275e+03      2.47e+00       7.19e-01       2.71e+02    
+      19             26         1.8270e+03      4.96e-01       6.55e-01       2.34e+02    
+      20             27         1.8251e+03      1.95e+00       1.82e-01       1.28e+02    
+      21             28         1.8226e+03      2.42e+00       3.72e-01       1.53e+02    
+      22             29         1.8218e+03      8.60e-01       7.19e-01       1.96e+02    
+      23             30         1.8205e+03      1.30e+00       6.95e-01       1.60e+02    
+      24             31         1.8193e+03      1.21e+00       1.89e-01       9.94e+01    
+      25             32         1.8175e+03      1.72e+00       1.83e-01       1.43e+02    
+      26             34         1.8174e+03      1.28e-01       8.66e-02       9.47e+01    
+      27             35         1.8170e+03      4.08e-01       2.19e-02       8.43e+01    
+      28             39         1.8170e+03      3.20e-03       8.07e-04       8.40e+01    
+      29             40         1.8170e+03      5.64e-03       1.62e-03       7.42e+01    
+      30             43         1.8170e+03      7.60e-04       1.95e-04       7.41e+01    
+      31             46         1.8170e+03      9.50e-05       2.44e-05       7.41e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 46, initial cost 2.1059e+03, final cost 1.8170e+03, first-order optimality 7.41e+01.
+round 2: clearance pairs 0, order pairs 0, residuals 43239
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.8170e+03                                    7.41e+01    
+       1              4         1.8115e+03      5.47e+00       8.22e+00       2.69e+02    
+       2              6         1.8090e+03      2.50e+00       2.61e+00       1.90e+02    
+       3              7         1.8026e+03      6.40e+00       2.34e+00       2.00e+02    
+       4              9         1.7992e+03      3.39e+00       5.72e-01       9.11e+01    
+       5             10         1.7961e+03      3.15e+00       1.18e+00       1.88e+02    
+       6             12         1.7945e+03      1.56e+00       2.64e-01       1.32e+02    
+       7             13         1.7934e+03      1.10e+00       3.02e-01       1.06e+02    
+       8             14         1.7931e+03      3.74e-01       2.68e-01       1.41e+02    
+       9             15         1.7931e+03      9.45e-03       6.29e-02       7.67e+01    
+      10             16         1.7930e+03      7.32e-02       1.61e-02       6.81e+01    
+      11             17         1.7926e+03      4.31e-01       3.43e-02       6.35e+01    
+      12             18         1.7924e+03      1.83e-01       6.63e-02       1.43e+02    
+      13             19         1.7923e+03      5.48e-02       6.55e-02       8.29e+01    
+      14             20         1.7922e+03      7.84e-02       2.03e-02       7.46e+01    
+      15             21         1.7921e+03      9.47e-02       4.11e-02       6.42e+01    
+      16             22         1.7918e+03      3.45e-01       3.19e-02       5.83e+01    
+      17             24         1.7917e+03      6.92e-02       1.55e-02       5.41e+01    
+      18             26         1.7917e+03      1.30e-02       8.16e-03       5.66e+01    
+      19             28         1.7917e+03      7.47e-03       2.03e-03       5.70e+01    
+      20             31         1.7917e+03      9.27e-04       2.54e-04       5.70e+01    
+      21             35         1.7917e+03      2.92e-05       7.94e-06       5.70e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 35, initial cost 1.8170e+03, final cost 1.7917e+03, first-order optimality 5.70e+01.
+round 3: clearance pairs 0, order pairs 0, residuals 43239
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.7917e+03                                    5.70e+01    
+       1              3         1.7867e+03      5.05e+00       9.56e+00       2.33e+02    
+       2              5         1.7858e+03      8.71e-01       4.66e+00       1.12e+03    
+       3              6         1.7846e+03      1.23e+00       1.46e+00       4.52e+02    
+       4              7         1.7806e+03      3.97e+00       4.51e-01       1.99e+02    
+       5              8         1.7780e+03      2.62e+00       4.06e-01       1.91e+02    
+       6              9         1.7769e+03      1.11e+00       5.94e-01       1.49e+02    
+       7             10         1.7762e+03      7.02e-01       1.27e-01       1.22e+02    
+       8             11         1.7751e+03      1.04e+00       2.95e-01       1.25e+02    
+       9             12         1.7747e+03      4.73e-01       3.29e-01       6.59e+01    
+      10             13         1.7740e+03      6.12e-01       7.99e-02       4.61e+01    
+      11             15         1.7739e+03      1.15e-01       3.72e-02       1.35e+02    
+      12             18         1.7739e+03      2.03e-02       4.68e-03       1.31e+02    
+      13             20         1.7739e+03      5.66e-03       2.35e-03       1.30e+02    
+      14             21         1.7739e+03      6.96e-03       2.44e-03       1.27e+02    
+      15             24         1.7739e+03      9.35e-04       3.08e-04       1.27e+02    
+      16             25         1.7739e+03      1.83e-03       6.17e-04       1.26e+02    
+      17             28         1.7739e+03      1.55e-04       7.71e-05       1.26e+02    
+      18             29         1.7739e+03      1.83e-04       7.33e-05       1.26e+02    
+      19             30         1.7739e+03      2.32e-04       7.71e-05       1.26e+02    
+      20             33         1.7739e+03      0.00e+00       0.00e+00       1.26e+02    
+`xtol` termination condition is satisfied.
+Function evaluations 33, initial cost 1.7917e+03, final cost 1.7739e+03, first-order optimality 1.26e+02.
+kk3_c  K=160  init=perp  [round 0 nfev=43 status=3 (xtol`) cost 2105.947]  [round 1 nfev=46 status=3 (xtol`) cost 1816.998]  [round 2 nfev=35 status=3 (xtol`) cost 1791.705]  [round 3 nfev=33 status=3 (xtol`) cost 1773.888]
+args: {"K": 160, "clear": 0.0, "delta": 20.0, "edge_w": "935:990:R:0.1,480:560:L:0.2,480:560:R:0.2,1140:1210:L:0.2,1140:1210:R:0.2,320:400:L:0.2,320:400:R:0.2", "end_pin": 50.0, "eps": 1.0, "faceon": "", "gap": 12.4, "hide": "", "hide_auto": "", "hmax": 60.0, "hmin": 22.0, "init": "perp", "inside": 3.0, "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "mask": "", "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 0.15, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/fit/kk3_c", "outer": 4, "outline": 1.0, "outline_drop_near": "", "outline_excl": "", "outline_fixed": true, "outline_incl": "", "outline_loss": "linear", "outline_pose": "docs/ribbon/turns/fit/f3/pose.json", "pin_range": "", "pose": "docs/ribbon/turns/fit/kk3_b/pose.json", "redge": 16.0, "rmin": 35.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "935:990:25:2", "sigma": 2.0, "trace_w": 1.0, "w_hmin": 10.0, "w_redge": 5.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/fit/kk3_b/pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 2.103  p95 8.767  max 40.909
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.70  p95   3.62  max   5.12           42.8/ 46.1/ 60.0      0.077         0
+[ 132, 288]  mean   2.03  p95   5.36  max   6.79           22.0/ 28.6/ 48.9      0.292         3
+[ 289, 483]  mean   3.47  p95  14.86  max  27.19           29.3/ 49.4/ 60.0      0.394         0
+[ 484, 554]  mean   3.82  p95   9.62  max  10.03           25.1/ 26.0/ 34.8      0.137         0
+[ 555, 658]  mean   0.66  p95   2.02  max   2.26           25.1/ 26.5/ 42.2      0.018         0
+[ 659, 764]  mean   2.64  p95   9.21  max  20.13           42.7/ 55.8/ 59.6      0.360         0
+[ 765, 940]  mean   0.22  p95   1.04  max   2.08           23.7/ 32.4/ 50.3      0.183         11
+[ 941,1066]  mean   5.14  p95  30.97  max  40.91           24.4/ 36.7/ 42.0      0.169         0
+[1067,1298]  mean   1.45  p95   7.18  max  12.11           22.0/ 41.0/ 45.5      0.177         4
+worst window by mean: [941,1066] 5.14 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 4.739 deg  p99 2.424 deg
+   angle per world px of centreline arclength: max 4.8280 deg/px  (p99 2.9565)
+   worst dense samples (t, deg, |b.T|): 382.53, 4.7, 0.931; 382.28, 4.7, 0.928; 382.78, 4.7, 0.933; 382.03, 4.5, 0.922; 383.03, 4.5, 0.933
+   dense steps > 3 deg: 26, > 6 deg: 0
+max |b.T| outside fold windows: 0.937   (inside: 0.933)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 0.93 px; pairs < gap 12.4: 1282
+GATE: screen-overlap pairs (3 px) 1633, order violations (z_front - z_back < 0): 41, (< gap): 100; unique ring pairs violating: 12
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.008  max 1.07  frac>0.5px 0.002
+outline_fixed: kept 1477 of 1634 (dropped: 30 farther than 12 px, 127 ambiguous, 0 near pinch sites; total counted after near-drop)
+outline residual to ASSIGNED edge (kept pts): mean 0.380  p95 1.087  max 7.74
+outline residual (css px, matched <=25 px: 1634 of 1634 pts): mean 0.543  p95 2.230  max 9.42
+run time: 133.2 s
+residual block norms (sum of squares): edge 1376.79, smooth 239.25, jerk 177.71, perp 73.13, dev 69.88, depth 107.84, hsm 32.16, wpr 38.69, speed 12.82, hmin 0.01, hmax 0.07, face 0.00, rmin 568.42, scrw 0.97, wf 0.00, ins 117.20

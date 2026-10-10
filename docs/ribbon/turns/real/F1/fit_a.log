@@ -1,0 +1,77 @@
+face rule: sign_A -1 (tail median N.v -0.991)
+init cost 202104964.955, residuals 41584, params 1120
+round 0: clearance pairs 0, order pairs 0, residuals 41584
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         2.0210e+08                                    5.99e+07    
+       1              2         1.1594e+06      2.01e+08       2.19e+02       6.71e+06    
+       2              3         3.8149e+05      7.78e+05       2.07e+02       1.10e+06    
+       3              5         2.0368e+05      1.78e+05       5.11e+01       9.36e+05    
+       4              6         4.7168e+04      1.57e+05       9.69e+01       2.08e+05    
+       5              7         1.6363e+04      3.08e+04       1.01e+02       3.41e+04    
+       6              8         4.9640e+03      1.14e+04       8.01e+01       1.12e+04    
+       7             10         3.1802e+03      1.78e+03       2.54e+01       1.41e+04    
+       8             11         2.6375e+03      5.43e+02       5.77e+01       1.69e+04    
+       9             13         1.9694e+03      6.68e+02       1.32e+01       2.34e+04    
+      10             15         1.6313e+03      3.38e+02       8.24e+00       1.47e+04    
+      11             16         1.5872e+03      4.40e+01       1.94e+01       2.44e+04    
+      12             17         1.3501e+03      2.37e+02       8.95e+00       2.14e+03    
+      13             18         1.3062e+03      4.39e+01       6.83e+00       7.74e+02    
+      14             19         1.2652e+03      4.09e+01       4.12e+00       5.39e+02    
+      15             20         1.1996e+03      6.56e+01       5.87e+00       7.33e+02    
+      16             21         1.0890e+03      1.11e+02       1.06e+01       8.41e+02    
+      17             23         1.0409e+03      4.81e+01       5.57e+00       6.99e+02    
+      18             24         9.8581e+02      5.51e+01       1.20e+01       3.26e+03    
+      19             26         9.3829e+02      4.75e+01       5.50e+00       4.54e+03    
+      20             27         8.8809e+02      5.02e+01       1.01e+01       3.66e+02    
+      21             28         8.3906e+02      4.90e+01       1.11e+01       1.83e+03    
+      22             29         7.6783e+02      7.12e+01       2.32e+01       1.14e+04    
+      23             31         7.3410e+02      3.37e+01       1.32e+01       7.36e+03    
+      24             32         7.3129e+02      2.81e+00       1.58e+01       4.44e+03    
+      25             34         6.9477e+02      3.65e+01       3.53e+00       1.04e+03    
+      26             36         6.9339e+02      1.38e+00       1.76e+00       2.48e+02    
+      27             38         6.9271e+02      6.73e-01       4.56e-01       2.09e+02    
+      28             39         6.9129e+02      1.43e+00       1.00e+00       7.95e+01    
+      29             41         6.9099e+02      3.00e-01       3.62e-01       1.39e+02    
+      30             47         6.9099e+02      1.81e-03       2.18e-03       1.36e+02    
+      31             51         6.9099e+02      5.59e-05       6.67e-05       1.36e+02    
+      32             53         6.9099e+02      2.79e-05       3.33e-05       1.36e+02    
+      33             54         6.9099e+02      5.57e-05       6.68e-05       1.36e+02    
+      34             55         6.9099e+02      1.11e-04       1.33e-04       1.36e+02    
+      35             56         6.9098e+02      2.22e-04       2.66e-04       1.36e+02    
+      36             57         6.9098e+02      4.43e-04       5.29e-04       1.35e+02    
+      37             58         6.9098e+02      8.79e-04       1.05e-03       1.34e+02    
+      38             59         6.9098e+02      1.74e-03       2.05e-03       1.32e+02    
+      39             61         6.9098e+02      8.57e-04       1.02e-03       1.31e+02    
+      40             63         6.9098e+02      4.26e-04       5.06e-04       1.30e+02    
+      41             67         6.9098e+02      0.00e+00       0.00e+00       1.30e+02    
+`xtol` termination condition is satisfied.
+Function evaluations 67, initial cost 2.0210e+08, final cost 6.9098e+02, first-order optimality 1.30e+02.
+a  K=160  init=perp  [round 0 nfev=67 status=3 (xtol`) cost 690.980]
+args: {"K": 160, "box_pose": "", "box_rings": "", "box_trace": 0.15, "clear": 0.0, "delta": 60.0, "edge_w": "", "end_pin": 50.0, "eps": 0.3, "face_margin": 0.3, "faceon": "", "faces": "docs/ribbon/turns/real/faces.json", "gap": 12.4, "hide": "", "hide_auto": "", "hmax": 25.5, "hmin": 25.5, "init": "perp", "inside": 0.0, "kappa": 2.0, "lam": 15.0, "lam_h": 50.0, "mask": "", "max_nfev": 150, "mu": 300.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/real/F1/a", "outer": 4, "outline": 0.0, "outline_assign": "nearest", "outline_boxes": "", "outline_drop_near": "", "outline_excl": "", "outline_fixed": false, "outline_incl": "", "outline_loss": "linear", "outline_pose": "", "pin_range": "", "pose": "docs/ribbon/turns/fit/kk4/pose.json", "redge": 24.0, "rim_pose": "", "rim_side_mode": "centre", "rimlines": "", "rmin": 45.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "", "sigma": 2.0, "trace_w": 0.15, "w_box": 2.0, "w_face": 5.0, "w_hmin": 50.0, "w_redge": 5.0, "w_rim": 0.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/fit/kk4/pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 4.982  p95 17.023  max 43.887
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean  14.88  p95  32.17  max  43.89           25.5/ 25.5/ 25.5      0.126         2
+[ 132, 288]  mean   1.50  p95   4.88  max  10.57           25.5/ 25.5/ 25.5      0.450         0
+[ 289, 483]  mean   5.10  p95  15.19  max  16.97           25.5/ 25.5/ 25.5      0.333         4
+[ 484, 554]  mean   0.95  p95   2.42  max   2.72           25.5/ 25.5/ 25.5      0.579         0
+[ 555, 658]  mean   1.46  p95   5.20  max   8.69           25.5/ 25.5/ 25.5      0.093         0
+[ 659, 764]  mean   6.52  p95  15.97  max  17.49           25.5/ 25.5/ 25.5      0.244         0
+[ 765, 940]  mean   3.93  p95   8.88  max  10.61           25.5/ 25.5/ 25.5      0.147         8
+[ 941,1066]  mean   9.93  p95  21.75  max  24.15           25.5/ 25.5/ 25.5      0.338         12
+[1067,1298]  mean   1.84  p95   5.04  max   6.46           25.5/ 25.5/ 25.5      0.122         22
+worst window by mean: [0,131] 14.88 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 14.307 deg  p99 1.638 deg
+   angle per world px of centreline arclength: max 16.2539 deg/px  (p99 2.5080)
+   worst dense samples (t, deg, |b.T|): 373.53, 14.3, 0.994; 373.28, 13.7, 0.993; 373.78, 13.4, 0.994; 373.03, 11.9, 0.992; 374.03, 11.6, 0.993
+   dense steps > 3 deg: 33, > 6 deg: 19
+max |b.T| outside fold windows: 0.925   (inside: 0.995)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 3.47 px; pairs < gap 12.4: 103
+GATE: screen-overlap pairs (3 px) 1324, order violations (z_front - z_back < 0): 0, (< gap): 9; unique ring pairs violating: 0
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.685  max 21.34  frac>0.5px 0.114
+outline residual (css px, matched <=25 px: 1613 of 1634 pts): mean 5.546  p95 15.862  max 24.95
+run time: 46.2 s
+residual block norms (sum of squares): edge 653.70, smooth 111.07, jerk 159.22, perp 97.63, dev 51.42, depth 151.90, hsm 0.00, wpr 0.00, speed 36.20, hmin 0.00, hmax 0.00, face 0.00, rmin 115.61, scrw 0.00, wf 0.00, ins 0.00, fcr 4.98

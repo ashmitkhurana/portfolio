@@ -1,0 +1,20 @@
+{
+ "name": "fold_r12",
+ "top_world": [
+  -20.0,
+  120.0,
+  12.0
+ ],
+ "top_screen": [
+  174.8657121922984,
+  301.1942731537903
+ ],
+ "rings": 1299,
+ "arc": 540.1169953566937,
+ "kind": "paper_fold",
+ "r": 12.0,
+ "theta": 20.0,
+ "toward_camera": true,
+ "i_fold0": 601,
+ "i_fold1": 697
+}

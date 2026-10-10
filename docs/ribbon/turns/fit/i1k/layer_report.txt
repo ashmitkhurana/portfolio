@@ -1,0 +1,7 @@
+layer.py docs/ribbon/turns/fit/i1_fit/pose.json -> docs/ribbon/turns/fit/i1k/pose.json  gap 12.4 kz 320
+screen-overlap sample pairs (raw) 1642, deduped constraints (ring pairs) 1616, violated at input 247 (worst 63.7 px short)
+solver SLSQP status 8 iterations 292 objective 2.141e+06 time 61.7 s
+max constraint violation after solve (deduped): 0.000 px; violated constraints (> 0.01): 0
+all raw sample pairs after: z_front - z_back min 12.40 px, pairs with < 0: 0, < gap-0.5: 0
+dz: max |dz| 147.9 px (min -110.3, max 147.9); max |dz''| 10.0205 px/ring^2
+unit check: max change of projected edge screen position 2.27e-13 css px

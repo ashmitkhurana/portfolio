@@ -1,0 +1,30 @@
+a  K=160  init=perp  [round 0 nfev=67 status=2 (ftol`) cost 992.478]  [round 1 nfev=36 status=3 (xtol`) cost 973.277]  [round 2 nfev=16 status=3 (xtol`) cost 973.277]  [round 3 nfev=13 status=3 (xtol`) cost 973.277]
+args: {"K": 160, "bend": 30.0, "box_pose": "", "box_rings": "", "box_trace": 0.15, "clear": 5.0, "clear_range": "860:1066-388:483", "dbend": 500.0, "delta": 60.0, "dtwist": 500.0, "edge_w": "", "end_pin": 50.0, "eps": 0.3, "face_margin": 0.3, "faceon": "", "faces": "docs/ribbon/turns/real/faces.json", "fold": "503:537:25:20,1168:1202:25:20,345:387:25:20", "gap": 14.0, "hide": "", "hide_auto": "", "hmax": 25.5, "hmin": 25.5, "init": "perp", "inside": 0.0, "kappa": 2.0, "lam": 15.0, "lam_h": 50.0, "mask": "", "max_nfev": 150, "mu": 300.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/real/V2/a", "outer": 4, "outline": 0.0, "outline_assign": "nearest", "outline_boxes": "", "outline_drop_near": "", "outline_excl": "", "outline_fixed": false, "outline_incl": "", "outline_loss": "linear", "outline_pose": "", "pin_range": "", "pose": "docs/ribbon/turns/fit/kk4/pose.json", "redge": 24.0, "rim_pose": "", "rim_side_mode": "centre", "rimlines": "", "rmin": 45.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "", "sigma": 2.0, "trace_w": 0.15, "twist": 30.0, "w_box": 2.0, "w_face": 15.0, "w_hmin": 50.0, "w_redge": 5.0, "w_rim": 0.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/fit/kk4/pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 4.637  p95 17.259  max 43.393
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean  14.89  p95  32.31  max  43.39           25.5/ 25.5/ 25.5      0.130         2
+[ 132, 288]  mean   1.65  p95   4.55  max  11.36           25.5/ 25.5/ 25.5      0.407         0
+[ 289, 483]  mean   4.28  p95  11.99  max  14.42           25.5/ 25.5/ 25.5      0.325         8
+[ 484, 554]  mean   0.85  p95   2.31  max   2.63           25.5/ 25.5/ 25.5      0.557         4
+[ 555, 658]  mean   1.14  p95   2.72  max   5.33           25.5/ 25.5/ 25.5      0.073         0
+[ 659, 764]  mean   8.26  p95  14.88  max  15.69           25.5/ 25.5/ 25.5      0.647         0
+[ 765, 940]  mean   1.89  p95   5.16  max   8.56           25.5/ 25.5/ 25.5      0.182         3
+[ 941,1066]  mean   9.54  p95  23.75  max  25.58           25.5/ 25.5/ 25.5      0.291         14
+[1067,1298]  mean   1.61  p95   4.13  max   6.28           25.5/ 25.5/ 25.5      0.139         29
+worst window by mean: [0,131] 14.89 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 6.712 deg  p99 2.000 deg
+   angle per world px of centreline arclength: max 9.2581 deg/px  (p99 3.2858)
+   worst dense samples (t, deg, |b.T|): 374.28, 6.7, 0.969; 374.53, 6.7, 0.969; 374.03, 6.6, 0.968; 374.78, 6.6, 0.968; 373.78, 6.4, 0.966
+   dense steps > 3 deg: 24, > 6 deg: 7
+ripple (|second difference of unit N| per world px^2, dense): max 2.600e-02  p99 4.933e-03  median 5.359e-04
+max |b.T| outside fold windows: 0.921   (inside: 0.968)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 16.30 px; pairs < gap 14.0: 0
+GATE: screen-overlap pairs (3 px) 1445, order violations (z_front - z_back < 0): 0, (< gap): 2; unique ring pairs violating: 0
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.723  max 23.87  frac>0.5px 0.133
+outline residual (css px, matched <=25 px: 1614 of 1634 pts): mean 5.385  p95 17.051  max 24.99
+run time: 107.6 s
+residual block norms (sum of squares): edge 585.88, smooth 47.09, jerk 126.60, perp 102.41, dev 35.74, depth 214.50, hsm 0.00, wpr 0.00, speed 51.85, hmin 0.00, hmax 0.00, face 0.00, rmin 19.54, scrw 0.00, wf 0.00, ins 0.00, fcr 0.59, bnd 653.28, twi 4.09, dbn 103.08, dtw 0.76, rmf 0.89, crl 0.12

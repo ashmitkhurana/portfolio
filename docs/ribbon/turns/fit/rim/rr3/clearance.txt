@@ -1,0 +1,12 @@
+docs/ribbon/turns/fit/rim/rr3/dump/dump.json: 1500 rings, gap 14.36, skip 60: 942 ring pairs closer than gap
+10 clusters, 0 INTERSECT (<2px)
+  #0 eng i 197-217 x j 687-710  min 7.74px at (205,701)  pairs 205  front=i(i strand)  pose i 214-230 x j 688-697
+  #1 eng i 297-301 x j 359-362  min 7.64px at (299,360)  pairs 10  front=i(i strand)  pose i 321-324 x j 383-385
+  #2 eng i 333-352 x j 1106-1127  min 12.06px at (336,1124)  pairs 95  front=i(i strand)  pose i 356-379 x j 959-981
+  #3 eng i 368-373 x j 1171-1181  min 6.52px at (369,1176)  pairs 43  front=i(i strand)  pose i 393-399 x j 1005-1010
+  #4 eng i 384-398 x j 1063-1090  min 4.99px at (390,1082)  pairs 280  front=i(i strand)  pose i 404-409 x j 938-948
+  #5 eng i 442-454 x j 964-979  min 5.76px at (449,972)  pairs 152  front=j(j strand)  pose i 445-455 x j 874-882
+  #6 eng i 854-860 x j 1469-1478  min 9.42px at (857,1473)  pairs 51  front=i(i strand)  pose i 771-774 x j 1271-1278
+  #7 eng i 855-862 x j 1420-1431  min 9.78px at (858,1424)  pairs 62  front=i(i strand)  pose i 772-775 x j 1239-1244
+  #8 eng i 887-889 x j 1278-1280  min 13.99px at (888,1279)  pairs 8  front=i(i strand)  pose i 791-792 x j 1108-1109
+  #9 eng i 929-932 x j 1245-1259  min 10.30px at (931,1253)  pairs 36  front=i(i strand)  pose i 852-856 x j 1089-1098

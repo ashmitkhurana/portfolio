@@ -1,0 +1,95 @@
+init cost 240100.574, residuals 37631, params 1120
+round 0: clearance pairs 0, order pairs 0, residuals 37631
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         2.4010e+05                                    1.23e+04    
+       1              2         1.3292e+05      1.07e+05       1.22e+02       2.24e+05    
+       2              4         1.2004e+05      1.29e+04       4.84e+01       6.47e+04    
+       3              5         4.1002e+04      7.90e+04       2.19e+01       3.66e+04    
+       4              7         2.8780e+04      1.22e+04       1.05e+01       2.55e+04    
+       5              8         1.9971e+04      8.81e+03       1.84e+01       1.39e+04    
+       6             10         1.6090e+04      3.88e+03       6.07e+00       1.27e+04    
+       7             11         1.4800e+04      1.29e+03       1.11e+01       1.01e+04    
+       8             12         8.6632e+03      6.14e+03       1.75e+01       8.96e+03    
+       9             13         7.0645e+03      1.60e+03       2.38e+01       6.38e+03    
+      10             14         3.3865e+03      3.68e+03       2.79e+01       1.94e+03    
+      11             15         2.3680e+03      1.02e+03       4.58e+01       6.37e+02    
+      12             17         1.7803e+03      5.88e+02       9.86e+00       5.48e+02    
+      13             19         1.6573e+03      1.23e+02       4.81e+00       4.60e+02    
+      14             20         1.5076e+03      1.50e+02       9.57e+00       5.23e+02    
+      15             22         1.4775e+03      3.01e+01       4.36e+00       5.47e+02    
+      16             23         1.4147e+03      6.28e+01       8.17e+00       2.50e+02    
+      17             24         1.3960e+03      1.87e+01       1.93e+01       1.70e+02    
+      18             25         1.3576e+03      3.84e+01       1.56e+01       8.01e+02    
+      19             27         1.3277e+03      2.99e+01       5.55e+00       1.31e+02    
+      20             28         1.3048e+03      2.28e+01       1.07e+01       8.51e+01    
+      21             29         1.2831e+03      2.17e+01       1.68e+01       1.20e+02    
+      22             31         1.2688e+03      1.43e+01       9.61e+00       1.01e+02    
+      23             32         1.2533e+03      1.55e+01       1.43e+01       3.81e+01    
+      24             34         1.2455e+03      7.75e+00       3.89e+00       1.29e+02    
+      25             35         1.2442e+03      1.39e+00       7.23e+00       1.09e+02    
+      26             36         1.2341e+03      1.01e+01       4.71e+00       7.38e+01    
+      27             37         1.2333e+03      7.22e-01       4.99e+00       3.34e+01    
+      28             38         1.2269e+03      6.39e+00       3.34e+00       4.88e+01    
+      29             39         1.2261e+03      8.56e-01       2.66e+00       3.00e+01    
+      30             40         1.2226e+03      3.51e+00       1.92e+00       4.45e+01    
+      31             42         1.2218e+03      7.84e-01       8.17e-01       2.46e+01    
+      32             47         1.2217e+03      4.51e-02       4.80e-02       2.46e+01    
+      33             50         1.2217e+03      5.69e-03       4.74e-03       2.46e+01    
+      34             51         1.2217e+03      7.18e-03       9.43e-03       2.46e+01    
+      35             53         1.2217e+03      2.56e-03       2.17e-03       2.46e+01    
+      36             55         1.2217e+03      1.26e-03       1.08e-03       2.46e+01    
+      37             57         1.2217e+03      6.05e-04       5.41e-04       2.46e+01    
+      38             59         1.2217e+03      3.03e-04       2.73e-04       2.46e+01    
+      39             61         1.2217e+03      1.54e-04       1.37e-04       2.46e+01    
+      40             64         1.2217e+03      1.97e-05       1.71e-05       2.46e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 64, initial cost 2.4010e+05, final cost 1.2217e+03, first-order optimality 2.46e+01.
+round 1: clearance pairs 0, order pairs 0, residuals 37631
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.2217e+03                                    2.46e+01    
+       1             14         1.2217e+03      2.34e-05       8.76e-06       2.46e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 14, initial cost 1.2217e+03, final cost 1.2217e+03, first-order optimality 2.46e+01.
+round 2: clearance pairs 0, order pairs 0, residuals 37631
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.2217e+03                                    2.46e+01    
+       1             14         1.2217e+03      0.00e+00       0.00e+00       2.46e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 14, initial cost 1.2217e+03, final cost 1.2217e+03, first-order optimality 2.46e+01.
+round 3: clearance pairs 0, order pairs 0, residuals 37631
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.2217e+03                                    2.46e+01    
+       1             14         1.2217e+03      0.00e+00       0.00e+00       2.46e+01    
+`xtol` termination condition is satisfied.
+Function evaluations 14, initial cost 1.2217e+03, final cost 1.2217e+03, first-order optimality 2.46e+01.
+jj3_a  K=160  init=perp  [round 0 nfev=64 status=3 (xtol`) cost 1221.724]  [round 1 nfev=14 status=3 (xtol`) cost 1221.724]  [round 2 nfev=14 status=3 (xtol`) cost 1221.724]  [round 3 nfev=14 status=3 (xtol`) cost 1221.724]
+args: {"K": 160, "clear": 0.0, "delta": 20.0, "edge_w": "935:990:R:0.1,480:560:L:0.2,480:560:R:0.2,1140:1210:L:0.2,1140:1210:R:0.2,320:400:L:0.2,320:400:R:0.2", "end_pin": 50.0, "eps": 0.05, "faceon": "", "gap": 12.4, "hide": "", "hide_auto": "", "hmax": 60.0, "hmin": 22.0, "init": "perp", "inside": 3.0, "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "mask": "", "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 1.0, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/fit/jj3_a", "outer": 4, "outline": 1.0, "outline_drop_near": "182:197,355:370,510:530,670:681,708:721,1172:1191,995:1013", "outline_excl": "", "outline_fixed": true, "outline_incl": "", "outline_loss": "linear", "outline_pose": "docs/ribbon/turns/fit/f3/pose.json", "pin_range": "", "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "rmin": 35.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "935:990:25:2", "sigma": 2.0, "trace_w": 1.0, "w_hmin": 10.0, "w_rmin": 5.0, "w_wfloor": 3.0, "wfloor": 12.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "180:200:4", "zprior": ""}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 1.527  p95 6.708  max 20.852
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.79  p95   4.31  max   4.59           35.0/ 38.5/ 60.0      0.138         6
+[ 132, 288]  mean   1.76  p95   4.65  max   6.68           22.3/ 27.9/ 39.5      0.314         4
+[ 289, 483]  mean   1.77  p95   7.21  max   9.09           30.0/ 32.5/ 35.9      0.383         14
+[ 484, 554]  mean   3.31  p95   8.50  max   9.62           25.9/ 26.4/ 30.0      0.101         1
+[ 555, 658]  mean   0.70  p95   2.02  max   2.26           25.3/ 26.9/ 39.1      0.040         0
+[ 659, 764]  mean   2.25  p95   9.35  max  20.85           39.5/ 51.0/ 54.8      0.301         8
+[ 765, 940]  mean   0.30  p95   1.68  max   3.63           22.0/ 32.7/ 46.2      0.063         0
+[ 941,1066]  mean   2.59  p95   8.96  max  10.36           22.4/ 35.1/ 43.4      0.159         0
+[1067,1298]  mean   1.44  p95   7.65  max  14.28           22.0/ 22.3/ 27.1      0.166         0
+worst window by mean: [484,554] 3.31 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 1.747 deg  p99 1.446 deg
+   angle per world px of centreline arclength: max 4.0334 deg/px  (p99 2.8510)
+   worst dense samples (t, deg, |b.T|): 239.36, 1.7, 0.708; 239.61, 1.7, 0.703; 355.29, 1.7, 0.626; 239.11, 1.7, 0.712; 238.86, 1.7, 0.715
+   dense steps > 3 deg: 0, > 6 deg: 0
+max |b.T| outside fold windows: 0.672   (inside: 0.845)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 0.99 px; pairs < gap 12.4: 2378
+GATE: screen-overlap pairs (3 px) 1700, order violations (z_front - z_back < 0): 201, (< gap): 371; unique ring pairs violating: 39
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.006  max 1.27  frac>0.5px 0.002
+outline_fixed: kept 1270 of 1417 (dropped: 30 farther than 12 px, 117 ambiguous, 217 near pinch sites; total counted after near-drop)
+outline residual to ASSIGNED edge (kept pts): mean 0.366  p95 1.030  max 7.86
+outline residual (css px, matched <=25 px: 1634 of 1634 pts): mean 0.843  p95 4.439  max 13.04
+run time: 49.0 s
+residual block norms (sum of squares): edge 1139.78, smooth 162.58, jerk 52.40, perp 110.59, dev 67.24, depth 43.85, hsm 27.88, wpr 16.26, speed 25.86, hmin 0.01, hmax 0.07, face 0.00, rmin 8.87, scrw 1.47, wf 102.25, ins 111.58

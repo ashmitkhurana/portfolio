@@ -1,0 +1,22 @@
+pairs (raw 1969), clusters 14, constraints 1918, initially violated 516 (max 108.0 px)
+clusters: 14 (rule-decided 9, vote-decided 5); input-sample disagreements with the decided order: 392 of 1969 raw sample pairs
+top clusters by required separation (px short at input): rings_a-range x rings_b-range | front | rule | disagree/total | need
+   362- 397 x  944- 998 | front=a-range | R3 | 137/298 | 108.0
+   395- 410 x  945- 965 | front=a-range | R2/R3 | 63/122 | 104.0
+   796- 858 x 1050-1103 | front=a-range | vote | 174/413 | 98.5
+   779- 792 x 1250-1286 | front=a-range | vote | 6/125 | 30.6
+   422- 459 x  880- 916 | front=b-range | R2 | 12/247 | 27.8
+   213- 220 x  690- 695 | front=a-range | vote | 0/9 | 0.0
+   326- 329 x  387- 390 | front=a-range | vote | 0/6 | 0.0
+   586- 618 x 1080-1110 | front=a-range | R1 | 0/131 | 0.0
+   598- 635 x  788- 857 | front=a-range | R1 | 0/335 | 0.0
+   602- 642 x 1060-1075 | front=a-range | R1 | 0/133 | 0.0
+   621- 656 x 1281-1298 | front=a-range | R1 | 0/73 | 0.0
+   625- 628 x 1083-1086 | front=a-range | R1 | 0/14 | 0.0
+layer.py docs/ribbon/turns/fit/rim/rr2_a/pose.json -> docs/ribbon/turns/fit/rim/rr2_b/pose.json  gap 12.4 kz 160
+screen-overlap sample pairs (raw) 1969, constraints (ring pairs) 1918, violated at input 516 (worst 108.0 px short)
+solver SLSQP status 8 iterations 40 objective 3.506e+05 time 1.9 s
+max constraint violation after solve (deduped): 0.000 px; violated constraints (> 0.01): 0
+all raw sample pairs after: z_front - z_back min 12.40 px, pairs with < 0: 0, < gap-0.5: 0
+dz: max |dz| 61.3 px (min -61.3, max 51.3); max |dz''| 1.1893 px/ring^2
+unit check: max change of projected edge screen position 2.27e-13 css px

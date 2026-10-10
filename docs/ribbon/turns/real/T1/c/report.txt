@@ -1,0 +1,30 @@
+c  K=160  init=perp  [round 0 nfev=63 status=3 (xtol`) cost 530.090]  [round 1 nfev=31 status=3 (xtol`) cost 525.394]  [round 2 nfev=16 status=3 (xtol`) cost 525.394]  [round 3 nfev=14 status=3 (xtol`) cost 525.394]
+args: {"K": 160, "bend": 0.3, "box_pose": "", "box_rings": "", "box_trace": 0.15, "clear": 5.0, "clear_range": "860:1066-388:483", "dbend": 2.0, "delta": 60.0, "dtwist": 2.0, "edge_w": "", "end_pin": 50.0, "eps": 1.0, "face_margin": 0.3, "faceon": "", "faces": "docs/ribbon/turns/real/faces.json", "gap": 14.0, "hide": "", "hide_auto": "", "hmax": 25.5, "hmin": 25.5, "init": "perp", "inside": 0.0, "kappa": 2.0, "lam": 15.0, "lam_h": 50.0, "mask": "", "max_nfev": 150, "mu": 300.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/real/T1/c", "outer": 4, "outline": 0.0, "outline_assign": "nearest", "outline_boxes": "", "outline_drop_near": "", "outline_excl": "", "outline_fixed": false, "outline_incl": "", "outline_loss": "linear", "outline_pose": "", "pin_range": "", "pose": "docs/ribbon/turns/real/T1/b_pose.json", "redge": 24.0, "rim_pose": "", "rim_side_mode": "centre", "rimlines": "", "rmin": 45.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "", "sigma": 2.0, "trace_w": 0.15, "twist": 0.3, "w_box": 2.0, "w_face": 15.0, "w_hmin": 50.0, "w_redge": 5.0, "w_rim": 0.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/real/T1/b_pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 4.463  p95 16.274  max 44.422
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean  14.89  p95  32.21  max  44.42           25.5/ 25.5/ 25.5      0.119         0
+[ 132, 288]  mean   1.42  p95   4.95  max   9.38           25.5/ 25.5/ 25.5      0.432         0
+[ 289, 483]  mean   5.02  p95  14.79  max  17.35           25.5/ 25.5/ 25.5      0.315         0
+[ 484, 554]  mean   0.77  p95   1.52  max   1.82           25.5/ 25.5/ 25.5      0.535         0
+[ 555, 658]  mean   1.51  p95   4.09  max   5.13           25.5/ 25.5/ 25.5      0.123         0
+[ 659, 764]  mean   6.22  p95  13.47  max  14.91           25.5/ 25.5/ 25.5      0.282         0
+[ 765, 940]  mean   1.60  p95   3.38  max   8.99           25.5/ 25.5/ 25.5      0.170         5
+[ 941,1066]  mean   7.81  p95  18.76  max  20.23           25.5/ 25.5/ 25.5      0.261         1
+[1067,1298]  mean   2.12  p95   4.74  max   7.27           25.5/ 25.5/ 25.5      0.112         0
+worst window by mean: [0,131] 14.89 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 6.783 deg  p99 1.704 deg
+   angle per world px of centreline arclength: max 7.4100 deg/px  (p99 2.3052)
+   worst dense samples (t, deg, |b.T|): 373.78, 6.8, 0.973; 373.53, 6.7, 0.972; 374.03, 6.7, 0.974; 374.28, 6.5, 0.973; 373.28, 6.5, 0.971
+   dense steps > 3 deg: 23, > 6 deg: 7
+ripple (|second difference of unit N| per world px^2, dense): max 1.663e-02  p99 6.807e-03  median 6.610e-04
+max |b.T| outside fold windows: 0.750   (inside: 0.974)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 13.99 px; pairs < gap 14.0: 1
+GATE: screen-overlap pairs (3 px) 1286, order violations (z_front - z_back < 0): 2, (< gap): 6; unique ring pairs violating: 1
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.591  max 21.93  frac>0.5px 0.113
+outline residual (css px, matched <=25 px: 1613 of 1634 pts): mean 5.609  p95 16.242  max 24.94
+run time: 57.1 s
+residual block norms (sum of squares): edge 609.06, smooth 44.42, jerk 148.01, perp 82.34, dev 46.26, depth 10.17, hsm 0.00, wpr 0.00, speed 4.03, hmin 0.00, hmax 0.00, face 0.00, rmin 105.91, scrw 0.00, wf 0.00, ins 0.00, fcr 0.48, bnd 0.08, twi 0.00, dbn 0.01, dtw 0.00

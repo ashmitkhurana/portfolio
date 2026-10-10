@@ -1,0 +1,5 @@
+T1 REJECTED/FAILED: not a cylinder (residual mean 20.65 > 4.0 css px); pts 239 kept 157; d (45.9,28.5) residual mean/max 20.65/72.14
+T3 REJECTED/FAILED: not a cylinder (residual mean 18.00 > 4.0 css px); pts 143 kept 143; d (-63.5,-53.8) residual mean/max 18.00/55.27
+T5 REJECTED/FAILED: not a cylinder (residual mean 8.94 > 4.0 css px); pts 126 kept 74; d (9.1,33.5) residual mean/max 8.94/37.97
+T7 REJECTED/FAILED: not a cylinder (residual mean 51.18 > 4.0 css px); pts 134 kept 96; d (-57.3,-13.4) residual mean/max 51.18/151.28
+T9 REJECTED/FAILED: not a cylinder (residual mean 34.86 > 4.0 css px); pts 291 kept 257; d (48.2,56.9) residual mean/max 34.86/148.89

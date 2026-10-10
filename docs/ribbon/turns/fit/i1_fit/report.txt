@@ -1,0 +1,27 @@
+i1_fit  K=160  init=perp  [round 0 nfev=43 status=3 (xtol`) cost 85.504]
+args: {"K": 160, "clear": 0.0, "delta": 20.0, "end_pin": 50.0, "eps": 0.05, "gap": 12.4, "hide": "950:1002:388:483", "hmax": 60.0, "hmin": 22.0, "init": "perp", "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 0.15, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/fit/i1_fit", "outer": 4, "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "sigma": 2.0, "w_hmin": 10.0}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 0.123  p95 0.541  max 5.119
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.12  p95   0.60  max   1.60           31.6/ 35.5/ 60.0      0.133         0
+[ 132, 288]  mean   0.04  p95   0.14  max   0.30           22.0/ 23.0/ 33.6      0.149         0
+[ 289, 483]  mean   0.06  p95   0.24  max   0.90           25.6/ 31.9/ 35.5      0.230         0
+[ 484, 554]  mean   0.05  p95   0.14  max   0.19           22.9/ 23.7/ 25.6      0.416         0
+[ 555, 658]  mean   0.06  p95   0.25  max   0.93           23.8/ 28.8/ 32.0      0.052         0
+[ 659, 764]  mean   0.21  p95   0.57  max   0.90           22.1/ 26.7/ 32.5      0.479         0
+[ 765, 940]  mean   0.04  p95   0.17  max   0.23           22.0/ 24.0/ 27.6      0.068         0
+[ 941,1066]  mean   0.55  p95   1.86  max   5.12           22.0/ 22.0/ 22.5      0.150         0
+[1067,1298]  mean   0.07  p95   0.24  max   0.99           22.0/ 22.0/ 26.4      0.097         0
+worst window by mean: [941,1066] 0.55 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 2.625 deg  p99 2.039 deg
+   angle per world px of centreline arclength: max 9.2716 deg/px  (p99 4.3490)
+   worst dense samples (t, deg, |b.T|): 722.58, 2.6, 0.814; 722.33, 2.6, 0.812; 722.83, 2.6, 0.815; 722.08, 2.6, 0.810; 723.08, 2.6, 0.816
+   dense steps > 3 deg: 0, > 6 deg: 0
+max |b.T| outside fold windows: 0.816   (inside: 0.780)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 0.97 px; pairs < gap 12.4: 1719
+GATE: screen-overlap pairs (3 px) 1642, order violations (z_front - z_back < 0): 132, (< gap): 260; unique ring pairs violating: 16
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+run time: 6.8 s
+residual block norms (sum of squares): edge 21.77, smooth 27.91, jerk 12.31, perp 53.22, dev 26.60, depth 5.85, hsm 17.78, wpr 5.51, speed 0.00, hmin 0.01, hmax 0.05

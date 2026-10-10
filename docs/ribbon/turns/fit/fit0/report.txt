@@ -1,0 +1,22 @@
+fit0_perp  K=160  init=perp
+args: {"K": 160, "delta": 20.0, "eps": 0.05, "init": "perp", "lam": 2.0, "lam_h": 5.0, "max_nfev": 60, "mu": 40.0, "no_opt": true, "nu_fold": 0.15, "omega": 0.01, "out": "docs/ribbon/turns/fit/fit0_perp", "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "sigma": 2.0}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 2.670  p95 14.016  max 39.458
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|
+[   0, 131]  mean   5.52  p95  20.03  max  39.46           29.7/ 36.2/ 51.2      0.001
+[ 132, 288]  mean   3.97  p95  13.46  max  14.51           10.5/ 29.4/ 43.3      0.011
+[ 289, 483]  mean   6.55  p95  25.93  max  28.91           23.7/ 26.2/ 51.2      0.003
+[ 484, 554]  mean   1.35  p95   9.63  max  22.10           26.7/ 27.6/ 29.3      0.003
+[ 555, 658]  mean   0.91  p95   3.12  max   3.46           26.3/ 29.5/ 31.9      0.006
+[ 659, 764]  mean   3.31  p95   9.42  max  10.43           21.6/ 28.7/ 32.5      0.012
+[ 765, 940]  mean   0.62  p95   1.64  max   2.11           22.4/ 25.5/ 27.0      0.005
+[ 941,1066]  mean   1.00  p95   3.03  max   4.29           21.4/ 25.5/ 27.4      0.006
+[1067,1298]  mean   0.27  p95   1.12  max   8.94           20.2/ 25.3/ 26.7      0.003
+worst window by mean: [289,483] 6.55 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 1.955 deg  p99 1.709 deg
+   angle per world px of centreline arclength: max 4.6333 deg/px  (p99 3.5852)
+max |b.T| outside fold windows: 0.106   (inside: 0.175)
+run time: 0.0 s
+residual block norms (sum of squares): edge 22102.96, smooth 65.81, jerk 3.98, perp 0.20, dev 407.65, depth 0.06, hsm 197.81, wpr 5.93

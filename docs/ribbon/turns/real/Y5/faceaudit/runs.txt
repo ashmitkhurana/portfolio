@@ -1,0 +1,22 @@
+N sign flip applied: -1.0
+rings 0-143 (pose 0-176, iv 0-1) face A screen (116,843)->(332,620) min|NdotV|=0.16
+rings 144-161 (pose 177-198, iv 1-1) face ~ screen (331,618)->(318,603) min|NdotV|=0.00
+rings 162-315 (pose 199-364, iv 1-3) face B screen (317,602)->(40,528) min|NdotV|=0.16
+rings 316-324 (pose 365-374, iv 3-3) face ~ screen (40,527)->(43,510) min|NdotV|=0.02
+rings 325-464 (pose 375-510, iv 3-5) face A screen (44,507)->(159,260) min|NdotV|=0.17
+rings 465-471 (pose 512-519, iv 5-5) face ~ screen (160,260)->(166,260) min|NdotV|=0.12
+rings 472-475 (pose 520-524, iv 5-5) face A screen (167,260)->(169,261) min|NdotV|=0.17
+rings 476-476 (pose 526-526, iv 5-5) face ~ screen (169,262)->(169,262) min|NdotV|=0.06
+rings 477-623 (pose 527-678, iv 5-7) face B screen (170,262)->(266,519) min|NdotV|=0.17
+rings 624-624 (pose 680-680, iv 7-7) face ~ screen (266,520)->(266,520) min|NdotV|=0.06
+rings 625-689 (pose 681-732, iv 7-7) face A screen (266,520)->(343,586) min|NdotV|=0.17
+rings 690-696 (pose 732-736, iv 7-7) face ~ screen (345,584)->(354,576) min|NdotV|=0.02
+rings 697-934 (pose 737-939, iv 7-11) face B screen (356,574)->(58,383) min|NdotV|=0.15
+rings 935-970 (pose 939-973, iv 11-11) face ~ screen (56,383)->(33,414) min|NdotV|=0.00
+rings 971-1001 (pose 973-994, iv 11-11) face A screen (33,415)->(47,469) min|NdotV|=0.15
+rings 1002-1019 (pose 995-1008, iv 11-11) face ~ screen (48,471)->(75,491) min|NdotV|=0.01
+rings 1020-1204 (pose 1008-1172, iv 11-14) face B screen (76,491)->(388,345) min|NdotV|=0.16
+rings 1205-1245 (pose 1172-1188, iv 14-14) face A screen (389,347)->(329,385) min|NdotV|=0.38
+rings 1246-1278 (pose 1189-1201, iv 14-14) face B screen (327,384)->(325,325) min|NdotV|=0.29
+rings 1279-1279 (pose 1201-1201, iv 14-14) face ~ screen (327,324)->(327,324) min|NdotV|=0.05
+rings 1280-1499 (pose 1202-1298, iv 14-15) face A screen (328,323)->(246,486) min|NdotV|=0.17

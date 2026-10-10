@@ -81,10 +81,10 @@ export function createJourney(engine: RibbonEngine): () => void {
   let pathKey = "";
   let path: JourneyPath | null = null;
   let spiral: SpiralPath | null = null;
-  let spiralJ = 0;
+  const spiralJ = 0;
   let tailM = -1;
   let pathD: JourneyPathDesktop | null = null;
-  let ymax = new Float32Array(0);
+  const ymax = new Float32Array(0);
   return () => {
     const sl = engine.sim.slide;
     const pins = readPins();
@@ -128,59 +128,36 @@ export function createJourney(engine: RibbonEngine): () => void {
         const ra = textA.getBoundingClientRect(), rb = textB.getBoundingClientRect();
         const hwS = sl.end1().hw;
         let wave: { c: number; amp: number; top: number; lambda?: number; crestY?: number };
-        if (!portrait) {
-          // DESKTOP: the approved v335 choreography (off the left edge, back in from the left drawing the wave),
-          // the wave centred between the two text lines
-          const aBottom = unravel.vTop + ra.bottom - pinTop, bTop = unravel.vTop + rb.top - pinTop;
-          pathD = buildJourneyPathDesktop({
-            W,
-            H,
-            end: sl.end1(),
-            ds: sl.spacing,
-            y2: unravel.vTop,
-            sClear: clear,
-            transition: DESKTOP_TRANSITION_PER_H * H,
-            portrait: false,
-            camZ: sl.cameraZ,
-            ribbonLen: sl.length,
-            waveC: (aBottom + bTop) / 2,
-            waveAmp: Math.max(20, Math.min(0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
-          });
-          path = null;
-          if (spiral) {
-            spiral = null;
-            tailM = -1;
-            sl.setTailOverride(null, null);
-          }
-          sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
-          pathKey = pk;
-          wave = { c: 0, amp: 0, top: 0 };
-        } else {
-          // a regular wave straight down the exact centre (owner), the two text blocks either side of it
-          wave = { c: W / 2, amp: Math.max(16, Math.min(0.1 * W, (rb.left - ra.right) / 2 - hwS - 8)), top: 0, lambda: 0.3 * H };
+        // BOTH orientations use the approved desktop choreography (owner: "exactly like the desktop one just done
+        // vertically"): a rigid ribbon, the hero's strand flows off-screen, the head re-enters (landscape: left edge,
+        // portrait: top edge) and draws a tilted-plane wave between the two text blocks
+        const aBottom = unravel.vTop + ra.bottom - pinTop, bTop = unravel.vTop + rb.top - pinTop;
+        pathD = buildJourneyPathDesktop({
+          W,
+          H,
+          end: sl.end1(),
+          ds: sl.spacing,
+          y2: unravel.vTop,
+          sClear: clear,
+          transition: DESKTOP_TRANSITION_PER_H * H,
+          portrait,
+          camZ: sl.cameraZ,
+          ribbonLen: sl.length,
+          waveC: portrait ? undefined : (aBottom + bTop) / 2,
+          waveAmp: portrait
+            ? Math.max(16, Math.min(0.12 * W, (rb.left - ra.right) / 2 - hwS - 8))
+            : Math.max(20, Math.min(0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
+        });
+        path = null;
+        if (spiral) {
+          spiral = null;
+          tailM = -1;
+          sl.setTailOverride(null, null);
         }
-        if (portrait) {
-          pathD = null;
-          // the "box": where the hero's diagonal tail crosses ~40% of the width (owner's sketch); there it turns
-          // straight down and spirals down the screen round an invisible pole
-          const D = sl.cameraZ;
-          let j = 3;
-          for (; j < 60; j++) {
-            const q = sl.poseRing(j);
-            if (W / 2 + q.p[0] * (D / Math.max(1, D - q.p[2])) >= SPIRAL_BOX_X * W) break;
-          }
-          spiral = buildPortraitSpiral({ W, H, box: sl.poseRing(j), j, ds: sl.spacing, y2: unravel.vTop, camZ: D, r: SPIRAL_R * W });
-          path = spiral;
-          spiralJ = j;
-          sl.setHeadPath(spiral.pos, spiral.ruled, spiral.k);
-        // running max of each ring's screen height: the head may advance while its path stays above the follow line
-        ymax = new Float32Array(path.k);
-        let m = -Infinity;
-        for (let j = 0; j < path.k; j++) ymax[j] = m = Math.max(m, path.yv[j]);
+        sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
         pathKey = pk;
-        }
       }
-      if (pathD && !portrait && hero.p >= 1) {
+      if (pathD && hero.p >= 1) {
         // DESKTOP (v335): a rigid window (head = tail - length): the hero's remaining strand flows down-left off the
         // edge during the free scroll, the head enters from the left as section 2 pins and draws the wave
         if (unravel.p <= 0) sigma = clear + clamp01(V / Math.max(1, unravel.vTop)) * (pathD.sEntry - clear);

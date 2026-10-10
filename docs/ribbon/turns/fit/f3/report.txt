@@ -1,0 +1,24 @@
+f3  K=240  init=perp  nfev=60 status=0 cost 11460.253 -> 14.468
+args: {"K": 240, "delta": 20.0, "eps": 0.05, "init": "perp", "lam": 2.0, "lam_h": 5.0, "max_nfev": 60, "mu": 40.0, "no_opt": false, "nu_fold": 0.15, "omega": 0.01, "out": "docs/ribbon/turns/fit/f3", "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "sigma": 2.0}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 0.034  p95 0.170  max 0.812
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|
+[   0, 131]  mean   0.01  p95   0.03  max   0.20           31.6/ 35.6/ 51.3      0.013
+[ 132, 288]  mean   0.01  p95   0.03  max   0.36           22.2/ 27.2/ 34.5      0.142
+[ 289, 483]  mean   0.01  p95   0.05  max   0.07           27.8/ 32.8/ 37.9      0.050
+[ 484, 554]  mean   0.02  p95   0.07  max   0.09           26.4/ 27.8/ 31.8      0.364
+[ 555, 658]  mean   0.01  p95   0.03  max   0.49           28.2/ 31.2/ 34.6      0.005
+[ 659, 764]  mean   0.09  p95   0.23  max   0.81           33.2/ 39.1/ 40.5      0.253
+[ 765, 940]  mean   0.01  p95   0.02  max   0.06            9.2/ 25.5/ 33.0      0.009
+[ 941,1066]  mean   0.18  p95   0.50  max   0.63            8.8/ 24.3/ 30.1      0.033
+[1067,1298]  mean   0.02  p95   0.04  max   0.10           21.1/ 24.1/ 30.7      0.013
+worst window by mean: [941,1066] 0.18 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 159.066 deg  p99 2.332 deg
+   angle per world px of centreline arclength: max 10024.7300 deg/px  (p99 6.7450)
+   worst dense samples (t, deg, |b.T|): 392.27, 159.1, 0.669; 520.95, 36.8, 0.999; 521.20, 30.6, 1.000; 520.70, 22.6, 0.999; 392.52, 20.2, 0.997
+   dense steps > 3 deg: 36, > 6 deg: 17
+max |b.T| outside fold windows: 0.436   (inside: 0.999)
+run time: 17.4 s
+residual block norms (sum of squares): edge 0.85, smooth 3.86, jerk 1.97, perp 6.18, dev 4.46, depth 1.76, hsm 1.40, wpr 8.45

@@ -1,0 +1,240 @@
+rim_assign: T9-05  rel opposite rings 208..224 -> forced side L
+rim_assign: T9-03  rel opposite rings 183..226 -> forced side L
+rim_assign: T9-01  rel same     rings 83..200 -> forced side L
+rim_assign: T3-01  rel opposite rings 1089..1197 -> forced side L
+rim_assign: T3-09  rel opposite rings 1198..1204 -> forced side R
+rim_assign: T3-03  rel opposite rings 1149..1259 -> forced side R
+rim_assign: T7-05  rel opposite rings 736..770 -> forced side R
+rim_assign: T7-01  rel opposite rings 657..768 -> forced side R
+rim_assign: T7-02  rel opposite rings 666..711 -> forced side R
+rim_assign: T5-08  rel opposite rings 304..316 -> forced side R
+rim_assign: T5-05  rel opposite rings 318..342 -> forced side L
+rim_assign: T5-02  rel opposite rings 331..374 -> forced side L
+rim_assign: T5-06  rel opposite rings 378..382 -> forced side R
+rim_assign: T5-03 rings 388:483 has no box-assigned silhouette points; own strand outline (no exclusion): 18 pts, L 0 R 18
+rim_assign: T5-03  rel same     rings 388..392 -> forced side R
+rim_assign: T1-01  rel opposite rings 860..948 -> forced side R
+rim_assign: T1-03  rel opposite rings 894..949 -> forced side R
+rim_assign: T1-02 rings 388:483 has no box-assigned silhouette points; own strand outline (no exclusion): 18 pts, L 0 R 18
+rim_assign: T1-02  rel same     rings 388..428 -> forced side R
+rim_assign: T1-05 rings 388:483 has no box-assigned silhouette points; own strand outline (no exclusion): 18 pts, L 0 R 18
+rim_assign: T1-05  rel opposite rings 392..418 -> forced side L
+rim_assign: T7-S2  rel same     rings 712..752 -> forced side L
+rim_assign: T7-D4  rel same     rings 673..711 -> forced side L
+rim_assign: T7-D1  rel opposite rings 656..715 -> forced side R
+rim_assign: T7-D2  rel opposite rings 714..772 -> forced side R
+rim line T9-05  rings 66:261 rel opposite forced sides L 16 R 0
+rim line T9-03  rings 66:261 rel opposite forced sides L 47 R 0
+rim line T9-01  rings 66:261 rel same     forced sides L 87 R 0
+rim line T3-01  rings 1089:1264 rel opposite forced sides L 84 R 0
+rim line T3-09  rings 1089:1264 rel opposite forced sides L 0 R 8
+rim line T3-03  rings 1089:1264 rel opposite forced sides L 0 R 45
+rim line T7-05  rings 648:772 rel opposite forced sides L 0 R 33
+rim line T7-01  rings 648:772 rel opposite forced sides L 0 R 95
+rim line T7-02  rings 648:772 rel opposite forced sides L 0 R 52
+rim line T5-08  rings 293:393 rel opposite forced sides L 0 R 7
+rim line T5-05  rings 293:393 rel opposite forced sides L 25 R 0
+rim line T5-02  rings 293:393 rel opposite forced sides L 35 R 0
+rim line T5-06  rings 293:393 rel opposite forced sides L 0 R 7
+rim line T5-03  rings 388:483 rel same     forced sides L 0 R 30
+rim line T1-01  rings 860:1010 rel opposite forced sides L 0 R 80
+rim line T1-03  rings 860:1010 rel opposite forced sides L 0 R 47
+rim line T1-02  rings 388:483 rel same     forced sides L 0 R 51
+rim line T1-05  rings 388:483 rel opposite forced sides L 27 R 0
+rim line T7-S2  rings 648:772 rel same     forced sides L 64 R 0
+rim line T7-D4  rings 648:772 rel same     forced sides L 48 R 0
+rim line T7-D1  rings 648:772 rel opposite forced sides L 0 R 62
+rim line T7-D2  rings 648:772 rel opposite forced sides L 0 R 41
+init cost 2603504.648, residuals 45339, params 1120
+round 0: clearance pairs 0, order pairs 0, residuals 45339
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         2.6035e+06                                    5.73e+07    
+       1              2         1.9585e+06      6.45e+05       1.75e+02       7.27e+07    
+       2              4         8.8841e+05      1.07e+06       4.22e+01       6.75e+06    
+       3              5         6.6360e+05      2.25e+05       9.66e+01       4.72e+07    
+       4              6         1.4780e+05      5.16e+05       6.69e+01       1.96e+06    
+       5              8         1.0024e+05      4.76e+04       2.66e+01       3.30e+05    
+       6              9         6.8238e+04      3.20e+04       3.66e+01       6.89e+04    
+       7             10         5.0453e+04      1.78e+04       4.06e+01       2.26e+04    
+       8             11         4.3984e+04      6.47e+03       4.99e+01       1.66e+04    
+       9             13         3.5893e+04      8.09e+03       1.50e+01       6.67e+03    
+      10             14         2.9727e+04      6.17e+03       3.83e+01       1.32e+04    
+      11             16         2.7927e+04      1.80e+03       1.07e+01       3.17e+03    
+      12             17         2.5720e+04      2.21e+03       2.24e+01       2.94e+03    
+      13             19         2.4870e+04      8.50e+02       9.24e+00       2.32e+03    
+      14             21         2.4415e+04      4.55e+02       5.06e+00       1.93e+03    
+      15             22         2.3547e+04      8.68e+02       1.38e+01       3.25e+03    
+      16             24         2.2963e+04      5.84e+02       8.65e+00       2.73e+03    
+      17             25         2.1530e+04      1.43e+03       1.40e+01       2.97e+03    
+      18             26         2.0541e+04      9.90e+02       1.30e+01       2.18e+03    
+      19             28         2.0060e+04      4.81e+02       4.17e+00       2.59e+03    
+      20             29         1.9879e+04      1.81e+02       9.26e+00       7.73e+03    
+      21             30         1.8846e+04      1.03e+03       1.20e+01       8.36e+03    
+      22             32         1.8457e+04      3.89e+02       2.67e+00       1.93e+03    
+      23             34         1.8377e+04      8.00e+01       1.32e+00       2.30e+03    
+      24             35         1.8252e+04      1.26e+02       2.53e+00       3.02e+03    
+      25             36         1.8012e+04      2.39e+02       4.60e+00       1.18e+03    
+      26             37         1.7795e+04      2.17e+02       8.65e+00       2.06e+03    
+      27             39         1.7658e+04      1.38e+02       4.39e+00       1.13e+03    
+      28             40         1.7586e+04      7.20e+01       7.03e+00       3.15e+03    
+      29             42         1.7435e+04      1.51e+02       2.68e+00       3.12e+03    
+      30             44         1.7333e+04      1.01e+02       1.52e+00       1.09e+03    
+      31             45         1.7215e+04      1.18e+02       2.91e+00       1.24e+03    
+      32             46         1.7112e+04      1.02e+02       4.57e+00       4.64e+03    
+      33             47         1.6970e+04      1.42e+02       6.89e+00       8.62e+03    
+      34             48         1.6426e+04      5.43e+02       8.97e+00       1.12e+03    
+      35             50         1.6362e+04      6.42e+01       1.94e+00       1.09e+03    
+      36             52         1.6313e+04      4.90e+01       1.48e+00       1.30e+03    
+      37             53         1.6276e+04      3.68e+01       2.82e+00       5.02e+03    
+      38             54         1.6032e+04      2.44e+02       5.54e+00       1.10e+03    
+      39             55         1.5982e+04      5.01e+01       3.92e+00       1.81e+03    
+      40             56         1.5866e+04      1.16e+02       5.32e+00       6.62e+03    
+      41             57         1.5663e+04      2.03e+02       5.92e+00       1.08e+03    
+      42             59         1.5573e+04      9.01e+01       1.90e+00       1.59e+03    
+      43             60         1.5466e+04      1.07e+02       3.55e+00       2.53e+03    
+      44             62         1.5429e+04      3.70e+01       1.09e+00       2.20e+03    
+      45             63         1.5350e+04      7.93e+01       2.75e+00       1.07e+03    
+      46             66         1.5342e+04      7.63e+00       2.01e-01       1.05e+03    
+      47             67         1.5282e+04      6.07e+01       2.61e+00       4.88e+03    
+      48             68         1.5248e+04      3.40e+01       2.22e+00       9.41e+03    
+      49             70         1.5198e+04      4.94e+01       8.07e-01       5.49e+03    
+      50             72         1.5178e+04      2.07e+01       4.04e-01       1.38e+03    
+      51             73         1.5164e+04      1.35e+01       5.57e-01       1.06e+03    
+      52             75         1.5159e+04      5.36e+00       3.22e-01       1.29e+03    
+      53             76         1.5145e+04      1.41e+01       7.85e-01       1.06e+03    
+      54             77         1.5131e+04      1.39e+01       7.38e-01       2.27e+03    
+      55             79         1.5117e+04      1.39e+01       4.05e-01       1.45e+03    
+      56             80         1.5101e+04      1.62e+01       7.51e-01       2.34e+03    
+      57             82         1.5098e+04      2.96e+00       2.88e-01       4.43e+03    
+      58             84         1.5089e+04      9.36e+00       1.99e-01       1.29e+03    
+      59             85         1.5083e+04      5.99e+00       3.17e-01       1.05e+03    
+      60             86         1.5076e+04      6.22e+00       3.11e-01       2.07e+03    
+      61             87         1.5066e+04      1.04e+01       6.15e-01       4.32e+03    
+      62             89         1.5056e+04      9.74e+00       2.19e-01       1.56e+03    
+      63             90         1.5048e+04      8.14e+00       3.80e-01       1.51e+03    
+      64             92         1.5045e+04      3.48e+00       1.39e-01       1.18e+03    
+      65             93         1.5037e+04      7.42e+00       3.53e-01       1.04e+03    
+      66             95         1.5034e+04      2.83e+00       1.26e-01       1.17e+03    
+      67             96         1.5027e+04      7.16e+00       3.14e-01       1.36e+03    
+      68             98         1.5024e+04      2.83e+00       1.35e-01       1.25e+03    
+      69             99         1.5014e+04      1.02e+01       4.45e-01       1.28e+03    
+      70             100        1.5007e+04      6.83e+00       5.17e-01       4.14e+03    
+The maximum number of function evaluations is exceeded.
+Function evaluations 100, initial cost 2.6035e+06, final cost 1.5007e+04, first-order optimality 4.14e+03.
+round 1: clearance pairs 0, order pairs 0, residuals 45339
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.5007e+04                                    4.14e+03    
+       1              5         1.4840e+04      1.67e+02       1.96e+00       8.92e+03    
+       2              6         1.4495e+04      3.45e+02       1.13e+01       1.53e+03    
+       3              7         1.4228e+04      2.68e+02       1.08e+01       1.27e+03    
+       4              9         1.3999e+04      2.29e+02       3.28e+00       9.49e+02    
+       5             10         1.3892e+04      1.07e+02       5.39e+00       1.94e+03    
+       6             11         1.3829e+04      6.29e+01       1.14e+01       2.73e+03    
+       7             13         1.3752e+04      7.75e+01       3.33e+00       1.20e+03    
+       8             15         1.3732e+04      1.93e+01       1.39e+00       4.08e+02    
+       9             16         1.3710e+04      2.21e+01       3.02e+00       2.45e+03    
+      10             17         1.3673e+04      3.72e+01       2.91e+00       6.11e+02    
+      11             19         1.3659e+04      1.40e+01       1.12e+00       2.82e+02    
+      12             20         1.3649e+04      1.06e+01       1.53e+00       1.79e+02    
+      13             21         1.3637e+04      1.18e+01       1.82e+00       3.64e+02    
+      14             22         1.3631e+04      5.22e+00       1.86e+00       4.29e+02    
+      15             23         1.3629e+04      2.51e+00       2.21e+00       1.44e+02    
+      16             24         1.3620e+04      8.73e+00       5.04e-01       1.55e+02    
+      17             25         1.3611e+04      9.64e+00       9.86e-01       2.43e+02    
+      18             26         1.3582e+04      2.87e+01       1.42e+00       3.42e+02    
+      19             27         1.3553e+04      2.92e+01       3.33e+00       2.01e+03    
+      20             29         1.3533e+04      1.98e+01       1.89e+00       8.83e+02    
+      21             30         1.3511e+04      2.20e+01       3.27e+00       2.73e+03    
+      22             31         1.3493e+04      1.75e+01       5.63e+00       8.49e+03    
+      23             32         1.3433e+04      6.02e+01       2.24e+00       1.65e+03    
+      24             33         1.3391e+04      4.25e+01       2.43e+00       1.67e+03    
+      25             34         1.3374e+04      1.69e+01       5.96e+00       2.15e+03    
+      26             36         1.3335e+04      3.83e+01       2.11e+00       1.13e+03    
+      27             38         1.3329e+04      6.58e+00       9.24e-01       4.08e+02    
+      28             39         1.3320e+04      9.27e+00       6.82e-01       4.49e+02    
+      29             40         1.3308e+04      1.11e+01       1.41e+00       1.23e+03    
+      30             41         1.3299e+04      9.01e+00       2.63e+00       1.45e+03    
+      31             42         1.3296e+04      3.73e+00       2.78e+00       2.96e+03    
+      32             43         1.3284e+04      1.21e+01       7.78e-01       6.76e+02    
+      33             44         1.3280e+04      3.19e+00       1.25e+00       1.80e+03    
+      34             46         1.3278e+04      2.74e+00       3.55e-01       2.34e+03    
+      35             47         1.3277e+04      4.01e-01       3.24e-01       1.72e+03    
+      36             48         1.3276e+04      1.25e+00       9.20e-02       1.12e+03    
+      37             49         1.3276e+04      2.42e-01       2.28e-01       1.93e+03    
+      38             50         1.3275e+04      3.50e-01       6.41e-02       1.09e+03    
+      39             51         1.3275e+04      3.21e-01       1.16e-01       2.03e+03    
+      40             54         1.3275e+04      4.69e-02       7.03e-03       1.92e+03    
+      41             56         1.3275e+04      2.28e-02       3.68e-03       9.42e+02    
+      42             59         1.3275e+04      2.50e-03       4.40e-04       9.37e+02    
+      43             60         1.3275e+04      4.71e-03       8.79e-04       9.26e+02    
+      44             64         1.3275e+04      0.00e+00       0.00e+00       9.26e+02    
+`xtol` termination condition is satisfied.
+Function evaluations 64, initial cost 1.5007e+04, final cost 1.3275e+04, first-order optimality 9.26e+02.
+round 2: clearance pairs 0, order pairs 0, residuals 45339
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.3275e+04                                    9.26e+02    
+       1             15         1.3275e+04      7.93e-05       1.04e-05       9.25e+02    
+Both `ftol` and `xtol` termination conditions are satisfied.
+Function evaluations 15, initial cost 1.3275e+04, final cost 1.3275e+04, first-order optimality 9.25e+02.
+round 3: clearance pairs 0, order pairs 0, residuals 45339
+   Iteration     Total nfev        Cost      Cost reduction    Step norm     Optimality   
+       0              1         1.3275e+04                                    9.25e+02    
+       1             15         1.3275e+04      7.92e-05       1.04e-05       9.25e+02    
+Both `ftol` and `xtol` termination conditions are satisfied.
+Function evaluations 15, initial cost 1.3275e+04, final cost 1.3275e+04, first-order optimality 9.25e+02.
+rs1_c  K=160  init=perp  [round 0 nfev=100 status=0 (The) cost 15007.283]  [round 1 nfev=64 status=3 (xtol`) cost 13275.018]  [round 2 nfev=15 status=4 (Both) cost 13275.018]  [round 3 nfev=15 status=4 (Both) cost 13275.018]
+args: {"K": 160, "box_pose": "docs/ribbon/turns/fit/kk4/pose.json", "box_rings": "", "box_trace": 0.15, "clear": 0.0, "delta": 20.0, "edge_w": "935:990:R:0.1,480:560:L:0.2,480:560:R:0.2,1140:1210:L:0.2,1140:1210:R:0.2,320:400:L:0.2,320:400:R:0.2", "end_pin": 50.0, "eps": 1.0, "faceon": "", "gap": 12.4, "hide": "", "hide_auto": "", "hmax": 60.0, "hmin": 22.0, "init": "perp", "inside": 3.0, "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "mask": "", "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 0.4, "omega": 0.01, "order": 0.0, "out": "docs/ribbon/turns/fit/rim/rs1_c", "outer": 4, "outline": 1.0, "outline_assign": "centre", "outline_boxes": "39.5:355:166.5:477.5;260:290.5:382.5:414.5;8.5:472.5:110:556;214:497.5:390:563;212:570:385.5:732", "outline_drop_near": "", "outline_excl": "", "outline_fixed": true, "outline_incl": "", "outline_loss": "linear", "outline_pose": "docs/ribbon/turns/fit/f3/pose.json", "pin_range": "", "pose": "docs/ribbon/turns/fit/rim/rs1_b/pose.json", "redge": 16.0, "rim_pose": "", "rim_side_mode": "opposite", "rimlines": "docs/ribbon/turns/fit/rim/rimlines2.json", "rmin": 35.0, "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "screenw": "935:990:25:2", "sigma": 2.0, "trace_w": 1.0, "w_box": 1.0, "w_hmin": 10.0, "w_redge": 5.0, "w_rim": 2.0, "w_rmin": 5.0, "w_wfloor": 0.0, "wfloor": 0.0, "wfloor_except": "", "wfloor_mode": "perp", "wfloor_ranges": "", "zprior": "docs/ribbon/turns/fit/rim/rs1_b/pose.json"}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 4.909  p95 22.746  max 50.483
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   1.22  p95   5.61  max   7.43           34.9/ 50.9/ 60.0      0.135         1
+[ 132, 288]  mean   4.73  p95  14.66  max  45.87           21.9/ 26.6/ 47.0      0.406         18
+[ 289, 483]  mean   6.99  p95  34.34  max  50.48           22.0/ 35.1/ 51.2      0.383         0
+[ 484, 554]  mean   3.78  p95   9.18  max   9.96           22.0/ 23.7/ 26.9      0.120         2
+[ 555, 658]  mean   1.20  p95   2.28  max   4.93           26.6/ 46.0/ 60.0      0.422         2
+[ 659, 764]  mean   9.67  p95  30.32  max  34.51           23.9/ 30.1/ 44.0      0.260         5
+[ 765, 940]  mean   1.59  p95   4.95  max   6.42           22.0/ 34.4/ 45.8      0.458         25
+[ 941,1066]  mean   9.29  p95  44.10  max  48.96           22.0/ 35.7/ 45.7      0.478         5
+[1067,1298]  mean   5.36  p95  25.89  max  42.15           22.0/ 40.5/ 60.0      0.227         15
+worst window by mean: [659,764] 9.67 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 24.854 deg  p99 7.305 deg
+   angle per world px of centreline arclength: max 100.8960 deg/px  (p99 22.6139)
+   worst dense samples (t, deg, |b.T|): 178.40, 24.9, 0.988; 1011.17, 22.4, 0.999; 313.82, 22.2, 0.987; 178.65, 22.2, 0.989; 196.39, 21.7, 0.992
+   dense steps > 3 deg: 230, > 6 deg: 71
+max |b.T| outside fold windows: 0.998   (inside: 0.989)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 1.07 px; pairs < gap 12.4: 1647
+GATE: screen-overlap pairs (3 px) 1855, order violations (z_front - z_back < 0): 100, (< gap): 250; unique ring pairs violating: 21
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+outside-mockup distance (5 pts across band, css px): mean 0.012  max 1.40  frac>0.5px 0.006
+outline_fixed: kept 776 of 837 (dropped: 8 farther than 12 px, 53 ambiguous, 0 near pinch sites; total counted after near-drop)
+box centre assignment: kept 760 of 797 box points (far 0, ambiguous 37); candidate ring runs per box: B1 [(372, 459), (848, 1061)]; B2 [(793, 822), (1089, 1264)]; B3 [(293, 393), (958, 1024)]; B4 [(211, 259), (648, 772), (1289, 1298)]; B5 [(66, 261), (697, 730)]
+box residual to ASSIGNED edge: mean 1.528  p95 5.702  max 18.15
+outline residual to ASSIGNED edge (kept pts): mean 0.438  p95 1.290  max 7.27
+outline residual (css px, matched <=25 px: 1634 of 1634 pts): mean 0.769  p95 3.208  max 8.09
+rim lines: 991 points, residual to ASSIGNED edge: mean 0.863  p95 2.459  max 4.54
+   T9-05  rings 66:261  n  16  mean 1.81  p95 2.17
+   T9-03  rings 66:261  n  47  mean 1.81  p95 4.20
+   T9-01  rings 66:261  n  87  mean 0.86  p95 1.70
+   T3-01  rings 1089:1264  n  84  mean 0.40  p95 1.19
+   T3-09  rings 1089:1264  n   8  mean 0.28  p95 0.52
+   T3-03  rings 1089:1264  n  45  mean 0.25  p95 1.11
+   T7-05  rings 648:772  n  33  mean 2.54  p95 4.20
+   T7-01  rings 648:772  n  95  mean 1.37  p95 2.90
+   T7-02  rings 648:772  n  52  mean 0.73  p95 1.41
+   T5-08  rings 293:393  n   7  mean 1.54  p95 3.21
+   T5-05  rings 293:393  n  25  mean 0.67  p95 0.92
+   T5-02  rings 293:393  n  35  mean 0.76  p95 1.90
+   T5-06  rings 293:393  n   7  mean 0.70  p95 1.52
+   T5-03  rings 388:483  n  30  mean 0.60  p95 2.25
+   T1-01  rings 860:1010  n  80  mean 1.06  p95 1.95
+   T1-03  rings 860:1010  n  47  mean 1.25  p95 2.11
+   T1-02  rings 388:483  n  51  mean 0.27  p95 0.80
+   T1-05  rings 388:483  n  27  mean 0.18  p95 0.58
+   T7-S2  rings 648:772  n  64  mean 0.72  p95 1.87
+   T7-D4  rings 648:772  n  48  mean 0.25  p95 0.60
+   T7-D1  rings 648:772  n  62  mean 0.66  p95 2.13
+   T7-D2  rings 648:772  n  41  mean 0.70  p95 1.78
+run time: 157.4 s
+residual block norms (sum of squares): edge 1411.39, smooth 6581.29, jerk 647.03, perp 194.50, dev 441.68, depth 539.22, hsm 769.40, wpr 35.75, speed 99.36, hmin 1.32, hmax 0.14, face 0.00, rmin 1637.55, scrw 12.81, wf 0.00, ins 322.04

@@ -1,0 +1,31 @@
+h1  K=160  init=perp  [round 0 nfev=100 status=0 (The) cost 225746.153]  [round 1 nfev=100 status=0 (The) cost 10648.334]  [round 2 nfev=100 status=0 (The) cost 625638.850]  [round 3 nfev=100 status=0 (The) cost 21031.736]
+args: {"K": 160, "clear": 20.0, "delta": 20.0, "end_pin": 50.0, "eps": 0.05, "gap": 12.4, "hmax": 60.0, "hmin": 22.0, "init": "perp", "kappa": 2.0, "lam": 10.0, "lam_h": 20.0, "max_nfev": 100, "mu": 200.0, "no_opt": false, "nu_fold": 0.15, "omega": 0.01, "order": 20.0, "out": "docs/ribbon/turns/fit/h1", "outer": 4, "pose": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/pose.json", "roto": "/Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/curve/best/roto.npz", "sigma": 2.0, "w_hmin": 10.0}
+
+edge residual css px, point-to-polyline (L and R pooled): mean 0.895  p95 5.446  max 13.314
+
+window       edge resid (L,R pooled)                      h min/med/max          median |b.T|  #|c'|<0.6 s0
+[   0, 131]  mean   0.15  p95   0.62  max   1.60           32.9/ 36.2/ 60.0      0.102         0
+[ 132, 288]  mean   0.03  p95   0.09  max   0.58           34.8/ 36.4/ 55.1      0.159         0
+[ 289, 483]  mean   0.23  p95   0.90  max   2.50           32.6/ 56.7/ 60.0      0.325         6
+[ 484, 554]  mean   0.05  p95   0.12  max   0.20           22.7/ 24.1/ 32.3      0.155         0
+[ 555, 658]  mean   0.21  p95   0.88  max   1.45           23.8/ 26.2/ 36.8      0.099         9
+[ 659, 764]  mean   0.20  p95   0.50  max   0.82           37.5/ 54.7/ 58.1      0.292         7
+[ 765, 940]  mean   1.80  p95   7.36  max  13.31           22.0/ 48.9/ 60.5      0.579         3
+[ 941,1066]  mean   4.64  p95  11.16  max  13.07           22.0/ 48.4/ 60.1      0.681         0
+[1067,1298]  mean   0.62  p95   2.93  max   8.71           22.0/ 40.4/ 60.2      0.390         18
+worst window by mean: [941,1066] 4.64 px
+
+dense (4N=5196 samples) surface normal N=TxB: angle change per sample  max 155.862 deg  p99 10.859 deg
+   angle per world px of centreline arclength: max 4313.9747 deg/px  (p99 32.5817)
+   worst dense samples (t, deg, |b.T|): 976.69, 155.9, 0.983; 409.51, 149.9, 0.931; 397.02, 129.9, 0.275; 1110.61, 108.5, 0.701; 826.77, 102.1, 0.849
+   dense steps > 3 deg: 423, > 6 deg: 167
+max |b.T| outside fold windows: 0.999   (inside: 0.971)
+GATE: min 3D distance between non-adjacent rings (|i-j|>60, surface samples): 1.05 px; pairs < gap 12.4: 877
+GATE: screen-overlap pairs (3 px) 1429, order violations (z_front - z_back < 0): 80, (< gap): 119; unique ring pairs violating: 26
+end centreline offset from init: ring0 0.0 px, ring N-1 0.0 px
+run time: 312.6 s
+residual block norms (sum of squares): edge 1259.68, smooth 19780.43, jerk 9769.62, perp 232.90, dev 68.52, depth 5447.30, hsm 764.34, wpr 57.38, speed 52.35, hmin 0.20, hmax 84.68
+
+ENGINE clearance.py:
+29 clusters, 10 INTERSECT (<2px)
+  #0 eng i 191-204 x j 254-291  min 1.20px at (196,281)  pairs 344  front=j(j strand)  pose i 319-329 x j 363-372  INTERSECT

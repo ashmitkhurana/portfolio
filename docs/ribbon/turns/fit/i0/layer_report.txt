@@ -1,0 +1,7 @@
+layer.py docs/ribbon/turns/fit/h4/pose.json -> docs/ribbon/turns/fit/i0/pose.json  gap 12.4 kz 80
+screen-overlap sample pairs (raw) 1744, deduped constraints (ring pairs) 1641, violated at input 216 (worst 56.7 px short)
+solver trust-constr status 2 iterations 254 time 155.7 s
+max constraint violation after solve (deduped): 0.000 px; violated constraints (> 0.01): 0
+all raw sample pairs after: z_front - z_back min 12.40 px, pairs with < 0: 0, < gap-0.5: 0
+dz: max |dz| 1518.0 px (min -1135.1, max 1518.0); max |dz''| 26.2778 px/ring^2
+unit check: max change of projected edge screen position 2.27e-13 css px
