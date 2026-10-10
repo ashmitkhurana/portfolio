@@ -179,7 +179,7 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     // (rising a little toward the camera so the later turn is not bent flat), (2) that run, its length solved in one
     // step so (3) the short turn to straight down ends exactly on the wave's centre line (x = wave.c)
     const down: V3 = [0, -1, 0];
-    const R1 = 2.6 * hw; // tight, so it does not swing out toward the left edge
+    const R1 = 3.5 * hw; // open enough to read as a soft fold, tight enough not to swing out to the left edge
     const beta = (58 * Math.PI) / 180; // across to the middle first, then down
     const d1: V3 = norm([Math.sin(beta), -Math.cos(beta), 0.3]);
     const a1 = arcTurn(Ph, t1, d1, R1, 48);
@@ -231,7 +231,8 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
   // End 1's own orientation, then eased back onto it at End 1 itself, so the join with the pose is seamless and a
   // short strand or a tight turn never packs its twist into a few rings
   {
-    const sigB = 3 * hw;
+    // (portrait: the ~80° twist into the first fold needs a long, even spread or the fold reads pinched)
+    const sigB = (portrait ? 6 : 3) * hw;
     const rb = Math.ceil((2.5 * sigB) / step);
     const B0 = samples.map((q) => q.b);
     for (let i = 1; i < samples.length; i++) {

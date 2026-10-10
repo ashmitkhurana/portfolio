@@ -114,15 +114,23 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     }
   };
 
-  // 1. straight on from End 1 until the band is off the left edge
+  // 1. straight on from End 1 until the band is off the left edge ON SCREEN (perspective: a strand diving into depth
+  //    is pulled toward the centre, so the projected x decides, with the band's own half width)
   const t1 = norm(end.t);
-  const leftX = -W / 2 - margin;
+  const D = inp.camZ;
+  const projX = (q: V3) => q[0] * (D / Math.max(1, D - q[2])); // world x on the z = 0 plane
+  const offLeft = (q: V3) => projX(q) + end.hw * (D / Math.max(1, D - q[2])) < -W / 2 - 24;
   let exitLen = 0;
-  if (t1[0] < -0.05) exitLen = Math.max(0, (end.p[0] - leftX) / -t1[0]);
-  else exitLen = H; // (never: the tails leave down-left) go a screen on and let the route handle it
+  while (exitLen < 4 * H && !offLeft(add(end.p, t1, exitLen))) exitLen += ds / 3;
   const P1 = add(end.p, t1, exitLen);
   push(lineSamples(end.p, P1, ds / 3), null);
-  const a1 = exitLen;
+  // then turn smoothly out of the dive into the screen plane (hidden): a cubic from P1 (tangent t1) to C (tangent t1f)
+  const t1f = norm([t1[0], t1[1], 0]);
+  const blendL = 6 * end.hw;
+  const C: V3 = add(add(P1, t1, blendL * 0.5), t1f, blendL * 0.5);
+  const blend = bezier(P1, add(P1, t1, blendL * 0.35), add(C, t1f, -blendL * 0.35), C, 24);
+  push(blend, null);
+  const a1 = exitLen + polyLen(blend, P1);
 
   // the wave: entry point, direction and its band normal
   let Q: V3, dq: V3, wave: V3[], waveNormal: V3, pre: V3[] = [];
@@ -178,9 +186,8 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   //    section 2 pins: sEntry = sClear + transition (at least what the geometry needs).
   // the route runs in the screen plane (End 1's direction without its depth): long hidden runs must not dive, or the
   // view shear would stretch them
-  const t1f = norm([t1[0], t1[1], 0]);
   const routeFor = (l: number) => {
-    const A: V3 = [P1[0] + t1f[0] * l, P1[1] + t1f[1] * l, P1[2]];
+    const A: V3 = add(C, t1f, l);
     const h = 0.4 * len(sub(Q, A));
     return { A, bez: bezier(A, add(A, t1f, h), add(Q, dq, -h), Q, 96) };
   };
@@ -201,7 +208,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     else hi = mid;
   }
   const route = routeFor(lo);
-  push(lineSamples(P1, route.A, ds / 3), null);
+  push(lineSamples(C, route.A, ds / 3), null);
   // the band turns to the wave's orientation along the hidden route (and stays so through the crossing)
   push(route.bez, waveNormal);
   push(pre, waveNormal);
