@@ -55,15 +55,16 @@ for a, b in cfg["straight_legs"]:
     for k in range(a, b + 1):
         f = (U[k] - U[a]) / (U[b] - U[a])
         new[k] = A0 + f * (B0 - A0)
-    for k in range(a - 10, a):
+    LB = int(cfg.get("leg_blend", 10))
+    for k in range(a - LB, a):
         f = (U[k] - U[a]) / (U[b] - U[a])
         line = A0 + f * (B0 - A0)
-        q = sm((k - (a - 10)) / 10)
+        q = sm((k - (a - LB)) / LB)
         new[k] = (1 - q) * ss[k] + q * line
-    for k in range(b + 1, b + 11):
+    for k in range(b + 1, b + LB + 1):
         f = (U[k] - U[a]) / (U[b] - U[a])
         line = A0 + f * (B0 - A0)
-        q = sm(((b + 10) - k) / 10)
+        q = sm(((b + LB) - k) / LB)
         new[k] = (1 - q) * ss[k] + q * line
     ss = new
 chk("ss straight", ss)
@@ -83,7 +84,7 @@ if not rt < 1e-6:
 for a_, b_, sg_ in cfg.get("local_smooth", []):
     sm_ = np.stack([gaussian_filter1d(ss[:, 0], sg_, mode="nearest"), gaussian_filter1d(ss[:, 1], sg_, mode="nearest")], 1)
     kk_ = np.arange(N).astype(float)
-    w_ = np.clip(np.minimum(kk_ - a_, b_ - kk_) / 8.0, 0, 1); w_ = w_ * w_ * (3 - 2 * w_)
+    w_ = np.clip(np.minimum(kk_ - a_, b_ - kk_) / float(cfg.get("local_smooth_blend", 8)), 0, 1); w_ = w_ * w_ * (3 - 2 * w_)
     ss = ss * (1 - w_[:, None]) + sm_ * w_[:, None]
 Uf = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(ss, axis=0), axis=1))])
 zt = np.full(N, np.nan)
@@ -177,6 +178,16 @@ theta[last["b"] + 1:] = theta[last["b"]]
 chk("theta", theta)
 
 # 8.
+if cfg.get("theta_smooth_sigma", 0) > 0:
+    # smooth the band angle only around turn<->link seams and on links, never deep inside a turn
+    th_s = gaussian_filter1d(theta, cfg["theta_smooth_sigma"], mode="nearest")
+    wts = np.ones(N)
+    for t in turns:
+        for k in range(t["a"], t["b"] + 1):
+            d = min(k - t["a"], t["b"] - k)
+            x = min(max((d - 6) / 8.0, 0.0), 1.0)
+            wts[k] = 1.0 - x * x * (3 - 2 * x)
+    theta = theta * (1 - wts) + th_s * wts
 b = np.cos(theta)[:, None] * e1 + np.sin(theta)[:, None] * e2
 b = gaussian_filter1d(b, cfg["b_smooth_sigma"], axis=0, mode="nearest")
 b = unit(b - np.sum(b * T, 1)[:, None] * T)

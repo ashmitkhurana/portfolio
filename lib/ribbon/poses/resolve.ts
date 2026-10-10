@@ -277,10 +277,60 @@ export function steerTail(rings: readonly RuledRing[], ctx: ResolveContext, tail
     bb = norm([bb[0] - d * T[0], bb[1] - d * T[1], bb[2] - d * T[2]]);
     bs[i] = bb;
   }
-  for (let i = 0; i <= k0; i++) {
-    const p = pos[i], b = bs[i];
-    const Lw = worldToPoint(p[0] - hw * b[0], p[1] - hw * b[1], p[2] - hw * b[2], ctx);
-    const Rw = worldToPoint(p[0] + hw * b[0], p[1] + hw * b[1], p[2] + hw * b[2], ctx);
+  // blend the last W rings into the authored S (positions and rulings), so curvature is continuous at the join
+  const W = Math.min(30, k0 - 1);
+  for (let i = k0 - W; i <= k0; i++) {
+    const o = cen(i);
+    const x = (i - (k0 - W)) / W;
+    const w = x * x * (3 - 2 * x);
+    pos[i] = [0, 1, 2].map((q) => (1 - w) * pos[i][q] + w * o[q]);
+    const bo = norm([o[3], o[4], o[5]]);
+    const sgn = bo[0] * bs[i][0] + bo[1] * bs[i][1] + bo[2] * bs[i][2] < 0 ? -1 : 1;
+    bs[i] = norm([0, 1, 2].map((q) => (1 - w) * bs[i][q] + w * sgn * bo[q]));
+  }
+  // extend with the authored rings past the join, then smooth centre + ruling across it (gaussian sigma 6,
+  // weight 1 within 18 rings of k0, fading to 0 by 36): no kink where the two pieces meet
+  const KE = Math.min(n - 1, k0 + 60);
+  const hws: number[] = new Array(KE + 1).fill(hw);
+  for (let i = k0 + 1; i <= KE; i++) {
+    const o = cen(i);
+    pos[i] = [o[0], o[1], o[2]];
+    hws[i] = Math.hypot(o[3], o[4], o[5]) / 2;
+    let bo = norm([o[3], o[4], o[5]]);
+    const pb = bs[i - 1];
+    if (bo[0] * pb[0] + bo[1] * pb[1] + bo[2] * pb[2] < 0) bo = [-bo[0], -bo[1], -bo[2]];
+    bs[i] = bo;
+  }
+  const SG = 6, R3 = 18;
+  const gk: number[] = [];
+  for (let d = -R3; d <= R3; d++) gk.push(Math.exp(-(d * d) / (2 * SG * SG)));
+  const sp = pos.map((p) => p.slice());
+  const sb = bs.map((b) => b.slice());
+  for (let i = Math.max(0, k0 - 36); i <= Math.min(KE - R3, k0 + 36); i++) {
+    const acc = [0, 0, 0], accb = [0, 0, 0];
+    let wsum = 0;
+    for (let d = -R3; d <= R3; d++) {
+      const j = Math.min(Math.max(i + d, 0), KE);
+      const g = gk[d + R3];
+      for (let q = 0; q < 3; q++) { acc[q] += g * pos[j][q]; accb[q] += g * bs[j][q]; }
+      wsum += g;
+    }
+    const dist = Math.abs(i - k0);
+    const x = Math.min(Math.max((36 - dist) / 18, 0), 1);
+    const w = x * x * (3 - 2 * x);
+    sp[i] = [0, 1, 2].map((q) => (1 - w) * pos[i][q] + (w * acc[q]) / wsum);
+    sb[i] = norm([0, 1, 2].map((q) => (1 - w) * bs[i][q] + (w * accb[q]) / wsum));
+  }
+  for (let i = 0; i <= KE; i++) {
+    const p = sp[i];
+    const pa = sp[Math.max(i - 1, 0)], pb = sp[Math.min(i + 1, KE)];
+    const T = norm([pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]]);
+    let b = sb[i];
+    const d = b[0] * T[0] + b[1] * T[1] + b[2] * T[2];
+    b = norm([b[0] - d * T[0], b[1] - d * T[1], b[2] - d * T[2]]);
+    const h = hws[i];
+    const Lw = worldToPoint(p[0] - h * b[0], p[1] - h * b[1], p[2] - h * b[2], ctx);
+    const Rw = worldToPoint(p[0] + h * b[0], p[1] + h * b[1], p[2] + h * b[2], ctx);
     out[i] = { L: [Lw.x, Lw.y, Lw.z], R: [Rw.x, Rw.y, Rw.z] };
   }
   return out;
