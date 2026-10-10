@@ -329,3 +329,104 @@ function lineSamples(a: V3, b: V3, stepLen: number): V3[] {
   for (let i = 1; i <= n; i++) out.push(add(a, sub(b, a), i / n));
   return out;
 }
+
+export interface SpiralInput {
+  W: number;
+  H: number;
+  /** the pose ring where the ribbon turns down (world centre), its direction toward the leading end, its ruling */
+  box: { p: V3; t: V3; b: V3; hw: number };
+  /** pose rings between End 1 and the box (they are replaced by the spiral's first stretch) */
+  j: number;
+  ds: number;
+  y2: number;
+  camZ: number;
+  /** spiral radius (world px) */
+  r: number;
+}
+
+export interface SpiralPath {
+  /** replacement for pose rings 0..j-1 (index 0 = the new End 1, farthest along the spiral) */
+  tailPos: Float32Array;
+  tailRuled: Float32Array;
+  /** the head path beyond the new End 1 */
+  pos: Float32Array;
+  ruled: Float32Array;
+  k: number;
+  yv: Float32Array;
+  sWave: number;
+  sWaveEnd: number;
+}
+
+/**
+ * PORTRAIT (owner's sketch): at the "box" on the hero's diagonal tail the ribbon turns straight down and spirals down
+ * the screen round an invisible vertical pole. The tail's own direction there (down-left and into the screen) IS the
+ * start of a helix round a vertical axis (pitch = 2 pi r * down/horizontal speed), so it flows in tangentially, with
+ * no fold. The band lies on the cylinder, its width square to the path within the surface (developable): faces the
+ * viewer on the front passes, edge-on at the sides. The small mismatch with the pose's band orientation at the box
+ * is twisted out over the first half turn.
+ */
+export function buildPortraitSpiral(inp: SpiralInput): SpiralPath {
+  const { W, H, box, j, ds, y2, r } = inp;
+  const D = inp.camZ;
+  const t = norm(box.t);
+  const kv = Math.max(0.2, -t[1]);
+  const kh = Math.max(0.2, Math.hypot(t[0], t[2]));
+  const phi0 = Math.atan2(-t[0] / kh, t[2] / kh);
+  const xc = box.p[0] - r * Math.cos(phi0), zc = box.p[2] - r * Math.sin(phi0);
+  const down: V3 = [0, -1, 0];
+  const at = (s: number) => {
+    const phi = phi0 + (kh / r) * s;
+    const p: V3 = [xc + r * Math.cos(phi), box.p[1] - kv * s, zc + r * Math.sin(phi)];
+    const eth: V3 = [-Math.sin(phi), 0, Math.cos(phi)];
+    const tt = norm(add(scl(down, kv), scl(eth, kh)));
+    const b = norm(sub(scl(down, kh), scl(eth, kv)));
+    return { p, t: tt, b };
+  };
+  const b00 = at(0).b;
+  const tw = bandTwist(perp(box.b, t), perp(b00, t), t);
+  const halfTurn = (Math.PI * r) / kh;
+  // view shear (section 2 seen head-on through the lens shift), ramped in as the spiral leaves the hero
+  const alphaMax = y2 / D;
+  const vyOf = (q: V3) => H / 2 - q[1];
+  const total = 3 * H + j * ds;
+  const n = Math.floor(total / ds);
+  const P: V3[] = [], B: V3[] = [];
+  let bPrev = perp(box.b, t);
+  for (let i = 1; i <= n; i++) {
+    const s = i * ds;
+    const q = at(s);
+    // undo the pose/spiral orientation mismatch over the first half turn (about the path direction)
+    let b = rotate(perp(box.b, q.t), q.t, 0);
+    b = perp(rotate(perp(b00, q.t), q.t, -tw * (1 - smoother(s / (3 * halfTurn)))), q.t); // over 1.5 turns: no pinch
+    if (dot(b, bPrev) < 0) b = scl(b, -1);
+    bPrev = b;
+    const vy = vyOf(q.p);
+    const al = alphaMax * smoother((vy - 0.75 * H) / Math.max(1, y2 + 0.55 * H - 0.75 * H)); // a slow ramp: a quick one twists the band
+    const bs: V3 = [b[0], b[1] + al * b[2], b[2]];
+    const bl = len(bs);
+    P.push([q.p[0], q.p[1] + al * q.p[2], q.p[2]]);
+    B.push([bs[0] / bl, bs[1] / bl, bs[2] / bl, ...[]] as unknown as V3);
+    (B[B.length - 1] as unknown as number[])[3] = box.hw * bl;
+  }
+  // rings 1..j replace the pose's rings j-1..0 (pose ring 0 = the new End 1 = spiral ring j)
+  const tailPos = new Float32Array(j * 3), tailRuled = new Float32Array(j * 4);
+  for (let i = 0; i < j; i++) {
+    const src = j - 1 - i; // spiral index (0-based: ring 1 at index 0)
+    tailPos.set(P[src], i * 3);
+    tailRuled.set(B[src] as unknown as number[], i * 4);
+  }
+  const k = n - j;
+  const pos = new Float32Array(k * 3), ruled = new Float32Array(k * 4), yv = new Float32Array(k);
+  let sWaveEnd = -1;
+  for (let i = 0; i < k; i++) {
+    const q = P[j + i];
+    pos.set(q, i * 3);
+    ruled.set(B[j + i] as unknown as number[], i * 4);
+    const kk = D / Math.max(1, D - q[2]);
+    yv[i] = H / 2 - q[1] * kk;
+    if (sWaveEnd < 0 && yv[i] - y2 > H + 2 * box.hw) sWaveEnd = (i + 1) * ds;
+  }
+  if (sWaveEnd < 0) sWaveEnd = k * ds;
+  void W;
+  return { tailPos, tailRuled, pos, ruled, k, yv, sWave: 0, sWaveEnd };
+}

@@ -164,12 +164,47 @@ export class SlideMotion {
    */
   setHeadPath(pos: Float32Array | null, ruled: Float32Array | null, k = 0): void {
     this.head = pos && ruled && k > 0 ? { pos, ruled, k } : null;
-    if (this.ready) this.setPath(this.poseCtr, this.poseRuled, this.count);
+    if (this.ready) this.rebuild();
+  }
+
+  /** the pose as authored (before any tail override) */
+  private origCtr: Float32Array | null = null;
+  private origRuled: Float32Array | null = null;
+  private tail: { pos: Float32Array; ruled: Float32Array; j: number; m: number } | null = null;
+  private internal = false;
+
+  /**
+   * Replace pose rings 0..j-1 (the leading end's stretch) by `pos`/`ruled`, blended in by m (0 = the pose, 1 = the
+   * replacement): the tail can swing into a new path as the journey starts. null = none.
+   */
+  setTailOverride(pos: Float32Array | null, ruled: Float32Array | null, j = 0, m = 0): void {
+    this.tail = pos && ruled && j > 0 ? { pos, ruled, j, m: Math.min(1, Math.max(0, m)) } : null;
+    if (this.ready) this.rebuild();
+  }
+
+  private rebuild(): void {
+    if (!this.origCtr || !this.origRuled) return;
+    this.internal = true;
+    this.setPath(this.origCtr, this.origRuled, this.count);
+    this.internal = false;
   }
 
   /** End 1 of the pose (world): centre, outward unit tangent, unit ruling, half width */
   end1(): { p: [number, number, number]; t: [number, number, number]; b: [number, number, number]; hw: number } {
-    const P = this.poseCtr, B = this.poseRuled;
+    return this.poseRing(0);
+  }
+
+  /** pose ring i of the pose as AUTHORED: centre, unit direction toward the leading end, unit ruling, half width */
+  poseRing(i: number): { p: [number, number, number]; t: [number, number, number]; b: [number, number, number]; hw: number } {
+    const P = this.origCtr ?? this.poseCtr, B = this.origRuled ?? this.poseRuled;
+    const a = Math.max(0, Math.min(this.count - 3, i));
+    if (i > 0) {
+      let tx = P[(i - 1) * 3] - P[(i + 1) * 3], ty = P[(i - 1) * 3 + 1] - P[(i + 1) * 3 + 1], tz = P[(i - 1) * 3 + 2] - P[(i + 1) * 3 + 2];
+      const l = Math.hypot(tx, ty, tz) || 1;
+      tx /= l; ty /= l; tz /= l;
+      return { p: [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]], t: [tx, ty, tz], b: [B[i * 4], B[i * 4 + 1], B[i * 4 + 2]], hw: B[i * 4 + 3] };
+    }
+    void a;
     let tx = P[0] - P[6], ty = P[1] - P[7], tz = P[2] - P[8];
     const l = Math.hypot(tx, ty, tz) || 1;
     tx /= l; ty /= l; tz /= l;
@@ -187,8 +222,37 @@ export class SlideMotion {
       this.ready = false;
       return false;
     }
+    if (!this.internal) {
+      // a new pose from outside: remember it as authored
+      this.origCtr = new Float32Array(pos.subarray(0, n * 3));
+      this.origRuled = new Float32Array(ruledData.subarray(0, n * 4));
+    }
     this.poseCtr.set(pos.subarray(0, n * 3));
     this.poseRuled.set(ruledData.subarray(0, n * 4));
+    const tl = this.tail;
+    if (tl && tl.m > 0) {
+      // blend the leading end's stretch toward its replacement
+      for (let i = 0; i < Math.min(tl.j, n); i++) {
+        for (let a = 0; a < 3; a++) this.poseCtr[i * 3 + a] += (tl.pos[i * 3 + a] - this.poseCtr[i * 3 + a]) * tl.m;
+        const o = i * 4;
+        let bx = tl.ruled[o], by = tl.ruled[o + 1], bz = tl.ruled[o + 2];
+        if (bx * this.poseRuled[o] + by * this.poseRuled[o + 1] + bz * this.poseRuled[o + 2] < 0) {
+          bx = -bx;
+          by = -by;
+          bz = -bz;
+        }
+        const x = this.poseRuled[o] + (bx - this.poseRuled[o]) * tl.m;
+        const y = this.poseRuled[o + 1] + (by - this.poseRuled[o + 1]) * tl.m;
+        const z = this.poseRuled[o + 2] + (bz - this.poseRuled[o + 2]) * tl.m;
+        const l = Math.hypot(x, y, z) || 1;
+        this.poseRuled[o] = x / l;
+        this.poseRuled[o + 1] = y / l;
+        this.poseRuled[o + 2] = z / l;
+        this.poseRuled[o + 3] += (tl.ruled[o + 3] - this.poseRuled[o + 3]) * tl.m;
+      }
+    }
+    pos = this.poseCtr;
+    ruledData = this.poseRuled;
     // L/R of the pose rings; m1 rings before ring 0 (End 1 side: the head path, then straight), m on the End 2 side
     const m = Math.ceil(EXT_FACTOR * (n - 1)) + 1; // extension rings per side
     const head = this.head;
@@ -494,7 +558,7 @@ export class SlideMotion {
    */
   sigmaToClear(boxes: { x0: number; y0: number; x1: number; y1: number }[], W: number, H: number, margin = 0): number {
     const n = this.count;
-    const P = this.poseCtr, B = this.poseRuled, D = this.cameraZ;
+    const P = this.origCtr ?? this.poseCtr, B = this.origRuled ?? this.poseRuled, D = this.cameraZ;
     if (!this.ready || !(D > 0) || !boxes.length) return 0;
     let first = -1;
     for (let i = 0; i < n && first < 0; i++) {

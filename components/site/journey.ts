@@ -15,7 +15,7 @@
  */
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
-import { buildJourneyPath, type JourneyPath } from "@/lib/ribbon/journeyPath";
+import { buildPortraitSpiral, type JourneyPath, type SpiralPath } from "@/lib/ribbon/journeyPath";
 import { buildJourneyPathDesktop, type JourneyPathDesktop } from "@/lib/ribbon/journeyPathDesktop";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
@@ -24,6 +24,9 @@ const CLEAR_MARGIN = 60;
 const FOLLOW_Y = 0.72;
 /** desktop: world px the ribbon flows during the free scroll from the hero to section 2, per px of viewport height */
 const DESKTOP_TRANSITION_PER_H = 0.6;
+/** portrait: where the tail turns down (fraction of the width) and the spiral's radius (fraction of the width) */
+const SPIRAL_BOX_X = 0.4;
+const SPIRAL_R = 0.15;
 /** portrait: how far (in viewport heights) the head draws on down across section 2's pin */
 const PORTRAIT_PIN_FOLLOW = 0.4;
 
@@ -77,6 +80,9 @@ export function createJourney(engine: RibbonEngine): () => void {
   let clearKey = "";
   let pathKey = "";
   let path: JourneyPath | null = null;
+  let spiral: SpiralPath | null = null;
+  let spiralJ = 0;
+  let tailM = -1;
   let pathD: JourneyPathDesktop | null = null;
   let ymax = new Float32Array(0);
   return () => {
@@ -141,6 +147,11 @@ export function createJourney(engine: RibbonEngine): () => void {
             waveAmp: Math.max(20, Math.min(0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
           });
           path = null;
+          if (spiral) {
+            spiral = null;
+            tailM = -1;
+            sl.setTailOverride(null, null);
+          }
           sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
           pathKey = pk;
           wave = { c: 0, amp: 0, top: 0 };
@@ -150,8 +161,18 @@ export function createJourney(engine: RibbonEngine): () => void {
         }
         if (portrait) {
           pathD = null;
-          path = buildJourneyPath({ W, H, end: sl.end1(), ds: sl.spacing, y2: unravel.vTop, portrait, camZ: sl.cameraZ, wave });
-          sl.setHeadPath(path.pos, path.ruled, path.k);
+          // the "box": where the hero's diagonal tail crosses ~40% of the width (owner's sketch); there it turns
+          // straight down and spirals down the screen round an invisible pole
+          const D = sl.cameraZ;
+          let j = 3;
+          for (; j < 60; j++) {
+            const q = sl.poseRing(j);
+            if (W / 2 + q.p[0] * (D / Math.max(1, D - q.p[2])) >= SPIRAL_BOX_X * W) break;
+          }
+          spiral = buildPortraitSpiral({ W, H, box: sl.poseRing(j), j, ds: sl.spacing, y2: unravel.vTop, camZ: D, r: SPIRAL_R * W });
+          path = spiral;
+          spiralJ = j;
+          sl.setHeadPath(spiral.pos, spiral.ruled, spiral.k);
         // running max of each ring's screen height: the head may advance while its path stays above the follow line
         ymax = new Float32Array(path.k);
         let m = -Infinity;
@@ -167,6 +188,15 @@ export function createJourney(engine: RibbonEngine): () => void {
           const lead0 = clamp01(unravel.p / 0.05);
           const draw = ease(clamp01((unravel.p - 0.05) / 0.95));
           sigma = pathD.sEntry + lead0 * (pathD.sVisible - pathD.sEntry) + draw * (pathD.sWaveEnd - pathD.sVisible);
+        }
+      }
+      if (spiral && portrait) {
+        // the tail below the box swings into the spiral over the first part of the hero exit
+        const m = Math.round(clamp01(hero.p / 0.3) * 60) / 60;
+        const swing = m * m * (3 - 2 * m);
+        if (Math.abs(swing - tailM) > 1e-4) {
+          sl.setTailOverride(spiral.tailPos, spiral.tailRuled, spiralJ, swing);
+          tailM = swing;
         }
       }
       if (path && portrait && hero.p >= 1) {
