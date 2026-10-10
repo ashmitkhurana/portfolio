@@ -78,7 +78,12 @@ export class SlideMotion {
   swayAngle = 0;
   /** `driven` mode: the sigma the spring follows (world px) */
   driveTarget = 0;
-  /** world px added to every ring's y (the ribbon moves with its section once that section's pin releases) */
+  /**
+   * css px the ribbon's IMAGE is moved up on screen (it follows its section once that section's pin releases).
+   * Applied by the renderer as a camera lens shift, NOT by moving the geometry: a page scroll must move the
+   * picture rigidly; moving the 3D ribbon past a fixed perspective camera would change the viewing angle
+   * (curves visibly tilt as they rise).
+   */
   offsetY = 0;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
   get animating(): boolean {
@@ -378,10 +383,8 @@ export class SlideMotion {
 
   /** window sigma -> rings (+ optional rigid rotation about z through the pose centroid) */
   private compose(sway: number): void {
-    const n = this.count;
     this.swayAngle = sway;
     this.composeWindow(sway);
-    if (this.offsetY !== 0) for (let k = 0; k < n; k++) this.outPos[k * 3 + 1] += this.offsetY;
   }
 
   /**

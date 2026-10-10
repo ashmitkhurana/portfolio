@@ -473,6 +473,12 @@ export class RibbonCore {
       if (first) this.sim.invalidateSlide();
     }
     this.sim.step(dt);
+    const shift = this.sim.params.mode === "slide" ? Math.round(this.sim.slide.offsetY * 100) / 100 : 0;
+    if (shift !== this.viewShift) {
+      this.viewShift = shift;
+      this.applyViewShift();
+      this.camera.updateProjectionMatrix();
+    }
     const t1 = performance.now();
     st.cpu.sim = ema(st.cpu.sim, t1 - t);
     this.ribbon.update(this.sim.outPos, this.sim.outTwist, this.sim.outWidth, this.sim.count, this.sim.ruledOut);
@@ -826,6 +832,15 @@ export class RibbonCore {
     this.scene.environment = this.env.build(this.settings);
   }
 
+  /** css px the rendered image is shifted up (slide.offsetY), as a lens shift: the perspective never changes */
+  private viewShift = 0;
+
+  private applyViewShift(): void {
+    const cam = this.camera;
+    if (this.viewShift !== 0) cam.setViewOffset(this.width, this.height, 0, this.viewShift, this.width, this.height);
+    else cam.clearViewOffset();
+  }
+
   private updateCamera(): void {
     const cam = this.camera;
     cam.fov = this.settings.camera.fov;
@@ -835,6 +850,7 @@ export class RibbonCore {
     cam.near = Math.max(10, dist * 0.05);
     cam.far = dist + 8000;
     cam.lookAt(0, 0, 0);
+    this.applyViewShift(); // (updates the projection matrix)
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
   }
