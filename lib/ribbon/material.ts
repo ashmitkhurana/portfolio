@@ -239,7 +239,9 @@ export function createRibbonMaterial(
   sweep: SweepUniforms,
 ): RibbonMaterial {
   const mat = new THREE.MeshPhysicalMaterial({
-    side: THREE.FrontSide,
+    // DoubleSide: ruled poses can wind parts of the closed band inside out (the ruling's sign vs the sweep frame);
+    // with FrontSide those parts were culled and the band looked see-through at folds (owner-confirmed 2026-10-10)
+    side: THREE.DoubleSide,
     clearcoat: 1, // enables the clearcoat program; per-face value comes from uFaceMat
   });
   let tone: ToneMapName = "Neutral";
