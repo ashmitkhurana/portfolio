@@ -500,6 +500,8 @@ export function Terminal({ variant, onClose }: TerminalProps) {
           autoCapitalize="none"
           spellCheck={false}
           enterKeyHint="go"
+          // browser extensions (password managers, autofill) inject inline styles here before hydration
+          suppressHydrationWarning
         />
       </div>
     </div>

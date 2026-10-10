@@ -33,7 +33,10 @@ export interface RibbonStageProps {
 }
 
 /** the engine must be rendering this long after its import started, or we give up on it */
+/** the engine must render within this long AFTER its chunk has loaded (a broken GPU path, not a slow network) */
 const ENGINE_DEADLINE_MS = 4000;
+/** the engine chunk must arrive within this long (very slow networks fall back to the posters) */
+const CHUNK_DEADLINE_MS = 25000;
 /** crossfade between live canvases and posters */
 const FADE_MS = 700;
 
@@ -230,8 +233,8 @@ export function RibbonStage({
 
       if (!capture) {
         deadline = window.setTimeout(
-          () => toPosters(`engine not rendering within ${ENGINE_DEADLINE_MS / 1000} s`),
-          ENGINE_DEADLINE_MS,
+          () => toPosters(`engine chunk not loaded within ${CHUNK_DEADLINE_MS / 1000} s`),
+          CHUNK_DEADLINE_MS,
         );
       }
       try {
@@ -241,6 +244,14 @@ export function RibbonStage({
         return;
       }
       if (cancelled || settled) return;
+      // the chunk is here: from now on the deadline only guards against a renderer that never draws
+      if (!capture) {
+        window.clearTimeout(deadline);
+        deadline = window.setTimeout(
+          () => toPosters(`engine not rendering within ${ENGINE_DEADLINE_MS / 1000} s`),
+          ENGINE_DEADLINE_MS,
+        );
+      }
 
       try {
         const weave = mod.RibbonEngine.supportsWeave();
