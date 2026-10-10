@@ -133,8 +133,11 @@ export function createJourney(engine: RibbonEngine): () => void {
         const hwS = sl.end1().hw;
         let wave: { c: number; amp: number; top: number; lambda?: number; crestY?: number };
         const aBottom = unravel.vTop + ra.bottom - pinTop, bTop = unravel.vTop + rb.top - pinTop;
-        if (portrait) {
-          // PHONE (owner): one continuous ribbon, the desktop's look: the hero's tail flows on screen into one gentle
+        // PHONE (owner, final): exactly the desktop choreography, horizontal: the hero ribbon goes off-screen left,
+        // the text splits above and below, the head re-enters from the left and draws the wave left to right (off
+        // right; the next section brings it back in from the right). The vertical phone builders are unused.
+        if (false as boolean) {
+          // (old) PHONE: one continuous ribbon, the desktop's look: the hero's tail flows on screen into one gentle
           // curve to the centre and straight down the middle as the same tilted-plane wave; rigid (all of it moves)
           // End 1's true end direction (last two rings): a 3-ring chord blurs it and leaves a corner at the join
           const e0 = sl.end1(), r1 = sl.poseRing(1);
@@ -176,7 +179,9 @@ export function createJourney(engine: RibbonEngine): () => void {
           camZ: sl.cameraZ,
           ribbonLen: sl.length,
           waveC: (aBottom + bTop) / 2,
-          waveAmp: Math.max(20, Math.min(0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
+          waveAmp: Math.max(20, Math.min(portrait ? 0.075 * H : 0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
+          // phone: a long, gentle wave (the desktop's W / 1.75 is a zigzag on a narrow screen)
+          waveLambda: portrait ? 0.95 * W : undefined,
         });
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
         }
@@ -192,7 +197,7 @@ export function createJourney(engine: RibbonEngine): () => void {
         const q = clamp01(V / Math.max(1, unravel.vTop));
         sigma = clear + q * PHONE_FLOW_TRANSITION * H + ease(unravel.p) * PHONE_FLOW_PIN * H;
       }
-      if (pathD && !portrait && hero.p >= 1) {
+      if (pathD && hero.p >= 1) {
         // DESKTOP (v335): a rigid window (head = tail - length): the hero's remaining strand flows down-left off the
         // edge during the free scroll, the head enters from the left as section 2 pins and draws the wave
         if (unravel.p <= 0) sigma = clear + clamp01(V / Math.max(1, unravel.vTop)) * (pathD.sEntry - clear);

@@ -46,6 +46,8 @@ export interface JourneyPathDesktopInput {
   /** the wave's centre line (virtual y) and screen amplitude, from section 2's text boxes (the wave runs between them) */
   waveC?: number;
   waveAmp?: number;
+  /** the wave's wavelength (world px); default min(W / 1.75, 1.15 H) */
+  waveLambda?: number;
 }
 
 export interface JourneyPathDesktop {
@@ -141,7 +143,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     const d: V3 = [0, Math.cos(tilt), Math.sin(tilt)];
     waveNormal = norm(cross(dq, d));
     const amp = (inp.waveAmp ?? 0.15 * H) / Math.cos(tilt);
-    const lambda = Math.min(W / 1.75, 1.15 * H); // ultrawide: keep the waves round, not stretched
+    const lambda = inp.waveLambda ?? Math.min(W / 1.75, 1.15 * H); // ultrawide: keep the waves round, not stretched
     wave = [];
     const x0 = Q[0];
     const x1 = W / 2 + margin + lambda; // a little past the right edge, then straight
