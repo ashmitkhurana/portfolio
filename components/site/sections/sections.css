@@ -166,8 +166,8 @@
 
 .unravel__line {
   position: absolute;
-  width: 38%;
-  font-size: clamp(1.5rem, 7.2vw, 2.4rem);
+  width: 31%;
+  font-size: clamp(1.25rem, 5.6vw, 1.9rem);
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.04;
@@ -175,7 +175,7 @@
 
 .unravel__line--a {
   left: var(--gutter);
-  top: 34svh;
+  top: 32svh;
 }
 
 .unravel__line--b {

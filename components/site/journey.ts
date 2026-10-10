@@ -145,10 +145,8 @@ export function createJourney(engine: RibbonEngine): () => void {
           pathKey = pk;
           wave = { c: 0, amp: 0, top: 0 };
         } else {
-          // the crests are phase-locked to the blocks: right of block A (left text), left of block B (right text)
-          const aCy = unravel.vTop + (ra.top + ra.bottom) / 2 - pinTop, bCy = unravel.vTop + (rb.top + rb.bottom) / 2 - pinTop;
-          const lambda = 2 * Math.max(40, bCy - aCy);
-          wave = { c: (ra.right + rb.left) / 2, amp: 0.2 * W, top: aCy - lambda / 4, lambda, crestY: aCy };
+          // a regular wave straight down the exact centre (owner), the two text blocks either side of it
+          wave = { c: W / 2, amp: Math.max(16, Math.min(0.1 * W, (rb.left - ra.right) / 2 - hwS - 8)), top: 0, lambda: 0.3 * H };
         }
         if (portrait) {
           pathD = null;

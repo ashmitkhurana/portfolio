@@ -170,45 +170,35 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     bL = hx.bEnd;
     dW = norm([0, Math.cos(tilt), Math.sin(tilt)]);
   } else {
-    // portrait (owner's recipe): continue from the hero's tail, twist 90° so the EDGE faces the viewer, and in that
-    // edge-on state turn straight down the middle; then twist back to face the viewer as the wave. Every turn bends
-    // the band about its own width (physically exact, no folds); twists happen only on straight stretches.
-    //  1. a short strand on which the band lines up with the first turn's axis
-    //  2. that turn: out of the tail's dive, straight toward down-right (in the screen plane)
-    //  3. a straight run toward the middle on which the band twists 90° to edge-on, then on (length solved)
-    //  4. edge-on, a turn in the screen plane to straight down, landing on the wave's centre line
+    // portrait (owner's recipe): at the hero's bottom the band twists 90° so its EDGE faces the viewer; one pure bend
+    // about that (edge-on) width carries it out of the tail's dive straight toward the middle; a small twist on that
+    // straight run makes it exactly edge-on in the screen plane; an edge-on turn sends it straight down the exact
+    // centre; then a regular wave down the middle. Bends only about the band's own width, twists only on straights.
     const edge: V3 = [0, 0, 1];
     const down: V3 = [0, -1, 0];
-    const RA = 3.5 * hw, Rin = 3.5 * hw;
-    const e1 = 5 * hw;
-    const P1 = add(end.p, t1, e1);
-    // aim the first turn (25-65° down-right) where its axis is closest to the band's own width: least twist before it
-    let dA: V3 = [Math.SQRT1_2, -Math.SQRT1_2, 0];
-    let best = Infinity;
-    for (let deg = 25; deg <= 65; deg++) {
-      const d: V3 = [Math.sin((deg * Math.PI) / 180), -Math.cos((deg * Math.PI) / 180), 0];
-      const tw = Math.abs(bandTwist(b0, perp(norm(cross(t1, d)), t1), t1));
-      if (tw < best) {
-        best = tw;
-        dA = d;
-      }
-    }
-    const arcA = arcTurn(P1, t1, dA, RA, 40);
-    const nA = arcA.bStart;
-    const tw1 = bandTwist(b0, perp(nA, t1), t1);
+    const RA = 3 * hw, Rin = 3 * hw;
+    const e1 = 3.5 * hw;
+    const bE = perp(edge, t1); // edge-on to the viewer, square to the tail's direction
+    const tw1 = bandTwist(b0, bE, t1);
     for (let s = step; s <= e1; s += step) samples.push({ p: add(end.p, t1, s), b: rotate(b0, t1, tw1 * smoother(s / e1)) });
+    const P1 = add(end.p, t1, e1);
+    // the bend about bE: the tangent turns in the plane square to bE, toward its in-screen direction (down-right)
+    let side = norm(cross(t1, bE));
+    if (side[0] < 0) side = scl(side, -1);
+    const thA = Math.atan2(-t1[2], side[2] === 0 ? 1e-6 : side[2]); // where the tangent has no depth component
+    let dA = norm(add(scl(t1, Math.cos(thA)), side, Math.sin(thA)));
+    if (Math.abs(dA[2]) > 0.05 || dA[0] < 0) dA = norm([side[0], side[1], 0]);
+    const arcA = arcTurn(P1, t1, dA, RA, 40);
     for (const q of arcA.samples) samples.push({ p: q.p, b: q.b });
-    const twistLen = 5 * hw;
+    // the straight run toward the middle: twist to exactly edge-on (screen normal), length solved for x = centre
+    const twistLen = 4 * hw;
     const bT0 = perp(arcA.bEnd, dA), bT1 = perp(edge, dA);
     const tw2 = bandTwist(bT0, bT1, dA);
     const dispB = sub(arcTurn([0, 0, 0], dA, down, Rin, 24).end, [0, 0, 0]);
-    const zL = arcA.end[2];
-    const kk = D / Math.max(1, D - zL);
-    const cxW = world(inp.wave.c, 0)[0] / kk; // world x that projects to the wave's centre at this depth
-    const runLen = Math.max(twistLen, (cxW - arcA.end[0] - dispB[0]) / dA[0]);
-    for (let s = step; s <= runLen; s += step) {
-      samples.push({ p: add(arcA.end, dA, s), b: rotate(bT0, dA, tw2 * smoother(s / twistLen)) });
-    }
+    const kk = D / Math.max(1, D - arcA.end[2]);
+    const cxW = world(inp.wave.c, 0)[0] / kk; // world x that projects to the centre at this depth
+    const runLen = Math.max(twistLen, (cxW - arcA.end[0] - dispB[0]) / Math.max(0.05, dA[0]));
+    for (let s = step; s <= runLen; s += step) samples.push({ p: add(arcA.end, dA, s), b: rotate(bT0, dA, tw2 * smoother(s / twistLen)) });
     const F0 = add(arcA.end, dA, runLen);
     const arcB = arcTurn(F0, dA, down, Rin, 40);
     for (const q of arcB.samples) samples.push({ p: q.p, b: edge });

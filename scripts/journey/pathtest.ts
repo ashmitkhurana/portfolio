@@ -5,7 +5,7 @@ const end = { p: [-103.9, -456.6, 60] as [number, number, number], t: [-0.463, -
 const ds = 2964 / 319;
 const aCy = y2 + 0.42 * H, bCy = y2 + 0.68 * H, lambda = 2 * (bCy - aCy);
 (globalThis as any).__jpDebug = [];
-const r = buildJourneyPath({ W, H, end, ds, y2, portrait: true, camZ: D, wave: { c: 195, amp: 0.2 * W, top: aCy - lambda / 4, lambda, crestY: aCy } });
+const r = buildJourneyPath({ W, H, end, ds, y2, portrait: true, camZ: D, wave: { c: 195, amp: 39, top: 0, lambda: 0.3 * H } });
 console.log("k", r.k, "sWave", r.sWave.toFixed(0), "sWaveEnd", r.sWaveEnd.toFixed(0), "wave top want", (aCy - lambda / 4 - y2).toFixed(0));
 for (let j = 0; j < r.k; j += 6) {
   const z = r.pos[j * 3 + 2], kk = D / (D - z);
