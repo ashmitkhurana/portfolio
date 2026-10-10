@@ -1,0 +1,46 @@
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=251.625 c=190.339 b=154.184
+turn F: z_final a=110.186 c=62.902 b=37.631
+turn A: z_final a=75.171 c=95.680 b=124.370
+turn BK: z_final a=63.119 c=11.781 b=4.686
+turn W: z_final a=84.155 c=5.958 b=50.757
+turn TK: z_final a=39.947 c=0.317 b=-32.132
+link 0-114: z_final first=260.000 last=252.516
+link 216-339: z_final first=153.536 last=112.015
+link 386-471: z_final first=37.491 last=74.799
+link 551-649: z_final first=124.380 last=63.215
+link 791-894: z_final first=5.137 last=83.911
+link 1046-1149: z_final first=51.588 last=40.388
+link 1251-1298: z_final first=-32.906 last=-63.429
+twist S->F: -4.07 deg, n=0
+twist F->A: 7.61 deg, n=0
+twist A->BK: -86.59 deg, n=0
+twist BK->W: -74.09 deg, n=0
+twist W->TK: 48.46 deg, n=0
+face runs: 0-141 A; 142-172 ~; 173-350 B; 351-358 ~; 359-516 A; 517-526 ~; 527-584 B; 585-602 ~; 603-723 A; 724-733 ~; 734-836 B; 837-862 ~; 863-919 A; 920-938 ~; 939-1026 B; 1027-1056 ~; 1057-1178 B; 1179-1190 ~; 1191-1298 A
+segment tail->S A [0,186]: match 0.9934 (151/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 0.4628 (56/121)
+segment return to junction + crossbar B [724,925]: match 0.6095 (103/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 1.0000 (143/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 8556 of 25753
+  pair 423 961 gap -82.345
+  pair 425 960 gap -82.119
+  pair 420 962 gap -82.086
+  pair 422 961 gap -81.893
+  pair 424 960 gap -81.676
+  pair 419 962 gap -81.614
+  pair 426 959 gap -81.447
+  pair 421 961 gap -81.435
+  pair 423 960 gap -81.229
+  pair 428 958 gap -81.226
+  pair 418 962 gap -81.134
+  pair 425 959 gap -81.007
+  pair 420 961 gap -80.971
+  pair 427 958 gap -80.789
+  pair 422 960 gap -80.777
+b angle change per ring: max 3.995 deg at ring 896->897
+10 largest: 896:3.995; 897:3.977; 895:3.878; 898:3.815; 894:3.652; 899:3.529; 893:3.353; 900:3.152; 892:3.014; 901:2.726

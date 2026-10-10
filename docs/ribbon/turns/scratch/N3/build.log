@@ -1,0 +1,46 @@
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=251.625 c=190.339 b=154.184
+turn F: z_final a=110.186 c=62.900 b=33.246
+turn A: z_final a=-63.248 c=-100.294 b=-51.193
+turn BK: z_final a=20.236 c=-103.571 b=-8.235
+turn W: z_final a=-1.979 c=37.280 b=-13.283
+turn TK: z_final a=23.122 c=0.231 b=-18.365
+link 0-114: z_final first=260.000 last=252.516
+link 216-339: z_final first=153.536 last=112.015
+link 386-471: z_final first=32.321 last=-62.135
+link 551-649: z_final first=-49.142 last=20.456
+link 791-894: z_final first=-7.429 last=-2.858
+link 1011-1149: z_final first=-14.044 last=23.077
+link 1251-1298: z_final first=-19.161 last=-62.658
+twist S->F: -4.07 deg, n=0
+twist F->A: 25.72 deg, n=0
+twist A->BK: -13.25 deg, n=0
+twist BK->W: -7.51 deg, n=0
+twist W->TK: 22.89 deg, n=0
+face runs: 0-141 A; 142-172 ~; 173-350 B; 351-358 ~; 359-689 A; 690-712 ~; 713-766 B; 767-897 ~; 898-992 A; 993-1006 ~; 1007-1175 B; 1176-1187 ~; 1188-1298 A
+segment tail->S A [0,186]: match 0.9934 (151/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 0.0000 (0/121)
+segment return to junction + crossbar B [724,925]: match 0.2308 (39/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 1.0000 (143/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 16249 of 25753
+  pair 430 957 gap -92.041
+  pair 430 958 gap -91.943
+  pair 429 958 gap -90.929
+  pair 429 959 gap -90.812
+  pair 429 960 gap -90.675
+  pair 428 959 gap -89.800
+  pair 428 960 gap -89.663
+  pair 428 961 gap -89.507
+  pair 428 962 gap -89.327
+  pair 427 959 gap -88.788
+  pair 427 960 gap -88.652
+  pair 427 961 gap -88.495
+  pair 427 962 gap -88.316
+  pair 427 963 gap -88.111
+  pair 427 964 gap -87.879
+b angle change per ring: max 3.937 deg at ring 798->799
+10 largest: 798:3.937; 799:3.929; 797:3.866; 800:3.819; 796:3.735; 801:3.588; 795:3.564; 794:3.365; 802:3.228; 793:3.149

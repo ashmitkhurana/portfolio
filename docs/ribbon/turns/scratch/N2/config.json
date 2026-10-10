@@ -1,0 +1,18 @@
+{
+  "note": "N2 design by Opus. Turns: planar cylinder sections (band width = plane axis a). d_deg = screen direction of a's in-plane component (screen x right, y DOWN); depth DECREASES along it. alpha_deg = tilt of a from the view axis. z0 = centre depth at ring c. Links: depth piecewise-linear in screen arclength through boundary depths + anchors; band angle linear (minimal twist).",
+  "smooth_lambda": 300000,
+  "straight_legs": [[385, 470], [552, 640]],
+  "turns": [
+    {"name": "S",  "a": 115, "b": 215,  "c": 165,  "d_deg": -95,  "alpha_deg": 50, "z0": 190},
+    {"name": "F",  "a": 340, "b": 385,  "c": 360,  "d_deg": -135, "alpha_deg": 55, "z0": 60},
+    {"name": "A",  "a": 472, "b": 550,  "c": 515,  "d_deg": 180,  "alpha_deg": 50, "z0": 95},
+    {"name": "BK", "a": 650, "b": 790,  "c": 740,  "d_deg": -33,  "alpha_deg": 40, "z0": 10},
+    {"name": "W",  "a": 895, "b": 1045, "c": 960,  "d_deg": 150,  "alpha_deg": 45, "z0": 7.5},
+    {"name": "TK", "a": 1150,"b": 1250, "c": 1195, "d_deg": 45,   "alpha_deg": 50, "z0": 0}
+  ],
+  "anchors": [[0, 260], [100, 260], [850, 15], [1298, -65]],
+  "z_smooth_sigma": 8,
+  "T_smooth_sigma": 3,
+  "b_smooth_sigma": 3,
+  "half_width": 25.5
+}
