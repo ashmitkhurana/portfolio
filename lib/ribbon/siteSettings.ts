@@ -32,7 +32,7 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
     rimNormalMix: 0,
   },
   // thick satin band (the AK pose renders were judged with this profile)
-  geometry: { thicknessRatio: 0.147, edgeBevel: 2.4 },
+  geometry: { thicknessRatio: 0.147, edgeBevel: 2.4, capLengthRatio: 0 },
   // strong form shading as in the sculpture: key from the upper left front, little fill / ambient, so inner and away-facing surfaces go deep
   env: {
     intensity: 1.8,
