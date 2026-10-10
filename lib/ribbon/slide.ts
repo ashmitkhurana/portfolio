@@ -96,6 +96,11 @@ export class SlideMotion {
   ready = false;
 
   private target = 0;
+  /** sigma limits of the current path (End 1 side: the head path / extension length) */
+  private sigmaMax = 0;
+  private sigmaMin = 0;
+  /** designed path beyond End 1 (world px): centres + rulings (bx, by, bz, hw), first ring one spacing past End 1 */
+  private head: { pos: Float32Array; ruled: Float32Array; k: number } | null = null;
   private introT = 0;
   private time = 0;
   private settledAt = -1;
@@ -137,6 +142,29 @@ export class SlideMotion {
     return new Promise((res) => this.onIntroSettled(res));
   }
 
+  /**
+   * The path the leading end travels beyond End 1 (the page's journey): k rings at the path's ring spacing
+   * (`spacing`), starting one spacing past End 1. null = the straight extension. Rebuilds the path, keeping the motion.
+   */
+  setHeadPath(pos: Float32Array | null, ruled: Float32Array | null, k = 0): void {
+    this.head = pos && ruled && k > 0 ? { pos, ruled, k } : null;
+    if (this.ready) this.setPath(this.poseCtr, this.poseRuled, this.count);
+  }
+
+  /** End 1 of the pose (world): centre, outward unit tangent, unit ruling, half width */
+  end1(): { p: [number, number, number]; t: [number, number, number]; b: [number, number, number]; hw: number } {
+    const P = this.poseCtr, B = this.poseRuled;
+    let tx = P[0] - P[6], ty = P[1] - P[7], tz = P[2] - P[8];
+    const l = Math.hypot(tx, ty, tz) || 1;
+    tx /= l; ty /= l; tz /= l;
+    return { p: [P[0], P[1], P[2]], t: [tx, ty, tz], b: [B[0], B[1], B[2]], hw: B[3] };
+  }
+
+  /** ring spacing of the path (world px): head paths must be sampled at this spacing */
+  get spacing(): number {
+    return this.length / (this.count - 1);
+  }
+
   /** (re)build the path from the pose's control points (centres) and ruling data. Restarts the intro. */
   setPath(pos: Float32Array, ruledData: Float32Array, n = this.count): boolean {
     if (n !== this.count || n < 3 || ruledData.length < n * 4) {
@@ -145,14 +173,16 @@ export class SlideMotion {
     }
     this.poseCtr.set(pos.subarray(0, n * 3));
     this.poseRuled.set(ruledData.subarray(0, n * 4));
-    // L/R of the pose rings
+    // L/R of the pose rings; m1 rings before ring 0 (End 1 side: the head path, then straight), m on the End 2 side
     const m = Math.ceil(EXT_FACTOR * (n - 1)) + 1; // extension rings per side
-    const D = m + n + m;
+    const head = this.head;
+    const m1 = head ? Math.max(m, head.k + m) : m;
+    const D = m1 + n + m;
     const L = new Float64Array(D * 3);
     const R = new Float64Array(D * 3);
     for (let i = 0; i < n; i++) {
       const bx = ruledData[i * 4], by = ruledData[i * 4 + 1], bz = ruledData[i * 4 + 2], hw = ruledData[i * 4 + 3];
-      const o = (m + i) * 3;
+      const o = (m1 + i) * 3;
       L[o] = pos[i * 3] - bx * hw;
       L[o + 1] = pos[i * 3 + 1] - by * hw;
       L[o + 2] = pos[i * 3 + 2] - bz * hw;
@@ -183,25 +213,50 @@ export class SlideMotion {
     tan(0, 2, t1);
     tan(n - 1, n - 3, t2);
     for (let j = 1; j <= m; j++) {
-      const oa = (m - j) * 3; // before ring 0
-      const ob = (m + n - 1 + j) * 3; // after ring n-1
+      const ob = (m1 + n - 1 + j) * 3; // after ring n-1
       for (let a = 0; a < 3; a++) {
-        L[oa + a] = L[m * 3 + a] + t1[a] * dsExt * j;
-        R[oa + a] = R[m * 3 + a] + t1[a] * dsExt * j;
-        L[ob + a] = L[(m + n - 1) * 3 + a] + t2[a] * dsExt * j;
-        R[ob + a] = R[(m + n - 1) * 3 + a] + t2[a] * dsExt * j;
+        L[ob + a] = L[(m1 + n - 1) * 3 + a] + t2[a] * dsExt * j;
+        R[ob + a] = R[(m1 + n - 1) * 3 + a] + t2[a] * dsExt * j;
+      }
+    }
+    // End 1 side: the head path (if any), then straight on along its last direction
+    let hk = 0;
+    if (head) {
+      hk = head.k;
+      for (let j = 1; j <= hk; j++) {
+        const oa = (m1 - j) * 3;
+        const q = (j - 1) * 3, r = (j - 1) * 4;
+        const hw = head.ruled[r + 3];
+        for (let a = 0; a < 3; a++) {
+          L[oa + a] = head.pos[q + a] - head.ruled[r + a] * hw;
+          R[oa + a] = head.pos[q + a] + head.ruled[r + a] * hw;
+        }
+      }
+      if (hk >= 2) {
+        const a1 = (hk - 1) * 3, a0 = (hk - 2) * 3;
+        let x = head.pos[a1] - head.pos[a0], y = head.pos[a1 + 1] - head.pos[a0 + 1], z = head.pos[a1 + 2] - head.pos[a0 + 2];
+        const l = Math.hypot(x, y, z) || 1;
+        t1[0] = x / l; t1[1] = y / l; t1[2] = z / l;
+      }
+    }
+    for (let j = hk + 1; j <= m1; j++) {
+      const oa = (m1 - j) * 3; // before ring 0
+      const base = (m1 - hk) * 3; // the last head ring (or ring 0)
+      for (let a = 0; a < 3; a++) {
+        L[oa + a] = L[base + a] + t1[a] * dsExt * (j - hk);
+        R[oa + a] = R[base + a] + t1[a] * dsExt * (j - hk);
       }
     }
     if (this.params.hiddenEntry && this.cameraZ > 0) {
       // End 2 extension along the camera ray through the end ring, away from the camera: it projects onto the end
       // ring's own screen spot (hidden behind the right leg), and its width tapers to 0 over 12 rings
-      const e = (m + n - 1) * 3;
+      const e = (m1 + n - 1) * 3;
       const cx = (L[e] + R[e]) / 2, cy = (L[e + 1] + R[e + 1]) / 2, cz = (L[e + 2] + R[e + 2]) / 2;
       let rx = cx, ry = cy, rz = cz - this.cameraZ;
       const rl = Math.hypot(rx, ry, rz) || 1;
       rx /= rl; ry /= rl; rz /= rl;
       for (let j = 1; j <= m; j++) {
-        const ob = (m + n - 1 + j) * 3;
+        const ob = (m1 + n - 1 + j) * 3;
         const f = Math.max(0, 1 - j / 12);
         const px = cx + rx * dsExt * j, py = cy + ry * dsExt * j, pz = cz + rz * dsExt * j;
         const hx = (R[e] - L[e]) / 2 * f, hy = (R[e + 1] - L[e + 1]) / 2 * f, hz = (R[e + 2] - L[e + 2]) / 2 * f;
@@ -220,7 +275,9 @@ export class SlideMotion {
           (L[i * 3 + 2] + R[i * 3 + 2] - L[i * 3 - 1] - R[i * 3 - 1]) / 2,
         );
     }
-    const aPose0 = cum[m];
+    const aPose0 = cum[m1];
+    this.sigmaMax = aPose0 - dsExt;
+    this.sigmaMin = -(cum[D - 1] - cum[m1 + n - 1]) + dsExt;
     // fine table over arcs [aMin, aMax] (relative to ring 0)
     const aStart = -aPose0; // arc of dense ring 0 relative to pose ring 0
     const aEnd = cum[D - 1] - aPose0;
@@ -284,7 +341,7 @@ export class SlideMotion {
     const first = !this.ready;
     this.ready = true;
     if (first) this.restart();
-    else this.sigma = Math.min(Math.max(this.sigma, -EXT_FACTOR * Ltot), EXT_FACTOR * Ltot);
+    else this.sigma = Math.min(Math.max(this.sigma, this.sigmaMin), this.sigmaMax);
     return true;
   }
 
@@ -371,12 +428,11 @@ export class SlideMotion {
       this.velocity += (k * (this.target - this.sigma) - c * this.velocity) * h;
       this.sigma += this.velocity * h;
     }
-    const lim = EXT_FACTOR * this.length;
-    if (this.sigma > lim) {
-      this.sigma = lim;
+    if (this.sigma > this.sigmaMax) {
+      this.sigma = this.sigmaMax;
       this.velocity = Math.min(this.velocity, 0);
-    } else if (this.sigma < -lim) {
-      this.sigma = -lim;
+    } else if (this.sigma < this.sigmaMin) {
+      this.sigma = this.sigmaMin;
       this.velocity = Math.max(this.velocity, 0);
     }
   }

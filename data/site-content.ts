@@ -82,6 +82,8 @@ export const hero = {
 
 export const unravel = {
   line: "Interfaces, systems and AI. One continuous line.",
+  /** the statement as shown, one span per line */
+  lines: ["Interfaces, systems and AI.", "One continuous line."],
 } as const;
 
 export const work = {

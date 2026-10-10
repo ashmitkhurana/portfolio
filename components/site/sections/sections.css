@@ -136,18 +136,53 @@
 /* ── 02 unravel ────────────────────────────────────────── */
 
 .unravel {
-  --section-h: var(--h-unravel);
-  display: flex;
-  align-items: flex-end;
-  padding-block: var(--section-y);
+  --unravel-pin-room: 0px;
+  --section-h: calc(100svh + var(--unravel-pin-room));
 }
 
+:root[data-ribbon="live"] .unravel {
+  --unravel-pin-room: 100svh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .unravel {
+    --unravel-pin-room: 0px;
+  }
+}
+
+.unravel__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100svh;
+}
+
+/* the statement sits in the top band; the ribbon's wave owns the rest of the screen */
 .unravel__inner {
   width: 100%;
+  padding-top: calc(var(--header-h) + clamp(var(--space-s), 6svh, var(--space-2xl)));
 }
 
-.unravel__line {
-  max-width: 32ch;
+.unravel__statement {
+  display: grid;
+  max-width: 18ch;
+  font-size: clamp(2.25rem, 1.2rem + 4.6vw, 6.5rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.unravel__line + .unravel__line {
+  color: var(--fg-muted);
+}
+
+/* landscape: one line each, the statement spans the width */
+@media (min-width: 768px) and (orientation: landscape) {
+  .unravel__statement {
+    max-width: none;
+    font-size: min(5.2vw, 9svh, 6.5rem);
+  }
 }
 
 /* ── 03 work ───────────────────────────────────────────── */
