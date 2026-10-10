@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **83** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1-N6 (baseline: X6 = v319; from-scratch line: N6 = v325) |
-| | **Running total** | | **325** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **84** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1-N7 (baseline: X6 = v319; from-scratch line: N7 = v326) |
+| | **Running total** | | **326** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -31,7 +31,7 @@ How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numb
 
 Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299), `L1-L3` (v300-v302), `Q50`, `Q35` (v303-v304), `P1-P9` (v305-v313; P8 was captioned v308 to the owner by mistake), `X4` (v314... see below), `S1-S3` (v315-v317, polish fits of P4, never shown), `X5` (v318).
 
-**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320, N2 = v321, N3 = v322, N4 = v323, N5 = v324, N6 = v325. The next new version is v326.**
+**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320, N2 = v321, N3 = v322, N4 = v323, N5 = v324, N6 = v325, N7 = v326. The next new version is v327.**
 
 ### Numbering scheme
 
@@ -304,4 +304,6 @@ Each new round is appended, not rewritten.
 - N5 (v324): + a visible-width target, so bands read wide (the sweep and right leg had been edge-on-ish).
 - N6 (v325): + junction clearance. Zero intersections, worst normal change 12°, no visible twists. Open: the sweep is still narrowish and dark, the tail dark, the apex top flat.
 - Lesson: a ribbon's look is set by the axes of its turns; the right parametrisation (cylinder turns + straights) makes it smooth by construction, and then a solver on a smooth model actually works.
-- Running total: 325 versions.
+- The owner on N6: "i think only this is left everything else seems perfectttttt" (one box: the junction at the A's right leg).
+- N7 (v326): the hidden twists had been placed over ring windows wider than the part actually covered by the right leg, so their ends peeked out as a pinched neck and a corner. Measured the fully covered rings (back layer 836-848, return 1070-1079) and confined the twists to them. Nothing else changed. Zero intersections.
+- Running total: 326 versions.

@@ -1,0 +1,46 @@
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=265.012 c=187.209 b=95.488
+turn F: z_final a=48.781 c=-1.074 b=-44.221
+turn A: z_final a=-88.280 c=-46.847 b=24.936
+turn BK: z_final a=81.265 c=28.911 b=-27.250
+turn W: z_final a=-13.225 c=-63.450 b=-80.891
+turn TK: z_final a=45.771 c=7.686 b=-69.992
+link 0-114: z_final first=260.000 last=265.054
+link 216-339: z_final first=93.898 last=50.519
+link 386-471: z_final first=-45.223 last=-88.477
+link 551-649: z_final first=26.508 last=81.844
+link 791-894: z_final first=-28.684 last=-13.755
+link 1011-1149: z_final first=-79.510 last=45.493
+link 1251-1298: z_final first=-71.146 last=-65.735
+twist S->F: 16.63 deg, n=0
+twist F->A: -13.63 deg, n=0
+twist A->BK: -11.81 deg, n=0
+twist BK->W: 168.82 deg, n=0
+twist W->TK: 194.29 deg, n=1
+face runs: 0-154 A; 155-204 ~; 205-353 B; 354-361 ~; 362-514 A; 515-528 ~; 529-731 B; 732-737 ~; 738-839 A; 840-840 ~; 841-934 B; 935-962 ~; 963-1075 A; 1076-1076 ~; 1077-1183 B; 1184-1202 ~; 1203-1298 A
+segment tail->S A [0,186]: match 1.0000 (152/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 1.0000 (121/121)
+segment return to junction + crossbar B [724,925]: match 0.4497 (76/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 0.6434 (92/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 3715 of 25753
+  pair 867 1083 gap -85.020
+  pair 867 1076 gap -84.512
+  pair 867 1077 gap -84.430
+  pair 867 1082 gap -84.351
+  pair 867 1078 gap -83.945
+  pair 867 1081 gap -83.853
+  pair 867 1079 gap -83.621
+  pair 867 1080 gap -83.592
+  pair 868 1076 gap -83.142
+  pair 868 1077 gap -83.061
+  pair 868 1082 gap -82.982
+  pair 867 1075 gap -82.604
+  pair 868 1078 gap -82.575
+  pair 868 1081 gap -82.483
+  pair 868 1079 gap -82.251
+b angle change per ring: max 30.873 deg at ring 1074->1075
+10 largest: 1074:30.873; 1073:26.529; 1075:26.467; 1072:18.816; 1076:18.748; 841:18.452; 842:18.450; 840:16.698; 843:16.693; 839:13.945
