@@ -15,12 +15,14 @@
  */
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
-import { buildJourneyPath, type JourneyPath } from "@/lib/ribbon/journeyPath";
+import { buildJourneyPath } from "@/lib/ribbon/journeyPath";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
 const CLEAR_MARGIN = 60;
-/** world px the ribbon slides during the free scroll from the hero to section 2, per px of viewport height */
-const TRANSITION_PER_H = 0.6;
+/** world px the ribbon flows during the free scroll from the hero to section 2, per px of viewport height */
+const TRANSITION_PER_H = 0.5;
+/** world px it keeps flowing across section 2's pin (while the line swells into the wave), per px of viewport height */
+const WAVE_FLOW_PER_H = 0.35;
 
 declare global {
   interface Window {
@@ -70,7 +72,6 @@ function readPins(): Pin[] {
 export function createJourney(engine: RibbonEngine): () => void {
   let clear = 0;
   let clearKey = "";
-  let path: JourneyPath | null = null;
   let pathKey = "";
   return () => {
     const sl = engine.sim.slide;
@@ -102,41 +103,35 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
 
     const unravel = pins.find((p) => p.name === "unravel");
+    let sigma: number;
     if (unravel && clear > 0) {
       const portrait = !(W >= 768 && W > H);
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${clear.toFixed(0)}|${portrait}`;
+      // section 2's pin: the line swells into the wave while the ribbon keeps flowing
+      const morph = hero.p < 1 ? 0 : ease(unravel.p);
+      const mq = Math.round(morph * 240) / 240;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${mq}`;
       if (pk !== pathKey) {
-        path = buildJourneyPath({
+        const path = buildJourneyPath({
           W,
           H,
           end: sl.end1(),
           ds: sl.spacing,
           y2: unravel.vTop,
-          sClear: clear,
-          transition: TRANSITION_PER_H * H,
           portrait,
           camZ: sl.cameraZ,
-          ribbonLen: sl.length,
+          morph: mq,
         });
         sl.setHeadPath(path.pos, path.ruled, path.k);
         pathKey = pk;
       }
-    }
-
-    let sigma: number;
-    if (hero.p < 1 || !path || !unravel) {
-      sigma = ease(hero.p) * clear;
-    } else if (unravel.p <= 0) {
-      // free scroll between the hero's release and section 2's pin
-      const q = clamp01(V / Math.max(1, unravel.vTop));
-      sigma = clear + q * (path.sEntry - clear);
+      const flow = TRANSITION_PER_H * H;
+      if (hero.p < 1) sigma = ease(hero.p) * clear;
+      else if (unravel.p <= 0) sigma = clear + clamp01(V / Math.max(1, unravel.vTop)) * flow;
+      else sigma = clear + flow + ease(unravel.p) * WAVE_FLOW_PER_H * H;
     } else {
-      // the first 5% of the pin brings the head into view (off-screen margin / hidden crossing), the rest draws the wave
-      const lead = clamp01(unravel.p / 0.05);
-      const draw = ease(clamp01((unravel.p - 0.05) / 0.95));
-      sigma = path.sEntry + lead * (path.sVisible - path.sEntry) + draw * (path.sWaveEnd - path.sVisible);
+      sigma = ease(hero.p) * clear;
     }
     sl.driveTarget = sigma;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sEntry: path?.sEntry, sWaveEnd: path?.sWaveEnd, sigma };
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma };
   };
 }
