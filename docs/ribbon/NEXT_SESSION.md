@@ -53,3 +53,42 @@ Every section is one viewport. Pinned by scroll progress (not a hard lock); scro
 5. **Experience + Terminal:** desktop = ONE section fitting the viewport; mobile = two separate sections, same concept. The ribbon stops just before the first experience entry and waits. Scroll-linked: it underlines the experience lines (desktop: horizontal, a straight line with a little wave; mobile: a straight vertical line down, a little wavy). Then it loops back, does an S-curve sweep, loops again and stops right next to the terminal.
    Then a progress bar (bottom right) filled by scrolling, like lusion.co: it drains back to 0 if the user stops before it is full; when full, the site auto-scrolls to the footer.
 6. **Footer (full screen, contact + footer):** the ribbon curves and loops (small flourishes), then enters at the HIDDEN TAIL END of the signature AK pose and forms it exactly like the hero intro (leading end at the bottom), weaving in and out of "LET'S BUILD SOMETHING." like the name in the hero. The journey ends here.
+
+
+## STATE AT END OF THE 2026-10-10 GUEST-PASS SESSION (read this first)
+Latest commit on `claude/upbeat-hellman-f92bb7` is pushed. Journey log: docs/ribbon/JOURNEY.md, era 5 (v334-v339). Next version: **v340**.
+
+### Done and live
+- Navbar never overlaps content: last screen (contact + footer) = one viewport (components/site/FooterHeight.tsx); a frosted header backdrop fades in only while content is under the bar (SiteHeader.tsx). Checks: scripts/contactfit.mjs, scripts/navcover.mjs.
+- **Hero exit (v334):** hero pinned (sticky `.hero__pin`, 110svh room); the ribbon slides toward its leading end until its trailing end clears the name (`SlideMotion.sigmaToClear`, measured from the name's ink). Page scroll moves the ribbon image by a camera LENS SHIFT (core.ts `viewShift`), never by moving the 3D geometry (that tilted curves).
+- **Section 2 (v335-v339):** pinned full-screen statement split around a wave. Code: components/site/journey.ts (driver), lib/ribbon/journeyPathDesktop.ts (desktop, owner-approved), lib/ribbon/journeyPath.ts (phone/portrait).
+  - VIRTUAL page = the page with every pin's scroll room removed; V = virtual y at the viewport top (from the governing pin); world = (vx - W/2, H/2 - vy). Each section is designed as if the camera faced it, then sheared y += z * sectionTop / camZ (exact head-on look through the shifted lens).
+  - DESKTOP (approved "almost perfect"): rigid window; the hero's remaining strand flows down-left off the left edge during the free scroll (perspective-aware exit + smooth blend out of the dive), a hidden route, the head re-enters from the left edge as section 2 pins and draws a horizontal tilted-plane wave between "Interfaces, systems and AI." (above) and "One continuous line." (below).
+  - PHONE (v339, just shown; owner had rejected v336-v338): independent head/tail (`SlideMotion.lead`): the tail unthreads off the name while the tip waits below the hero; once the user reaches it the tip follows at 72% of the screen height. Path: twist 90° to edge-on at the hero's bottom, one pure bend about that width toward the middle, 45° twist on the straight, edge-on turn straight down the exact centre, a regular centred wave; texts left/right of it.
+  - Phone hero: the A's apex sits IN FRONT of KHURANA's U and R (`ribbonFrontPortrait`, `data-ribbon-depth-portrait`).
+- Physical rules that made things work: a band only bends about its own width (cylinder sections); twists only on straight stretches; never smooth a twist across a turn (= pinched folds); band width is defined up to sign (always take the shorter twist).
+
+### Next (owner's plan, in order) - full spec in "THE SCROLL JOURNEY" above
+1. Get the owner's verdict on the v339 phone section 2; fix what they flag (one change at a time).
+2. Footer: full-screen; the ribbon curves/loops, then enters at the HIDDEN TAIL END and forms the AK pose exactly like the hero intro, weaving with "LET'S BUILD SOMETHING." like the name in the hero.
+3. Experience + Terminal (desktop one section; phone two): ribbon stops before the first experience entry, underlines the entries as the user scrolls (desktop horizontal slightly wavy; phone vertical slightly wavy), loops back, S-sweep, stops next to the terminal; lusion.co-style scroll-filled progress bar bottom right (drains to 0 if the user stops), when full auto-scroll to the footer.
+4. How I Build: Experience moves out; ribbon goes into the empty box right of the three principles, scroll-linked spring compression, then AUTOMATIC fast release back out and diagonally down through the gap between the D of BUILD and "01", auto-scroll to the next section. Phone: make room for the spring.
+5. Selected Work: 3 cards fit one viewport; ribbon weaves card 1 -> 2 -> 3 behind/in front (Claude designs the order and shows the owner); speeds off; pin holds until cards are clear.
+6. Rest-of-site Apple-level polish. Check every result at 10 sizes before showing (scripts/journey/strip.mjs, crease.mjs, wavecheck.mjs, pathtest.ts offline).
+
+### Tools (scripts/journey/)
+- `node scripts/journey/strip.mjs <outPrefix> <WxH> <y1,y2,..vh> [settleMs]` frame strips; `sheet.py` tiles them (python: scripts/mockup/.venv/bin/python).
+- `crease.mjs` (SIZE, AT env): ring-to-ring normal/tangent changes of the visible ribbon (twist = dNormal - dTangent).
+- `wavecheck.mjs`, `nums.mjs` (set window.__journeyDebug = {} for the driver's numbers), `join.mjs`, `pathtest.ts` (`npx tsx`, the phone path offline).
+- Dev server: localhost:3100 (`-H 0.0.0.0`; owner tests on a phone at http://<mac LAN ip>:3100).
+
+### OWNER'S WORKING RULES (copied from Claude's memory, which does not carry over between accounts)
+- Apple-level polish is the one constraint. Never show/adopt anything with a visible wrinkle, crease, fold, pinch, streak or pass-through; check full-resolution crops of the exact spot before saying it is fixed.
+- Do exactly the change the owner asks; do not switch approach on your own; do not carry a change to the other device unasked (desktop and phone choreographies are separate).
+- Never regress what the owner approved: compare the whole figure with the baseline before sending.
+- Two failed rounds at the same spot: STOP, measure the geometry, find the cause; no blind variant sweeps.
+- Update docs/ribbon/JOURNEY.md every round (version tally; the owner will blog it). Commit often, push the branch; never merge to main without the owner's OK.
+- The owner reviews on localhost and on a real phone; send frame strips (SendUserFile) and stop for feedback after each round.
+- Screenshot QA headless only (Playwright); never drive or resize the owner's own browser.
+- Shell: zsh does not word-split `$VAR` (use bash for loops); use `/bin/rm -f`, `/bin/ls`; never pkill dev servers (kill by port only).
+- Usage: work until limits; at 5% weekly or session left, save/commit/push, update this file, and give the owner the prompt for the next account.
