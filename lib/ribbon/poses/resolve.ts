@@ -233,8 +233,9 @@ export function steerTail(rings: readonly RuledRing[], ctx: ResolveContext, tail
   const dIn = norm([-Math.sin(a), Math.cos(a), (P0[2] - zE) / (Math.hypot(P0[0] - E[0], P0[1] - E[1]) || 1)]);
   const dist = Math.hypot(P0[0] - E[0], P0[1] - E[1], P0[2] - E[2]);
   const L = tail.swing * dist;
+  const L0 = (tail.joinSwing ?? tail.swing) * dist;
   const B1 = [E[0] + dIn[0] * L, E[1] + dIn[1] * L, E[2] + dIn[2] * L];
-  const B2 = [P0[0] - T0[0] * L, P0[1] - T0[1] * L, P0[2] - T0[2] * L];
+  const B2 = [P0[0] - T0[0] * L0, P0[1] - T0[1] * L0, P0[2] - T0[2] * L0];
   const bez = (t: number): number[] => {
     const u = 1 - t;
     return [0, 1, 2].map((q) => u * u * u * E[q] + 3 * u * u * t * B1[q] + 3 * u * t * t * B2[q] + t * t * t * P0[q]);
@@ -256,24 +257,25 @@ export function steerTail(rings: readonly RuledRing[], ctx: ResolveContext, tail
     const f = (target - acc[jj]) / ((acc[jj + 1] - acc[jj]) || 1);
     pos.push([0, 1, 2].map((q) => pts[jj][q] + (pts[jj + 1][q] - pts[jj][q]) * f));
   }
-  // rulings: face-on (perpendicular to the tangent and the view ray), sign continuous with the authored ruling at k0
+  // rulings: parallel-transport the authored ruling at k0 back along the new curve (no twist through the bend),
+  // then turn it face-on to the camera only on the straight lower part (i < 0.55 k0, fully below 0.2 k0)
   const out: RuledRing[] = rings.slice() as RuledRing[];
-  let prev = b0;
   const bs: number[][] = new Array(k0 + 1);
+  let tr = b0;
   for (let i = k0; i >= 0; i--) {
     const pa = pos[Math.max(i - 1, 0)], pb = pos[Math.min(i + 1, k0)];
     const T = norm([pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]]);
+    const d0 = tr[0] * T[0] + tr[1] * T[1] + tr[2] * T[2];
+    tr = norm([tr[0] - d0 * T[0], tr[1] - d0 * T[1], tr[2] - d0 * T[2]]);
     const v = norm([-pos[i][0], -pos[i][1], D - pos[i][2]]);
     let bf = norm([T[1] * v[2] - T[2] * v[1], T[2] * v[0] - T[0] * v[2], T[0] * v[1] - T[1] * v[0]]);
-    if (bf[0] * prev[0] + bf[1] * prev[1] + bf[2] * prev[2] < 0) bf = [-bf[0], -bf[1], -bf[2]];
-    // blend from the authored ruling (at k0) to face-on over 24 rings
-    const x = Math.min(Math.max((k0 - i) / 24, 0), 1);
+    if (bf[0] * tr[0] + bf[1] * tr[1] + bf[2] * tr[2] < 0) bf = [-bf[0], -bf[1], -bf[2]];
+    const x = Math.min(Math.max((0.55 * k0 - i) / (0.35 * k0), 0), 1);
     const w = x * x * (3 - 2 * x);
-    let bb = [(1 - w) * b0[0] + w * bf[0], (1 - w) * b0[1] + w * bf[1], (1 - w) * b0[2] + w * bf[2]];
+    let bb = [(1 - w) * tr[0] + w * bf[0], (1 - w) * tr[1] + w * bf[1], (1 - w) * tr[2] + w * bf[2]];
     const d = bb[0] * T[0] + bb[1] * T[1] + bb[2] * T[2];
     bb = norm([bb[0] - d * T[0], bb[1] - d * T[1], bb[2] - d * T[2]]);
     bs[i] = bb;
-    prev = bb;
   }
   for (let i = 0; i <= k0; i++) {
     const p = pos[i], b = bs[i];

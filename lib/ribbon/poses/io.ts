@@ -70,7 +70,7 @@ export function parsePoseFile(raw: unknown): PoseFile {
       const ruled = v.ruled.map((r) => ({ L: tri((r as { L?: unknown }).L), R: tri((r as { R?: unknown }).R) }));
       const tv = v.tail as Record<string, unknown> | undefined;
       const tail = tv
-        ? { fromRing: num(tv.fromRing, 110), rightEdgeX: num(tv.rightEdgeX, 0.5), exitAngleDeg: num(tv.exitAngleDeg, -25), swing: num(tv.swing, 0.4), zExit: num(tv.zExit, 60) }
+        ? { fromRing: num(tv.fromRing, 110), rightEdgeX: num(tv.rightEdgeX, 0.5), exitAngleDeg: num(tv.exitAngleDeg, -25), swing: num(tv.swing, 0.4), zExit: num(tv.zExit, 60), ...(tv.joinSwing !== undefined ? { joinSwing: num(tv.joinSwing, 0.4) } : {}) }
         : undefined;
       variants[cls] = { points: [], ruled, faceSign: v.faceSign === -1 ? -1 : 1, ...(tail ? { tail } : {}) };
       continue;

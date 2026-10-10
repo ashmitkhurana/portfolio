@@ -64,6 +64,8 @@ export interface TailSpec {
   exitAngleDeg: number;
   /** handle length of the curve as a fraction of the exit->fromRing distance (bigger = wider swing) */
   swing: number;
+  /** handle length at the join (fromRing), same units; default = swing (short = leaves the pose sooner) */
+  joinSwing?: number;
   /** depth of the exit point, world px (+ = towards the camera) */
   zExit: number;
 }
