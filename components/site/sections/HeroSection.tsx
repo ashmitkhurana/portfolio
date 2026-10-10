@@ -1,6 +1,7 @@
 import { DisplayHeading } from "@/components/type/DisplayHeading";
 import { ArrowDown } from "@/components/site/icons";
 import { hero, identity } from "@/data/site-content";
+import { HeroTypeIn } from "@/components/site/HeroTypeIn";
 import "./sections.css";
 
 export function HeroSection() {
@@ -17,11 +18,13 @@ export function HeroSection() {
           id="hero-title"
           size="hero"
           lines={identity.nameLines}
-          // the ribbon weaves BETWEEN the lines: ASHMIT sits behind the crossbar plane, KHURANA in front of it
-          // (depths in cap heights: ASHMIT -0.25 H, KHURANA +0.25 H)
-          depthCap={[-0.25, 0.25]}
+          // per-letter weave (desktop mockup): the whole name sits in front of the ribbon, which threads behind and
+          // between the lines; per-letter runs mean a switch can only ever happen between letters (no mid-glyph cuts).
+          // List glyph indices per line here to put the ribbon in front of specific letters.
+          ribbonFront={[[], []]}
           anchor="hero-name"
         />
+        <HeroTypeIn targetId="hero-title" />
         {/* the tagline always sits in front of the ribbon (very large proxy depth) */}
         <div className="hero__intro" data-ribbon-proxy="" data-ribbon-depth="5000" data-ribbon-pad="6">
           <p className="hero__role">{identity.role}</p>

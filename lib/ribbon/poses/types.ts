@@ -70,6 +70,23 @@ export interface TailSpec {
   zExit: number;
 }
 
+/**
+ * Placement of another variant's sculpture (`from`) for THIS screen class, recomputed per viewport: the source rings
+ * are lifted to 3D with the source context, scaled, placed so the body's screen bbox fits `box` (anchor units
+ * [left, top, right, bottom]) inside the viewport's safe area, and turned so this camera sees the body from the
+ * same direction as the source camera.
+ */
+export interface FitSpec {
+  from: ScreenClass;
+  /** the source variant's layout: view size, anchor rect, fov */
+  ctx: { viewW: number; viewH: number; fov: number; anchor: AnchorRect };
+  box: [number, number, number, number];
+  /** first ring of the body (rings before it, the tail, do not drive the fit) */
+  bodyFrom: number;
+  /** safe area, css px: [left, top, right margin, bottom fraction of the view height] */
+  safe?: [number, number, number, number];
+}
+
 export interface PoseVariant {
   points: PosePoint[];
   /**
@@ -81,6 +98,8 @@ export interface PoseVariant {
   faceSign?: 1 | -1;
   /** ruled: rebuild the leading end per viewport so it leaves the screen at the bottom (see resolve.ts steerTail) */
   tail?: TailSpec;
+  /** responsive placement of another variant's sculpture (see FitSpec) */
+  fit?: FitSpec;
   /** centreline through the points: `catmull` (default, interpolating) or `bspline` (C2, approximating) */
   spline?: "catmull" | "bspline";
   /**

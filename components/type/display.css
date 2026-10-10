@@ -49,3 +49,12 @@
 .glyph {
   display: inline;
 }
+
+/* hero type-in (HeroTypeIn): glyphs stay hidden until the ribbon's intro reaches them */
+.display[data-typing="on"] .glyph {
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+.display[data-typing="on"] .glyph.is-typed {
+  opacity: 1;
+}

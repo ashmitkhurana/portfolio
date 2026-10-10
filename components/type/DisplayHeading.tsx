@@ -34,6 +34,18 @@ function widthEm(line: string, i: 0 | 1): number {
   return w;
 }
 
+/** split a line into runs of glyphs with the same weave decision (spaces join the previous run) */
+function weaveRuns(line: string, front: readonly number[]): { text: string; front: boolean }[] {
+  const runs: { text: string; front: boolean }[] = [];
+  let g = 0;
+  for (const ch of Array.from(line)) {
+    const f = ch === " " ? (runs.length ? runs[runs.length - 1].front : false) : front.includes(g++);
+    if (runs.length && runs[runs.length - 1].front === f) runs[runs.length - 1].text += ch;
+    else runs.push({ text: ch, front: f });
+  }
+  return runs;
+}
+
 export type DisplaySize = "hero" | "xl" | "l" | "m";
 
 export interface DisplayHeadingProps {
@@ -51,6 +63,12 @@ export interface DisplayHeadingProps {
    * multiplies, so the plane depths scale with the type at every viewport. Wins over `depth` for the lines it covers.
    */
   depthCap?: readonly number[];
+  /**
+   * Per-letter weave: for each line, the glyph indices (spaces excluded) where the ribbon passes IN FRONT of the type.
+   * Every other glyph sits in front of the ribbon. Consecutive glyphs with the same decision share one proxy (a run),
+   * so the front/behind switch can only happen between letters, never inside a glyph. Wins over `depth` / `depthCap`.
+   */
+  ribbonFront?: readonly (readonly number[])[];
   /** ribbon proxy corner radius in px */
   radius?: number;
   /**
@@ -80,6 +98,7 @@ export function DisplayHeading({
   proxy = true,
   depth = 0,
   depthCap,
+  ribbonFront,
   radius,
   anchor,
   className,
@@ -100,7 +119,21 @@ export function DisplayHeading({
       }
       aria-label={lines.join(" ")}
     >
-      {lines.map((line, i) => (
+      {lines.map((line, i) => ribbonFront ? (
+        <span key={`${line}-${i}`} className="display__line" aria-hidden="true">
+          {weaveRuns(line, ribbonFront[i] ?? []).map((run, r) => (
+            <span
+              key={r}
+              className="display__run"
+              data-ribbon-proxy=""
+              data-ribbon-depth={run.front ? -5000 : 5000}
+              {...(radius !== undefined ? { "data-ribbon-radius": radius } : {})}
+            >
+              {Array.from(run.text).map((ch, j) => (ch === " " ? " " : <span key={j} className="glyph">{ch}</span>))}
+            </span>
+          ))}
+        </span>
+      ) : (
         <span
           key={`${line}-${i}`}
           className="display__line"

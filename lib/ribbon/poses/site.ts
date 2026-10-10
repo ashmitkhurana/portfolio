@@ -5,8 +5,9 @@
 import type { RibbonPose } from "../types";
 import { findAnchor, measureAnchor } from "./anchors";
 import { loadPose, parsePoseFile } from "./index";
-import { resolvePose, resolveRuled, screenClassFor, steerTail, variantFor } from "./resolve";
-import type { AnchorRect } from "./types";
+import { fitRuled, resolvePose, resolveRuled, screenClassFor, steerTail, variantFor } from "./resolve";
+import type { AnchorRect, PoseFile, PoseVariant, RuledRing } from "./types";
+import type { ResolveContext } from "./resolve";
 
 /**
  * QA only (scripts/render-pose.mjs): a build with NEXT_PUBLIC_POSE_OVERRIDE set reads the pose from
@@ -33,6 +34,14 @@ export interface ResolvedNamedPose {
   signature: string;
 }
 
+/** ruled rings for this layout: fitted from another variant (FitSpec) and/or with a responsive tail (TailSpec) */
+function placeRuled(file: PoseFile, variant: PoseVariant, ctx: ResolveContext): RuledRing[] {
+  let rings: RuledRing[] = variant.ruled ?? [];
+  const src = variant.fit ? file.variants[variant.fit.from]?.ruled : undefined;
+  if (variant.fit && src && src.length >= 2) rings = fitRuled(src, ctx, variant.fit);
+  return variant.tail ? steerTail(rings, ctx, variant.tail) : rings;
+}
+
 /** Resolve an authored pose for the current layout, or null when it cannot be (no anchor on this page). */
 export function resolveNamedPose(name: string, e: PoseTarget): ResolvedNamedPose | null {
   let file;
@@ -50,7 +59,7 @@ export function resolveNamedPose(name: string, e: PoseTarget): ResolvedNamedPose
   if (!variant) return null;
   const ctx = { viewW: e.width, viewH: e.height, anchor, fov: e.settings.camera.fov };
   const pose = variant.ruled
-    ? resolveRuled(variant.tail ? steerTail(variant.ruled, ctx, variant.tail) : variant.ruled, ctx, e.sim.count, variant.faceSign ?? 1)
+    ? resolveRuled(placeRuled(file, variant, ctx), ctx, e.sim.count, variant.faceSign ?? 1)
     : resolvePose(variant.points, ctx, e.sim.count, file.orientation ?? "curvature", variant.spline ?? "catmull", variant.spans);
   const r = (v: number) => Math.round(v * 2) / 2;
   const signature = [e.width, e.height, r(anchor.left), r(anchor.top), r(anchor.width), r(anchor.height)].join(",");

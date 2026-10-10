@@ -9,7 +9,7 @@ import { RibbonCurve, type SplineKind } from "../frames";
 import type { FoldSpec } from "../fold";
 import type { HairpinSpec, RibbonPose } from "../types";
 import { DEFAULT_FOV, cameraDistance } from "./camera";
-import type { AnchorRect, PoseFile, PosePoint, PoseVariant, RuledRing, ScreenClass, TailSpec } from "./types";
+import type { AnchorRect, FitSpec, PoseFile, PosePoint, PoseVariant, RuledRing, ScreenClass, TailSpec } from "./types";
 
 /** phone < 768, tablet 768-1099, desktop 1100-2199, ultrawide >= 2200 (the CSS screen classes) */
 export function screenClassFor(viewW: number): ScreenClass {
@@ -192,6 +192,103 @@ export function resolvePose(
  * `count` control points are chosen along the centreline with density rising with turning x width (the
  * hairpins keep their shape), each carrying B and half width; the geometry interpolates those to its rings.
  */
+/**
+ * Responsive placement (see FitSpec): the source sculpture keeps its 3D shape; it is scaled uniformly, placed so the
+ * body's projected bbox fits the target box (anchor units, clipped to the safe area, aspect kept, right-aligned when
+ * it has to shrink) and rotated so this camera sees the body from the source camera's direction.
+ */
+export function fitRuled(src: readonly RuledRing[], ctx: ResolveContext, fit: FitSpec): RuledRing[] {
+  const n = src.length;
+  const sctx: ResolveContext = { viewW: fit.ctx.viewW, viewH: fit.ctx.viewH, anchor: fit.ctx.anchor, fov: fit.ctx.fov };
+  const Dp = cameraDistance(sctx.viewH, sctx.fov ?? DEFAULT_FOV);
+  const Dd = cameraDistance(ctx.viewH, ctx.fov ?? DEFAULT_FOV);
+  const t3: [number, number, number] = [0, 0, 0];
+  const W = new Float64Array(n * 6);
+  for (let i = 0; i < n; i++) {
+    pointToWorld({ x: src[i].L[0], y: src[i].L[1], z: src[i].L[2] } as PosePoint, sctx, t3);
+    W[i * 6] = t3[0]; W[i * 6 + 1] = t3[1]; W[i * 6 + 2] = t3[2];
+    pointToWorld({ x: src[i].R[0], y: src[i].R[1], z: src[i].R[2] } as PosePoint, sctx, t3);
+    W[i * 6 + 3] = t3[0]; W[i * 6 + 4] = t3[1]; W[i * 6 + 5] = t3[2];
+  }
+  const b0 = Math.max(0, Math.min(n - 2, Math.round(fit.bodyFrom)));
+  let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = b0; i < n; i++) for (let e = 0; e < 2; e++) for (let q = 0; q < 3; q++) {
+    const v = W[i * 6 + e * 3 + q]; if (v < mn[q]) mn[q] = v; if (v > mx[q]) mx[q] = v;
+  }
+  const Pc = [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2];
+  const dirP = (() => { const v = [Pc[0], Pc[1], Pc[2] - Dp]; const m = Math.hypot(v[0], v[1], v[2]); return [v[0] / m, v[1] / m, v[2] / m]; })();
+  // target box in screen px, clipped to the safe area keeping its aspect (right-aligned, vertically centred)
+  const A = ctx.anchor;
+  const [sl, st, sr, sb] = fit.safe ?? [16, 72, 24, 0.97];
+  let bx0 = A.left + fit.box[0] * A.width, by0 = A.top + fit.box[1] * A.height;
+  let bx1 = A.left + fit.box[2] * A.width, by1 = A.top + fit.box[3] * A.height;
+  const sx0 = sl, sy0 = st, sx1 = ctx.viewW - sr, sy1 = ctx.viewH * sb;
+  const f0 = Math.min(1, (sx1 - sx0) / (bx1 - bx0), (sy1 - sy0) / (by1 - by0));
+  if (f0 < 1) {
+    const w = (bx1 - bx0) * f0, h = (by1 - by0) * f0, cy = (by0 + by1) / 2;
+    bx1 = Math.min(bx1, sx1); bx0 = bx1 - w; by0 = cy - h / 2; by1 = cy + h / 2;
+  }
+  if (bx1 > sx1) { bx0 -= bx1 - sx1; bx1 = sx1; }
+  if (by0 < sy0) { by1 += sy0 - by0; by0 = sy0; }
+  if (by1 > sy1) { by0 -= by1 - sy1; by1 = sy1; }
+  const bw = bx1 - bx0, bh = by1 - by0;
+  let k = 1, cxs = (bx0 + bx1) / 2, cys = (by0 + by1) / 2;
+  const out = new Float64Array(n * 6);
+  const xform = () => {
+    const zt = k * Pc[2];
+    const kk = (Dd - zt) / Dd;
+    const T = [(cxs - ctx.viewW / 2) * kk, (ctx.viewH / 2 - cys) * kk, zt];
+    const dv = [T[0], T[1], T[2] - Dd];
+    const dm = Math.hypot(dv[0], dv[1], dv[2]);
+    const dd = [dv[0] / dm, dv[1] / dm, dv[2] / dm];
+    const v = [dirP[1] * dd[2] - dirP[2] * dd[1], dirP[2] * dd[0] - dirP[0] * dd[2], dirP[0] * dd[1] - dirP[1] * dd[0]];
+    const sn = Math.hypot(v[0], v[1], v[2]), cs = dirP[0] * dd[0] + dirP[1] * dd[1] + dirP[2] * dd[2];
+    // Rodrigues matrix rotating dirP onto dd
+    let R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    if (sn > 1e-9) {
+      const kx = v[0] / sn, ky = v[1] / sn, kz = v[2] / sn, c = cs, s = sn, C = 1 - c;
+      R = [c + kx * kx * C, kx * ky * C - kz * s, kx * kz * C + ky * s,
+           ky * kx * C + kz * s, c + ky * ky * C, ky * kz * C - kx * s,
+           kz * kx * C - ky * s, kz * ky * C + kx * s, c + kz * kz * C];
+    }
+    for (let i = 0; i < n * 2; i++) {
+      const x = k * (W[i * 3] - Pc[0]), y = k * (W[i * 3 + 1] - Pc[1]), z = k * (W[i * 3 + 2] - Pc[2]);
+      out[i * 3] = T[0] + R[0] * x + R[1] * y + R[2] * z;
+      out[i * 3 + 1] = T[1] + R[3] * x + R[4] * y + R[5] * z;
+      out[i * 3 + 2] = T[2] + R[6] * x + R[7] * y + R[8] * z;
+    }
+  };
+  const bbox = () => {
+    let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+    for (let i = b0 * 2; i < n * 2; i++) {
+      const z = out[i * 3 + 2], kz = Dd / Math.max(Dd - z, 1);
+      const x = ctx.viewW / 2 + out[i * 3] * kz, y = ctx.viewH / 2 - out[i * 3 + 1] * kz;
+      if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y;
+    }
+    return [l, t, r, b];
+  };
+  // initial scale from the source's projected body size
+  { const ks = Dp / Math.max(Dp - Pc[2], 1); const sw = (mx[0] - mn[0]) * ks, sh = (mx[1] - mn[1]) * ks; k = Math.min(bw / sw, bh / sh) * (Dp / Dd); }
+  for (let it = 0; it < 8; it++) {
+    xform();
+    const [l, t, r, b] = bbox();
+    k *= Math.min(bw / (r - l), bh / (b - t));
+    xform();
+    const [l2, t2, r2, b2] = bbox();
+    // right-align horizontally (the sculpture hugs the right side of its box), centre vertically
+    cxs += bx1 - r2;
+    cys += (by0 + by1) / 2 - (t2 + b2) / 2;
+  }
+  xform();
+  const res: RuledRing[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const Lp = worldToPoint(out[i * 6], out[i * 6 + 1], out[i * 6 + 2], ctx);
+    const Rp = worldToPoint(out[i * 6 + 3], out[i * 6 + 4], out[i * 6 + 5], ctx);
+    res[i] = { L: [Lp.x, Lp.y, Lp.z], R: [Rp.x, Rp.y, Rp.z] };
+  }
+  return res;
+}
+
 /**
  * Responsive leading end (see TailSpec): rings 0..fromRing are rebuilt for THIS viewport as a cubic Bezier in world
  * space from an exit point just below the bottom edge (the band's right edge at `rightEdgeX` of the width) to ring
