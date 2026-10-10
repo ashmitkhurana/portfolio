@@ -1,0 +1,121 @@
+{
+ "note": "N11 = N10 with gradual seams: straight-leg blends 25 rings, apex-shoulder smoothing patch 445-525 with 20-ring blend, band-angle smoothing sigma 4. Band-angle smoothing only at seams; shoulder patch 440-560.",
+ "smooth_lambda": 300000,
+ "straight_legs": [
+  [
+   385,
+   455
+  ],
+  [
+   552,
+   640
+  ]
+ ],
+ "turns": [
+  {
+   "name": "S",
+   "a": 115,
+   "b": 215,
+   "c": 165,
+   "d_deg": -119.6,
+   "alpha_deg": 71.5,
+   "z0": 186.7
+  },
+  {
+   "name": "F",
+   "a": 340,
+   "b": 385,
+   "c": 360,
+   "d_deg": -119.8,
+   "alpha_deg": 59.7,
+   "z0": -2.9
+  },
+  {
+   "name": "A",
+   "a": 472,
+   "b": 550,
+   "c": 515,
+   "d_deg": -178.9,
+   "alpha_deg": 63.2,
+   "z0": -48.2,
+   "pitch": 0.29
+  },
+  {
+   "name": "BK",
+   "a": 650,
+   "b": 790,
+   "c": 740,
+   "d_deg": 141.3,
+   "alpha_deg": 51.3,
+   "z0": 31.3,
+   "pitch": -0.612
+  },
+  {
+   "name": "W",
+   "a": 895,
+   "b": 1010,
+   "c": 960,
+   "d_deg": 126.3,
+   "alpha_deg": 55.5,
+   "z0": -61.4,
+   "pitch": 0.566
+  },
+  {
+   "name": "TK",
+   "a": 1150,
+   "b": 1250,
+   "c": 1195,
+   "d_deg": 64.7,
+   "alpha_deg": 63.5,
+   "z0": 7.7,
+   "pitch": -0.05
+  }
+ ],
+ "anchors": [
+  [
+   0,
+   260
+  ],
+  [
+   100,
+   260
+  ],
+  [
+   852,
+   -65.5
+  ],
+  [
+   1075,
+   6.9
+  ],
+  [
+   1298,
+   -65
+  ]
+ ],
+ "flip": {
+  "4": 0,
+  "5": 0
+ },
+ "z_smooth_sigma": 14,
+ "T_smooth_sigma": 3,
+ "b_smooth_sigma": 1.5,
+ "half_width": 25.5,
+ "local_smooth": [
+  [
+   440,
+   570,
+   6
+  ]
+ ],
+ "leg_blend": 25,
+ "local_smooth_blend": 20,
+ "theta_smooth_sigma": 4,
+ "arc": [
+  [
+   456,
+   552
+  ]
+ ],
+ "arc_fill": 0.95
+}

@@ -1,0 +1,47 @@
+arc 456..552: radius 24.2 px, turn 139.1 deg, fill 0.95
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=260.224 c=188.239 b=101.194
+turn F: z_final a=42.356 c=0.989 b=-43.526
+turn A: z_final a=-110.389 c=-47.840 b=12.898
+turn BK: z_final a=75.717 c=25.496 b=-22.638
+turn W: z_final a=-17.183 c=-65.020 b=-80.309
+turn TK: z_final a=43.187 c=8.078 b=-63.702
+link 0-114: z_final first=260.000 last=260.624
+link 216-339: z_final first=99.682 last=43.960
+link 386-471: z_final first=-44.868 last=-110.766
+link 551-649: z_final first=14.110 last=76.272
+link 791-894: z_final first=-23.997 last=-17.643
+link 1011-1149: z_final first=-79.277 last=43.111
+link 1251-1298: z_final first=-64.706 last=-66.437
+twist S->F: 16.71 deg, n=0
+twist F->A: -10.81 deg, n=0
+twist A->BK: -12.99 deg, n=0
+twist BK->W: -10.35 deg, n=0
+twist W->TK: 14.20 deg, n=0
+face runs: 0-154 A; 155-202 ~; 203-353 B; 354-361 ~; 362-509 A; 510-527 ~; 528-731 B; 732-736 ~; 737-935 A; 936-962 ~; 963-1184 B; 1185-1202 ~; 1203-1298 A
+segment tail->S A [0,186]: match 1.0000 (152/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 1.0000 (121/121)
+segment return to junction + crossbar B [724,925]: match 0.0000 (0/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 1.0000 (143/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 3760 of 25769
+  pair 867 1083 gap -83.243
+  pair 867 1082 gap -82.238
+  pair 867 1081 gap -81.206
+  pair 868 1082 gap -81.115
+  pair 867 1080 gap -80.144
+  pair 868 1081 gap -80.082
+  pair 867 1079 gap -79.055
+  pair 868 1080 gap -79.021
+  pair 867 1078 gap -77.938
+  pair 868 1079 gap -77.931
+  pair 869 1080 gap -77.883
+  pair 868 1078 gap -76.814
+  pair 869 1079 gap -76.793
+  pair 867 1077 gap -76.793
+  pair 869 1078 gap -75.676
+b angle change per ring: max 2.511 deg at ring 734->735
+10 largest: 734:2.511; 735:2.507; 733:2.501; 736:2.490; 732:2.479; 737:2.460; 731:2.446; 738:2.418; 730:2.404; 739:2.365

@@ -80,6 +80,68 @@ if not rt < 1e-6:
     stop("step 2 round-trip error %g >= 1e-6" % rt)
 
 # 3. turn depths
+# circular-arc replacement (config "arc": [[a, b], ...]): straight - arc - straight, tangent to the path at a and b,
+# rings re-spaced evenly by arclength inside the window (G1 joins; local_smooth can soften them)
+for a_, b_ in cfg.get("arc", []):
+    ta = ss[a_] - ss[a_ - 4]; ta /= np.linalg.norm(ta)
+    tb = ss[b_ + 4] - ss[b_]; tb /= np.linalg.norm(tb)
+    A_ = np.array([[ta[0], -tb[0]], [ta[1], -tb[1]]])
+    st = np.linalg.solve(A_, ss[b_] - ss[a_])
+    X = ss[a_] + st[0] * ta
+    th = np.arccos(np.clip(ta @ tb, -1, 1))
+    dmax = min(np.linalg.norm(X - ss[a_]), np.linalg.norm(X - ss[b_])) * float(cfg.get("arc_fill", 0.95))
+    r_ = dmax / np.tan(th / 2)
+    P1 = X - dmax * ta; P2 = X + dmax * tb
+    nrm = np.array([-ta[1], ta[0]])
+    if nrm @ (tb - ta) < 0: nrm = -nrm
+    C_ = P1 + nrm * r_
+    a1 = np.arctan2(*(P1 - C_)[::-1]); a2 = np.arctan2(*(P2 - C_)[::-1])
+    da = (a2 - a1 + np.pi) % (2 * np.pi) - np.pi
+    pts = [ss[a_] + (P1 - ss[a_]) * t for t in np.linspace(0, 1, 60)[:-1]]
+    pts += [C_ + r_ * np.array([np.cos(a1 + da * t), np.sin(a1 + da * t)]) for t in np.linspace(0, 1, 200)[:-1]]
+    pts += [P2 + (ss[b_] - P2) * t for t in np.linspace(0, 1, 60)]
+    pts = np.array(pts); acc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
+    tq = np.linspace(0, acc[-1], b_ - a_ + 1)
+    ss[a_:b_ + 1] = np.stack([np.interp(tq, acc, pts[:, 0]), np.interp(tq, acc, pts[:, 1])], 1)
+    log("arc %d..%d: radius %.1f px, turn %.1f deg, fill %.2f" % (a_, b_, r_, np.degrees(th), float(cfg.get("arc_fill", 0.95))))
+# circular arc IN THE TURN'S PLANE (config "arc_plane": [[a, b, turn_name], ...]): the 3D curve is an even circle
+for a_, b_, tn_ in cfg.get("arc_plane", []):
+    t_ = [t for t in cfg["turns"] if t["name"] == tn_][0]
+    d_ = math.radians(t_["d_deg"]); al_ = math.radians(t_["alpha_deg"])
+    ax_ = np.array([math.sin(al_) * math.cos(d_), -math.sin(al_) * math.sin(d_), math.cos(al_)])
+    O_ = world(ss[t_["c"]], t_["z0"])
+    def onplane(sxy):
+        z = t_["z0"]
+        for _ in range(4):
+            X = world(sxy, z); z = t_["z0"] - (ax_[0] * (X[0] - O_[0]) + ax_[1] * (X[1] - O_[1])) / ax_[2]
+        return world(sxy, z)
+    u_ = np.cross(ax_, [0, 0, 1.0]); u_ /= np.linalg.norm(u_); v_ = np.cross(ax_, u_)
+    Q = np.array([[(onplane(ss[k]) - O_) @ u_, (onplane(ss[k]) - O_) @ v_] for k in range(a_ - 6, b_ + 7)])
+    qa, qb = Q[6], Q[-7]
+    ta = Q[6] - Q[2]; ta /= np.linalg.norm(ta); tb = Q[-3] - Q[-7]; tb /= np.linalg.norm(tb)
+    st = np.linalg.solve(np.array([[ta[0], -tb[0]], [ta[1], -tb[1]]]), qb - qa)
+    X2 = qa + st[0] * ta
+    th = np.arccos(np.clip(ta @ tb, -1, 1))
+    dmax = min(np.linalg.norm(X2 - qa), np.linalg.norm(X2 - qb)) * float(cfg.get("arc_fill", 0.95))
+    r_ = dmax / np.tan(th / 2)
+    P1 = X2 - dmax * ta; P2 = X2 + dmax * tb
+    nrm = np.array([-ta[1], ta[0]])
+    if nrm @ (tb - ta) < 0: nrm = -nrm
+    C_ = P1 + nrm * r_
+    a1 = math.atan2((P1 - C_)[1], (P1 - C_)[0]); a2 = math.atan2((P2 - C_)[1], (P2 - C_)[0])
+    da = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+    pts = [qa + (P1 - qa) * t for t in np.linspace(0, 1, 60)[:-1]]
+    pts += [C_ + r_ * np.array([math.cos(a1 + da * t), math.sin(a1 + da * t)]) for t in np.linspace(0, 1, 240)[:-1]]
+    pts += [P2 + (qb - P2) * t for t in np.linspace(0, 1, 60)]
+    pts = np.array(pts); acc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))]
+    tq = np.linspace(0, acc[-1], b_ - a_ + 1)
+    q2 = np.stack([np.interp(tq, acc, pts[:, 0]), np.interp(tq, acc, pts[:, 1])], 1)
+    for i_, k in enumerate(range(a_, b_ + 1)):
+        Xw = O_ + q2[i_, 0] * u_ + q2[i_, 1] * v_
+        kz = D / (D - Xw[2])
+        ss[k] = [VW / 2 + Xw[0] * kz, VH / 2 - Xw[1] * kz]
+    t_["pitch"] = 0.0
+    log("arc_plane %d..%d (%s): radius %.1f px in-plane, turn %.1f deg" % (a_, b_, tn_, r_, math.degrees(th)))
 # local extra smoothing of the screen path (config "local_smooth": [[a, b, sigma], ...]), 8-ring smoothstep blend
 for a_, b_, sg_ in cfg.get("local_smooth", []):
     sm_ = np.stack([gaussian_filter1d(ss[:, 0], sg_, mode="nearest"), gaussian_filter1d(ss[:, 1], sg_, mode="nearest")], 1)

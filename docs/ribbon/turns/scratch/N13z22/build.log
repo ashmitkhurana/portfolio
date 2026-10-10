@@ -1,0 +1,46 @@
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=253.548 c=188.709 b=107.303
+turn F: z_final a=35.553 c=2.367 b=-36.737
+turn A: z_final a=-82.600 c=-40.965 b=16.522
+turn BK: z_final a=69.879 c=20.694 b=-18.779
+turn W: z_final a=-23.520 c=-64.531 b=-76.203
+turn TK: z_final a=38.775 c=7.490 b=-57.373
+link 0-114: z_final first=260.000 last=254.154
+link 216-339: z_final first=105.950 last=36.962
+link 386-471: z_final first=-37.982 last=-82.846
+link 551-649: z_final first=17.944 last=70.450
+link 791-894: z_final first=-19.945 last=-23.832
+link 1011-1149: z_final first=-75.475 last=38.858
+link 1251-1298: z_final first=-58.205 last=-67.111
+twist S->F: 16.62 deg, n=0
+twist F->A: -15.23 deg, n=0
+twist A->BK: -12.31 deg, n=0
+twist BK->W: -8.70 deg, n=0
+twist W->TK: 13.96 deg, n=0
+face runs: 0-154 A; 155-200 ~; 201-354 B; 355-361 ~; 362-513 A; 514-527 ~; 528-732 B; 733-736 ~; 737-935 A; 936-961 ~; 962-1184 B; 1185-1203 ~; 1204-1298 A
+segment tail->S A [0,186]: match 1.0000 (152/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 1.0000 (121/121)
+segment return to junction + crossbar B [724,925]: match 0.0000 (0/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 1.0000 (143/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 4036 of 25777
+  pair 867 1083 gap -77.967
+  pair 867 1082 gap -76.985
+  pair 868 1082 gap -76.248
+  pair 867 1081 gap -75.986
+  pair 868 1081 gap -75.249
+  pair 867 1080 gap -74.970
+  pair 868 1080 gap -74.233
+  pair 867 1079 gap -73.938
+  pair 869 1080 gap -73.488
+  pair 868 1079 gap -73.201
+  pair 867 1078 gap -72.890
+  pair 869 1079 gap -72.456
+  pair 868 1078 gap -72.153
+  pair 867 1077 gap -71.826
+  pair 870 1079 gap -71.705
+b angle change per ring: max 4.007 deg at ring 733->734
+10 largest: 733:4.007; 734:4.000; 732:3.971; 735:3.950; 731:3.897; 736:3.862; 730:3.789; 737:3.742; 729:3.656; 738:3.597

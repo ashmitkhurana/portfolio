@@ -1,0 +1,6 @@
+docs/ribbon/turns/scratch/N13d/dump/dump.json: 1500 rings, gap 14.36, skip 60: 638 ring pairs closer than gap
+4 clusters, 0 INTERSECT (<2px)
+  #0 eng i 415-425 x j 1155-1162  min 11.83px at (418,1158)  pairs 63  front=i(i strand)  pose i 385-392 x j 1004-1009
+  #1 eng i 464-483 x j 1071-1091  min 9.96px at (476,1079)  pairs 249  front=j(j strand)  pose i 414-428 x j 929-950
+  #2 eng i 657-680 x j 1284-1294  min 12.64px at (661,1291)  pairs 119  front=i(i strand)  pose i 577-593 x j 1088-1097
+  #3 eng i 992-1007 x j 1233-1248  min 3.35px at (1000,1241)  pairs 207  front=j(j strand)  pose i 860-871 x j 1059-1066

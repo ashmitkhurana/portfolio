@@ -17,8 +17,8 @@ Counts for era 1 combine three sources, marked in the table: `pose.json` on disk
 | 1 | Early methods: curvature frames (`author.py` v0-v28), explicit design surfaces (`surface.py` s0-s18), section fits (`msfit`), whole-ribbon solver runs | 2026-10-06 to 10-08 | **86** | v1-v29 curvature frames, s0-s18 design surfaces, msfit approved sections S, F, A, P |
 | 2 | Rotosurf (`rotosurf.py`): copy the approved 2D trace ring by ring, design only depth, splice approved paper sections | 2026-10-08 to 10-09 04:22 | **95** | r7 (first), r14, r19, r23, r31, r34, r36, r37, r38, r39, r40 (last, rejected by the owner) |
 | 3 | Smooth global fit (`fit3d.py` + `layer.py`): one B-spline ribbon fitted to the trace as a soft target | 2026-10-09 14:38 to 19:45 | **61** | fit0, g2 and h4 (wrinkles gone), k1 and e1 (wrap curl), e4, f3, kk4, rim-line fits rr/rs |
-| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **89** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1-N12 (site hero: N12 = v331) |
-| | **Running total** | | **331** | |
+| 4 | Realism-first: physics and spec first, mockup as a loose guide | 2026-10-09 20:34 to 10-10 | **90** (growing) | R1-R3, F1-F4, T1-T5, V1-V4, W1-W6, X1-X3, Y1-Y6, Z1-Z4, D1-D4, E1-E3, G1-G3, H1-H3, I1-I3, J1-J3, K1-K3, L1-L3, Q50/Q35, P1-P9, S1-S3, X4-X6, scratch/N1-N13 (site hero: N13e = v332) |
+| | **Running total** | | **332** | |
 
 How era 1 splits (86):
 - **29** curvature-frame versions v0-v28: 4 on disk with a pose (`curve/v0`, `v10b`, `v18w0`, `v19c`), **25 from notes**.
@@ -31,7 +31,7 @@ How era 2 splits (95): the r-series ran r0 to r40 (41 numbers). 14 of those numb
 
 Era 3 (61): every top-level `fit/<name>` with a `pose.json`, plus `fit/rim/rr1-rr3` and `rs1-rs2`. Era 4 (39 so far): `real/R1-R3`, `F1-F4`, `T1-T5`, `V1-V4`, `W1-W6`, `X1-X3`, then `Y1-Y6` (v268-v273), `Z1-Z4` (v274-v277), `D1-D4` (v278-v281), `E1-E3` (v282-v284), `G1-G3` (v285-v287), `H1-H3` (v288-v290), `I1-I3` (v291-v293), `J1-J3` (v294-v296), `K1-K3` (v297-v299), `L1-L3` (v300-v302), `Q50`, `Q35` (v303-v304), `P1-P9` (v305-v313; P8 was captioned v308 to the owner by mistake), `X4` (v314... see below), `S1-S3` (v315-v317, polish fits of P4, never shown), `X5` (v318).
 
-**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320, N2 = v321, N3 = v322, N4 = v323, N5 = v324, N6 = v325, N7 = v326, N8 = v327, N9 = v328, N10 = v329, N11 = v330, N12 = v331 (the site hero). The next new version is v332.**
+**Current latest version: `real/X5` = v318 (shown to the owner as v314; X4 = v314 in this numbering would collide, so the tally now reads X4 = v314, S1-S3 = v315-v317, X5 = v318). Baseline: `real/X3` = v267.** **X6 = v319 (the owner: "the best one yet ... some tweaks left"); scratch/N1 = v320, N2 = v321, N3 = v322, N4 = v323, N5 = v324, N6 = v325, N7 = v326, N8 = v327, N9 = v328, N10 = v329, N11 = v330, N12 = v331, N13e = v332 (the site hero). The next new version is v333.**
 
 ### Numbering scheme
 
@@ -320,5 +320,9 @@ Each new round is appended, not rewritten.
 - N11 (v330): the owner spotted a hitch on the A's left leg heading to the apex and on the desktop sweep. Measured edge-curvature jitter found three construction seams on the leg (end of the straight section, the leg-to-apex turn hand-over, the edge of the shoulder smoothing patch) and the tail-to-S join on desktop. Fixes: 25-ring blends at straight-section ends, a wider shoulder patch, band-angle smoothing only at turn/straight seams, and on desktop the rebuilt tail is smoothed across its join with the S. Edge jitter dropped 2-7x; nothing folds back anywhere.
 - Material round 2: a glossy metallic satin reflecting narrow strip lights brought back highlight streaks, but the owner saw the BACK faces lit instead of the front ones, and asked for matte. Final: metalness 0, roughness 0.4, the key just upper-left of the camera, and the engine's depth shading (0.6) so nearer surfaces read brightest. The light exactly at the camera alone looked flat; the depth shading gives the front-to-back falloff.
 - N12 (v331): the apex shoulder hitch, now clearly visible in the glossy render, removed by smoothing both band edges directly over rings 440-530 (sigma 7). Edge jitter there 0.121 -> 0.013, the smoothest part of the ribbon. Intro slowed (spring stiffness 3 -> 1.6).
+- N13e (v332), the owner's four boxed "hitches" (apex left shoulder, desktop sweep join, top-K tip rim, far-left loop): two separate causes, separated by test renders.
+  - Dark bands inside every roll were the baked ambient occlusion at full strength (ao 1, aoSpec 4). Softened to ao 0.45, aoSpec 1.
+  - The apex was not one curve: a 19 px-radius corner at the left shoulder and a ~70 px top. The turn's plane is tilted ~64° from the view, so an even arc on SCREEN becomes a stretched ellipse in 3D with its tight end at the shoulder. Fix: build the arc as an even circle IN THE TURN'S PLANE (`arc_plane`), which projects to an ellipse on screen. The same for the top-K tip (radius 14 -> 31 px). Abrupt normal changes on the ribbon dropped from 2.5° to 1.5° max.
+- Lesson: 'even on screen' is not 'even in 3D'. Judge curvature in the plane the band actually bends in.
 - Lesson: re-check old constraints when the thing they protected changes; the A/B face rule outlived the two-colour material that motivated it.
 - Lesson: when a visual bug survives every shading change, test the renderer's geometry assumptions (culling, winding, depth) directly. One A/B render would have found this days earlier.
