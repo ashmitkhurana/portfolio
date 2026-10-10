@@ -430,3 +430,101 @@ export function buildPortraitSpiral(inp: SpiralInput): SpiralPath {
   void W;
   return { tailPos, tailRuled, pos, ruled, k, yv, sWave: 0, sWaveEnd };
 }
+
+/**
+ * PORTRAIT (owner, final): ONE continuous ribbon, the desktop's look. The hero's tail flows on screen into one long,
+ * gentle curve to the centre, then straight down the middle as the same tilted-plane wave as desktop. No twisting
+ * about the path (rotation-minimizing frame along the curve), eased into the wave's band orientation over half a
+ * wavelength; large radii only, so nothing folds. The ribbon is rigid (it slides along this path).
+ */
+export function buildPortraitFlow(inp: {
+  W: number;
+  H: number;
+  end: { p: [number, number, number]; t: [number, number, number]; b: [number, number, number]; hw: number };
+  ds: number;
+  y2: number;
+  camZ: number;
+  /** the wave: centre x and top y (virtual css px), screen amplitude, wavelength */
+  c: number;
+  top: number;
+  amp: number;
+  lambda: number;
+}): { pos: Float32Array; ruled: Float32Array; k: number } {
+  const { W, H, end, ds, y2, c, top, lambda } = inp;
+  const D = inp.camZ;
+  const hw = end.hw;
+  const tilt = (55 * Math.PI) / 180;
+  const world = (vx: number, vy: number, z = 0): V3 => [vx - W / 2, H / 2 - vy, z];
+  const step = ds / 3;
+  const t1 = norm(end.t);
+  // 1. the connector: a cubic from End 1 (its own direction) to the wave's top centre (heading straight down)
+  const C = world(c, top, 0);
+  const down: V3 = [0, -1, 0];
+  const gap = len(sub(C, end.p));
+  // (a short first handle: following the tail's dive into the screen for long makes the curve fold back)
+  const conn = bezier(end.p, add(end.p, t1, 0.18 * gap), add(C, down, -0.5 * gap), C, 200);
+  // 2. the wave straight down from C (tilted plane, same as desktop), envelope over the first half wavelength
+  const dW = norm([Math.cos(tilt), 0, Math.sin(tilt)]);
+  const amp = inp.amp / Math.cos(tilt);
+  const pts: V3[] = [end.p, ...conn];
+  const nConn = pts.length;
+  for (let s = step; s <= 4 * H; s += step) {
+    const e = smoother(s / (0.5 * lambda));
+    pts.push(add(add(C, down, s), dW, amp * e * Math.sin((2 * Math.PI * s) / lambda)));
+  }
+  // resample at ds
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + len(sub(pts[i], pts[i - 1])));
+  const connLen = cum[nConn - 1];
+  const k = Math.floor(cum[cum.length - 1] / ds) - 1;
+  const pos = new Float32Array(k * 3), ruled = new Float32Array(k * 4);
+  const nW = perp(cross(down, dW), down);
+  let seg = 0;
+  let prevT = t1;
+  let b = perp(end.b, t1);
+  const alphaMax = y2 / D;
+  for (let j = 0; j < k; j++) {
+    const s = (j + 1) * ds;
+    while (seg < cum.length - 2 && cum[seg + 1] < s) seg++;
+    const f = (s - cum[seg]) / (cum[seg + 1] - cum[seg] || 1);
+    const p = add(pts[seg], sub(pts[seg + 1], pts[seg]), f);
+    const t = norm(sub(pts[seg + 1], pts[seg]));
+    // rotation-minimizing transport (no twist about the path)
+    const ax = cross(prevT, t);
+    const sa = len(ax);
+    if (sa > 1e-9) b = rotate(b, norm(ax), Math.atan2(sa, dot(prevT, t)));
+    prevT = t;
+    let bt = perp(b, t);
+    // ease into the wave's band orientation over the connector's last third and the wave's first half wavelength
+    const g = smoother((s - 0.66 * connLen) / (0.34 * connLen + 0.5 * lambda));
+    if (g > 0) {
+      let target = perp(nW, t);
+      if (dot(target, bt) < 0) target = scl(target, -1);
+      bt = norm(add(scl(bt, 1 - g), scl(target, g)));
+    }
+    // view shear (section 2 seen head-on through the lens shift), ramped in slowly along the connector
+    const vy = H / 2 - p[1];
+    const al = alphaMax * smoother((vy - 0.75 * H) / Math.max(1, y2 + 0.45 * H - 0.75 * H));
+    const bs: V3 = [bt[0], bt[1] + al * bt[2], bt[2]];
+    const bl = len(bs);
+    pos[j * 3] = p[0];
+    pos[j * 3 + 1] = p[1] + al * p[2];
+    pos[j * 3 + 2] = p[2];
+    ruled[j * 4] = bs[0] / bl;
+    ruled[j * 4 + 1] = bs[1] / bl;
+    ruled[j * 4 + 2] = bs[2] / bl;
+    ruled[j * 4 + 3] = hw * bl;
+  }
+  return { pos, ruled, k };
+}
+
+/** cubic Bezier sampled densely */
+function bezier(p0: V3, p1: V3, p2: V3, p3: V3, steps: number): V3[] {
+  const out: V3[] = [];
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps, u = 1 - t;
+    const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+    out.push([a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1], a * p0[2] + b * p1[2] + c * p2[2] + d * p3[2]]);
+  }
+  return out;
+}
