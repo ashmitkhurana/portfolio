@@ -157,31 +157,50 @@
   height: 100svh;
 }
 
-/* the statement sits in the top band; the ribbon's wave owns the rest of the screen */
+/* portrait (phones): the first part LEFT of the vertical wave, "One continuous line." RIGHT of it, staggered */
 .unravel__inner {
+  position: relative;
   width: 100%;
-  padding-top: calc(var(--header-h) + clamp(var(--space-s), 6svh, var(--space-2xl)));
+  height: 100%;
 }
 
-.unravel__statement {
-  display: grid;
-  max-width: 18ch;
-  font-size: clamp(2.25rem, 1.2rem + 4.6vw, 6.5rem);
+.unravel__line {
+  position: absolute;
+  width: 38%;
+  font-size: clamp(1.5rem, 7.2vw, 2.4rem);
   font-weight: 600;
   letter-spacing: -0.04em;
-  line-height: 1.02;
-  text-wrap: balance;
+  line-height: 1.04;
 }
 
-.unravel__line + .unravel__line {
+.unravel__line--a {
+  left: var(--gutter);
+  top: 34svh;
+}
+
+.unravel__line--b {
+  right: var(--gutter);
+  top: 60svh;
   color: var(--fg-muted);
 }
 
-/* landscape: one line each, the statement spans the width */
+/* landscape: the first line ABOVE the horizontal wave, "One continuous line." BELOW it */
 @media (min-width: 768px) and (orientation: landscape) {
-  .unravel__statement {
-    max-width: none;
+  .unravel__line {
+    width: auto;
+    max-width: calc(100% - 2 * var(--gutter));
     font-size: min(5.2vw, 9svh, 6.5rem);
+  }
+
+  .unravel__line--a {
+    top: calc(var(--header-h) + clamp(var(--space-s), 5svh, var(--space-2xl)));
+  }
+
+  .unravel__line--b {
+    top: auto;
+    right: auto;
+    left: var(--gutter);
+    bottom: clamp(var(--space-l), 9svh, var(--space-3xl));
   }
 }
 

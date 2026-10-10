@@ -118,9 +118,11 @@ export class ProxyRegistry {
   private measure(): void {
     const sx = window.scrollX;
     const sy = window.scrollY;
+    // portrait screens (phones) may weave differently: data-ribbon-depth-portrait
+    const portrait = !(window.innerWidth >= 768 && window.innerWidth > window.innerHeight);
     this.entries = this.elements.map((el) => {
       const r = el.getBoundingClientRect();
-      let d = parseFloat(el.dataset.ribbonDepth ?? "0");
+      let d = parseFloat((portrait ? el.dataset.ribbonDepthPortrait : undefined) ?? el.dataset.ribbonDepth ?? "0");
       const dc = parseFloat(el.dataset.ribbonDepthCap ?? "");
       if (Number.isFinite(dc)) d = dc * (parseFloat(getComputedStyle(el).fontSize) || 0) * CAP_EM;
       const rad = parseFloat(el.dataset.ribbonRadius ?? "0");

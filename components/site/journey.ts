@@ -15,14 +15,17 @@
  */
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
-import { buildJourneyPath } from "@/lib/ribbon/journeyPath";
+import { buildJourneyPath, type JourneyPath } from "@/lib/ribbon/journeyPath";
+import { buildJourneyPathDesktop, type JourneyPathDesktop } from "@/lib/ribbon/journeyPathDesktop";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
 const CLEAR_MARGIN = 60;
-/** world px the ribbon flows during the free scroll from the hero to section 2, per px of viewport height */
-const TRANSITION_PER_H = 0.5;
-/** world px it keeps flowing across section 2's pin (while the line swells into the wave), per px of viewport height */
-const WAVE_FLOW_PER_H = 0.35;
+/** the head keeps this far down the screen (fraction of the height) while it follows the user */
+const FOLLOW_Y = 0.72;
+/** desktop: world px the ribbon flows during the free scroll from the hero to section 2, per px of viewport height */
+const DESKTOP_TRANSITION_PER_H = 0.6;
+/** portrait: how far (in viewport heights) the head draws on down across section 2's pin */
+const PORTRAIT_PIN_FOLLOW = 0.4;
 
 declare global {
   interface Window {
@@ -73,6 +76,9 @@ export function createJourney(engine: RibbonEngine): () => void {
   let clear = 0;
   let clearKey = "";
   let pathKey = "";
+  let path: JourneyPath | null = null;
+  let pathD: JourneyPathDesktop | null = null;
+  let ymax = new Float32Array(0);
   return () => {
     const sl = engine.sim.slide;
     const pins = readPins();
@@ -103,35 +109,95 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
 
     const unravel = pins.find((p) => p.name === "unravel");
-    let sigma: number;
+    let sigma = ease(hero.p) * clear;
+    let lead = 0;
     if (unravel && clear > 0) {
       const portrait = !(W >= 768 && W > H);
-      // section 2's pin: the line swells into the wave while the ribbon keeps flowing
-      const morph = hero.p < 1 ? 0 : ease(unravel.p);
-      const mq = Math.round(morph * 240) / 240;
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${mq}`;
-      if (pk !== pathKey) {
-        const path = buildJourneyPath({
-          W,
-          H,
-          end: sl.end1(),
-          ds: sl.spacing,
-          y2: unravel.vTop,
-          portrait,
-          camZ: sl.cameraZ,
-          morph: mq,
-        });
-        sl.setHeadPath(path.pos, path.ruled, path.k);
+      const textA = unravel.pin.querySelector<HTMLElement>(".unravel__line--a");
+      const textB = unravel.pin.querySelector<HTMLElement>(".unravel__line--b");
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}`;
+      if (pk !== pathKey && textA && textB) {
+        // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
+        const pinTop = unravel.pin.getBoundingClientRect().top;
+        const ra = textA.getBoundingClientRect(), rb = textB.getBoundingClientRect();
+        const hwS = sl.end1().hw;
+        let wave: { c: number; amp: number; top: number; lambda?: number; crestY?: number };
+        if (!portrait) {
+          // DESKTOP: the approved v335 choreography (off the left edge, back in from the left drawing the wave),
+          // the wave centred between the two text lines
+          const aBottom = unravel.vTop + ra.bottom - pinTop, bTop = unravel.vTop + rb.top - pinTop;
+          pathD = buildJourneyPathDesktop({
+            W,
+            H,
+            end: sl.end1(),
+            ds: sl.spacing,
+            y2: unravel.vTop,
+            sClear: clear,
+            transition: DESKTOP_TRANSITION_PER_H * H,
+            portrait: false,
+            camZ: sl.cameraZ,
+            ribbonLen: sl.length,
+            waveC: (aBottom + bTop) / 2,
+            waveAmp: Math.max(20, Math.min(0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
+          });
+          path = null;
+          sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
+          pathKey = pk;
+          wave = { c: 0, amp: 0, top: 0 };
+        } else {
+          // the crests are phase-locked to the blocks: right of block A (left text), left of block B (right text)
+          const aCy = unravel.vTop + (ra.top + ra.bottom) / 2 - pinTop, bCy = unravel.vTop + (rb.top + rb.bottom) / 2 - pinTop;
+          const lambda = 2 * Math.max(40, bCy - aCy);
+          wave = { c: (ra.right + rb.left) / 2, amp: 0.2 * W, top: aCy - lambda / 4, lambda, crestY: aCy };
+        }
+        if (portrait) {
+          pathD = null;
+          path = buildJourneyPath({ W, H, end: sl.end1(), ds: sl.spacing, y2: unravel.vTop, portrait, camZ: sl.cameraZ, wave });
+          sl.setHeadPath(path.pos, path.ruled, path.k);
+        // running max of each ring's screen height: the head may advance while its path stays above the follow line
+        ymax = new Float32Array(path.k);
+        let m = -Infinity;
+        for (let j = 0; j < path.k; j++) ymax[j] = m = Math.max(m, path.yv[j]);
         pathKey = pk;
+        }
       }
-      const flow = TRANSITION_PER_H * H;
-      if (hero.p < 1) sigma = ease(hero.p) * clear;
-      else if (unravel.p <= 0) sigma = clear + clamp01(V / Math.max(1, unravel.vTop)) * flow;
-      else sigma = clear + flow + ease(unravel.p) * WAVE_FLOW_PER_H * H;
-    } else {
-      sigma = ease(hero.p) * clear;
+      if (pathD && !portrait && hero.p >= 1) {
+        // DESKTOP (v335): a rigid window (head = tail - length): the hero's remaining strand flows down-left off the
+        // edge during the free scroll, the head enters from the left as section 2 pins and draws the wave
+        if (unravel.p <= 0) sigma = clear + clamp01(V / Math.max(1, unravel.vTop)) * (pathD.sEntry - clear);
+        else {
+          const lead0 = clamp01(unravel.p / 0.05);
+          const draw = ease(clamp01((unravel.p - 0.05) / 0.95));
+          sigma = pathD.sEntry + lead0 * (pathD.sVisible - pathD.sEntry) + draw * (pathD.sWaveEnd - pathD.sVisible);
+        }
+      }
+      if (path && portrait && hero.p >= 1) {
+        // the head waits below the hero until the user reaches it, then keeps FOLLOW_Y down the screen as they scroll;
+        // during section 2's pin it keeps drawing (landscape: across the wave by pin progress; portrait: on down)
+        const followArc = (v: number) => {
+          const yLine = v + FOLLOW_Y * H;
+          let lo = 0, hi = path!.k - 1;
+          if (ymax[0] > yLine) return 0;
+          while (hi - lo > 1) {
+            const mid = (lo + hi) >> 1;
+            if (ymax[mid] <= yLine) lo = mid;
+            else hi = mid;
+          }
+          return (lo + 1) * sl.spacing;
+        };
+        if (!portrait) {
+          lead = Math.min(followArc(V), path.sWave);
+          if (unravel.p > 0) lead = path.sWave + ease(unravel.p) * (path.sWaveEnd - path.sWave);
+        } else {
+          lead = Math.min(followArc(V + unravel.p * PORTRAIT_PIN_FOLLOW * H), path.sWaveEnd);
+        }
+        // the ribbon never gets longer than the pose: the tail follows once the head has drawn that much
+        sigma = Math.max(clear, lead);
+      }
     }
     sl.driveTarget = sigma;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma };
+    // desktop: rigid (the head moves with the tail); portrait: the head has its own position
+    sl.driveLead = pathD ? sigma : lead;
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd };
   };
 }

@@ -34,14 +34,22 @@ export interface JourneyPathInput {
   portrait: boolean;
   /** camera distance (world px), for the view shear */
   camZ: number;
-  /** 0 = a straight line, 1 = the full wave */
-  morph: number;
+  /**
+   * where the wave goes (from the section's text boxes): landscape `c` = the wave's centre line (virtual y), portrait
+   * `c` = its centre (virtual x) and `top` = where it starts (virtual y); `amp` = screen amplitude (px)
+   */
+  wave: { c: number; amp: number; top: number; lambda?: number; crestY?: number };
 }
 
 export interface JourneyPath {
   pos: Float32Array;
   ruled: Float32Array;
   k: number;
+  /** per ring: screen y + V (where it appears for any lens shift V), for the head-follows-the-user mapping */
+  yv: Float32Array;
+  /** head arcs: the wave starts / the head leaves the screen at the wave's end */
+  sWave: number;
+  sWaveEnd: number;
 }
 
 type V3 = [number, number, number];
@@ -119,80 +127,101 @@ function arcTurn(P: V3, tIn: V3, tOut: V3, R: number, steps: number) {
 }
 
 export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
-  const { W, H, end, ds, y2, portrait, morph } = inp;
+  const { W, H, end, ds, y2, portrait } = inp;
   const D = inp.camZ;
   const world = (vx: number, vy: number, z = 0): V3 => [vx - W / 2, H / 2 - vy, z];
   const step = ds / 3;
   const tilt = (55 * Math.PI) / 180;
   const hw = end.hw;
   const t1 = norm(end.t);
-  const R = 4.5 * hw; // a graceful curl, never a kink
+  // turn radius: phone 4.5 band widths; desktop 3 (the helical loop also descends ~0.7 R, so a big one would carry
+  // the wave down into the lower text)
+  const R = (portrait ? 4.5 : 3) * hw;
 
-  // where the loop sits, judged ON SCREEN while section 2 is pinned (perspective + the view shear): the strand
-  // runs down until it reaches the line's height (landscape ~ the middle of section 2, portrait just under the
-  // statement) or the left margin, whichever comes first
+  // judged ON SCREEN while section 2 is pinned (perspective + the view shear)
   const alphaMax = y2 / D;
   const scr = (q: V3): [number, number] => {
     const kk = D / Math.max(1, D - q[2]);
     return [W / 2 + q[0] * kk, H / 2 - (q[1] + alphaMax * q[2]) * kk - y2];
   };
-  const lineY = portrait ? 0.34 * H : 0.5 * H;
-  const leftX = portrait ? 0.06 * W + 2 * hw : 0.06 * W;
-  // the turn into the line: landscape a helical half loop (a big turn), portrait a planar arc (a small one)
-  const turn = (P0: V3, tIn: V3, tOut: V3, steps: number) => (portrait ? arcTurn(P0, tIn, tOut, R, steps) : helix(P0, tIn, tOut, R, steps));
-  // the line's direction: landscape +x; portrait toward the lower right of section 2 (refined with the loop's end)
-  const lineDir = (from: V3): V3 => {
-    if (!portrait) return [1, 0, 0];
-    const target = world(0.62 * W, y2 + 1.1 * H, from[2]);
-    return norm([target[0] - from[0], target[1] - from[1], 0]);
-  };
-  // search the strand length so the LOOP'S END (where the line starts) lands at the line's height on screen
-  let e1 = (portrait ? 6 : 8) * hw; // enough strand for a gentle twist into the turn
-  for (; e1 < 4 * H; e1 += step) {
-    const P0 = add(end.p, t1, e1);
-    let to = lineDir(P0);
-    let h0 = turn(P0, t1, to, 24);
-    if (portrait) {
-      to = lineDir(h0.end);
-      h0 = turn(P0, t1, to, 24);
-    }
-    const [x, y] = scr(h0.end);
-    if (y >= lineY || x <= leftX) break;
-  }
-  const Ph = add(end.p, t1, e1);
-  let tOut = lineDir(Ph);
-  let hx = turn(Ph, t1, tOut, 48);
-  for (let it = 0; portrait && it < 3; it++) {
-    tOut = lineDir(hx.end);
-    hx = turn(Ph, t1, tOut, 48);
-  }
-
-  const samples: Sample[] = [{ p: end.p, b: norm(end.b) }];
-  // 1. the strand: twist evenly from End 1's band orientation into the loop's
   const b0 = perp(end.b, t1);
-  // (the strand keeps End 1's orientation; the twist into the turn comes from the smoothing below)
-  for (let s = step; s < e1; s += step) samples.push({ p: add(end.p, t1, s), b: b0 });
-  // 2. the loop
-  for (const q of hx.samples) samples.push(q);
-  // 3. the line (and the wave, by morph), along tOut from the loop's end
-  const L0 = hx.end;
-  const tL = norm(hx.tEnd);
-  // the wave's displacement direction: square to the line, in its screen-plane perpendicular tilted toward the camera
-  const inPlane = perp(cross([0, 0, 1], tL), tL); // screen-plane perpendicular of the line
-  const up = inPlane[1] >= 0 ? inPlane : scl(inPlane, -1);
-  const dW = norm(add(scl(up, Math.cos(tilt)), [0, 0, Math.sin(tilt)]));
+  const samples: Sample[] = [{ p: end.p, b: norm(end.b) }];
+  let lineStart: V3, tL: V3, bL: V3, dW: V3;
+  const amp = inp.wave.amp / Math.cos(tilt);
+  const lambda = inp.wave.lambda ?? (portrait ? 0.36 * H : Math.min(W / 1.75, 1.15 * H));
+  let sWave = 0;
+  let shearRamp = 8 * hw; // the view shear ramps in along the strand leaving End 1
+  if (!portrait) {
+    // landscape: the strand, then a helical half loop that comes out heading right on the wave's centre line
+    const lineY = inp.wave.c - y2;
+    let e1 = 5 * hw; // enough strand for a gentle twist into the loop
+    for (; e1 < 4 * H; e1 += step) {
+      const [x, y] = scr(helix(add(end.p, t1, e1), t1, [1, 0, 0], R, 24).end);
+      if (y >= lineY || x <= 0.06 * W) break;
+    }
+    shearRamp = e1;
+    const Ph = add(end.p, t1, e1);
+    const hx = helix(Ph, t1, [1, 0, 0], R, 48);
+    for (let s = step; s < e1; s += step) samples.push({ p: add(end.p, t1, s), b: b0 });
+    for (const q of hx.samples) samples.push(q);
+    sWave = e1 + polyLen(hx.samples.map((q) => q.p), Ph);
+    lineStart = hx.end;
+    tL = norm(hx.tEnd);
+    bL = hx.bEnd;
+    dW = norm([0, Math.cos(tilt), Math.sin(tilt)]);
+  } else {
+    // portrait: the strand, a turn toward the middle (rising a little toward the camera), a straight run, and a
+    // fillet turn straight down into the vertical wave at its top
+    const e1 = 4 * hw;
+    shearRamp = e1;
+    const Ph = add(end.p, t1, e1);
+    // three pieces, no circular solve: (1) a planar turn from End 1's direction to a fixed steep down-right run
+    // (rising a little toward the camera so the later turn is not bent flat), (2) that run, its length solved in one
+    // step so (3) the short turn to straight down ends exactly on the wave's centre line (x = wave.c)
+    const down: V3 = [0, -1, 0];
+    const R1 = 2.6 * hw; // tight, so it does not swing out toward the left edge
+    const beta = (58 * Math.PI) / 180; // across to the middle first, then down
+    const d1: V3 = norm([Math.sin(beta), -Math.cos(beta), 0.3]);
+    const a1 = arcTurn(Ph, t1, d1, R1, 48);
+    const A1 = a1.end;
+    const dispB = sub(arcTurn([0, 0, 0], d1, down, R, 24).end, [0, 0, 0]);
+    const cx = world(inp.wave.c, 0)[0];
+    // the screen x of the wave's line must be wave.c: perspective at the line's depth
+    const zLine = (Lg: number) => A1[2] + d1[2] * Lg + dispB[2];
+    let legLen = 0;
+    for (let it = 0; it < 8; it++) {
+      const kk = D / Math.max(1, D - zLine(legLen));
+      legLen = Math.max(0, (cx / kk - A1[0] - dispB[0]) / d1[0]);
+    }
+    const F0 = add(A1, d1, legLen);
+    const a2 = arcTurn(F0, d1, down, R, 48);
+    for (let s = step; s < e1; s += step) samples.push({ p: add(end.p, t1, s), b: b0 });
+    for (const q of a1.samples) samples.push(q);
+    for (const q of lineSamples(A1, F0, step)) samples.push({ p: q, b: a1.bEnd });
+    for (const q of a2.samples) samples.push(q);
+    sWave = e1 + polyLen(a1.samples.map((q) => q.p), Ph) + legLen + polyLen(a2.samples.map((q) => q.p), F0);
+    lineStart = a2.end;
+    tL = norm(a2.tEnd);
+    bL = a2.bEnd;
+    dW = norm([Math.cos(tilt), 0, Math.sin(tilt)]);
+  }
+  // the wave along tL from its start: a planar sine in the plane tilted toward the camera, the band's width on that
+  // plane's normal; the envelope and the band's turn into the wave's orientation grow over the first stretch
   const nW = perp(cross(tL, dW), tL);
-  const ampScreen = portrait ? 0.24 * W : 0.15 * H;
-  const amp = (ampScreen / Math.cos(tilt)) * morph;
-  const lambda = portrait ? 0.36 * H : Math.min(W / 1.75, 1.15 * H);
   const lineLen = 2 * (W + H); // well past the screen: the head runs on out of view
-  const bL = hx.bEnd;
   const twist3 = bandTwist(perp(bL, tL), perp(nW, tL), tL);
-  const ramp = 0.6 * lambda; // the band turns to the wave's orientation, and the wave's envelope grows, over this
+  // portrait: phase the sine so a crest (+x, right) sits at wave.crestY (beside the left text block)
+  let phase = 0;
+  if (portrait && inp.wave.crestY !== undefined) {
+    const startVy = scr(lineStart)[1] + y2; // virtual y of the wave's start
+    phase = Math.PI / 2 - (2 * Math.PI * (inp.wave.crestY - startVy)) / lambda;
+  }
+  // (portrait: a quick ramp, the first crest must already be full beside the first text block)
+  const ramp = (portrait ? 0.3 : 0.6) * lambda;
   for (let s = step; s <= lineLen; s += step) {
     const e = smoother(s / ramp);
-    const disp = amp * e * Math.sin((2 * Math.PI * s) / lambda);
-    samples.push({ p: add(add(L0, tL, s), dW, disp), b: rotate(perp(bL, tL), tL, twist3 * e) });
+    const disp = amp * e * Math.sin((2 * Math.PI * s) / lambda + phase);
+    samples.push({ p: add(add(lineStart, tL, s), dW, disp), b: rotate(perp(bL, tL), tL, twist3 * e) });
   }
 
   // one consistent sign for the band's width direction along the whole path (a band's width is defined up to sign;
@@ -250,7 +279,7 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     let b = perp(add(scl(samples[seg].b, 1 - f), scl(samples[seg + 1].b, f)), t);
     if (dot(b, bPrev) < 0) b = scl(b, -1);
     bPrev = b;
-    const al = alphaMax * smoother(sArc / e1);
+    const al = alphaMax * smoother(sArc / shearRamp);
     // shear the point and the band's width vector (same linear map), keep the true half width
     const bs: V3 = [b[0], b[1] + al * b[2], b[2]];
     const bl = len(bs);
@@ -262,5 +291,36 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     ruled[j * 4 + 2] = bs[2] / bl;
     ruled[j * 4 + 3] = hw * bl;
   }
-  return { pos, ruled, k };
+  // per ring: where it shows on screen for lens shift 0 (screen y = yv - V), and where the head leaves the screen
+  const yv = new Float32Array(k);
+  let sWaveEnd = -1;
+  for (let j = 0; j < k; j++) {
+    const z = pos[j * 3 + 2], kk = D / Math.max(1, D - z);
+    yv[j] = H / 2 - pos[j * 3 + 1] * kk;
+    const sArc = (j + 1) * ds;
+    if (sWaveEnd < 0 && sArc > sWave + ds) {
+      const x = W / 2 + pos[j * 3] * kk, ySec = yv[j] - y2;
+      if (portrait ? ySec > H + 2 * hw : x > W + 2 * hw) sWaveEnd = sArc;
+    }
+  }
+  if (sWaveEnd < 0) sWaveEnd = k * ds;
+  return { pos, ruled, k, yv, sWave, sWaveEnd };
+}
+
+function polyLen(pts: V3[], from?: V3): number {
+  let L = 0;
+  let prev = from ?? pts[0];
+  for (const p of pts) {
+    L += len(sub(p, prev));
+    prev = p;
+  }
+  return L;
+}
+
+function lineSamples(a: V3, b: V3, stepLen: number): V3[] {
+  const L = len(sub(b, a));
+  const n = Math.max(1, Math.ceil(L / stepLen));
+  const out: V3[] = [];
+  for (let i = 1; i <= n; i++) out.push(add(a, sub(b, a), i / n));
+  return out;
 }

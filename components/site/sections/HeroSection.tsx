@@ -24,6 +24,8 @@ export function HeroSection() {
             // between the lines; per-letter runs mean a switch can only ever happen between letters (no mid-glyph cuts).
             // List glyph indices per line here to put the ribbon in front of specific letters.
             ribbonFront={[[], []]}
+            // phone: the A's apex rises over KHURANA's U and R and sits in front of them (owner)
+            ribbonFrontPortrait={[[], [2, 3]]}
             anchor="hero-name"
           />
           <HeroTypeIn targetId="hero-title" />

@@ -76,8 +76,17 @@ export class SlideMotion {
   cameraZ = 0;
   /** the sway angle (radians) applied last frame, for debugging */
   swayAngle = 0;
-  /** `driven` mode: the sigma the spring follows (world px) */
+  /** `driven` mode: the sigma the spring follows (world px): it places the TRAILING end (arc L - sigma) */
   driveTarget = 0;
+  /**
+   * `driven` mode: where the HEAD is, as its arc beyond End 1 (world px, >= 0), followed by its own spring. The two
+   * ends move independently once the intro has settled: the tail can unthread off the name while the head waits,
+   * and the head can draw the path ahead while the tail stays (the ribbon never exceeds its pose length: the
+   * journey keeps lead <= sigma). Before that (the intro) the window is rigid: head arc = -sigma.
+   */
+  driveLead = 0;
+  lead = 0;
+  leadVelocity = 0;
   /**
    * css px the ribbon's IMAGE is moved up on screen (it follows its section once that section's pin releases).
    * Applied by the renderer as a camera lens shift, NOT by moving the geometry: a page scroll must move the
@@ -87,7 +96,14 @@ export class SlideMotion {
   offsetY = 0;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
   get animating(): boolean {
-    return this.ready && (!this.introSettled || Math.abs(this.velocity) > 0.05 || Math.abs(this.sigma - this.target) > 0.05);
+    return (
+      this.ready &&
+      (!this.introSettled ||
+        Math.abs(this.velocity) > 0.05 ||
+        Math.abs(this.sigma - this.target) > 0.05 ||
+        Math.abs(this.leadVelocity) > 0.05 ||
+        (this.params.driven && Math.abs(this.lead - this.driveLead) > 0.05))
+    );
   }
 
   readonly outPos: Float32Array;
@@ -355,6 +371,8 @@ export class SlideMotion {
     this.introSettled = false;
     this.sigma = this.params.intro ? -this.length : 0;
     this.target = 0;
+    this.lead = 0;
+    this.leadVelocity = 0;
   }
 
   private settle(): void {
@@ -410,6 +428,7 @@ export class SlideMotion {
     if (this.introSettled) {
       this.target = p.driven ? this.driveTarget : p.scroll ? scrollY * p.scrollK : 0;
       this.integrate(dt, p.scrollStiffness, p.scrollDamping);
+      if (p.driven) this.integrateLead(dt, p.scrollStiffness, p.scrollDamping);
     }
     let sway = 0;
     if (this.introSettled && p.swayDeg > 0) {
@@ -435,6 +454,31 @@ export class SlideMotion {
       this.sigma = this.sigmaMin;
       this.velocity = Math.max(this.velocity, 0);
     }
+  }
+
+  /** the head's own spring (driven mode) */
+  private integrateLead(dt: number, stiffness: number, ratio: number): void {
+    const k = stiffness;
+    const c = 2 * Math.sqrt(k) * ratio;
+    const steps = Math.max(SUBSTEPS, Math.ceil(dt / 0.008));
+    const h = dt / steps;
+    const target = Math.min(Math.max(this.driveLead, 0), this.sigmaMax);
+    for (let s = 0; s < steps; s++) {
+      this.leadVelocity += (k * (target - this.lead) - c * this.leadVelocity) * h;
+      this.lead += this.leadVelocity * h;
+    }
+    if (this.lead < 0) {
+      this.lead = 0;
+      this.leadVelocity = Math.max(this.leadVelocity, 0);
+    } else if (this.lead > this.sigmaMax) {
+      this.lead = this.sigmaMax;
+      this.leadVelocity = Math.min(this.leadVelocity, 0);
+    }
+  }
+
+  /** arc of the head (ring 0): rigid window before the intro settles / outside driven mode, else the lead */
+  private headArc(): number {
+    return this.params.driven && this.introSettled ? -this.lead : -this.sigma;
   }
 
   /** window sigma -> rings (+ optional rigid rotation about z through the pose centroid) */
@@ -475,15 +519,17 @@ export class SlideMotion {
 
   private composeWindow(sway: number): void {
     const n = this.count;
-    if (this.sigma === 0) {
+    if (this.sigma === 0 && this.headArc() === 0) {
       // exactly the pose
       this.outPos.set(this.poseCtr);
       this.outRuled.set(this.poseRuled);
     } else {
-      const aS = -this.sigma; // arc of ring 0
+      const aS = this.headArc(); // arc of ring 0 (the head)
+      // the trailing end; at least 4 ring spacings after the head
+      const aT = Math.max(this.length - this.sigma, aS + (4 * this.length) / (n - 1));
       const wAt = (a: number) => this.weightAt((a - this.fa0) / this.fds);
       const w0 = wAt(aS);
-      const w1 = wAt(aS + this.length);
+      const w1 = wAt(aT);
       let lo = 0;
       for (let k = 0; k < n; k++) {
         const w = w0 + ((w1 - w0) * k) / (n - 1);

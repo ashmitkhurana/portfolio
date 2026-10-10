@@ -35,13 +35,27 @@ function widthEm(line: string, i: 0 | 1): number {
 }
 
 /** split a line into runs of glyphs with the same weave decision (spaces join the previous run) */
-function weaveRuns(line: string, front: readonly number[]): { text: string; front: boolean }[] {
-  const runs: { text: string; front: boolean }[] = [];
+/** runs of letters with the same weave (landscape `front`, portrait `frontP`); a run never splits a letter */
+function weaveRuns(
+  line: string,
+  front: readonly number[],
+  frontP: readonly number[] | null,
+): { text: string; front: boolean; frontP: boolean }[] {
+  const runs: { text: string; front: boolean; frontP: boolean }[] = [];
   let g = 0;
   for (const ch of Array.from(line)) {
-    const f = ch === " " ? (runs.length ? runs[runs.length - 1].front : false) : front.includes(g++);
-    if (runs.length && runs[runs.length - 1].front === f) runs[runs.length - 1].text += ch;
-    else runs.push({ text: ch, front: f });
+    const last = runs[runs.length - 1];
+    let f: boolean, fp: boolean;
+    if (ch === " ") {
+      f = last ? last.front : false;
+      fp = last ? last.frontP : false;
+    } else {
+      f = front.includes(g);
+      fp = frontP ? frontP.includes(g) : f;
+      g++;
+    }
+    if (last && last.front === f && last.frontP === fp) last.text += ch;
+    else runs.push({ text: ch, front: f, frontP: fp });
   }
   return runs;
 }
@@ -69,6 +83,8 @@ export interface DisplayHeadingProps {
    * so the front/behind switch can only happen between letters, never inside a glyph. Wins over `depth` / `depthCap`.
    */
   ribbonFront?: readonly (readonly number[])[];
+  /** the same for portrait screens (phones): glyph indices per line where the ribbon passes in FRONT; default = ribbonFront */
+  ribbonFrontPortrait?: readonly (readonly number[])[];
   /** ribbon proxy corner radius in px */
   radius?: number;
   /**
@@ -99,6 +115,7 @@ export function DisplayHeading({
   depth = 0,
   depthCap,
   ribbonFront,
+  ribbonFrontPortrait,
   radius,
   anchor,
   className,
@@ -121,12 +138,13 @@ export function DisplayHeading({
     >
       {lines.map((line, i) => ribbonFront ? (
         <span key={`${line}-${i}`} className="display__line" aria-hidden="true">
-          {weaveRuns(line, ribbonFront[i] ?? []).map((run, r) => (
+          {weaveRuns(line, ribbonFront[i] ?? [], ribbonFrontPortrait ? (ribbonFrontPortrait[i] ?? []) : null).map((run, r) => (
             <span
               key={r}
               className="display__run"
               data-ribbon-proxy=""
               data-ribbon-depth={run.front ? -5000 : 5000}
+              data-ribbon-depth-portrait={run.frontP ? -5000 : 5000}
               {...(radius !== undefined ? { "data-ribbon-radius": radius } : {})}
             >
               {Array.from(run.text).map((ch, j) => (ch === " " ? " " : <span key={j} className="glyph">{ch}</span>))}
