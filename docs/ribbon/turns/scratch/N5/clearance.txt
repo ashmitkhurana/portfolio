@@ -1,0 +1,5 @@
+docs/ribbon/turns/scratch/N5/dump/dump.json: 1500 rings, gap 14.36, skip 60: 821 ring pairs closer than gap
+3 clusters, 2 INTERSECT (<2px)
+  #0 eng i 457-488 x j 1068-1090  min 5.49px at (480,1077)  pairs 389  front=j(j strand)  pose i 409-432 x j 928-949
+  #1 eng i 675-695 x j 1280-1291  min 1.58px at (684,1283)  pairs 186  front=i(i strand)  pose i 590-607 x j 1083-1092  INTERSECT
+  #2 eng i 983-1000 x j 1238-1255  min 0.79px at (992,1247)  pairs 246  front=j(j strand)  pose i 856-868 x j 1060-1068  INTERSECT

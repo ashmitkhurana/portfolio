@@ -1,0 +1,46 @@
+X3 round-trip max error: 1.137e-13
+RMS of ss vs sc before straightening (px): 3.4932
+turn S: z_final a=261.348 c=189.281 b=94.234
+turn F: z_final a=46.672 c=-9.813 b=-41.648
+turn A: z_final a=-95.492 c=-55.273 b=15.578
+turn BK: z_final a=42.654 c=30.653 b=-24.200
+turn W: z_final a=-8.695 c=-62.781 b=-90.823
+turn TK: z_final a=37.400 c=4.675 b=-67.430
+link 0-114: z_final first=260.000 last=261.426
+link 216-339: z_final first=92.582 last=48.824
+link 386-471: z_final first=-42.381 last=-95.606
+link 551-649: z_final first=16.926 last=43.171
+link 791-894: z_final first=-25.623 last=-9.222
+link 1011-1149: z_final first=-89.547 last=37.039
+link 1251-1298: z_final first=-68.525 last=-65.566
+twist S->F: 6.98 deg, n=0
+twist F->A: -5.96 deg, n=0
+twist A->BK: -9.23 deg, n=0
+twist BK->W: 165.24 deg, n=0
+twist W->TK: 191.46 deg, n=1
+face runs: 0-157 A; 158-207 ~; 208-349 B; 350-357 ~; 358-514 A; 515-528 ~; 529-728 B; 729-735 ~; 736-834 A; 835-837 ~; 838-935 B; 936-964 ~; 965-1085 A; 1086-1087 ~; 1088-1184 B; 1185-1202 ~; 1203-1298 A
+segment tail->S A [0,186]: match 1.0000 (152/152)
+segment after S through the sweep B [194,354]: match 1.0000 (141/141)
+segment left leg A [366,513]: match 1.0000 (115/115)
+segment right leg B [528,672]: match 1.0000 (121/121)
+segment return to junction + crossbar B [724,925]: match 0.4675 (79/169)
+segment return strand after the wrap + top-K front B [1015,1177]: match 0.5664 (81/143)
+segment after top-K tip through the end strand A [1193,1298]: match 1.0000 (96/96)
+over/under pairs with gap<0: 4134 of 25753
+  pair 867 1083 gap -74.348
+  pair 867 1082 gap -71.257
+  pair 868 1082 gap -69.872
+  pair 867 1081 gap -67.846
+  pair 868 1081 gap -66.461
+  pair 867 1080 gap -64.284
+  pair 868 1080 gap -62.898
+  pair 869 1080 gap -61.510
+  pair 867 1079 gap -60.735
+  pair 867 1075 gap -60.450
+  pair 867 1076 gap -60.419
+  pair 867 1077 gap -60.003
+  pair 868 1079 gap -59.349
+  pair 867 1078 gap -59.211
+  pair 868 1075 gap -59.065
+b angle change per ring: max 11.890 deg at ring 1083->1084
+10 largest: 1083:11.890; 1082:11.786; 1084:11.777; 1081:11.465; 1085:11.447; 1080:10.935; 1086:10.908; 1079:10.208; 1087:10.171; 1078:9.304

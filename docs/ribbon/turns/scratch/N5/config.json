@@ -1,0 +1,114 @@
+{
+ "note": "N5: N4 solver + visible-width objective (>=0.85 straights, >=0.6 turns). scripts/curve/scratch/solver/n11opt.py",
+ "smooth_lambda": 300000,
+ "straight_legs": [
+  [
+   385,
+   470
+  ],
+  [
+   552,
+   640
+  ]
+ ],
+ "turns": [
+  {
+   "name": "S",
+   "a": 115,
+   "b": 215,
+   "c": 165,
+   "d_deg": -123.3,
+   "alpha_deg": 72.1,
+   "z0": 188.8
+  },
+  {
+   "name": "F",
+   "a": 340,
+   "b": 385,
+   "c": 360,
+   "d_deg": -137.5,
+   "alpha_deg": 58.3,
+   "z0": -13.5
+  },
+  {
+   "name": "A",
+   "a": 472,
+   "b": 550,
+   "c": 515,
+   "d_deg": 182.0,
+   "alpha_deg": 63.9,
+   "z0": -56.7,
+   "pitch": 0.226
+  },
+  {
+   "name": "BK",
+   "a": 650,
+   "b": 790,
+   "c": 740,
+   "d_deg": 147.8,
+   "alpha_deg": 51.4,
+   "z0": 33.5,
+   "pitch": -0.482
+  },
+  {
+   "name": "W",
+   "a": 895,
+   "b": 1010,
+   "c": 960,
+   "d_deg": 124.3,
+   "alpha_deg": 56.1,
+   "z0": -60.5,
+   "pitch": 0.518
+  },
+  {
+   "name": "TK",
+   "a": 1150,
+   "b": 1250,
+   "c": 1195,
+   "d_deg": 65.2,
+   "alpha_deg": 62.4,
+   "z0": 4.7,
+   "pitch": 0.004
+  }
+ ],
+ "anchors": [
+  [
+   0,
+   260
+  ],
+  [
+   100,
+   260
+  ],
+  [
+   852,
+   -61.5
+  ],
+  [
+   1075,
+   -3.8
+  ],
+  [
+   1298,
+   -65
+  ]
+ ],
+ "hidden": {
+  "4": [
+   826,
+   856
+  ],
+  "5": [
+   1072,
+   1095
+  ]
+ },
+ "flip": {
+  "4": 1,
+  "5": 1
+ },
+ "z_smooth_sigma": 8,
+ "T_smooth_sigma": 3,
+ "b_smooth_sigma": 3,
+ "half_width": 25.5
+}
