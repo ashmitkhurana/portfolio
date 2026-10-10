@@ -36,3 +36,10 @@ Read this file first, then the last sections of `docs/ribbon/JOURNEY.md`. Memory
 2. Start the dev server: preview_start name "site-live" (port 3100). The pose-override build for renders runs on port 4100 (`NEXT_DIST_DIR=.next-ak NEXT_PUBLIC_POSE_OVERRIDE=1 npx next build` then `... next start -p 4100`; `git checkout -- next-env.d.ts tsconfig.json` after building).
 3. Python: `scripts/mockup/.venv/bin/python`. Render a pose: `node scripts/render-pose.mjs --pose <pose.json> --out <dir> --settings '<json>'`.
 4. To change the phone pose: edit a config, run `build_n4.py`, the edgesmooth passes, check `jitter.py` + clearance, then copy rings into `lib/ribbon/poses/ak-hero.json` (keep the desktop `fit` and `tail` blocks; desktop rings are only a fallback), regenerate posters.
+
+## Owner decisions, 2026-10-10 (final guest-pass session)
+- Execution: Opus works end to end itself this session (no subagents).
+- Hero exit timing: hero stays pinned; the ribbon first slides fully off the name (toward the leading end, exiting at the base of the A's left leg); only once the name is clear does the page move on to section 2. Scroll up reverses.
+- Journey end: the ribbon runs the whole page. It pauses at the TERMINAL section; a bar at the bottom right fills as you scroll; when full, the site auto-scrolls to the footer, where the ribbon re-forms the signature AK pose next to "Let's build something together", weaving in and out of that text like the hero.
+- Site polish is in scope: the navbar is transparent and text collides/overlaps under it; the rest of the site needs Apple-level polish.
+- The owner has per-section animation ideas: get them before designing sections 3+.
