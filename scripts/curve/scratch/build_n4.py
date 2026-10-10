@@ -79,6 +79,12 @@ if not rt < 1e-6:
     stop("step 2 round-trip error %g >= 1e-6" % rt)
 
 # 3. turn depths
+# local extra smoothing of the screen path (config "local_smooth": [[a, b, sigma], ...]), 8-ring smoothstep blend
+for a_, b_, sg_ in cfg.get("local_smooth", []):
+    sm_ = np.stack([gaussian_filter1d(ss[:, 0], sg_, mode="nearest"), gaussian_filter1d(ss[:, 1], sg_, mode="nearest")], 1)
+    kk_ = np.arange(N).astype(float)
+    w_ = np.clip(np.minimum(kk_ - a_, b_ - kk_) / 8.0, 0, 1); w_ = w_ * w_ * (3 - 2 * w_)
+    ss = ss * (1 - w_[:, None]) + sm_ * w_[:, None]
 Uf = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(ss, axis=0), axis=1))])
 zt = np.full(N, np.nan)
 turn_ring = np.zeros(N, bool)
