@@ -373,21 +373,36 @@
 
 /* ── 06 contact ────────────────────────────────────────── */
 
+/* the last screen is the contact section + the footer, exactly one viewport: the content is centred between the
+   fixed header and the footer, and the heading takes the height that is left (capped by its usual size).
+   --footer-h and --contact-body-h come from FooterHeight. */
 .contact {
   --section-h: var(--h-contact);
+  --_pad-top: calc(var(--header-h) + min(var(--space-s), 2.5svh));
+  --_pad-bottom: min(var(--space-l), 4svh);
+  --_gap: min(var(--space-xl), 5svh);
   display: flex;
   align-items: center;
-  padding-block: var(--section-y);
+  min-height: calc(100svh - var(--footer-h, 0px));
+  padding-block: var(--_pad-top) var(--_pad-bottom);
 }
 
 .contact > .container {
   display: grid;
-  gap: var(--space-xl);
+  gap: var(--_gap);
+}
+
+/* 2 lines at 0.82 leading = 1.64em, plus a little room for the glyphs */
+.contact .display {
+  --_size: min(
+    var(--display-xl),
+    (100svh - var(--footer-h, 0px) - var(--_pad-top) - var(--_pad-bottom) - var(--_gap) - var(--contact-body-h, 20rem)) / 1.7
+  );
 }
 
 .contact__body {
   display: grid;
-  gap: var(--space-m);
+  gap: min(var(--space-m), 3svh);
   justify-items: start;
 }
 
@@ -395,4 +410,9 @@
   max-width: 40ch;
   font-size: var(--text-m);
   color: var(--fg-muted);
+}
+
+/* short screens: the email scales with the height too, so the heading keeps its room */
+.contact .copy-email__link {
+  font-size: min(4rem, 100cqw / 12.4, 7svh);
 }

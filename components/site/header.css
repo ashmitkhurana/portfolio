@@ -24,6 +24,38 @@
   pointer-events: auto;
 }
 
+/* frosted backdrop (Apple-style), only while page content is under the bar (data-covered, set by SiteHeader) */
+.site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--header-h);
+  background: rgba(13, 12, 11, 0.72); /* --bg at 72% */
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+  pointer-events: none;
+}
+
+.site-header[data-covered]::before {
+  opacity: 1;
+}
+
+/* the open mobile menu has its own full-screen background */
+.site-header[data-open]::before {
+  opacity: 0;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .site-header::before {
+    background: var(--bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .site-header__logo {
   display: inline-flex;
   align-items: center;

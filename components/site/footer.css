@@ -29,3 +29,11 @@
 .site-footer__nav a:hover {
   color: var(--fg);
 }
+
+/* phone home page: the contact section right above already lists the socials, so the footer keeps only the
+   page links (the last screen, contact + footer, has to fit one viewport) */
+@media (max-width: 767px) {
+  :root:has(#contact) .site-footer__social {
+    display: none;
+  }
+}

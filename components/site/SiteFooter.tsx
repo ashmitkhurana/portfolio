@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { footer, nav, socials } from "@/data/site-content";
+import { FooterHeight } from "@/components/site/FooterHeight";
 import "./footer.css";
 
 export function SiteFooter() {
@@ -18,7 +19,7 @@ export function SiteFooter() {
                 </li>
               ))}
               {socials.map((s) => (
-                <li key={s.href}>
+                <li key={s.href} className="site-footer__social">
                   <a
                     className="label"
                     href={s.href}
@@ -33,6 +34,7 @@ export function SiteFooter() {
           </nav>
         </div>
       </div>
+      <FooterHeight />
     </footer>
   );
 }
