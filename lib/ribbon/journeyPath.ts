@@ -218,7 +218,7 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     out.pos[j * 3 + 1] += a * z;
     // the band's width vector shears with it (same linear map), keep the true half width
     const hw = out.ruled[j * 4 + 3];
-    let bx = out.ruled[j * 4], by = out.ruled[j * 4 + 1] + a * out.ruled[j * 4 + 2], bz = out.ruled[j * 4 + 2];
+    const bx = out.ruled[j * 4], by = out.ruled[j * 4 + 1] + a * out.ruled[j * 4 + 2], bz = out.ruled[j * 4 + 2];
     const l = Math.hypot(bx, by, bz) || 1;
     out.ruled[j * 4] = bx / l;
     out.ruled[j * 4 + 1] = by / l;

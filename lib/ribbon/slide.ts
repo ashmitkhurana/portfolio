@@ -234,7 +234,7 @@ export class SlideMotion {
       }
       if (hk >= 2) {
         const a1 = (hk - 1) * 3, a0 = (hk - 2) * 3;
-        let x = head.pos[a1] - head.pos[a0], y = head.pos[a1 + 1] - head.pos[a0 + 1], z = head.pos[a1 + 2] - head.pos[a0 + 2];
+        const x = head.pos[a1] - head.pos[a0], y = head.pos[a1 + 1] - head.pos[a0 + 1], z = head.pos[a1 + 2] - head.pos[a0 + 2];
         const l = Math.hypot(x, y, z) || 1;
         t1[0] = x / l; t1[1] = y / l; t1[2] = z / l;
       }
