@@ -170,39 +170,53 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
     bL = hx.bEnd;
     dW = norm([0, Math.cos(tilt), Math.sin(tilt)]);
   } else {
-    // portrait: the strand, a turn toward the middle (rising a little toward the camera), a straight run, and a
-    // fillet turn straight down into the vertical wave at its top
-    const e1 = 4 * hw;
-    shearRamp = e1;
-    const Ph = add(end.p, t1, e1);
-    // three pieces, no circular solve: (1) a planar turn from End 1's direction to a fixed steep down-right run
-    // (rising a little toward the camera so the later turn is not bent flat), (2) that run, its length solved in one
-    // step so (3) the short turn to straight down ends exactly on the wave's centre line (x = wave.c)
+    // portrait (owner's recipe): continue from the hero's tail, twist 90° so the EDGE faces the viewer, and in that
+    // edge-on state turn straight down the middle; then twist back to face the viewer as the wave. Every turn bends
+    // the band about its own width (physically exact, no folds); twists happen only on straight stretches.
+    //  1. a short strand on which the band lines up with the first turn's axis
+    //  2. that turn: out of the tail's dive, straight toward down-right (in the screen plane)
+    //  3. a straight run toward the middle on which the band twists 90° to edge-on, then on (length solved)
+    //  4. edge-on, a turn in the screen plane to straight down, landing on the wave's centre line
+    const edge: V3 = [0, 0, 1];
     const down: V3 = [0, -1, 0];
-    const R1 = 3.5 * hw; // open enough to read as a soft fold, tight enough not to swing out to the left edge
-    const beta = (58 * Math.PI) / 180; // across to the middle first, then down
-    const d1: V3 = norm([Math.sin(beta), -Math.cos(beta), 0.3]);
-    const a1 = arcTurn(Ph, t1, d1, R1, 48);
-    const A1 = a1.end;
-    const dispB = sub(arcTurn([0, 0, 0], d1, down, R, 24).end, [0, 0, 0]);
-    const cx = world(inp.wave.c, 0)[0];
-    // the screen x of the wave's line must be wave.c: perspective at the line's depth
-    const zLine = (Lg: number) => A1[2] + d1[2] * Lg + dispB[2];
-    let legLen = 0;
-    for (let it = 0; it < 8; it++) {
-      const kk = D / Math.max(1, D - zLine(legLen));
-      legLen = Math.max(0, (cx / kk - A1[0] - dispB[0]) / d1[0]);
+    const RA = 3.5 * hw, Rin = 3.5 * hw;
+    const e1 = 5 * hw;
+    const P1 = add(end.p, t1, e1);
+    // aim the first turn (25-65° down-right) where its axis is closest to the band's own width: least twist before it
+    let dA: V3 = [Math.SQRT1_2, -Math.SQRT1_2, 0];
+    let best = Infinity;
+    for (let deg = 25; deg <= 65; deg++) {
+      const d: V3 = [Math.sin((deg * Math.PI) / 180), -Math.cos((deg * Math.PI) / 180), 0];
+      const tw = Math.abs(bandTwist(b0, perp(norm(cross(t1, d)), t1), t1));
+      if (tw < best) {
+        best = tw;
+        dA = d;
+      }
     }
-    const F0 = add(A1, d1, legLen);
-    const a2 = arcTurn(F0, d1, down, R, 48);
-    for (let s = step; s < e1; s += step) samples.push({ p: add(end.p, t1, s), b: b0 });
-    for (const q of a1.samples) samples.push(q);
-    for (const q of lineSamples(A1, F0, step)) samples.push({ p: q, b: a1.bEnd });
-    for (const q of a2.samples) samples.push(q);
-    sWave = e1 + polyLen(a1.samples.map((q) => q.p), Ph) + legLen + polyLen(a2.samples.map((q) => q.p), F0);
-    lineStart = a2.end;
-    tL = norm(a2.tEnd);
-    bL = a2.bEnd;
+    const arcA = arcTurn(P1, t1, dA, RA, 40);
+    const nA = arcA.bStart;
+    const tw1 = bandTwist(b0, perp(nA, t1), t1);
+    for (let s = step; s <= e1; s += step) samples.push({ p: add(end.p, t1, s), b: rotate(b0, t1, tw1 * smoother(s / e1)) });
+    for (const q of arcA.samples) samples.push({ p: q.p, b: q.b });
+    const twistLen = 5 * hw;
+    const bT0 = perp(arcA.bEnd, dA), bT1 = perp(edge, dA);
+    const tw2 = bandTwist(bT0, bT1, dA);
+    const dispB = sub(arcTurn([0, 0, 0], dA, down, Rin, 24).end, [0, 0, 0]);
+    const zL = arcA.end[2];
+    const kk = D / Math.max(1, D - zL);
+    const cxW = world(inp.wave.c, 0)[0] / kk; // world x that projects to the wave's centre at this depth
+    const runLen = Math.max(twistLen, (cxW - arcA.end[0] - dispB[0]) / dA[0]);
+    for (let s = step; s <= runLen; s += step) {
+      samples.push({ p: add(arcA.end, dA, s), b: rotate(bT0, dA, tw2 * smoother(s / twistLen)) });
+    }
+    const F0 = add(arcA.end, dA, runLen);
+    const arcB = arcTurn(F0, dA, down, Rin, 40);
+    for (const q of arcB.samples) samples.push({ p: q.p, b: edge });
+    shearRamp = e1 + RA;
+    sWave = e1 + polyLen(arcA.samples.map((q) => q.p), P1) + runLen + polyLen(arcB.samples.map((q) => q.p), F0);
+    lineStart = arcB.end;
+    tL = norm(arcB.tEnd);
+    bL = edge;
     dW = norm([Math.cos(tilt), 0, Math.sin(tilt)]);
   }
   // the wave along tL from its start: a planar sine in the plane tilted toward the camera, the band's width on that
@@ -232,7 +246,7 @@ export function buildJourneyPath(inp: JourneyPathInput): JourneyPath {
   // short strand or a tight turn never packs its twist into a few rings
   {
     // (portrait: the ~80° twist into the first fold needs a long, even spread or the fold reads pinched)
-    const sigB = (portrait ? 6 : 3) * hw;
+    const sigB = (portrait ? 1.2 : 3) * hw;
     const rb = Math.ceil((2.5 * sigB) / step);
     const B0 = samples.map((q) => q.b);
     for (let i = 1; i < samples.length; i++) {
