@@ -195,6 +195,11 @@ export class RibbonSim {
     if (snap || this.params.mode === "frozen") this.snapToTarget();
   }
 
+  /** rebuild the slide path on the next step (e.g. once the camera distance is known) and restart the intro */
+  invalidateSlide(): void {
+    this.slideDirty = true;
+  }
+
   /** (re)build the slide path from the current pose when needed */
   private prepareSlide(): void {
     if (this.params.mode !== "slide") return;

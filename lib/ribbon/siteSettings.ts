@@ -43,7 +43,9 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
     bounce: { intensity: 0.03 },
   },
   light: { intensity: 1.15, azimuth: -45, elevation: 40 },
-  sim: { mode: "frozen" },
+  // intro (2026-10-10, owner): the pose stays locked; the ribbon grows out of its hidden end (behind the A's right leg)
+  // and slides along the whole flow until the leading end reaches the bottom (slide.ts, critically damped, no scroll/sway)
+  sim: { mode: "slide", slide: { intro: true, scroll: false, hiddenEntry: true, introStiffness: 3, introDamping: 1, introMaxSeconds: 7, swayDeg: 0 } },
   post: { adaptive: false, exposure: 1.2, bloom: false, bloomIntensity: 0 },
   background: { grainFps: 0 },
   shadows: { moveThreshold: 0 },

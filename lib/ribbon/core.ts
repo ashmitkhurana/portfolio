@@ -467,6 +467,11 @@ export class RibbonCore {
     const ema = (prev: number, v: number) => prev + (v - prev) * 0.08;
 
     let t = performance.now();
+    if (this.sim.slide.cameraZ !== this.camera.position.z) {
+      const first = this.sim.slide.cameraZ === 0;
+      this.sim.slide.cameraZ = this.camera.position.z;
+      if (first) this.sim.invalidateSlide();
+    }
     this.sim.step(dt);
     const t1 = performance.now();
     st.cpu.sim = ema(st.cpu.sim, t1 - t);

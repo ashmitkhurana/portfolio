@@ -33,6 +33,8 @@ export interface SlideParams {
   scrollK: number;
   scrollStiffness: number;
   scrollDamping: number;
+  /** zero width beyond End 2 (12-ring taper): the ribbon grows out of its hidden end instead of sliding in visibly */
+  hiddenEntry: boolean;
   /** rigid idle sway: peak rotation about z in degrees (0 = off); period swayPeriod seconds */
   swayDeg: number;
   swayPeriod: number;
@@ -41,6 +43,7 @@ export interface SlideParams {
 export const DEFAULT_SLIDE_PARAMS: SlideParams = {
   intro: true,
   scroll: true,
+  hiddenEntry: false,
   introStiffness: 32,
   introDamping: 0.63,
   introMaxSeconds: 4,
@@ -66,6 +69,8 @@ export class SlideMotion {
   /** strip length (world px) = arc length of the pose's centreline */
   length = 0;
   introSettled = false;
+  /** camera z (world px) for hiddenEntry; set by the sim each frame */
+  cameraZ = 0;
   /** the sway angle (radians) applied last frame, for debugging */
   swayAngle = 0;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
@@ -173,6 +178,23 @@ export class SlideMotion {
         R[oa + a] = R[m * 3 + a] + t1[a] * dsExt * j;
         L[ob + a] = L[(m + n - 1) * 3 + a] + t2[a] * dsExt * j;
         R[ob + a] = R[(m + n - 1) * 3 + a] + t2[a] * dsExt * j;
+      }
+    }
+    if (this.params.hiddenEntry && this.cameraZ > 0) {
+      // End 2 extension along the camera ray through the end ring, away from the camera: it projects onto the end
+      // ring's own screen spot (hidden behind the right leg), and its width tapers to 0 over 12 rings
+      const e = (m + n - 1) * 3;
+      const cx = (L[e] + R[e]) / 2, cy = (L[e + 1] + R[e + 1]) / 2, cz = (L[e + 2] + R[e + 2]) / 2;
+      let rx = cx, ry = cy, rz = cz - this.cameraZ;
+      const rl = Math.hypot(rx, ry, rz) || 1;
+      rx /= rl; ry /= rl; rz /= rl;
+      for (let j = 1; j <= m; j++) {
+        const ob = (m + n - 1 + j) * 3;
+        const f = Math.max(0, 1 - j / 12);
+        const px = cx + rx * dsExt * j, py = cy + ry * dsExt * j, pz = cz + rz * dsExt * j;
+        const hx = (R[e] - L[e]) / 2 * f, hy = (R[e + 1] - L[e + 1]) / 2 * f, hz = (R[e + 2] - L[e + 2]) / 2 * f;
+        L[ob] = px - hx; L[ob + 1] = py - hy; L[ob + 2] = pz - hz;
+        R[ob] = px + hx; R[ob + 1] = py + hy; R[ob + 2] = pz + hz;
       }
     }
     // cumulative centreline chord arc over the whole list
