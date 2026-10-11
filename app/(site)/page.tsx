@@ -35,8 +35,16 @@ export default function Home() {
       <WorkSection />
       <BuildSection />
       <div className="exterm">
-        <ExperienceSection />
-        <TerminalSection />
+        <div className="exterm__pin" data-pin="exterm">
+          <ExperienceSection />
+          <TerminalSection />
+          <div className="fillbar" aria-hidden="true">
+            <span className="fillbar__label label">Scroll to fill</span>
+            <span className="fillbar__track">
+              <span className="fillbar__fill" />
+            </span>
+          </div>
+        </div>
       </div>
       <ContactSection />
     </>

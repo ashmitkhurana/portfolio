@@ -600,7 +600,19 @@
 }
 
 @media (min-width: 768px) and (orientation: landscape) {
+  /* one screen, pinned while the ribbon underlines the entries and sweeps to the terminal (components/site/journey.ts) */
   .exterm {
+    --exterm-pin-room: 0px;
+    height: calc(100svh + var(--exterm-pin-room));
+  }
+
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 200svh;
+  }
+
+  .exterm__pin {
+    position: sticky;
+    top: 0;
     display: flex;
     flex-direction: column;
     height: 100svh;
@@ -609,7 +621,11 @@
     padding-bottom: min(var(--space-l), 4svh);
   }
 
-  .exterm > .section {
+  .exterm__pin .fillbar {
+    display: grid;
+  }
+
+  .exterm__pin > .section {
     min-height: 0;
     padding: 0;
   }
@@ -632,8 +648,57 @@
   }
 
   .terminal .term--inline .term__output {
-    height: clamp(8rem, 100svh - var(--header-h) - 25rem, 24rem);
+    /* shorter than the room allows: the band between the entries and the terminal is the ribbon's (loop + sweep) */
+    height: clamp(8rem, 100svh - var(--header-h) - 37rem, 20rem);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 0px;
+  }
+}
+
+/* the progress bar under the ribbon's end: scrolling fills it, it drains when the scrolling stops; full, it fades
+   and the ribbon flows on to the footer (components/site/journey.ts sets its position, fill and visibility) */
+.fillbar {
+  position: absolute;
+  z-index: 4;
+  display: none;
+  gap: 10px;
+  width: 220px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.45s var(--ease-out);
+  pointer-events: none;
+}
+
+.fillbar[data-on] {
+  opacity: 1;
+  transform: none;
+}
+
+.fillbar__label {
+  color: var(--fg-muted);
+  letter-spacing: 0.16em;
+}
+
+.fillbar__track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+
+.fillbar__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--fill, 0));
 }
 
 /* ── 06 contact ────────────────────────────────────────── */

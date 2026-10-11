@@ -17,7 +17,7 @@ let i = 0;
 for (const y of ys.split(",")) {
   const px = y.startsWith("@")
     ? await p.evaluate(([name, q, below]) => {
-        const s = document.querySelector(`[data-section="${name}"]`);
+        const s = document.querySelector(name.startsWith(".") ? name : `[data-section="${name}"]`);
         const pin = s.querySelector("[data-pin]");
         const top = s.getBoundingClientRect().top + scrollY;
         const room = pin ? s.offsetHeight - pin.offsetHeight : 0;

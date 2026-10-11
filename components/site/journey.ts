@@ -54,6 +54,18 @@ const REL_RIB = 1.1;
 const REL_SCROLL_AT = 0.8;
 const REL_SCROLL = 1.6;
 const REL_T = REL_SCROLL_AT + REL_SCROLL;
+/** Experience + Terminal (landscape) pin progress: the head waits until EX_IN, underlines the entries by EX_UNDER,
+ *  reaches the terminal by EX_END; the progress bar shows from EX_BAR; at EX_GATE the page holds while the scroll
+ *  fills the bar (FILL_PX of wheel per bar; it drains at FILL_DRAIN per s once the scrolling stops) */
+const EX_IN = 0.05;
+const EX_UNDER = 0.42;
+const EX_END = 0.86;
+const EX_BAR = 0.9;
+const EX_GATE = 0.985;
+const FILL_PX = 1600;
+const FILL_DRAIN = 0.35;
+/** full: the ribbon flows on (s) while the page scrolls to the footer */
+const FOOT_RUN = 1.6;
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
 declare global {
@@ -123,6 +135,28 @@ export function createJourney(engine: RibbonEngine): () => void {
   let relPrevY = -1;
   /** idle side: true once released (the ribbon waits in the next section), false at / above the coil */
   let relBelow = false;
+  /** Experience: the progress bar and its gate */
+  let fill = 0;
+  let fillLast = 0;
+  let fillAt = performance.now();
+  let gateOn = false;
+  let gateArmed = true;
+  let footFired = false;
+  let footT0 = 0;
+  let exRectsKey = "";
+  let exRectsVal: { strip: { x0: number; y0: number; x1: number; y1: number }; term: { x0: number; y0: number; x1: number; y1: number } } | null = null;
+  const onWheel = (e: WheelEvent) => {
+    if (!gateOn) return;
+    if (e.deltaY > 0) {
+      fill = Math.min(1, fill + e.deltaY / FILL_PX);
+      fillLast = performance.now();
+    } else if (e.deltaY < -2) {
+      // scrolling back up: let go
+      gateOn = false;
+      getLenis()?.start();
+    }
+  };
+  window.addEventListener("wheel", onWheel, { passive: true, capture: true });
   let lastInput: JourneyPathDesktopInput | null = null;
   /** How I Build's measured rects, per layout (measuring the ink is too costly for every frame) */
   let buildRectsKey = "";
@@ -161,6 +195,7 @@ export function createJourney(engine: RibbonEngine): () => void {
     // phones: Selected Work is not pinned (its pin block has no scroll room); the cards stack
     const workAny = pins.find((p) => p.name === "work");
     const buildPin = pins.find((p) => p.name === "build" && p.room > 1);
+    const exPin = pins.find((p) => p.name === "exterm" && p.room > 1);
     // How I Build: the release timeline (forward or backward) gives the coil's compression and the ribbon's flight; the
     // page's own progress between the complete coil and the next section moves the ribbon on down the diagonal
     let buildC = 0;
@@ -259,6 +294,26 @@ export function createJourney(engine: RibbonEngine): () => void {
               };
             })())
           : null;
+      // Experience + Terminal: the strip (the union of its entries) and the terminal window (css px in its pinned screen)
+      const exKey = `${key}|${exPin?.vTop.toFixed(0)}|${portrait}|${document.documentElement.scrollHeight}`;
+      if (exKey !== exRectsKey) {
+        exRectsKey = exKey;
+        exRectsVal = null;
+      }
+      const exRects =
+        !portrait && exPin && buildRects
+          ? exRectsVal ?? (exRectsVal = (() => {
+              const t = exPin.pin.getBoundingClientRect().top;
+              const items = [...exPin.pin.querySelectorAll<HTMLElement>(".strip__item")].map((e) => e.getBoundingClientRect());
+              const tw = exPin.pin.querySelector<HTMLElement>(".terminal-window")?.getBoundingClientRect();
+              if (!items.length || !tw) return null;
+              return {
+                strip: { x0: Math.min(...items.map((r) => r.left)), y0: Math.min(...items.map((r) => r.top)) - t, x1: Math.max(...items.map((r) => r.right)), y1: Math.max(...items.map((r) => r.bottom)) - t },
+                term: { x0: tw.left, y0: tw.top - t, x1: tw.right, y1: tw.bottom - t },
+              };
+            })())
+          : null;
+      const xk = exRects ? `${exPin!.vTop.toFixed(0)}|${exRects.strip.y1.toFixed(0)}|${exRects.term.x0.toFixed(0)},${exRects.term.y0.toFixed(0)}` : "-";
       const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${buildC}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
@@ -268,7 +323,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}`;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}`;
       // (while released, the release path is in place: the entry path is rebuilt once the ribbon is back in the box)
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
@@ -348,6 +403,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
           stack: stackRects ?? undefined,
           build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: buildC } : undefined,
+          exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
         };
         pathD = buildJourneyPathDesktop(lastInput!);
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
@@ -495,6 +551,57 @@ export function createJourney(engine: RibbonEngine): () => void {
             relBelow = relState > 0;
             relState = 0;
             relScrolling = false;
+          }
+          // Experience + Terminal: on from the waiting point (the same shortened ribbon)
+          const xm = pathD.exterm;
+          if (xm && exPin && exPin.p > 0 && relBelow) {
+            const q = exPin.p;
+            const lenis = getLenis();
+            const now = performance.now();
+            const dt = Math.min(0.1, (now - fillAt) / 1000);
+            fillAt = now;
+            if (footFired) {
+              // full: the ribbon flows on behind the terminal while the page scrolls to the footer
+              head = xm.sEnd + easeOut3((now - footT0) / 1000 / FOOT_RUN) * 1.4 * W;
+            } else if (q < EX_IN) head = xm.sWait;
+            else if (q < EX_UNDER) head = xm.sWait + ease((q - EX_IN) / (EX_UNDER - EX_IN)) * (xm.sUnder - xm.sWait);
+            else head = xm.sUnder + ease(clamp01((q - EX_UNDER) / (EX_END - EX_UNDER))) * (xm.sEnd - xm.sUnder);
+            // the tail stays where it waited (out of sight above the screen) while the head draws on: the whole path
+            // stays drawn (the underline stays under the entries) and no end of the ribbon ever shows
+            tail = xm.sWait - coilLen;
+            // the gate: at the pin's end the page holds while the scrolling fills the bar
+            const yGate = exPin.section.getBoundingClientRect().top + window.scrollY + exPin.room;
+            if (q < 0.95) gateArmed = true;
+            if (!footFired && !gateOn && gateArmed && lenis && q >= EX_GATE && window.scrollY > (relPrevY < 0 ? 0 : relPrevY - 0.5)) {
+              gateOn = true;
+              gateArmed = false;
+              lenis.scrollTo(yGate, { immediate: true, force: true });
+              lenis.stop();
+            }
+            if (!gateOn && !footFired && fill > 0) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            if (gateOn && now - fillLast > 260) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            if (gateOn && fill >= 1) {
+              // full: the bar fades and the ribbon flows on to the footer
+              gateOn = false;
+              footFired = true;
+              footT0 = now;
+              const foot = document.querySelector<HTMLElement>('[data-section="contact"]');
+              const yF = foot ? foot.getBoundingClientRect().top + window.scrollY : window.scrollY + H;
+              lenis?.scrollTo(yF, { duration: FOOT_RUN, force: true, lock: true, easing: (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t), onComplete: () => lenis.start() });
+            }
+            if (footFired && window.scrollY < yGate - 40) {
+              footFired = false;
+              fill = 0;
+            }
+            // the bar: under the ribbon's end, shown near the end of the pin, until it is full
+            const bar = exPin.pin.querySelector<HTMLElement>(".fillbar");
+            if (bar) {
+              bar.style.left = `${(xm.end.x - 220).toFixed(1)}px`;
+              bar.style.top = `${(xm.end.y + sl.end1().hw + 30).toFixed(1)}px`;
+              bar.style.setProperty("--fill", fill.toFixed(3));
+              const on = q >= EX_BAR && !footFired;
+              if (on !== bar.hasAttribute("data-on")) bar.toggleAttribute("data-on", on);
+            }
           }
           sigma = tail + Lr;
           leadD = head;

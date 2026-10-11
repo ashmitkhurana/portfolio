@@ -72,6 +72,26 @@ export interface JourneyPathDesktopInput {
    * compression c (0 = loose, up to the top of "HOW"; 1 = compressed into the box; < 0 = overshooting as it jumps).
    */
   build?: BuildInput;
+  exterm?: ExtermInput;
+}
+
+/**
+ * Experience + Terminal (landscape, after How I Build): the pinned screen's virtual top, the experience strip (the
+ * union of its entries) and the terminal window (css px in that screen).
+ */
+export interface ExtermInput {
+  yE: number;
+  strip: Rect;
+  term: Rect;
+}
+
+export interface ExtermMarks {
+  /** slide distances of the head: waiting at the left edge just before the first entry, the underline done, the
+   *  end beside the terminal; and the end point on screen (the progress bar sits under it) */
+  sWait: number;
+  sUnder: number;
+  sEnd: number;
+  end: { x: number; y: number };
 }
 
 export interface BuildInput {
@@ -136,6 +156,7 @@ export interface JourneyPathDesktop {
   work?: WorkMarks;
   stack?: StackMarks;
   build?: BuildMarks;
+  exterm?: ExtermMarks;
 }
 
 type V3 = [number, number, number];
@@ -315,6 +336,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   const waveVisible = waveVisibleLen(wave, W, H, y2, portrait);
   let work: WorkMarks | undefined;
   let build: BuildMarks | undefined;
+  let exterm: ExtermMarks | undefined;
   let stack: { passes: { s0: number; s1: number; g: number }[]; rings: [number, number][] } | undefined;
   // later sections are seen head-on through their own lens shift: their view shear, blended in from s0 to s1 (hidden)
   const shearKnots: { s0: number; s1: number; a: number }[] = [];
@@ -405,6 +427,33 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         want.push(ln.want[i]);
       }
       build = { sEdge: sQ + ln.sEdge, sCoil0: sQ + ln.sCoil0, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
+      if (inp.exterm) {
+        // ── Experience + Terminal: out of sight beyond the left edge, a turn round into the underline's plane, then
+        // the underline, the loops and the sweep (see buildExterm)
+        const ex = buildExterm(inp, inp.exterm, margin, ds);
+        const E = pts[pts.length - 1], dE = norm(sub(E, pts[pts.length - 2]));
+        const Q = ex.curve[0], dQ = norm(sub(ex.curve[1], ex.curve[0]));
+        const h = 0.4 * len(sub(Q, E)) + 220;
+        const turn = bezier(E, add(E, dE, h), add(Q, dQ, -h), Q, 140);
+        const wA = ln.wEnd;
+        const wB = dot(ex.want[0], wA) < 0 ? ([-ex.want[0][0], -ex.want[0][1], -ex.want[0][2]] as V3) : ex.want[0];
+        const sT0 = acc;
+        turn.forEach((q, i) => {
+          acc += len(sub(q, pts[pts.length - 1]));
+          pts.push(q);
+          want.push(norm(add(wA, sub(wB, wA), smoother((i + 1) / turn.length))));
+        });
+        const sX = acc;
+        shearKnots.push({ s0: sT0, s1: sX, a: inp.exterm.yE / inp.camZ });
+        for (let i = 1; i < ex.curve.length; i++) {
+          acc += len(sub(ex.curve[i], pts[pts.length - 1]));
+          pts.push(ex.curve[i]);
+          want.push(ex.want[i]);
+        }
+        exterm = { sWait: sX + ex.sWait, sUnder: sX + ex.sUnder, sEnd: sX + ex.sEnd, end: ex.end };
+        // the head waits at the left edge: How I Build's release ends there
+        build.sStop = exterm.sWait;
+      }
     } else {
       // straight on, hidden, far enough for the whole ribbon to clear the cards
       const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
@@ -463,6 +512,9 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   }
   if (build) {
     out.build = { sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
+  }
+  if (exterm) {
+    out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), end: exterm.end };
   }
   if (stack && inp.stack) {
     out.stack = {
@@ -856,7 +908,103 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
     want.push(rotate(bT, vW, ang * smoother(dDone / Math.max(600, 0.6 * H))));
     if (!sBottom && (sy >= H || sx <= -margin)) sBottom = acc;
     if (!sStop && (sy >= yStop || sx <= -margin)) sStop = acc;
+    // with Experience next, the diagonal ends off the left edge (that path turns round out of sight)
+    if (inp.exterm && sx < -margin - 30) break;
     if (sy > 3 * H || sx < -W) break;
   }
-  return { curve, want, sEdge, sCoil0, sTop, sBottom, sStop };
+  return { curve, want, sEdge, sCoil0, sTop, sBottom, sStop, wEnd: want[want.length - 1] };
+}
+
+/**
+ * Experience + Terminal (landscape), designed on its pinned screen (css px, y down) and lifted (head-on camera rays)
+ * onto planes tilted `tilt` from the screen (up = toward the camera) with the band's width on their normal n, so it
+ * only ever bends about its width:
+ *   the underline: in from beyond the left edge, under the four entries, a gentle wave;
+ *   loop 1 at the right end: 1.5 turns (clockwise on screen), a helix about n (the plane steps back along n by more
+ *   than the band's width per turn, so the crossing strands clear each other), leaving heading left below;
+ *   the sweep: left along the band above the terminal, then an S down through the empty area;
+ *   loop 2 at the bottom left: 1.5 turns the other way, stepping forward again (back onto the first plane);
+ *   the end: rising gently to just left of the terminal; then straight on (behind the terminal) for the next part.
+ * The plane passes through the screen's middle height at z = 0 (the ribbon's size changes by under ~9% across it).
+ */
+function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: number, ds: number) {
+  const { W, H, camZ: D } = inp;
+  const tilt = (45 * Math.PI) / 180;
+  const n: V3 = [0, -Math.sin(tilt), Math.cos(tilt)];
+  const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (ex.yE + sy), z];
+  const C: V3 = [0, -ex.yE, D];
+  const hw = inp.end.hw;
+  const st = ex.strip, tm = ex.term;
+  // the band's half height on screen (its width along n, seen at ~45 degrees, a little nearer than z = 0)
+  const hb = 1.02 * hw;
+  const yU = st.y1 + hb + 12; // its top edge just clear of the entries
+  const xR = st.x1 - 60;
+  const R1 = 42, R2 = 46;
+  const yS = yU + 2 * R1;
+  const yEnd = tm.y0 + 0.35 * (tm.y1 - tm.y0);
+  const yB2 = yEnd + 20 - 2 * R2;
+  const xA = Math.max(st.x0 + 140, 0.17 * W);
+  const x2 = tm.x0 - 70;
+  const xEnd = tm.x0 - 34;
+  const yRef = (yU + yEnd) / 2;
+  const R = world(W / 2, yRef, 0);
+  const dW = 3.45 * hw; // the plane's step along n over a loop (2/3 of it per full turn: > the band's width)
+  // the step along n over a loop: a constant pitch (a constant helix angle: no twist inside the turn), eased in and out
+  // only over the first and last tenth of the loop
+  const pitchW = (u: number) => {
+    const e = 0.1;
+    const f = (x: number) => (x < e ? (x * x) / (2 * e) : x > 1 - e ? 1 - e - ((1 - x) * (1 - x)) / (2 * e) : x - e / 2);
+    return f(u) / (1 - e);
+  };
+  const lift = (sx: number, sy: number, w: number): V3 => {
+    const P0 = world(sx, sy, 0);
+    const dir = sub(P0, C);
+    const lam = (dot(n, R) + w - dot(n, C)) / dot(n, dir);
+    return add(C, dir, lam);
+  };
+  const step = ds / 3;
+  const scr: [number, number, number][] = [];
+  // the underline
+  const x0 = -margin - 40;
+  const lam = Math.max(240, (st.x1 - st.x0) / 4);
+  for (let x = x0; x <= xR; x += step) {
+    const e = smoother((x - st.x0) / 200) * smoother((xR - x) / 160);
+    scr.push([x, yU + 5 * e * Math.sin((2 * Math.PI * (x - st.x0)) / lam), 0]);
+  }
+  const iUnder = scr.length - 1;
+  // loop 1
+  const nL1 = Math.ceil((3 * Math.PI * R1) / step);
+  for (let i = 1; i <= nL1; i++) {
+    const th = (3 * Math.PI * i) / nL1;
+    scr.push([xR + R1 * Math.sin(th), yU + R1 - R1 * Math.cos(th), -dW * pitchW(i / nL1)]);
+  }
+  // the sweep: left above the terminal, then an S down to loop 2's top
+  for (let x = xR - step; x >= x2; x -= step) scr.push([x, yS, -dW]);
+  const nS = Math.ceil(Math.hypot(x2 - xA, yB2 - yS) * 1.15 / step);
+  for (let i = 1; i <= nS; i++) {
+    const t = i / nS;
+    const wnd = 16 * t * t * (1 - t) * (1 - t);
+    scr.push([x2 + (xA - x2) * t, yS + (yB2 - yS) * smoother(t) + 70 * wnd * Math.sin(2 * Math.PI * t), -dW]);
+  }
+  // loop 2
+  const nL2 = Math.ceil((3 * Math.PI * R2) / step);
+  for (let i = 1; i <= nL2; i++) {
+    const th = (3 * Math.PI * i) / nL2;
+    scr.push([xA - R2 * Math.sin(th), yB2 + R2 - R2 * Math.cos(th), -dW + dW * pitchW(i / nL2)]);
+  }
+  // the end, then straight on behind the terminal (for the way on)
+  const yL = yB2 + 2 * R2;
+  for (let x = xA + step; x <= xEnd; x += step) scr.push([x, yL + (yEnd - yL) * smoother((x - xA) / (xEnd - xA)), 0]);
+  const iEnd = scr.length - 1;
+  for (let x = xEnd + step; x <= W + 3 * margin + inp.ribbonLen; x += step) scr.push([x, yEnd, 0]);
+  const curve = scr.map(([x, y, w]) => lift(x, y, w));
+  const want = curve.map(() => n);
+  let a = 0, sWait = 0, sUnder = 0, sEnd = 0;
+  for (let i = 1; i < curve.length; i++) {
+    a += len(sub(curve[i], curve[i - 1]));
+    if (scr[i][0] <= st.x0 - 34 && i <= iUnder) sWait = a;
+    if (i === iUnder) sUnder = a;
+    if (i === iEnd) sEnd = a;
+  }
+  return { curve, want, sWait, sUnder, sEnd, end: { x: xEnd, y: yEnd } };
 }
