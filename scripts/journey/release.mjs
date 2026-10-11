@@ -14,16 +14,18 @@ const at = (q) => p.evaluate((q) => {
   return s.getBoundingClientRect().top + scrollY + q * (s.offsetHeight - pin.offsetHeight);
 }, q);
 // coil and compress first (as a user would), then cross the trigger
-for (const q of [0.3, 0.6, 0.9, 0.95]) {
+// FIRE: the pin progress where the release starts (journey.ts BUILD_FIRE)
+const FIRE = +(process.env.FIRE || 0.75);
+for (const q of [0.3, 0.6, FIRE - 0.05, FIRE - 0.01]) {
   await p.evaluate((y) => window.scrollTo(0, y), await at(q));
   await p.waitForTimeout(700);
 }
 await p.screenshot({ path: `${out}_pre.png` });
-await p.evaluate((y) => window.scrollTo(0, y), await at(0.995));
+await p.evaluate((y) => window.scrollTo(0, y), await at(FIRE + 0.003));
 for (let i = 0; i < +nArg; i++) {
   await p.waitForTimeout(+stepArg);
   const d = await p.evaluate(() => window.__journeyDebug);
-  console.log(i, "t", (d.relE ?? -1).toFixed(2), "c", d.buildC, "sigma", Math.round(d.sigma));
+  console.log(i, "q", (d.relQ ?? -1).toFixed(2), "q2", (d.relQ2 ?? -1).toFixed(2), "c", d.buildC, "sigma", Math.round(d.sigma), "V", Math.round(d.V));
   await p.screenshot({ path: `${out}_${String(i).padStart(2, "0")}.png` });
 }
 await b.close();

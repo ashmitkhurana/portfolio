@@ -341,7 +341,7 @@
 /* landscape: pinned while the ribbon coils into a spring and is compressed by the scroll (components/site/journey.ts) */
 @media (min-width: 768px) and (orientation: landscape) {
   :root[data-ribbon="live"] .build {
-    --build-pin-room: 250svh;
+    --build-pin-room: 320svh;
   }
 }
 

@@ -68,8 +68,8 @@ export interface JourneyPathDesktopInput {
   stack?: { cards: Rect[]; endY: number };
   /**
    * How I Build (landscape, after Selected Work): the pinned screen's virtual top, the empty box right of the three
-   * principles (css px in that screen) where the ribbon settles, the gap between the D of BUILD and "01" (where the
-   * release dives through), and the compression c (0..1: how tight the twist in the box is wound).
+   * principles (css px in that screen), the gap between the D of BUILD and "01", the top of "HOW", and the coil's
+   * compression c (0 = loose, up to the top of "HOW"; 1 = compressed into the box; < 0 = overshooting as it jumps).
    */
   build?: BuildInput;
 }
@@ -78,17 +78,19 @@ export interface BuildInput {
   yB: number;
   box: Rect;
   gap: { x: number; y: number };
+  /** screen y of the top of "HOW" (the loose coil's top) */
+  top: number;
   c: number;
 }
 
 export interface BuildMarks {
-  /** slide distances along the twisted line: its start (far beyond the top-right, off-screen: where the entry route
-   *  and the release route meet it), where it crosses into view at the right edge, the box's top, the head's stop
-   *  at the box's bottom */
-  sQ: number;
+  /** slide distances: the lead-in crosses into view at the right edge, the coil's top (the head waits there while the
+   *  scroll compresses the coil), the head's stop in the next section (where the ribbon waits) */
   sEdge: number;
-  sBoxTop: number;
-  sHead: number;
+  sTop: number;
+  /** the head on the diagonal at the screen's bottom edge (the release while still pinned ends here) */
+  sBottom: number;
+  sStop: number;
 }
 
 export interface StackMarks {
@@ -371,8 +373,8 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     shearKnots.push({ s0, s1: sEntry3, a: inp.work.y3 / inp.camZ });
     if (inp.build) {
       // ── How I Build: a hidden route down the right side (long enough that the whole ribbon has left the cards
-      // before the head reaches the line), then the twisted line into the box
-      const ln = buildLine(inp, inp.build, margin, ds);
+      // before the head reaches the screen), then the lead-in, the coil and the way out
+      const ln = buildCoil(inp, inp.build, margin, ds);
       const last = pts[pts.length - 1], prev = pts[pts.length - 2];
       const tP = norm(sub(last, prev));
       const Q = ln.curve[0], dq = norm(sub(ln.curve[1], ln.curve[0]));
@@ -381,7 +383,6 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         const h = 0.45 * len(sub(Q, A)) + 0.25 * H;
         return { A, bez: bezier(A, add(A, tP, h), add(Q, dq, -h), Q, 160) };
       };
-      // the cards are clear at sClear; the head must not reach the screen before then, plus a little flow
       const need = work.sClear - acc + 0.4 * H;
       let lo = 0, hi = Math.max(need, 1);
       for (let i = 0; i < 40; i++) {
@@ -401,7 +402,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         pts.push(ln.curve[i]);
         want.push(ln.want[i]);
       }
-      build = { sQ, sEdge: sQ + ln.sEdge, sBoxTop: sQ + ln.sBoxTop, sHead: sQ + ln.sHead };
+      build = { sEdge: sQ + ln.sEdge, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
     } else {
       // straight on, hidden, far enough for the whole ribbon to clear the cards
       const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
@@ -459,7 +460,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     };
   }
   if (build) {
-    out.build = { sQ: postArc(build.sQ), sEdge: postArc(build.sEdge), sBoxTop: postArc(build.sBoxTop), sHead: postArc(build.sHead) };
+    out.build = { sEdge: postArc(build.sEdge), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
   }
   if (stack && inp.stack) {
     out.stack = {
@@ -746,168 +747,94 @@ function stackDepths(out: JourneyPathDesktop, stack: { cards: Rect[]; endY: numb
 }
 
 /**
- * How I Build (landscape): one straight line, in screen depth z = 0, from far beyond the top-right corner down to the
- * bottom of the empty box right of the principles (a steep diagonal that enters the screen at its right edge), with
- * the band twisting continuously about it (a straight line may twist freely: nothing bends). Inside the box the
- * twist is wound tighter with the compression c. Then a short extension past the head (never occupied).
- * Returns world points (pre-shear), the band orientation wanted at every point, and arcs from the line's start.
+ * How I Build (landscape), world coordinates pre-shear plus the band orientation wanted at every point:
+ *   lead-in: straight in from the right edge at the bottom of the box (in front of the pole, z = r), face on;
+ *   the coil: the band wound UP round an invisible vertical pole through the box (the band lying on the cylinder, so
+ *   it only bends about its width), from the box's bottom to the top of "HOW" when loose (c = 0); compressed (c = 1)
+ *   the same turns sit inside the box, the turns just clear of each other (the bottom never moves);
+ *   the way out: from the coil's top, up and over to the diagonal through the gap between the D of BUILD and "01"
+ *   (45 degrees, in the screen plane), down it into the next section, where the head stops and waits (sStop).
+ * Marks are arcs from the curve's first point.
  */
-function buildLine(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number, ds: number) {
+function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number, ds: number) {
   const { W, H } = inp;
-  const world = (sx: number, sy: number): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), 0];
-  const hwS = inp.end.hw * 1.05;
+  const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), z];
+  const hwS = inp.end.hw * 1.06;
   const bx = bd.box;
-  const alpha = (66 * Math.PI) / 180; // the line's angle above horizontal (down-left into the box)
-  const u: [number, number] = [-Math.cos(alpha), Math.sin(alpha)]; // screen direction of travel (down-left)
-  const cx = (bx.x0 + bx.x1) / 2, cy = (bx.y0 + bx.y1) / 2;
-  const yHead = bx.y1 - hwS - 4, yTop = bx.y0 + hwS + 4;
-  const tAt = (y: number) => (y - cy) / u[1]; // line parameter (screen px) at a given screen y
-  // the start: far beyond the top-right corner (off-screen), so both routes meet the line out of sight
-  const xStart = W + margin + 260;
-  const tStart = (xStart - cx) / u[0];
-  const T = norm([u[0], -u[1], 0]);
-  const face = norm(cross([0, 0, 1], T));
+  const r = Math.max(36, Math.min(0.34 * (bx.x1 - bx.x0), 110));
+  const xc = (bx.x0 + bx.x1) / 2;
+  const yBot = bx.y1 - hwS - 4;
+  const pMin = 2.2 * hwS; // compressed: the turns just clear each other
+  const compH = Math.max(pMin, yBot - (bx.y0 + hwS + 4));
+  const N = Math.min(3, Math.max(1.25, compH / pMin));
+  const pLoose = Math.max(pMin, (yBot - (bd.top + hwS)) / N);
+  const pComp = compH / N;
+  const c = bd.c;
+  const p = pLoose + (pComp - pLoose) * c; // c < 0 overshoots past loose (the jump)
+  const yTop = yBot - N * p;
   const step = ds / 3;
   const curve: V3[] = [];
   const want: V3[] = [];
-  const tHead = tAt(yHead), tTop = tAt(yTop);
-  const tEdge = (W + margin - cx) / u[0];
-  // twist: degrees per screen px, tighter in the box with c
-  const wOut = 180 / 340, wIn = wOut * (1 + 2.6 * Math.min(Math.max(bd.c, 0), 1));
-  let th = 0;
-  let sEdge = 0, sBoxTop = 0, sHead = 0;
-  const tEnd = tHead + 220;
-  let prev: V3 | null = null;
+  const coilAt = (th: number): V3 => world(xc - r * Math.sin(th), yBot - ((yBot - yTop) * th) / (2 * Math.PI * N), r * Math.cos(th));
+  const coilWidth = (th: number): V3 => {
+    const a = coilAt(th - 1e-3), b = coilAt(th + 1e-3);
+    const T = norm(sub(b, a));
+    return norm(cross([-Math.sin(th), 0, Math.cos(th)], T));
+  };
+  // lead-in, at the box's bottom, in front of the pole
+  const w0 = coilWidth(0);
+  let sEdge = 0;
   let acc = 0;
-  for (let t = tStart; t <= tEnd + 1e-6; t += step) {
-    const p = world(cx + u[0] * t, cy + u[1] * t);
-    if (prev) acc += len(sub(p, prev));
-    prev = p;
-    const k = smoother((t - (tTop - 40)) / 80); // 0 above the box, 1 inside
-    th += ((wOut + (wIn - wOut) * k) * step * Math.PI) / 180;
-    curve.push(p);
-    want.push(rotate(face, T, th));
-    if (t <= tEdge) sEdge = acc;
-    if (t <= tTop) sBoxTop = acc;
-    if (t <= tHead) sHead = acc;
+  for (let x = W + margin + 120; x > xc; x -= step) {
+    const q = world(x, yBot, r);
+    if (curve.length) acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    want.push(w0);
+    if (x >= W + margin) sEdge = acc;
   }
-  return { curve, want, sEdge, sBoxTop, sHead };
-}
-
-/** the release route's input: the entry path's End 1 and line marks it must meet */
-export interface ReleaseInput extends JourneyPathDesktopInput {
-  build: BuildInput;
-  /** the line's start arc on the entry path (the release path must reach the line at exactly this arc) */
-  sQ: number;
-}
-
-export interface ReleasePath extends JourneyPathDesktop {
-  /** slide distances: the line's start (meets the entry path), where the dive leaves the screen (bottom-left) */
-  sQ: number;
-  sOut: number;
-}
-
-/**
- * How I Build, the release (landscape): the path the ribbon runs BACKWARDS once the spring fires (its old tail
- * leads). From End 1 a hidden link down the far left (out of sight), then (in arc order) the dive: a straight line
- * from below the screen's bottom-left up through the gap between the D of BUILD and "01" and out over the top edge,
- * a hidden loop above the top-right corner, and the SAME twisted line as the entry path (from its off-screen start
- * down into the box), at the same arcs: while the ribbon sits compressed in the box, the two paths are identical
- * wherever it is, so swapping them shows nothing. Travelling backwards: the old tail shoots up the line and out of
- * the right edge (the jump), loops over out of sight, and dives in from the top through the gap, off the bottom-left.
- */
-export function buildReleasePath(inp: ReleaseInput): ReleasePath {
-  const { W, H, end, ds } = inp;
-  const bd = inp.build;
-  const margin = end.hw * 2 + 40;
-  const world = (sx: number, sy: number): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), 0];
-  const ln = buildLine(inp, bd, margin, ds);
-  const Q = ln.curve[0], dQ = norm(sub(ln.curve[1], ln.curve[0]));
-  // the dive: 45 degrees through the gap, from beyond the top edge to beyond the bottom-left
+  const thEnd = 2 * Math.PI * N;
+  const nC = Math.ceil((thEnd * Math.hypot(r, p / (2 * Math.PI))) / step);
+  for (let i = 0; i <= nC; i++) {
+    const th = (thEnd * i) / nC;
+    const q = coilAt(th);
+    acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    want.push(coilWidth(th));
+  }
+  const sTop = acc;
+  // the way out: a cubic from the coil's top (along its tangent) to J on the diagonal near the top edge, then the
+  // diagonal through the gap (face on, the band's width in the screen plane)
+  const P0 = coilAt(thEnd);
+  const T0 = norm(sub(coilAt(thEnd + 1e-3), coilAt(thEnd - 1e-3)));
   const beta = (45 * Math.PI) / 180;
   const v: [number, number] = [-Math.cos(beta), Math.sin(beta)];
   const g = bd.gap;
-  const tTop = (-margin - 60 - g.y) / v[1]; // negative: up-right of the gap
-  // on past the screen's LEFT edge (not just the bottom: the strip below is the next section, seen once the page
-  // moves on), so when the run ends the whole ribbon is out of sight
-  let tBot = 0;
-  while (tBot < 6 * H && g.x + v[0] * tBot > -margin - 60) tBot += ds / 3;
-  const T0 = world(g.x + v[0] * tTop, g.y + v[1] * tTop); // above the top edge
-  const B0 = world(g.x + v[0] * tBot, g.y + v[1] * tBot); // below / left of the screen
-  const upDir = norm(sub(T0, B0));
-  const step = ds / 3;
-  const face = norm(cross([0, 0, 1], upDir));
-  // the dive twists like the line (the same ribbon, the same rate)
-  const diveWant = (i: number, n: number) => rotate(face, upDir, ((180 / 340) * (i / Math.max(1, n)) * len(sub(T0, B0)) * Math.PI) / 180);
-  // the hidden loop (above the top-right corner) from T0 (heading up-right) to Q (heading down the line)
-  const hL = 0.5 * len(sub(Q, T0)) + 200;
-  const loop = bezier(T0, add(T0, upDir, hL), add(Q, dQ, -hL), Q, 120);
-  const dive = lineSamples(B0, T0, step);
-  const diveLen = len(sub(T0, B0)), loopLen = polyLen(loop, T0);
-  // the hidden link: End 1 -> far left -> down the far left -> B0, its length chosen so the line starts at sQ
-  const left = -W / 2 - margin - 2 * W;
-  const build = (detour: number) => {
-    const A1: V3 = [left - detour, end.p[1], 0];
-    const A2: V3 = [left - detour, B0[1], 0];
-    const pre: V3[] = [end.p, ...lineSamples(end.p, A1, step), ...lineSamples(A1, A2, step), ...lineSamples(A2, B0, step)];
-    return pre;
-  };
-  const linkLen = (d: number) => polyLen(build(d));
-  let target = inp.sQ - diveLen - loopLen;
-  const mk = (d: number) => {
-    const pts: V3[] = [...build(d), ...dive, ...loop.slice(0), ...ln.curve.slice(1)];
-    const want: (V3 | null)[] = pts.map(() => null);
-    const nPre = build(d).length;
-    for (let i = 0; i < pts.length; i++) {
-      if (i >= nPre + dive.length + loop.length - 1) want[i] = ln.want[i - (nPre + dive.length + loop.length - 1)];
-      else if (i >= nPre - 1 + dive.length) want[i] = face;
-      else if (i >= nPre - 1) want[i] = diveWant(i - (nPre - 1), dive.length);
-    }
-    want[0] = null;
-    return { pts, want, nPre };
-  };
-  // solve the detour so the pre-line length matches (twice: the shear shifts arcs a little)
-  let d = 0;
-  for (let it = 0; it < 2; it++) {
-    let lo = 0, hi = Math.max(1, target);
-    for (let i = 0; i < 50; i++) {
-      const mid = (lo + hi) / 2;
-      if (linkLen(mid) < target) lo = mid;
-      else hi = mid;
-    }
-    d = hi;
-    const o = finish(mk(d), inp, bd, -1);
-    const err = inp.sQ - o.sQ;
-    if (Math.abs(err) < 0.5) return o;
-    target += err;
+  const tJ = (Math.min(60, g.y - 40) - g.y) / v[1]; // up-right of the gap, near the top edge
+  const J = world(g.x + v[0] * tJ, g.y + v[1] * tJ, 0);
+  const vW = norm([v[0], -v[1], 0]);
+  const wDiag = norm(cross([0, 0, 1], vW));
+  const hA = 0.6 * len(sub(J, P0)) + 80, hB = 0.45 * len(sub(J, P0)) + 60;
+  const out = bezier(P0, add(P0, T0, hA), add(J, vW, -hB), J, Math.max(24, Math.ceil(len(sub(J, P0)) / step)));
+  const wEnd = coilWidth(thEnd);
+  const wD = dot(wDiag, wEnd) < 0 ? ([-wDiag[0], -wDiag[1], -wDiag[2]] as V3) : wDiag;
+  out.forEach((q, i) => {
+    acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    const u = smoother((i + 1) / out.length);
+    want.push(norm(add(wEnd, sub(wD, wEnd), u)));
+  });
+  // the diagonal, down through the gap into the next section: the head stops near its top (above its first entry)
+  const yStop = H + 0.12 * H;
+  let sStop = 0, sBottom = 0;
+  for (let t = tJ + step; ; t += step) {
+    const sx = g.x + v[0] * t, sy = g.y + v[1] * t;
+    const q = world(sx, sy, 0);
+    acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    want.push(wD);
+    if (!sBottom && (sy >= H || sx <= -margin)) sBottom = acc;
+    if (!sStop && (sy >= yStop || sx <= -margin)) sStop = acc;
+    if (sy > 3 * H || sx < -W) break;
   }
-  return finish(mk(d), inp, bd, -1);
-
-  function finish(m: { pts: V3[]; want: (V3 | null)[]; nPre: number }, ip: ReleaseInput, b: BuildInput, _x: number): ReleasePath {
-    void _x;
-    const aQ = polyLen(m.pts.slice(0, m.nPre + dive.length + loop.length - 1));
-    const aOut = polyLen(m.pts.slice(0, m.nPre)) + Math.max(0, len(sub(world(g.x + v[0] * (tBot - 0), g.y + v[1] * (tBot - 0)), B0)));
-    const out = resample(m.pts, m.want, ip.end, ip.ds, ds * 4, ds * 8);
-    const a3 = b.yB / ip.camZ;
-    for (let j = 0; j < out.k; j++) {
-      const sArc = (j + 1) * ip.ds;
-      const a = a3 * smoother(sArc / 800);
-      const z = out.pos[j * 3 + 2];
-      out.pos[j * 3 + 1] += a * z;
-      const hw = out.ruled[j * 4 + 3];
-      const bx = out.ruled[j * 4], by = out.ruled[j * 4 + 1] + a * out.ruled[j * 4 + 2], bz = out.ruled[j * 4 + 2];
-      const l = Math.hypot(bx, by, bz) || 1;
-      out.ruled[j * 4] = bx / l;
-      out.ruled[j * 4 + 1] = by / l;
-      out.ruled[j * 4 + 2] = bz / l;
-      out.ruled[j * 4 + 3] = hw * l;
-    }
-    const postArc = (pre: number) => {
-      let acc = len(sub([out.pos[0], out.pos[1], out.pos[2]], ip.end.p));
-      const idx = Math.min(out.k - 1, Math.max(0, Math.round(pre / ip.ds) - 1));
-      for (let j = 1; j <= idx; j++) acc += Math.hypot(out.pos[j * 3] - out.pos[j * 3 - 3], out.pos[j * 3 + 1] - out.pos[j * 3 - 2], out.pos[j * 3 + 2] - out.pos[j * 3 - 1]);
-      return acc;
-    };
-    return { ...out, sQ: postArc(aQ), sOut: postArc(aOut) };
-  }
+  return { curve, want, sEdge, sTop, sBottom, sStop };
 }
