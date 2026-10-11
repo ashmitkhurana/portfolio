@@ -763,12 +763,13 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
   const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), z];
   const hwS = inp.end.hw;
   const bx = bd.box;
-  const r = Math.max(36, Math.min(0.34 * (bx.x1 - bx.x0), 110));
+  // as wide as the box allows (the box's height limits the turns: a wider coil is a longer ribbon)
+  const r = Math.max(36, Math.min(0.46 * (bx.x1 - bx.x0) - 4, 150));
   const xc = (bx.x0 + bx.x1) / 2;
   const yBot = bx.y1 - hwS - 4;
-  const pMin = 2.2 * hwS; // compressed: the turns just clear each other
+  const pMin = 2.08 * hwS; // compressed: the turns all but touch (the band's width plus ~4%)
   const compH = Math.max(pMin, yBot - (bx.y0 + hwS + 4));
-  const N = Math.min(3, Math.max(1.25, compH / pMin));
+  const N = Math.min(3.5, Math.max(1.25, compH / pMin));
   const pLoose = Math.max(pMin, (yBot - (bd.top + hwS)) / N);
   const pComp = compH / N;
   const c = bd.c;
