@@ -90,6 +90,7 @@ const VERT_DECL = /* glsl */ `
 uniform float uRimNormalMix;
 varying float vFace;
 varying float vRibbonZ;
+varying float vShadeZ;
 varying float vEdgeT;
 `;
 
@@ -114,6 +115,7 @@ uniform float uEdgeGrad;
 uniform float uRimAoFloor;
 varying float vFace;
 varying float vRibbonZ;
+varying float vShadeZ;
 varying float vEdgeT;
 layout(location = 1) out highp vec4 gMask;
 
@@ -203,7 +205,7 @@ const SPEC_TINT_APPLY = (ao: boolean) => /* glsl */ `
 `;
 
 const DEPTH_SHADE = /* glsl */ `
-  outgoingLight *= mix(1.0 - uDepthShade, 1.0, smoothstep(-340.0, 140.0, vRibbonZ));
+  outgoingLight *= mix(1.0 - uDepthShade, 1.0, smoothstep(-340.0, 140.0, vShadeZ));
 `;
 
 const TONE_FN: Record<ToneMapName, string> = {
@@ -268,7 +270,7 @@ export function createRibbonMaterial(
     if (dot(ribFn, -mvPosition.xyz) < 0.0) ribFn = -ribFn;
     vNormal = normalize(mix(normalize(vNormal), ribFn, uRimNormalMix));
   }
-  #endif${ao ? AO_VERT_BODY : ""}\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;`,
+  #endif${ao ? AO_VERT_BODY : ""}\n  vFace = tangent.z;\n  vEdgeT = (position.y * (uRingProf.y - uRingProf.x) + tangent.y * uRingProf.x) / max(uRingProf.y, 1e-4);\n  vRibbonZ = (modelMatrix * vec4(transformed, 1.0)).z;\n  {\n    // depth shade: a shaped end cap reads its end ring's depth (a cap that runs into depth would shade darker past the\n    // cut: a line across the band)\n    int ri = int(position.z + 0.5);\n    float uu = texelFetch(uRingTex, ivec2(ri, 3), 0).w;\n    int capE = int(uRingProf.w + 0.5);\n    int ref = ri;\n    if (uu < 0.0) ref = capE;\n    else if (uu > 1.0) ref = capE + int(float(ri - capE) / uu + 0.5);\n    vShadeZ = vRibbonZ - (texelFetch(uRingTex, ivec2(ri, 0), 0).z - texelFetch(uRingTex, ivec2(ref, 0), 0).z);\n  }`,
     );
 
     shader.fragmentShader = shader.fragmentShader

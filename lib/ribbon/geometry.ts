@@ -465,7 +465,7 @@ export class RibbonGeometry {
     }
     if (topo) {
       this.profile = buildProfile(this.params);
-      this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, this.totalRings, 0);
+      this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, this.totalRings, this.caps);
     }
     return false;
   }
@@ -475,8 +475,8 @@ export class RibbonGeometry {
    * straight and the band only narrows (its thickness stays; it closes to a point in the last step).
    *   leading end (ring 0 side): an arrow point, the band narrowing linearly to the tip over depth;
    *   trailing end: the matching notch. Its section splits into two prongs ([-1, -q] and [q, 1] of the half width at
-   *   depth q), each a solid with its own walls: the tube runs out along one prong to its point, jumps (zero area,
-   *   point to point) to the other prong's point and runs back to the notch's apex, where it closes inside the band.
+   *   depth q), each a solid with its own walls: the tube runs out along one prong to its point, jumps (zero area) to
+   *   the other prong's base inside the band's end and runs out along it (both prongs in the ribbon's direction).
    */
   private ribbonEnds(head: number, tail: number, E: number, R: number): void {
     const P = this.params;
@@ -493,29 +493,30 @@ export class RibbonGeometry {
       }
       rWidth[i] = rWidth[from];
       rScale[i] = sc;
-      rScaleT[i] = sT;
+      rScaleT[i] = sT * rScaleT[from]; // the band's own thickness (a slimmer band is thinner)
     };
-    // the point (rings E-1 .. 0, ring 0 the tip)
-    for (let j = 1; j <= E; j++) {
-      const q = j / E;
-      copy(E - j, head, -q * dH, 0, 1 - q, j === E ? 0 : 1);
+    // the point (rings E-1 .. 1, ring 1 the tip at full thickness: a crisp edge, no sloped facet), ring 0 closes it
+    for (let j = 1; j < E; j++) {
+      const q = j / (E - 1);
+      copy(E - j, head, -q * dH, 0, 1 - q, 1);
     }
-    // the notch
+    copy(0, head, -dH, 0, 0, 0);
+    // the notch: both prongs run OUTWARD (the ribbon's own direction: their normals and winding match the band's).
+    // Out along the left prong to its point, a zero-area jump to the right prong's base (a zero-size ring inside the
+    // band's end), out along the right prong. Rings at the same spot are doubled so every visible ring takes its
+    // normal from a real neighbour (a neighbour at the same spot gives a degenerate normal: a dark line)
     let i = tail + 1;
-    const prong = (side: number, q: number, sT: number) => copy(i++, tail, q * dT, side * hwT * 0.5 * (1 + q), 0.5 * (1 - q), sT);
-    // both prongs start exactly at the band's end (q = 0: no gap at the apex). Rings at the same spot are doubled
-    // so every visible ring takes its normal from a proper neighbour (a zero-length neighbour step gave a degenerate
-    // normal: a dark line across the band)
+    const prong = (side: number, q: number, sT: number, sc = 0.5 * (1 - q)) => copy(i++, tail, q * dT, side * hwT * 0.5 * (1 + q), sc, sT);
     copy(i++, tail, 0, 0, 1, 1);
     prong(-1, 0, 1);
     prong(-1, 0, 1);
-    for (let j = 1; j <= E; j++) prong(-1, j / E, j === E ? 0 : 1); // out along the left prong to its point
-    prong(-1, 1, 0); // (the point again: the jump's ends carry their own direction)
-    prong(1, 1, 0); // the other prong's point
-    prong(1, 1, 0);
-    for (let j = E - 1; j >= 0; j--) prong(1, j / E, 1); // back to the apex (q = 0, the band's end)
+    for (let j = 1; j <= E; j++) prong(-1, j / E, 1); // out to the left prong's point (full thickness)
+    prong(-1, 1, 0);
+    prong(1, 0, 0, 0); // the jump's far end: a zero-size ring at the right prong's base
     prong(1, 0, 1);
-    prong(1, 0, 0); // closed, on the band's own end section (inside)
+    prong(1, 0, 1);
+    for (let j = 1; j <= E; j++) prong(1, j / E, 1); // out to the right prong's point (full thickness)
+    prong(1, 1, 0); // closed
     void R;
   }
 
@@ -567,7 +568,8 @@ export class RibbonGeometry {
     tex.needsUpdate = true;
     this.sweep.uRingTex.value = tex;
     old.dispose();
-    this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, R, 0);
+    // w = the cap ring count: the body is rings E .. E + M - 1 (the shader's depth shade reads the ends' own depth)
+    this.sweep.uRingProf.value.set(this.profile.r, this.profile.ht, R, E);
 
     // static per-vertex data, one interleaved buffer (stride 7):
     //   position = (profile sx, sy, ring)   tangent = (cx, cy, face, 1)
@@ -693,7 +695,8 @@ export class RibbonGeometry {
       rN[o + 2] = nz;
       this.rWidth[E + i] = (2 * chan[3][i]) / Math.max(this.params.width, 1e-6);
       this.rScale[E + i] = 1;
-      this.rScaleT[E + i] = 1;
+      // a band narrower than its nominal width is proportionally thinner too (the slimmer Experience band)
+      this.rScaleT[E + i] = Math.min(1, this.rWidth[E + i]);
       this.rTwist[E + i] = 0;
     }
   }

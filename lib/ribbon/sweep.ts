@@ -63,7 +63,12 @@ void ribSweepAt(int i, vec2 sp, vec2 cp, out vec3 P, out vec3 Nrm, out vec3 Tan)
   vec3 o = cross(s, u);
   float ol = length(o);
   Nrm = o / (ol > 0.0 ? ol : 1.0);
-  Tan = s;
+  // the satin (anisotropic) highlight follows the tangent: in a shaped end cap (a narrowing ring, plan scale < 1) the
+  // vertices slide sideways and s tilts in opposite ways on the two halves (two sheens); use the ring's own axis there
+  // (the ring at a cap's join too: its neighbour narrows)
+  float planScale = min(texelFetch(uRingTex, ivec2(i, 1), 0).w,
+    min(texelFetch(uRingTex, ivec2(max(i - 1, 0), 1), 0).w, texelFetch(uRingTex, ivec2(min(i + 1, last), 1), 0).w));
+  Tan = planScale < 0.999 ? normalize(texelFetch(uRingTex, ivec2(i, 3), 0).xyz) : s;
 }
 `;
 
