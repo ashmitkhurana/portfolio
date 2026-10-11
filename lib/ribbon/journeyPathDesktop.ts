@@ -72,6 +72,8 @@ export interface JourneyPathDesktopInput {
    * compression c (0 = loose, up to the top of "HOW"; 1 = compressed into the box; < 0 = overshooting as it jumps).
    */
   build?: BuildInput;
+  /** How I Build on phones: the pinned screen's virtual top and the empty box above "HOW" (css px in that screen) */
+  buildH?: { yB: number; box: Rect };
   exterm?: ExtermInput;
   foot?: FootInput;
 }
@@ -148,7 +150,9 @@ export interface BuildMarks {
   sEdge: number;
   /** the coil (world, pre-shear design coordinates): the pole's x / z, radius, bottom and loose / compressed top y,
    *  and the section's view shear (y += a z) for the per-frame squash (journey.ts) */
-  coil?: { x: number; z: number; r: number; yBot: number; yTop: number; yTopComp: number; a: number };
+  coil?: { x: number; z: number; r: number; yBot: number; yTop: number; yTopComp: number; a: number; axis?: "x"; y?: number; x1?: number; x1Comp?: number };
+  /** phones: the hidden corner above the section's top-left (the head waits there when the pin starts) */
+  sK?: number;
   /** the coil's first point (the ribbon's tail rests here once the whole ribbon is on screen) */
   sCoil0: number;
   sTop: number;
@@ -407,9 +411,48 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
       void k;
     });
     stack = { passes, rings: [] };
-    // straight on (off the left edge, hidden), far enough for the whole ribbon to follow
-    const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
-    push(lineSamples(l2, add(l2, norm(sub(l2, p2)), inp.ribbonLen + 2 * H), ds / 3), st.passes[2].normal);
+    if (inp.buildH) {
+      // ── How I Build (phone): off the left edge, a hidden route up the left side to above the section's top, along
+      // it out of sight (the section is pinned then), then the coil on its side (see buildCoilH)
+      const bh = buildCoilH(inp, inp.buildH, margin, ds);
+      const E0 = pts[pts.length - 1], dE = norm(sub(E0, pts[pts.length - 2]));
+      const K = bh.corner; // above the section's top, beyond the left edge
+      const S0 = bh.curve[0], dS = norm(sub(bh.curve[1], bh.curve[0]));
+      const sR0 = acc;
+      const hK = 0.4 * len(sub(K, E0)) + 200;
+      const toK = bezier(E0, add(E0, dE, hK), add(K, [0, -1, 0], -hK), K, 160);
+      push(toK, st.passes[2].normal);
+      const sK = acc;
+      shearKnots.push({ s0: sR0, s1: sK, a: inp.buildH.yB / inp.camZ });
+      const hS = 0.45 * len(sub(S0, K)) + 60;
+      const toS = bezier(K, add(K, [0, 1, 0], hS * 0.3), add(S0, dS, -hS), S0, 160);
+      const wA = st.passes[2].normal;
+      const wB = dot(bh.want[0], wA) < 0 ? ([-bh.want[0][0], -bh.want[0][1], -bh.want[0][2]] as V3) : bh.want[0];
+      toS.forEach((q, i) => {
+        acc += len(sub(q, pts[pts.length - 1]));
+        pts.push(q);
+        want.push(norm(add(wA, sub(wB, wA), smoother((i + 1) / toS.length))));
+      });
+      const sQ = acc;
+      for (let i = 1; i < bh.curve.length; i++) {
+        acc += len(sub(bh.curve[i], pts[pts.length - 1]));
+        pts.push(bh.curve[i]);
+        want.push(bh.want[i]);
+      }
+      build = {
+        coil: { ...bh.coil, a: inp.buildH.yB / inp.camZ },
+        sK,
+        sEdge: sQ + bh.sEdge,
+        sCoil0: sQ + bh.sCoil0,
+        sTop: sQ + bh.sTop,
+        sBottom: sQ + bh.sOff,
+        sStop: sQ + bh.sOff + 0.6 * H,
+      };
+    } else {
+      // straight on (off the left edge, hidden), far enough for the whole ribbon to follow
+      const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
+      push(lineSamples(l2, add(l2, norm(sub(l2, p2)), inp.ribbonLen + 2 * H), ds / 3), st.passes[2].normal);
+    }
   } else if (!portrait && inp.work && inp.work.cards.length === 3) {
     // ── Selected Work ──
     const w3 = buildWork(inp, inp.work, margin, tilt, ds);
@@ -576,7 +619,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     };
   }
   if (build) {
-    out.build = { coil: build.coil, sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
+    out.build = { coil: build.coil, sK: build.sK !== undefined ? postArc(build.sK) : undefined, sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
   }
   if (foot) {
     // the ribbon's length in the footer is the AK's own arc AFTER the shear (so the whole ribbon is exactly the AK once
@@ -1199,4 +1242,82 @@ function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn:
   const t1 = norm(sub(ak[0].p, ak[1].p));
   pushPts(lineSamples(ak[0].p, add(ak[0].p, t1, L + 2 * H), step), ak[0].b);
   return { curve, want, sRouteEnd, sFlyIn, sFlyOut, sBackIn: sDive0, sDive0, sE2, sE1 };
+}
+
+/**
+ * How I Build on phones: the coil lies on its SIDE (a horizontal pole, one radius behind the page plane) in the empty
+ * box above "HOW", winding left to right. The lead-in comes straight down from above the section's top into the
+ * coil's left end (its first quarter turn heads down: the circle's plane is vertical, no kink); the way out leaves
+ * the right end and runs off the right edge (the launch). Loose / compressed spans as on desktop (turns all but
+ * touching when compressed). Returns world points (pre-shear), wanted band orientations, marks (arcs from the first
+ * point) and the coil's numbers for the per-frame squash (journey.ts).
+ */
+function buildCoilH(inp: JourneyPathDesktopInput, bd: { yB: number; box: Rect }, margin: number, ds: number) {
+  const { W, H } = inp;
+  const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), z];
+  const hwS = inp.end.hw;
+  const bx = bd.box;
+  const r = Math.max(24, Math.min(0.42 * (bx.y1 - bx.y0), 64));
+  const yA = Math.max(bx.y0 + r, (bx.y0 + bx.y1) / 2);
+  const xL = bx.x0 + 0.6 * hwS;
+  const pMin = 2.08 * hwS;
+  const spanLoose = bx.x1 - 0.6 * hwS - xL;
+  const N = Math.min(4, Math.max(2, spanLoose / (2.4 * pMin)));
+  const ramp = Math.PI / 2;
+  const climb = (th: number) => (th < ramp ? (th * th) / (2 * ramp) : th - ramp / 2);
+  const thEnd = 2 * Math.PI * N;
+  const gEnd = climb(thEnd);
+  const coilAt = (th: number): V3 => world(xL + (spanLoose * climb(th)) / gEnd, yA + r * Math.sin(th), r * Math.cos(th) - r);
+  const coilWidth = (th: number): V3 => {
+    const a = coilAt(th - 1e-3), b = coilAt(th + 1e-3);
+    const T = norm(sub(b, a));
+    return norm(cross([0, -Math.sin(th), Math.cos(th)], T));
+  };
+  const step = ds / 3;
+  const curve: V3[] = [];
+  const want: V3[] = [];
+  let acc = 0;
+  const pushQ = (q: V3, w: V3) => {
+    if (curve.length) acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    want.push(w);
+  };
+  // lead-in: straight down from above the section's top into the coil's front point
+  const w0 = coilWidth(0);
+  const yStart = -margin - 120;
+  let sEdge = 0;
+  for (let y = yStart; y < yA; y += step) {
+    pushQ(world(xL, y, 0), w0);
+    if (y <= -margin) sEdge = acc;
+  }
+  pushQ(coilAt(0), w0);
+  const sCoil0 = acc;
+  const nC = Math.ceil((thEnd * Math.hypot(r, spanLoose / thEnd)) / step);
+  for (let i = 1; i <= nC; i++) {
+    const th = (thEnd * i) / nC;
+    pushQ(coilAt(th), coilWidth(th));
+  }
+  const sTop = acc;
+  // the way out: from the right end (along its tangent), a cubic to the coil's height beyond the right edge, then on
+  const P0 = coilAt(thEnd);
+  const T0 = norm(sub(coilAt(thEnd + 1e-3), coilAt(thEnd - 1e-3)));
+  const J = world(W + margin + 160, yA, 0);
+  const hA = 0.5 * len(sub(J, P0)) + 40;
+  const out = bezier(P0, add(P0, T0, hA * 0.6), add(J, [1, 0, 0], -hA), J, Math.max(24, Math.ceil(len(sub(J, P0)) / step)));
+  let bT: V3 = coilWidth(thEnd);
+  let sOff = 0;
+  out.forEach((q, i) => {
+    const prevQ = curve[curve.length - 1];
+    const T = norm(sub(i + 1 < out.length ? out[i + 1] : q, prevQ));
+    bT = norm(sub(bT, [T[0] * dot(bT, T), T[1] * dot(bT, T), T[2] * dot(bT, T)]));
+    pushQ(q, bT);
+    if (!sOff && q[0] > W / 2 + margin) sOff = acc;
+  });
+  const t1: V3 = [1, 0, 0];
+  for (let k = 1; k <= Math.ceil((inp.ribbonLen + 2 * W) / step); k++) pushQ(add(J, t1, k * step), bT);
+  if (!sOff) sOff = acc;
+  const spanComp = N * pMin;
+  const coil = { x: xL - W / 2, z: -r, r, yBot: 0, yTop: 0, yTopComp: 0, axis: "x" as const, y: H / 2 - (bd.yB + yA), x1: xL + spanLoose - W / 2, x1Comp: xL + spanComp - W / 2 };
+  const corner = world(-margin - 80, yStart - 60, 0);
+  return { curve, want, sEdge, sCoil0, sTop, sOff, coil, corner };
 }

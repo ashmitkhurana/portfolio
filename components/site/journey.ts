@@ -384,6 +384,20 @@ export function createJourney(engine: RibbonEngine): () => void {
             })())
           : null;
       const fk = footRects ? `${footRects.yF.toFixed(0)}|${footRects.dx.toFixed(0)}|${footRects.dy.toFixed(0)}` : "-";
+      // phones: the empty box above "HOW" (css px in its pinned screen)
+      const buildHRects =
+        portrait && buildPin && stackRects
+          ? (() => {
+              const pinEl = buildPin.pin, t = pinEl.getBoundingClientRect().top;
+              const d = pinEl.querySelector<HTMLElement>(".display")?.getBoundingClientRect();
+              const c = pinEl.querySelector<HTMLElement>(".container")?.getBoundingClientRect();
+              const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
+              if (!d || !c) return null;
+              const gut = parseFloat(getComputedStyle(pinEl.querySelector(".container")!).paddingLeft) || 16;
+              return { x0: c.left + gut, y0: header + 8, x1: c.right - gut, y1: d.top - t - 8 };
+            })()
+          : null;
+      const bhk = buildHRects ? `${buildPin!.vTop.toFixed(0)}|${buildHRects.y0.toFixed(0)},${buildHRects.y1.toFixed(0)},${buildHRects.x1.toFixed(0)}` : "-";
       const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
@@ -393,7 +407,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}|${fk}`;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}|${fk}|${bhk}`;
       // (while released, the release path is in place: the entry path is rebuilt once the ribbon is back in the box)
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
@@ -472,6 +486,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           waveLambda: portrait ? 0.95 * W : undefined,
           work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
           stack: stackRects ?? undefined,
+          buildH: buildHRects ? { yB: buildPin!.vTop, box: buildHRects } : undefined,
           // the coil is built loose; the compression is a per-frame squash (sl.deform below): smooth at any frame rate
           build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: 0 } : undefined,
           exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
@@ -521,6 +536,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           sigma = pathD.sEntry + lead0 * (pathD.sVisible - pathD.sEntry) + draw * (pathD.sWaveEnd - pathD.sVisible);
         }
         const st = pathD.stack;
+        let stackEnd = -1, stackEndV = 0;
         if (st && unravel.p >= 1) {
           // PHONE Selected Work (no pin): each crossing draws as its gap moves up the screen (from 88% to 45% down);
           // in between, the head turns round off-screen
@@ -542,7 +558,11 @@ export function createJourney(engine: RibbonEngine): () => void {
             prevV = v1;
           }
           // after the last crossing the ribbon flows on (off the left edge) with the scroll
-          if (!done) sigma = prevS + (V - prevV);
+          if (!done) {
+            sigma = prevS + (V - prevV);
+            stackEnd = prevS;
+            stackEndV = prevV;
+          }
         }
         const w = pathD.work;
         if (w && workPin && unravel.p >= 1) {
@@ -568,15 +588,21 @@ export function createJourney(engine: RibbonEngine): () => void {
           }
         }
         const bm = pathD.build;
-        if (bm && buildPin && w && workPin && workPin.p >= 1) {
+        const phoneB = !!(bm && bm.sK !== undefined && stackEnd >= 0);
+        if (bm && buildPin && ((w && workPin && workPin.p >= 1) || phoneB)) {
           const Lr = sl.length;
-          const tailEdge = bm.sEdge - 2 * sl.end1().hw; // the head just beyond the screen's edge (out of sight)
+          // the head just out of sight when the pin starts (desktop: beyond the right edge; phone: the hidden corner
+          // above the section's top-left)
+          const tailEdge = phoneB ? bm.sK! : bm.sEdge - 2 * sl.end1().hw;
           const coilLen = bm.sTop - bm.sCoil0;
           let head = 0, tail = 0;
           if (buildPin.p <= 0) {
-            // free scroll from Selected Work: the head runs its hidden route down the right side
-            const q = clamp01((V - workPin.vTop) / Math.max(1, buildPin.vTop - workPin.vTop));
-            head = w.sClear + q * (tailEdge - w.sClear);
+            // free scroll from Selected Work: the head runs its hidden route (desktop: down the right side; phone: up
+            // the left side)
+            const s0 = phoneB ? stackEnd : w!.sClear;
+            const v0 = phoneB ? stackEndV : workPin!.vTop;
+            const q = clamp01((V - v0) / Math.max(1, buildPin.vTop - v0));
+            head = s0 + q * (tailEdge - s0);
             tail = head - Lr;
           } else if (relState !== 0 || relBelow) {
             // the release (either way): the flight by the timeline, then on down the diagonal with the page
@@ -836,15 +862,43 @@ export function createJourney(engine: RibbonEngine): () => void {
     // top moves with the top (faded out along it)
     const coil = pathD?.build?.coil;
     if (coil && buildPin && Math.abs(buildC) > 1e-4) {
-      const kC = (coil.yTopComp - coil.yBot) / (coil.yTop - coil.yBot);
-      const k = 1 + buildC * (kC - 1);
-      const dTop = (coil.yTop - coil.yBot) * (k - 1);
-      const { x: cx, z: cz, r, yBot, yTop, a } = coil;
-      const pad = 70;
       const sm = (e0: number, e1: number, v: number) => {
         const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0)));
         return t * t * (3 - 2 * t);
       };
+      const { x: cx, z: cz, r, a } = coil;
+      if (coil.axis === "x") {
+        // phone: the coil on its side, squashed toward its fixed left end
+        const x0 = cx, x1 = coil.x1!, yA = coil.y!;
+        const kC = (coil.x1Comp! - x0) / (x1 - x0);
+        const k = 1 + buildC * (kC - 1);
+        const dEnd = (x1 - x0) * (k - 1);
+        sl.deform = (pos, ruled, n) => {
+          for (let j = 0; j < n; j++) {
+            const x = pos[j * 3], y = pos[j * 3 + 1], z = pos[j * 3 + 2];
+            const yd = y - a * z;
+            const rho = Math.hypot(yd - yA, z - cz);
+            const w = (1 - sm(10, 30, Math.abs(rho - r))) * sm(x0 - 50, x0 - 15, x) * (1 - sm(x1 + 15, x1 + 50, x));
+            const d = Math.hypot(x - x1, yd - yA, z - cz);
+            const f = Math.max(0, 1 - d / 420);
+            const shift = dEnd * f * f * (3 - 2 * f) * sm(x1 - 120, x1 + 15, x);
+            pos[j * 3] = x + w * (x0 + k * (x - x0) - x) + (1 - w) * shift;
+            if (w > 0) {
+              const o = j * 4;
+              const kk = 1 + w * (k - 1);
+              const bx = kk * ruled[o], by = ruled[o + 1], bz = ruled[o + 2];
+              const l = Math.hypot(bx, by, bz) || 1;
+              ruled[o] = bx / l;
+              ruled[o + 1] = by / l;
+              ruled[o + 2] = bz / l;
+            }
+          }
+        };
+      } else {
+      const kC = (coil.yTopComp - coil.yBot) / (coil.yTop - coil.yBot);
+      const k = 1 + buildC * (kC - 1);
+      const dTop = (coil.yTop - coil.yBot) * (k - 1);
+      const { yBot, yTop } = coil;
       sl.deform = (pos, ruled, n) => {
         for (let j = 0; j < n; j++) {
           const x = pos[j * 3], y = pos[j * 3 + 1], z = pos[j * 3 + 2];
@@ -871,6 +925,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           }
         }
       };
+      }
     } else sl.deform = null;
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
