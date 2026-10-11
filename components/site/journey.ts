@@ -566,9 +566,16 @@ export function createJourney(engine: RibbonEngine): () => void {
             } else if (q < EX_IN) head = xm.sWait;
             else if (q < EX_UNDER) head = xm.sWait + ease((q - EX_IN) / (EX_UNDER - EX_IN)) * (xm.sUnder - xm.sWait);
             else head = xm.sUnder + ease(clamp01((q - EX_UNDER) / (EX_END - EX_UNDER))) * (xm.sEnd - xm.sUnder);
-            // the tail stays where it waited (out of sight above the screen) while the head draws on: the whole path
-            // stays drawn (the underline stays under the entries) and no end of the ribbon ever shows
-            tail = xm.sWait - coilLen;
+            // a ribbon of fixed length travelling along the path: once its head is beside the terminal, its tail rests
+            // where the sweep begins. It grows to that length over the underline (never faster than the head moves, so
+            // its tail never runs backwards); the strand it came in on has left the screen by the first entry
+            // by the time the head has passed the first entry, the tail has pulled the strand it came in on out of
+            // sight (to the underline's start, beyond the left edge); from there the ribbon grows (its tail held) to
+            // its length, then travels at that length
+            const lenX = xm.sEnd - xm.sTailEnd;
+            const tA = xm.sWait - coilLen;
+            if (head <= xm.sFirst) tail = tA + ease(clamp01((head - xm.sWait) / Math.max(1, xm.sFirst - xm.sWait))) * (xm.sStart - tA);
+            else tail = Math.max(xm.sStart, head - lenX);
             // the gate: at the pin's end the page holds while the scrolling fills the bar
             const yGate = exPin.section.getBoundingClientRect().top + window.scrollY + exPin.room;
             if (q < 0.95) gateArmed = true;

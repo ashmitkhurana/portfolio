@@ -91,6 +91,12 @@ export interface ExtermMarks {
   sWait: number;
   sUnder: number;
   sEnd: number;
+  /** where the ribbon's tail rests once its head is beside the terminal (the sweep, just before its S): the ribbon's
+   *  length in this section is sEnd - sTailEnd */
+  sTailEnd: number;
+  /** the underline's start (out of sight beyond the left edge) and the head past the first entry */
+  sStart: number;
+  sFirst: number;
   end: { x: number; y: number };
 }
 
@@ -450,7 +456,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
           pts.push(ex.curve[i]);
           want.push(ex.want[i]);
         }
-        exterm = { sWait: sX + ex.sWait, sUnder: sX + ex.sUnder, sEnd: sX + ex.sEnd, end: ex.end };
+        exterm = { sWait: sX + ex.sWait, sUnder: sX + ex.sUnder, sEnd: sX + ex.sEnd, sTailEnd: sX + ex.sTailEnd, sStart: sX, sFirst: sX + ex.sFirst, end: ex.end };
         // the head waits at the left edge: How I Build's release ends there
         build.sStop = exterm.sWait;
       }
@@ -514,7 +520,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     out.build = { sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
   }
   if (exterm) {
-    out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), end: exterm.end };
+    out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), sTailEnd: postArc(exterm.sTailEnd), sStart: postArc(exterm.sStart), sFirst: postArc(exterm.sFirst), end: exterm.end };
   }
   if (stack && inp.stack) {
     out.stack = {
@@ -973,6 +979,7 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
     scr.push([xR + R1 * Math.sin(th), yU + R1 - R1 * Math.cos(th), 0]);
   }
   // the sweep: left above the terminal, then an S down to loop 2's top
+  const iSweep = scr.length;
   for (let x = xR - step; x >= x2; x -= step) scr.push([x, yS, 0]);
   const nS = Math.ceil(Math.hypot(x2 - xA, yB2 - yS) * 1.15 / step);
   for (let i = 1; i <= nS; i++) {
@@ -993,12 +1000,15 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
   for (let x = xEnd + step; x <= W + 3 * margin + inp.ribbonLen; x += step) scr.push([x, yEnd, 0]);
   const curve = scr.map(([x, y, w]) => lift(x, y, w));
   const want = curve.map(() => n);
-  let a = 0, sWait = 0, sUnder = 0, sEnd = 0;
+  let a = 0, sWait = 0, sUnder = 0, sEnd = 0, sTailEnd = 0, sFirst = 0;
+  const xFirst = st.x0 + (st.x1 - st.x0) / 4; // the first entry's right edge (four columns)
   for (let i = 1; i < curve.length; i++) {
     a += len(sub(curve[i], curve[i - 1]));
+    if (i >= iSweep && !sTailEnd && scr[i][0] <= x2 + 20) sTailEnd = a;
+    if (i <= iUnder && !sFirst && scr[i][0] >= xFirst) sFirst = a;
     if (scr[i][0] <= st.x0 - 34 && i <= iUnder) sWait = a;
     if (i === iUnder) sUnder = a;
     if (i === iEnd) sEnd = a;
   }
-  return { curve, want, sWait, sUnder, sEnd, end: { x: xEnd, y: yEnd } };
+  return { curve, want, sWait, sUnder, sEnd, sTailEnd, sFirst, end: { x: xEnd, y: yEnd } };
 }
