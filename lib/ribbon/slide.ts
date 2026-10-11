@@ -109,6 +109,9 @@ export class SlideMotion {
    * nothing of the ribbon is on screen.
    */
   cameraBase = 0;
+  /** applied to the composed rings every frame (positions, rulings): the page's journey squashes the How I Build coil
+   *  here (smooth, no path rebuild); null = none */
+  deform: ((pos: Float32Array, ruled: Float32Array, n: number) => void) | null = null;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
   get animating(): boolean {
     return (
@@ -574,6 +577,7 @@ export class SlideMotion {
   private compose(sway: number): void {
     this.swayAngle = sway;
     this.composeWindow(sway);
+    if (this.deform) this.deform(this.outPos, this.outRuled, this.count);
   }
 
   /**

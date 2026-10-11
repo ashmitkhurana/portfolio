@@ -270,7 +270,7 @@ export function createJourney(engine: RibbonEngine): () => void {
       }
       const flightU = clamp01((relT - REL_COMPRESS) / REL_RIB);
       buildC = relT < REL_COMPRESS ? ease(relT / REL_COMPRESS) : jump(flightU);
-      buildC = Math.round(buildC * 50) / 50;
+      // (no rounding: the squash is applied per frame, the path is not rebuilt)
     }
     // in screen order (desktop: left to right, the grid places them out of DOM order; phones: top to bottom)
     const cards = workAny
@@ -384,7 +384,7 @@ export function createJourney(engine: RibbonEngine): () => void {
             })())
           : null;
       const fk = footRects ? `${footRects.yF.toFixed(0)}|${footRects.dx.toFixed(0)}|${footRects.dy.toFixed(0)}` : "-";
-      const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${buildC}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
+      const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
         ? (() => {
@@ -472,7 +472,8 @@ export function createJourney(engine: RibbonEngine): () => void {
           waveLambda: portrait ? 0.95 * W : undefined,
           work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
           stack: stackRects ?? undefined,
-          build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: buildC } : undefined,
+          // the coil is built loose; the compression is a per-frame squash (sl.deform below): smooth at any frame rate
+          build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: 0 } : undefined,
           exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
           foot: footRects
             ? {
@@ -831,6 +832,37 @@ export function createJourney(engine: RibbonEngine): () => void {
         sigma = clear + lead;
       }
     }
+    // How I Build: squash the coil (about its fixed bottom) by the compression, every frame; the strand leaving its
+    // top moves with the top (faded out along it)
+    const coil = pathD?.build?.coil;
+    if (coil && buildPin && Math.abs(buildC) > 1e-4) {
+      const kC = (coil.yTopComp - coil.yBot) / (coil.yTop - coil.yBot);
+      const k = 1 + buildC * (kC - 1);
+      const dTop = (coil.yTop - coil.yBot) * (k - 1);
+      const { x: cx, z: cz, r, yBot, yTop, a } = coil;
+      const pad = 70;
+      sl.deform = (pos, ruled, n) => {
+        for (let j = 0; j < n; j++) {
+          const x = pos[j * 3], y = pos[j * 3 + 1], z = pos[j * 3 + 2];
+          const yd = y - a * z; // design height (the section's view shear removed)
+          const inCoil = Math.abs(x - cx) <= r + pad && Math.abs(z - cz) <= r + pad && yd >= yBot - pad && yd <= yTop + pad;
+          if (inCoil) {
+            pos[j * 3 + 1] = yBot + k * (yd - yBot) + a * z;
+            // the band's width vector through the same linear map (dy' = k dy + a (1 - k) dz), true half width kept
+            const o = j * 4;
+            const bx = ruled[o], by = k * ruled[o + 1] + a * (1 - k) * ruled[o + 2], bz = ruled[o + 2];
+            const l = Math.hypot(bx, by, bz) || 1;
+            ruled[o] = bx / l;
+            ruled[o + 1] = by / l;
+            ruled[o + 2] = bz / l;
+          } else if (yd > yTop - 10) {
+            const d = Math.hypot(x - cx, yd - yTop, z - cz);
+            const f = Math.max(0, 1 - d / 520);
+            pos[j * 3 + 1] = y + dTop * f * f * (3 - 2 * f);
+          }
+        }
+      };
+    } else sl.deform = null;
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
     sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;

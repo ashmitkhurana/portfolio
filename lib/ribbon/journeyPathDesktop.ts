@@ -146,6 +146,9 @@ export interface BuildMarks {
   /** slide distances: the lead-in crosses into view at the right edge, the coil's top (the head waits there while the
    *  scroll compresses the coil), the head's stop in the next section (where the ribbon waits) */
   sEdge: number;
+  /** the coil (world, pre-shear design coordinates): the pole's x / z, radius, bottom and loose / compressed top y,
+   *  and the section's view shear (y += a z) for the per-frame squash (journey.ts) */
+  coil?: { x: number; z: number; r: number; yBot: number; yTop: number; yTopComp: number; a: number };
   /** the coil's first point (the ribbon's tail rests here once the whole ribbon is on screen) */
   sCoil0: number;
   sTop: number;
@@ -469,7 +472,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         pts.push(ln.curve[i]);
         want.push(ln.want[i]);
       }
-      build = { sEdge: sQ + ln.sEdge, sCoil0: sQ + ln.sCoil0, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
+      build = { coil: { ...ln.coil, a: inp.build.yB / inp.camZ }, sEdge: sQ + ln.sEdge, sCoil0: sQ + ln.sCoil0, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
       if (inp.exterm) {
         // ── Experience + Terminal: out of sight beyond the left edge, a turn round into the underline's plane, then
         // the underline, the loops and the sweep (see buildExterm)
@@ -573,7 +576,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     };
   }
   if (build) {
-    out.build = { sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
+    out.build = { coil: build.coil, sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
   }
   if (foot) {
     // the ribbon's length in the footer is the AK's own arc AFTER the shear (so the whole ribbon is exactly the AK once
@@ -984,7 +987,9 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
     if (inp.exterm && sx < -margin - 30) break;
     if (sy > 3 * H || sx < -W) break;
   }
-  return { curve, want, sEdge, sCoil0, sTop, sBottom, sStop, wEnd: want[want.length - 1] };
+  const yTopComp = yBot - N * pComp;
+  const coil = { x: xc - W / 2, z: -r, r, yBot: H / 2 - (bd.yB + yBot), yTop: H / 2 - (bd.yB + yTop), yTopComp: H / 2 - (bd.yB + yTopComp) };
+  return { curve, want, sEdge, sCoil0, sTop, sBottom, sStop, wEnd: want[want.length - 1], coil };
 }
 
 /**
