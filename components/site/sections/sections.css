@@ -334,11 +334,31 @@
    Desktop: the empty box right of the heading (above the principles) is the ribbon's spring room;
    phone: the space right of "HOW". */
 .build {
-  --section-h: 100svh;
-  display: flex;
+  --build-pin-room: 0px;
+  --section-h: calc(100svh + var(--build-pin-room));
 }
 
-.build > .container {
+/* landscape: pinned while the ribbon coils into a spring and is compressed by the scroll (components/site/journey.ts) */
+@media (min-width: 768px) and (orientation: landscape) {
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 250svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 0px;
+  }
+}
+
+.build__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100svh;
+}
+
+.build .container {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -445,8 +465,21 @@
     grid-column: 7 / span 6;
   }
 
+  /* the third column stays empty: the box where the ribbon's spring settles (components/site/journey.ts) */
   .principle {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 48px minmax(0, 1fr) clamp(150px, 32%, 340px);
+  }
+
+  .principle__title,
+  .principle__text {
+    grid-column: 2;
+  }
+}
+
+/* small landscape screens: the principles wrap taller beside the spring column; the heading gives way */
+@media (min-width: 768px) and (max-width: 1099.98px) and (orientation: landscape) {
+  .build .display {
+    --_size: min(var(--display-xl), (100svh - var(--header-h) - 26rem) / 1.7);
   }
 }
 

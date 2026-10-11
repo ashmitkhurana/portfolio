@@ -16,7 +16,8 @@
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
 import { buildPortraitFlow, type JourneyPath, type SpiralPath } from "@/lib/ribbon/journeyPath";
-import { buildJourneyPathDesktop, type JourneyPathDesktop } from "@/lib/ribbon/journeyPathDesktop";
+import { buildJourneyPathDesktop, buildReleasePath, type JourneyPathDesktop, type JourneyPathDesktopInput, type ReleasePath } from "@/lib/ribbon/journeyPathDesktop";
+import { getLenis } from "@/components/scroll/SmoothScroll";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
 const CLEAR_MARGIN = 60;
@@ -39,6 +40,16 @@ const WORK_OUT = 0.6;
 /** Selected Work (phones, not pinned): a crossing draws while its gap moves from STACK_FROM to STACK_TO down the screen */
 const STACK_FROM = 0.88;
 const STACK_TO = 0.45;
+/** How I Build (landscape) pin progress: the ribbon comes in and down into the box by BUILD_COIL (shortening out of
+ *  sight as it does); from there the scroll compresses it (it shortens visibly into the box, the twist winds tighter);
+ *  at BUILD_FIRE the release runs on its own */
+const BUILD_COIL = 0.3;
+const BUILD_FIRE = 0.985;
+/** the release, seconds: the run backwards (the old tail leads: up and out, over, down through the gap), then the
+ *  auto-scroll to the next section */
+const REL_RUN = 1.35;
+const REL_SCROLL0 = REL_RUN + 0.05;
+const REL_SCROLL = 1.1;
 
 declare global {
   interface Window {
@@ -96,6 +107,15 @@ export function createJourney(engine: RibbonEngine): () => void {
   let tailM = -1;
   let pathD: JourneyPathDesktop | null = null;
   let ymax = new Float32Array(0);
+  /** How I Build: when the spring was released (performance.now, -1 = armed) and whether the page was sent on */
+  let relT0 = -1;
+  let relScrolled = false;
+  /** the release path (built when the spring fires) and the entry path's input it is built from */
+  let relPath: ReleasePath | null = null;
+  let lastInput: JourneyPathDesktopInput | null = null;
+  /** How I Build's measured rects, per layout (measuring the ink is too costly for every frame) */
+  let buildRectsKey = "";
+  let buildRectsVal: { box: { x0: number; y0: number; x1: number; y1: number }; gap: { x: number; y: number } } | null = null;
   return () => {
     const sl = engine.sim.slide;
     const pins = readPins();
@@ -129,6 +149,15 @@ export function createJourney(engine: RibbonEngine): () => void {
     const workPin = pins.find((p) => p.name === "work" && p.room > 1);
     // phones: Selected Work is not pinned (its pin block has no scroll room); the cards stack
     const workAny = pins.find((p) => p.name === "work");
+    const buildPin = pins.find((p) => p.name === "build" && p.room > 1);
+    // How I Build: the compression (from the scroll; the release keeps it wound)
+    let buildC = 0;
+    let relE = -1;
+    if (buildPin) {
+      buildC = relT0 >= 0 ? 1 : ease(clamp01((buildPin.p - BUILD_COIL) / (BUILD_FIRE - BUILD_COIL)));
+      buildC = Math.round(buildC * 50) / 50;
+      if (relT0 >= 0) relE = (performance.now() - relT0) / 1000;
+    }
     // in screen order (desktop: left to right, the grid places them out of DOM order; phones: top to bottom)
     const cards = workAny
       ? [...workAny.pin.querySelectorAll<HTMLElement>(".project-card")].sort((a, b) => {
@@ -138,6 +167,8 @@ export function createJourney(engine: RibbonEngine): () => void {
       : [];
     let sigma = ease(hero.p) * clear;
     let lead = 0;
+    // desktop: the head's own position (rigid unless a section sets it: How I Build shortens the ribbon)
+    let leadD = Number.NaN;
     if (unravel && clear > 0) {
       const portrait = !(W >= 768 && W > H);
       const textA = unravel.pin.querySelector<HTMLElement>(".unravel__line--a");
@@ -165,6 +196,39 @@ export function createJourney(engine: RibbonEngine): () => void {
             })()
           : null;
       const sk = stackRects ? stackRects.cards.map((r) => `${r.y0.toFixed(0)},${r.y1.toFixed(0)}`).join(";") + `|${stackRects.endY.toFixed(0)}` : "-";
+      // How I Build: the D of BUILD (ink), "01", and the empty area right of the heading (css px in its pinned screen)
+      const brKey = `${key}|${buildPin?.vTop.toFixed(0)}|${portrait}|${document.documentElement.scrollHeight}`;
+      if (brKey !== buildRectsKey) {
+        buildRectsKey = brKey;
+        buildRectsVal = null;
+      }
+      const buildRects =
+        !portrait && buildPin && workRects
+          ? buildRectsVal ?? (buildRectsVal = (() => {
+              // the empty box right of the three principles, and the gap between the D of BUILD and "01"
+              const pinEl = buildPin.pin;
+              const t = pinEl.getBoundingClientRect().top;
+              const secTop = buildPin.section.getBoundingClientRect().top + window.scrollY;
+              const titleB = pinEl.querySelector<HTMLElement>(".display");
+              const ink = titleB ? measureInk(titleB) : [];
+              const d = ink[ink.length - 1];
+              const n01 = pinEl.querySelector<HTMLElement>(".principle__number");
+              const pr = pinEl.querySelector<HTMLElement>(".build__principles");
+              if (!d || !n01 || !pr) return null;
+              const rn = n01.getBoundingClientRect(), rp = pr.getBoundingClientRect();
+              let textR = 0;
+              for (const el of pr.querySelectorAll<HTMLElement>(".principle__title, .principle__text")) {
+                const rg = document.createRange();
+                rg.selectNodeContents(el);
+                for (const r of rg.getClientRects()) textR = Math.max(textR, r.right);
+              }
+              return {
+                box: { x0: textR + 16, y0: rp.top - t, x1: rp.right, y1: rp.bottom - t },
+                gap: { x: (d.x1 - window.scrollX + rn.left) / 2, y: (d.y1 - secTop + rn.top - t) / 2 },
+              };
+            })())
+          : null;
+      const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${buildC}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
         ? (() => {
@@ -173,8 +237,9 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}`;
-      if (pk !== pathKey && textA && textB) {
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}`;
+      // (while released, the release path is in place: the entry path is rebuilt once the ribbon is back in the box)
+      if (pk !== pathKey && textA && textB && !relPath) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
         const pinTop = unravel.pin.getBoundingClientRect().top;
         const ra = textA.getBoundingClientRect(), rb = textB.getBoundingClientRect();
@@ -233,7 +298,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           const seg = Math.hypot(e1.p[0] - r1.p[0], e1.p[1] - r1.p[1], e1.p[2] - r1.p[2]) || 1;
           if (sn > 1e-6) endBend = { axis: ax, rate: Math.atan2(sn, ta[0] * tb[0] + ta[1] * tb[1] + ta[2] * tb[2]) / seg };
         }
-        pathD = buildJourneyPathDesktop({
+        lastInput = {
           W,
           H,
           end: e1,
@@ -251,7 +316,9 @@ export function createJourney(engine: RibbonEngine): () => void {
           waveLambda: portrait ? 0.95 * W : undefined,
           work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
           stack: stackRects ?? undefined,
-        });
+          build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: buildC } : undefined,
+        };
+        pathD = buildJourneyPathDesktop(lastInput);
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
         // the weave: each card's proxy depth puts it in front of or behind the ribbon (never between its z values,
         // so the ribbon can never cut through a card)
@@ -330,6 +397,63 @@ export function createJourney(engine: RibbonEngine): () => void {
             sigma = s0 + (0.35 * u + 0.65 * u * u) * (w.sClear - s0);
           }
         }
+        const bm = pathD.build;
+        if (bm && buildPin && w && workPin && workPin.p >= 1) {
+          const Lr = sl.length, hw2 = 2 * sl.end1().hw;
+          const tailEdge = bm.sEdge - hw2; // the tail just beyond the right edge (out of sight)
+          let head = 0, tail = 0;
+          // fire: the ribbon is compressed in the box, where both paths are identical: swap in the release path
+          if (buildPin.p >= BUILD_FIRE && relT0 < 0 && lastInput?.build) {
+            relPath = buildReleasePath({ ...lastInput, build: { ...lastInput.build, c: 1 }, sQ: bm.sQ });
+            sl.setHeadPath(relPath.pos, relPath.ruled, relPath.k);
+            relT0 = performance.now();
+            relE = 0;
+            relScrolled = false;
+          }
+          if (buildPin.p <= 0) {
+            // free scroll from Selected Work: the head runs its hidden route down the right side
+            const q = clamp01((V - workPin.vTop) / Math.max(1, buildPin.vTop - workPin.vTop));
+            head = w.sClear + q * (tailEdge - w.sClear);
+            tail = head - Lr;
+          } else if (relT0 >= 0 && relPath && buildPin.p >= 0.9) {
+            // released: the old tail leads, backwards along the release path: up the line and out (the jump), over,
+            // down through the gap; the old head leaves the box once the ribbon is back to its full length
+            const u = clamp01(relE / REL_RUN);
+            const t0 = bm.sBoxTop;
+            const hEnd = relPath.sOut - hw2;
+            tail = t0 - u * u * (t0 - (hEnd - Lr));
+            head = Math.min(bm.sHead, tail + Lr);
+            // the page moves on only once the ribbon itself (not just its target) has left the screen
+            if (relE >= REL_SCROLL0 && sl.lead <= relPath.sOut && !relScrolled) {
+              relScrolled = true;
+              const next = document.querySelector<HTMLElement>(".exterm");
+              const y = next ? next.getBoundingClientRect().top + window.scrollY : 0;
+              if (next && y > window.scrollY + 2) {
+                const lenis = getLenis();
+                if (lenis) lenis.scrollTo(y, { duration: REL_SCROLL });
+                else window.scrollTo({ top: y, behavior: "smooth" });
+              }
+            }
+          } else if (buildPin.p < BUILD_COIL) {
+            // in from the right and down the line into the box, twisting; out of sight, the tail catches up
+            const u = ease(buildPin.p / BUILD_COIL);
+            head = tailEdge + u * (bm.sHead - tailEdge);
+            tail = head - (Lr + u * (bm.sHead - tailEdge - Lr));
+          } else {
+            // the scroll compresses it: the tail follows the head down into the box (the twist winds tighter: buildC)
+            head = bm.sHead;
+            tail = tailEdge + buildC * (bm.sBoxTop - tailEdge);
+          }
+          // scrolled back into the box after a release: back on the entry path once the whole ribbon is on the line
+          if (relPath && relT0 >= 0 && buildPin.p < 0.9 && sl.sigma - Lr >= relPath.sQ + hw2) {
+            relPath = null;
+            relT0 = -1;
+            relE = -1;
+            pathKey = "";
+          }
+          sigma = tail + Lr;
+          leadD = head;
+        }
       }
       if (spiral && portrait) {
         // the tail below the box swings into the spiral over the first part of the hero exit
@@ -367,7 +491,7 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
-    sl.driveLead = pathD || flowK > 0 ? sigma : lead;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd };
+    sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relE, bm: pathD?.build };
   };
 }
