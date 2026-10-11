@@ -455,7 +455,8 @@ export class RibbonGeometry {
       old.rings !== params.rings ||
       old.bevelSegments !== params.bevelSegments ||
       old.widthSegments !== params.widthSegments ||
-      old.capRings !== params.capRings
+      old.capRings !== params.capRings ||
+      old.capShape !== params.capShape
     ) {
       const prev = this.geometry;
       this.build();
@@ -469,13 +470,63 @@ export class RibbonGeometry {
     return false;
   }
 
+  /**
+   * capShape 1, a ribbon's ends. Every cap ring is a narrower copy of its end ring (the same frame), so all edges are
+   * straight and the band only narrows (its thickness stays; it closes to a point in the last step).
+   *   leading end (ring 0 side): an arrow point, the band narrowing linearly to the tip over depth;
+   *   trailing end: the matching notch. Its section splits into two prongs ([-1, -q] and [q, 1] of the half width at
+   *   depth q), each a solid with its own walls: the tube runs out along one prong to its point, jumps (zero area,
+   *   point to point) to the other prong's point and runs back to the notch's apex, where it closes inside the band.
+   */
+  private ribbonEnds(head: number, tail: number, E: number, R: number): void {
+    const P = this.params;
+    const { rPos, rTan, rN, rB, rWidth, rScale, rScaleT } = this;
+    const dH = P.capDepth * 0.5 * P.width * rWidth[head];
+    const dT = P.capDepth * 0.5 * P.width * rWidth[tail];
+    const hwT = 0.5 * P.width * rWidth[tail];
+    const copy = (i: number, from: number, along: number, lateral: number, sc: number, sT: number) => {
+      for (let a = 0; a < 3; a++) {
+        rPos[i * 3 + a] = rPos[from * 3 + a] + rTan[from * 3 + a] * along + rB[from * 3 + a] * lateral;
+        rTan[i * 3 + a] = rTan[from * 3 + a];
+        rN[i * 3 + a] = rN[from * 3 + a];
+        rB[i * 3 + a] = rB[from * 3 + a];
+      }
+      rWidth[i] = rWidth[from];
+      rScale[i] = sc;
+      rScaleT[i] = sT;
+    };
+    // the point (rings E-1 .. 0, ring 0 the tip)
+    for (let j = 1; j <= E; j++) {
+      const q = j / E;
+      copy(E - j, head, -q * dH, 0, 1 - q, j === E ? 0 : 1);
+    }
+    // the notch
+    let i = tail + 1;
+    const prong = (side: number, q: number, sT: number) => copy(i++, tail, q * dT, side * hwT * 0.5 * (1 + q), 0.5 * (1 - q), sT);
+    // both prongs start exactly at the band's end (q = 0: no gap at the apex). Rings at the same spot are doubled
+    // so every visible ring takes its normal from a proper neighbour (a zero-length neighbour step gave a degenerate
+    // normal: a dark line across the band)
+    copy(i++, tail, 0, 0, 1, 1);
+    prong(-1, 0, 1);
+    prong(-1, 0, 1);
+    for (let j = 1; j <= E; j++) prong(-1, j / E, j === E ? 0 : 1); // out along the left prong to its point
+    prong(-1, 1, 0); // (the point again: the jump's ends carry their own direction)
+    prong(1, 1, 0); // the other prong's point
+    prong(1, 1, 0);
+    for (let j = E - 1; j >= 0; j--) prong(1, j / E, 1); // back to the apex (q = 0, the band's end)
+    prong(1, 0, 1);
+    prong(1, 0, 0); // closed, on the band's own end section (inside)
+    void R;
+  }
+
   private build(): void {
     const p = this.params;
     this.profile = buildProfile(p);
     const K = this.profile.count;
     const M = Math.max(8, Math.floor(p.rings));
     const E = Math.max(2, Math.floor(p.capRings));
-    const R = M + 2 * E;
+    // capShape 1: the trailing end is a notch: two prongs (out along one, a zero-area jump, back along the other)
+    const R = M + E + (p.capShape === 1 ? 2 * E + 8 : E);
     this.bodyRings = M;
     this.caps = E;
     this.totalRings = R;
@@ -750,7 +801,8 @@ export class RibbonGeometry {
     // built by extrapolating the end rings along their tangents
     const head = E; // first body ring
     const tail = E + M - 1; // last body ring
-    for (let j = 1; j <= E; j++) {
+    if (P.capShape === 1) this.ribbonEnds(head, tail, E, R);
+    else for (let j = 1; j <= E; j++) {
       const q = j / E;
       const phi = q * Math.PI * 0.5;
       const sc = Math.max(Math.cos(phi), 0);

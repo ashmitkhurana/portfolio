@@ -145,6 +145,13 @@ export interface RibbonSettings {
     edgeBevel: number;
     capRings: number;
     capLengthRatio: number;
+    /**
+     * 0: both ends as capLengthRatio says (round .. straight cut). 1: a ribbon's ends: the leading end (ring 0) an
+     * arrow point, the trailing end the matching notch (a swallowtail, its prongs real solids with walls).
+     */
+    capShape: number;
+    /** capShape 1: the point's / notch's depth as a fraction of the band's half width (1 = a 90 degree point) */
+    capDepth: number;
     taperLength: number;
     taperAmount: number;
   };
@@ -425,6 +432,8 @@ export const DEFAULT_SETTINGS: RibbonSettings = {
     edgeBevel: 0.6,
     capRings: 14,
     capLengthRatio: 0.55,
+    capShape: 0,
+    capDepth: 1,
     taperLength: 0.08,
     taperAmount: 0,
   },

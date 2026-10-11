@@ -38,7 +38,8 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
     rimNormalMix: 0,
   },
   // thick satin band (the AK pose renders were judged with this profile)
-  geometry: { thicknessRatio: 0.147, edgeBevel: 2.4, capLengthRatio: 0 },
+  // 2026-10-12 (owner): a ribbon's ends: an arrow point leading, the matching notch trailing
+  geometry: { thicknessRatio: 0.147, edgeBevel: 2.4, capLengthRatio: 0, capShape: 1, capDepth: 1 },
   // strong form shading as in the sculpture: key from the upper left front, little fill / ambient, so inner and away-facing surfaces go deep
   env: {
     intensity: 1.7,
