@@ -44,7 +44,9 @@ const STACK_TO = 0.45;
  *  "HOW" by BUILD_COIL; from there the scroll compresses the coil into the box; at BUILD_FIRE it fires: the page is
  *  sent on to the next section (REL_SCROLL seconds) and the ribbon's release follows the scroll (the coil jumps, the
  *  head flows out down the diagonal into the next section), so ribbon and page move together, reversibly */
-const BUILD_COIL = 0.4;
+const BUILD_COIL = 0.38;
+/** a short hold once the coil is complete, before the scroll starts compressing it */
+const BUILD_HOLD = 0.45;
 const BUILD_FIRE = 0.75;
 const REL_SCROLL = 2.6;
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
@@ -160,7 +162,7 @@ export function createJourney(engine: RibbonEngine): () => void {
       yNext = next ? next.getBoundingClientRect().top + window.scrollY : yPinEnd + window.innerHeight;
       relQ = clamp01((window.scrollY - yFire) / Math.max(1, yPinEnd - yFire));
       relQ2 = clamp01((window.scrollY - yPinEnd) / Math.max(1, yNext - yPinEnd));
-      buildC = ease(clamp01((buildPin.p - BUILD_COIL) / (BUILD_FIRE - BUILD_COIL)));
+      buildC = ease(clamp01((buildPin.p - BUILD_HOLD) / (BUILD_FIRE - BUILD_HOLD)));
       if (relQ > 0) {
         // the jump: the coil springs back past loose and settles
         buildC = relQ < 0.25 ? 1 - 1.15 * easeOut3(relQ / 0.25) : -0.15 + 0.15 * ease(clamp01((relQ - 0.25) / 0.25));
@@ -409,34 +411,42 @@ export function createJourney(engine: RibbonEngine): () => void {
         }
         const bm = pathD.build;
         if (bm && buildPin && w && workPin && workPin.p >= 1) {
-          const tailEdge = bm.sEdge - 2 * sl.end1().hw; // the head just beyond the right edge (out of sight)
-          let head = 0;
+          const Lr = sl.length;
+          const tailEdge = bm.sEdge - 2 * sl.end1().hw; // the head just beyond the screen's edge (out of sight)
+          const coilLen = bm.sTop - bm.sCoil0;
+          let head = 0, tail = 0;
           if (buildPin.p <= 0) {
             // free scroll from Selected Work: the head runs its hidden route down the right side
             const q = clamp01((V - workPin.vTop) / Math.max(1, buildPin.vTop - workPin.vTop));
             head = w.sClear + q * (tailEdge - w.sClear);
-          } else if (relQ2 > 0) {
-            // the page moves on into the next section and the ribbon flows down the diagonal with it
-            head = bm.sBottom + ease(relQ2) * (bm.sStop - bm.sBottom);
-          } else if (relQ > 0) {
-            // released (still pinned): the coil jumps, the head flows out over the top and down through the gap
-            head = bm.sTop + ease(relQ) * (bm.sBottom - bm.sTop);
+            tail = head - Lr;
+          } else if (relQ2 > 0 || relQ > 0) {
+            // released: the coil jumps (buildC) and the whole ribbon flows on through it, out over the top and down the
+            // diagonal; first while still pinned (to the screen's bottom), then with the page into the next section
+            head = relQ2 > 0 ? bm.sBottom + ease(relQ2) * (bm.sStop - bm.sBottom) : bm.sTop + ease(relQ) * (bm.sBottom - bm.sTop);
+            tail = head - coilLen;
           } else if (buildPin.p < BUILD_COIL) {
-            // in at the bottom of the box and up round the pole to the top of "HOW"
-            head = tailEdge + ease(buildPin.p / BUILD_COIL) * (bm.sTop - tailEdge);
+            // in at the bottom of the box and up round the pole to the top of "HOW"; the whole ribbon comes on screen:
+            // its tail follows it in, and the coil is the whole ribbon once complete
+            const u = ease(buildPin.p / BUILD_COIL);
+            head = tailEdge + u * (bm.sTop - tailEdge);
+            const len0 = Lr, len1 = coilLen;
+            tail = head - (len0 + (len1 - len0) * u);
           } else {
-            // the scroll compresses the coil (the path itself changes: buildC); the head stays at its top
+            // complete; then the scroll compresses the coil (the path itself changes: buildC), the ends held
             head = bm.sTop;
+            tail = bm.sCoil0;
           }
-          // fire: compressed; the page is sent on, the release follows the scroll (armed again above the fire point)
+          // fire: compressed; the page is sent on (the user's scrolling cannot interrupt it), the release follows the
+          // scroll; armed again above the fire point
           if (buildPin.p >= BUILD_FIRE && !relFired && window.scrollY < yNext - 2) {
             relFired = true;
             const lenis = getLenis();
-            if (lenis) lenis.scrollTo(yNext, { duration: REL_SCROLL, easing: (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t) });
+            if (lenis) lenis.scrollTo(yNext, { duration: REL_SCROLL, lock: true, force: true, easing: (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t) });
             else window.scrollTo({ top: yNext, behavior: "smooth" });
           }
           if (window.scrollY < yFire - 40) relFired = false;
-          sigma = head;
+          sigma = tail + Lr;
           leadD = head;
         }
       }

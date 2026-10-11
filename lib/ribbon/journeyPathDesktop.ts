@@ -87,6 +87,8 @@ export interface BuildMarks {
   /** slide distances: the lead-in crosses into view at the right edge, the coil's top (the head waits there while the
    *  scroll compresses the coil), the head's stop in the next section (where the ribbon waits) */
   sEdge: number;
+  /** the coil's first point (the ribbon's tail rests here once the whole ribbon is on screen) */
+  sCoil0: number;
   sTop: number;
   /** the head on the diagonal at the screen's bottom edge (the release while still pinned ends here) */
   sBottom: number;
@@ -402,7 +404,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         pts.push(ln.curve[i]);
         want.push(ln.want[i]);
       }
-      build = { sEdge: sQ + ln.sEdge, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
+      build = { sEdge: sQ + ln.sEdge, sCoil0: sQ + ln.sCoil0, sTop: sQ + ln.sTop, sBottom: sQ + ln.sBottom, sStop: sQ + ln.sStop };
     } else {
       // straight on, hidden, far enough for the whole ribbon to clear the cards
       const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
@@ -460,7 +462,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     };
   }
   if (build) {
-    out.build = { sEdge: postArc(build.sEdge), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
+    out.build = { sEdge: postArc(build.sEdge), sCoil0: postArc(build.sCoil0), sTop: postArc(build.sTop), sBottom: postArc(build.sBottom), sStop: postArc(build.sStop) };
   }
   if (stack && inp.stack) {
     out.stack = {
@@ -781,20 +783,37 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
     const T = norm(sub(b, a));
     return norm(cross([-Math.sin(th), 0, Math.cos(th)], T));
   };
-  // lead-in, at the box's bottom, in front of the pole
+  // lead-in: a straight line into the coil's first point (in front of the pole, at the box's bottom) along the coil's
+  // own tangent there (it climbs at the coil's angle: no kink and no twist where it joins), from beyond the screen
   const w0 = coilWidth(0);
+  const C0 = coilAt(0);
+  const Tc = norm(sub(coilAt(1e-3), coilAt(-1e-3)));
+  const f0 = inp.camZ / (inp.camZ - C0[2]);
+  let back = 0;
+  // back along the tangent until beyond the right or bottom edge (as seen: the point is nearer than z = 0)
+  for (;;) {
+    const q = add(C0, Tc, -back);
+    const sx = W / 2 + q[0] * f0, sy = H / 2 - (q[1] + bd.yB) * f0;
+    if (sx > W + margin || sy > H + margin || back > 4 * W) break;
+    back += step;
+  }
+  back += 120;
   let sEdge = 0;
   let acc = 0;
-  for (let x = W + margin + 120; x > xc; x -= step) {
-    const q = world(x, yBot, r);
+  for (let b = back; b > 0; b -= step) {
+    const q = add(C0, Tc, -b);
     if (curve.length) acc += len(sub(q, curve[curve.length - 1]));
     curve.push(q);
     want.push(w0);
-    if (x >= W + margin) sEdge = acc;
+    if (b >= back - 120) sEdge = acc;
   }
+  acc += len(sub(C0, curve[curve.length - 1]));
+  curve.push(C0);
+  want.push(w0);
+  const sCoil0 = acc;
   const thEnd = 2 * Math.PI * N;
   const nC = Math.ceil((thEnd * Math.hypot(r, p / (2 * Math.PI))) / step);
-  for (let i = 0; i <= nC; i++) {
+  for (let i = 1; i <= nC; i++) {
     const th = (thEnd * i) / nC;
     const q = coilAt(th);
     acc += len(sub(q, curve[curve.length - 1]));
@@ -809,32 +828,40 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
   const beta = (45 * Math.PI) / 180;
   const v: [number, number] = [-Math.cos(beta), Math.sin(beta)];
   const g = bd.gap;
-  const tJ = (Math.min(60, g.y - 40) - g.y) / v[1]; // up-right of the gap, near the top edge
+  const tJ = (Math.min(140, g.y - 60) - g.y) / v[1]; // up-right of the gap, below the top edge
   const J = world(g.x + v[0] * tJ, g.y + v[1] * tJ, 0);
   const vW = norm([v[0], -v[1], 0]);
   const wDiag = norm(cross([0, 0, 1], vW));
-  const hA = 0.6 * len(sub(J, P0)) + 80, hB = 0.45 * len(sub(J, P0)) + 60;
+  const hA = 0.75 * len(sub(J, P0)) + 140, hB = 0.6 * len(sub(J, P0)) + 120;
   const out = bezier(P0, add(P0, T0, hA), add(J, vW, -hB), J, Math.max(24, Math.ceil(len(sub(J, P0)) / step)));
-  const wEnd = coilWidth(thEnd);
-  const wD = dot(wDiag, wEnd) < 0 ? ([-wDiag[0], -wDiag[1], -wDiag[2]] as V3) : wDiag;
+  // the band follows the curve untwisted (its width carried along, square to the path); the turn to face-on happens
+  // afterwards, on the straight diagonal (never twist inside a turn)
+  let bT: V3 = coilWidth(thEnd);
   out.forEach((q, i) => {
-    acc += len(sub(q, curve[curve.length - 1]));
+    const prevQ = curve[curve.length - 1];
+    acc += len(sub(q, prevQ));
     curve.push(q);
-    const u = smoother((i + 1) / out.length);
-    want.push(norm(add(wEnd, sub(wD, wEnd), u)));
+    const T = norm(sub(i + 1 < out.length ? out[i + 1] : q, prevQ));
+    bT = norm(sub(bT, [T[0] * dot(bT, T), T[1] * dot(bT, T), T[2] * dot(bT, T)]));
+    want.push(bT);
   });
+  const wD = dot(wDiag, bT) < 0 ? ([-wDiag[0], -wDiag[1], -wDiag[2]] as V3) : wDiag;
+  // twist from the carried width to face-on along the diagonal's first 300 px (about the diagonal: square to it)
+  const ang = Math.atan2(dot(cross(bT, wD), vW), dot(bT, wD));
+  let dDone = 0;
   // the diagonal, down through the gap into the next section: the head stops near its top (above its first entry)
   const yStop = H + 0.12 * H;
   let sStop = 0, sBottom = 0;
   for (let t = tJ + step; ; t += step) {
     const sx = g.x + v[0] * t, sy = g.y + v[1] * t;
     const q = world(sx, sy, 0);
+    dDone += len(sub(q, curve[curve.length - 1]));
     acc += len(sub(q, curve[curve.length - 1]));
     curve.push(q);
-    want.push(wD);
+    want.push(rotate(bT, vW, ang * smoother(dDone / 300)));
     if (!sBottom && (sy >= H || sx <= -margin)) sBottom = acc;
     if (!sStop && (sy >= yStop || sx <= -margin)) sStop = acc;
     if (sy > 3 * H || sx < -W) break;
   }
-  return { curve, want, sEdge, sTop, sBottom, sStop };
+  return { curve, want, sEdge, sCoil0, sTop, sBottom, sStop };
 }
