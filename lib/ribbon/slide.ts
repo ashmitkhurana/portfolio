@@ -31,6 +31,13 @@ export interface SlideParams {
   introDamping: number;
   /** hard cap (s): not settled by then -> snap to the pose */
   introMaxSeconds: number;
+  /**
+   * > 0: the intro runs on a fixed timeline of this many seconds instead of the spring: the remaining slide is
+   * (1 - u)^n (1 + n u) (u = t / duration, n = introShape): it starts from rest like the spring and lands at rest,
+   * but in finite time, with no long exponential crawl at the end (the last stretch drawn arrives briskly)
+   */
+  introDuration: number;
+  introShape: number;
   /** world px of slide per css px of scroll */
   scrollK: number;
   scrollStiffness: number;
@@ -50,6 +57,8 @@ export const DEFAULT_SLIDE_PARAMS: SlideParams = {
   introStiffness: 32,
   introDamping: 0.63,
   introMaxSeconds: 4,
+  introDuration: 0,
+  introShape: 3,
   scrollK: 1,
   scrollStiffness: 40,
   scrollDamping: 0.6,
@@ -476,9 +485,19 @@ export class SlideMotion {
       } else {
         this.introT += dt;
         this.target = 0;
-        this.integrate(dt, p.introStiffness, p.introDamping);
+        if (p.introDuration > 0) {
+          const u = Math.min(1, this.introT / p.introDuration), n = p.introShape;
+          this.sigma = -this.length * Math.pow(1 - u, n) * (1 + n * u);
+          this.velocity = 0;
+          if (u >= 1) {
+            this.sigma = 0;
+            this.settle();
+          }
+        } else this.integrate(dt, p.introStiffness, p.introDamping);
         const eps = Math.max(1, this.length * 0.0006);
-        if (Math.abs(this.sigma) < eps && Math.abs(this.velocity) < eps * 4) {
+        if (this.introSettled) {
+          /* settled on the timeline */
+        } else if (p.introDuration <= 0 && Math.abs(this.sigma) < eps && Math.abs(this.velocity) < eps * 4) {
           this.sigma = 0;
           this.velocity = 0;
           this.settle();

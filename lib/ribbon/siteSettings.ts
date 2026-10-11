@@ -65,6 +65,10 @@ export const SITE_SETTINGS: DeepPartial<RibbonSettings> = {
       introStiffness: 1.6,
       introDamping: 1,
       introMaxSeconds: 11,
+      // 2026-10-11 (owner: the bottom of the curve came in too slowly): a 4.2 s timeline instead of the spring; the
+      // same gentle start, but the last stretch (the bottom curve) arrives briskly instead of crawling for 3 s
+      introDuration: 4.2,
+      introShape: 3,
       swayDeg: 0,
     },
   },

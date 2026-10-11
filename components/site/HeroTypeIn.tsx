@@ -46,8 +46,8 @@ export function HeroTypeIn({ targetId }: { targetId: string }) {
       if (st?.introSettled) return finish();
       if (slide?.ready && slide.length > 0) {
         const p = Math.min(Math.max(1 + slide.sigma / slide.length, 0), 1);
-        // the last glyph appears at p = 0.985 (just before the spring settles)
-        showUpTo(Math.floor((p / 0.985) * glyphs.length));
+        // the last glyph appears at p = 0.995 (as the ribbon lands: the two end together)
+        showUpTo(Math.floor((p / 0.995) * glyphs.length));
         if (shown >= glyphs.length) return finish();
       } else if (st?.phase === "poster" || st?.phase === "off") {
         return finish();

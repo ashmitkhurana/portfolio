@@ -38,6 +38,8 @@ declare global {
   interface Window {
     /** the live store, for QA / debugging */
     __scrollState?: ScrollState;
+    /** the live Lenis instance, for QA / debugging */
+    __lenis?: Lenis | null;
   }
 }
 
@@ -130,6 +132,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
         lerp: 0.1,
       });
       lenis = instance;
+      window.__lenis = instance;
       if (locks > 0) instance.stop();
 
       instance.on("scroll", (l: Lenis) => {
