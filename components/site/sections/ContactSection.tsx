@@ -17,7 +17,7 @@ export function ContactSection() {
           id="contact-title"
           size="xl"
           lines={contact.heading}
-          depth={0}
+          depth={5000}
         />
 
         <div className="contact__body">

@@ -64,8 +64,27 @@ const EX_BAR = 0.9;
 const EX_GATE = 0.985;
 const FILL_PX = 1600;
 const FILL_DRAIN = 0.35;
-/** full: the ribbon flows on (s) while the page scrolls to the footer */
+/** the footer's timeline (s), from the bar filling up: the page scrolls to the footer while the ribbon runs off out of
+ *  sight (FOOT_RUN); the close fly-through (FOOT_FLY); a pause with the screen empty (FOOT_GAP); back in from the
+ *  bottom left into the AK's hidden end and the AK forming like the hero intro (FOOT_FORM). The content fades in from
+ *  FOOT_CONTENT; the heading types in with the AK. Scrolling up runs it backwards FOOT_REV times faster. */
 const FOOT_RUN = 1.6;
+const FOOT_FLY = 3.2;
+const FOOT_GAP = 0.25;
+const FOOT_FORM = 4.2;
+const FOOT_T = FOOT_RUN + FOOT_FLY + FOOT_GAP + FOOT_FORM;
+const FOOT_CONTENT = FOOT_RUN + 0.3;
+const FOOT_REV = 1.8;
+/** the fly-through's measured exit is a little late (the far, thin end is lost before it): it leaves the picture at
+ *  this fraction of the measured stretch */
+const FLY_OUT = 0.8;
+/** the footer's pre -> post (sheared) arc table lookup */
+const postOf = (pr: { table: number[]; t0: number; dt: number }, a: number) => {
+  const f = (a - pr.t0) / pr.dt;
+  const i = Math.max(0, Math.min(pr.table.length - 2, Math.floor(f)));
+  const u = Math.max(0, Math.min(1, f - i));
+  return pr.table[i] + (pr.table[i + 1] - pr.table[i]) * u;
+};
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
 declare global {
@@ -143,6 +162,36 @@ export function createJourney(engine: RibbonEngine): () => void {
   let gateArmed = true;
   let footFired = false;
   let footT0 = 0;
+  /** the footer: 0 not reached, 1 running forward, 2 formed (done), -1 running backward */
+  let footState = 0;
+  let footRevT0 = 0;
+  let footRevScroll = false;
+  let footRectsKey = "";
+  let footRectsVal: { dx: number; dy: number; yF: number } | null = null;
+  let footTyped = -1;
+  let footIntro = "";
+  /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
+  const setFootIntro = (v: string) => {
+    if (v === footIntro) return;
+    footIntro = v;
+    if (v) document.documentElement.dataset.footIntro = v;
+    else delete document.documentElement.dataset.footIntro;
+  };
+  const typeFoot = (frac: number) => {
+    const h = document.getElementById("contact-title");
+    if (!h) return;
+    const glyphs = h.querySelectorAll<HTMLElement>(".glyph");
+    const nT = frac >= 1 ? -1 : Math.floor(frac * glyphs.length);
+    if (nT === footTyped) return;
+    footTyped = nT;
+    if (nT < 0) {
+      delete h.dataset.typing;
+      glyphs.forEach((g) => g.classList.add("is-typed"));
+      return;
+    }
+    h.dataset.typing = "on";
+    glyphs.forEach((g, i) => g.classList.toggle("is-typed", i < nT));
+  };
   let exRectsKey = "";
   let exRectsVal: { strip: { x0: number; y0: number; x1: number; y1: number }; term: { x0: number; y0: number; x1: number; y1: number } } | null = null;
   const onWheel = (e: WheelEvent) => {
@@ -314,6 +363,27 @@ export function createJourney(engine: RibbonEngine): () => void {
             })())
           : null;
       const xk = exRects ? `${exPin!.vTop.toFixed(0)}|${exRects.strip.y1.toFixed(0)}|${exRects.term.x0.toFixed(0)},${exRects.term.y0.toFixed(0)}` : "-";
+      // the footer: its virtual top, and the shift that puts the hero's AK on the footer heading as it sits on the name
+      const footSec = document.querySelector<HTMLElement>('[data-section="contact"]');
+      const fKey = `${key}|${portrait}|${document.documentElement.scrollHeight}`;
+      if (fKey !== footRectsKey) {
+        footRectsKey = fKey;
+        footRectsVal = null;
+      }
+      const rooms = pins.reduce((a, p) => a + p.room, 0);
+      const footRects =
+        !portrait && exRects && footSec
+          ? footRectsVal ?? (footRectsVal = (() => {
+              const name = document.getElementById("hero-title"), head = document.getElementById("contact-title");
+              if (!name || !head) return null;
+              const rn = name.getBoundingClientRect(), rh = head.getBoundingClientRect();
+              const nameTop = rn.top - hero.pin.getBoundingClientRect().top; // in the hero's screen, at rest
+              const ft = footSec.getBoundingClientRect().top;
+              const yF = ft + window.scrollY - rooms;
+              return { dx: rh.left - rn.left, dy: yF + (rh.top - ft) - nameTop, yF };
+            })())
+          : null;
+      const fk = footRects ? `${footRects.yF.toFixed(0)}|${footRects.dx.toFixed(0)}|${footRects.dy.toFixed(0)}` : "-";
       const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${buildC}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
@@ -323,7 +393,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}`;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}|${fk}`;
       // (while released, the release path is in place: the entry path is rebuilt once the ribbon is back in the box)
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
@@ -404,6 +474,17 @@ export function createJourney(engine: RibbonEngine): () => void {
           stack: stackRects ?? undefined,
           build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: buildC } : undefined,
           exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
+          foot: footRects
+            ? {
+                yF: footRects.yF,
+                dx: footRects.dx,
+                dy: footRects.dy,
+                pose: Array.from({ length: sl.count }, (_, i) => {
+                  const r = sl.poseRing(i);
+                  return { p: r.p, b: r.b, hw: r.hw };
+                }),
+              }
+            : undefined,
         };
         pathD = buildJourneyPathDesktop(lastInput!);
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
@@ -560,8 +641,46 @@ export function createJourney(engine: RibbonEngine): () => void {
             const now = performance.now();
             const dt = Math.min(0.1, (now - fillAt) / 1000);
             fillAt = now;
-            if (footFired) {
-              // full: the ribbon flows on behind the terminal while the page scrolls to the footer
+            const fm = pathD.foot;
+            const footSecEl = document.querySelector<HTMLElement>('[data-section="contact"]');
+            const yFoot = footSecEl ? footSecEl.getBoundingClientRect().top + window.scrollY : 0;
+            // the footer's timeline position: forward from the bar filling up, backward on the way back, or the end
+            // when the footer was reached some other way (it is then simply formed)
+            if (fm && footState === 0 && !footFired && window.scrollY >= yFoot - 4) footState = 2;
+            let ft = -1;
+            let flyTail = -1;
+            if (footState === 1) ft = Math.min(FOOT_T, (now - footT0) / 1000);
+            else if (footState === 2) ft = FOOT_T;
+            else if (footState === -1) ft = Math.max(0, FOOT_T - ((now - footRevT0) / 1000) * FOOT_REV);
+            // QA: window.__footT freezes the footer's timeline at that moment
+            const qaT = (window as unknown as { __footT?: number }).__footT;
+            if (typeof qaT === "number" && footState !== 0) ft = qaT;
+            if (fm && ft >= 0) {
+              const t1 = FOOT_RUN, t2 = t1 + FOOT_FLY, t3 = t2 + FOOT_GAP;
+              if (ft < t1) head = xm.sEnd + ease(ft / t1) * (fm.sFlyIn - xm.sEnd);
+              // slow while close to the camera (its picture moves fast there), quicker as it recedes
+              // the fly-through: a piece of constant apparent length (measured as designed, before the view shear)
+              // recedes from the camera to the top left, slow at first, quicker as it goes
+              else if (ft < t2) {
+                const pr = fm.pre;
+                const lPre = 0.45 * (pr.out - pr.in);
+                const outV = pr.in + FLY_OUT * (pr.out - pr.in); // where it really leaves the picture
+                const hp = pr.in + Math.pow((ft - t1) / FOOT_FLY, 1.6) * (outV - pr.in + lPre);
+                head = postOf(pr, hp);
+                flyTail = postOf(pr, hp - lPre);
+              } else if (ft < t3) {
+                const pr = fm.pre;
+                const hOut = postOf(pr, pr.in + FLY_OUT * (pr.out - pr.in) + 0.45 * (pr.out - pr.in));
+                head = hOut + ((ft - t2) / FOOT_GAP) * (fm.sBackIn - hOut);
+              }
+
+              else {
+                const u = clamp01((ft - t3) / FOOT_FORM);
+                head = fm.sBackIn + (1 - Math.pow(1 - u, 3) * (1 + 3 * u)) * (fm.sE1 - fm.sBackIn);
+              }
+              setFootIntro(ft >= FOOT_CONTENT ? "in" : "hidden");
+              typeFoot(clamp01((head - fm.sE2) / Math.max(1, (fm.sE1 - fm.sE2) * 0.995)));
+            } else if (footFired) {
               head = xm.sEnd + easeOut3((now - footT0) / 1000 / FOOT_RUN) * 1.4 * W;
             } else if (q < EX_IN) head = xm.sWait;
             else if (q < EX_UNDER) head = xm.sWait + ease((q - EX_IN) / (EX_UNDER - EX_IN)) * (xm.sUnder - xm.sWait);
@@ -576,6 +695,15 @@ export function createJourney(engine: RibbonEngine): () => void {
             const tA = xm.sWait - coilLen;
             if (head <= xm.sFirst) tail = tA + ease(clamp01((head - xm.sWait) / Math.max(1, xm.sFirst - xm.sWait))) * (xm.sStart - tA);
             else tail = Math.max(xm.sStart, head - lenX);
+            // on to the footer: once the tail is past Experience's right edge it holds there (out of sight) while the
+            // ribbon grows to its full length (the AK needs all of it), then travels at that length
+            if (fm && head - lenX > xm.sOff) {
+              // the footer: a piece of constant apparent length through the fly-through (its tail then held just past
+              // the exit, out of sight at the top left, while the head goes round), then the AK's full length
+              if (flyTail >= 0) tail = Math.max(xm.sOff, flyTail);
+              else if (head < fm.sFlyIn) tail = Math.max(xm.sOff, head - (fm.sE1 - fm.sE2));
+              else tail = Math.max(postOf(fm.pre, fm.pre.in + FLY_OUT * (fm.pre.out - fm.pre.in)) - 1, head - (fm.sE1 - fm.sE2));
+            }
             // the gate: at the pin's end the page holds while the scrolling fills the bar
             const yGate = exPin.section.getBoundingClientRect().top + window.scrollY + exPin.room;
             if (q < 0.95) gateArmed = true;
@@ -587,16 +715,46 @@ export function createJourney(engine: RibbonEngine): () => void {
             }
             if (!gateOn && !footFired && fill > 0) fill = Math.max(0, fill - FILL_DRAIN * dt);
             if (gateOn && now - fillLast > 260) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            const sine = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
             if (gateOn && fill >= 1) {
-              // full: the bar fades and the ribbon flows on to the footer
+              // full: the bar fades, the page scrolls to the footer and the footer's sequence runs (input held)
               gateOn = false;
               footFired = true;
               footT0 = now;
-              const foot = document.querySelector<HTMLElement>('[data-section="contact"]');
-              const yF = foot ? foot.getBoundingClientRect().top + window.scrollY : window.scrollY + H;
-              lenis?.scrollTo(yF, { duration: FOOT_RUN, force: true, lock: true, easing: (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t), onComplete: () => lenis.start() });
+              footState = fm ? 1 : 0;
+              if (fm) {
+                setFootIntro("hidden");
+                typeFoot(0);
+              }
+              lenis?.scrollTo(yFoot, { duration: FOOT_RUN, force: true, lock: true, easing: sine, onComplete: () => { if (!fm) lenis.start(); } });
             }
-            if (footFired && window.scrollY < yGate - 40) {
+            if (footState === 1 && ft >= FOOT_T) {
+              footState = 2;
+              lenis?.start();
+            }
+            // one scroll up from the formed footer runs it all backwards and returns to the full bar's gate
+            if (footState === 2 && lenis && window.scrollY < yFoot - 4 && window.scrollY > yGate + 4) {
+              footState = -1;
+              footRevT0 = now;
+              footRevScroll = false;
+              lenis.scrollTo(yFoot, { immediate: true, force: true });
+              lenis.stop();
+            }
+            if (footState === -1 && !footRevScroll && ft <= FOOT_RUN) {
+              footRevScroll = true;
+              lenis?.scrollTo(yGate, { duration: FOOT_RUN / FOOT_REV, force: true, lock: true, easing: sine });
+            }
+            if (footState === -1 && ft <= 0) {
+              // back at the gate, the bar empty: scroll down fills it again, scroll up leaves
+              footState = 0;
+              footFired = false;
+              fill = 0;
+              gateOn = true;
+              gateArmed = false;
+              setFootIntro("");
+              typeFoot(1);
+            }
+            if (footState === 0 && footFired && window.scrollY < yGate - 40) {
               footFired = false;
               fill = 0;
             }
@@ -651,6 +809,6 @@ export function createJourney(engine: RibbonEngine): () => void {
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
     sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build, input: lastInput };
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build, fm: pathD?.foot, xm: pathD?.exterm, footState, leadS: sl.lead, tailS: sl.sigma - sl.length, input: lastInput };
   };
 }
