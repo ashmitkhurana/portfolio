@@ -318,10 +318,23 @@ export class RibbonCore {
     return cloneSettings(this.settings);
   }
 
-  /** Set the CSS size and pixel ratio (the drawing buffer is floor(css * pr)). */
-  setSize(cssW: number, cssH: number, pixelRatio: number): void {
+  /**
+   * css px drawn beyond the viewport above AND below it (touch devices: the layers scroll with the page between
+   * frames, the margin covers that). The camera, and every viewport coordinate (proxies, scissors, screen rects),
+   * keep the viewport's own height; only the drawing buffer is taller (a lens shift extends the frustum).
+   */
+  private overscan = 0;
+
+  /** the drawing buffer's height in css px (viewport + both margins) */
+  private get bufCssH(): number {
+    return this.height + 2 * this.overscan;
+  }
+
+  /** Set the CSS size and pixel ratio (the drawing buffer is floor(css * pr)), and the overscan margin (css px). */
+  setSize(cssW: number, cssH: number, pixelRatio: number, overscan = 0): void {
     this.width = Math.max(cssW, 1);
     this.height = Math.max(cssH, 1);
+    this.overscan = Math.max(0, overscan);
     rlog("core-size", {
       css: [this.width, this.height],
       pixelRatio,
@@ -332,12 +345,13 @@ export class RibbonCore {
     this.pixelRatio = pixelRatio;
     const r = this.renderer;
     r.setPixelRatio(pixelRatio);
-    r.setSize(this.width, this.height, false);
+    r.setSize(this.width, this.bufCssH, false);
     const buf = r.getDrawingBufferSize(new THREE.Vector2());
     this.bufW = buf.x;
     this.bufH = buf.y;
-    this.shared.uRibScale.value.set(buf.x / this.width, buf.y / this.height);
-    this.shared.uRibViewH.value = this.height;
+    this.shared.uRibScale.value.set(buf.x / this.width, buf.y / this.bufCssH);
+    // viewport css y = uRibViewH - (buffer px from the bottom) / scale
+    this.shared.uRibViewH.value = this.height + this.overscan;
     this.rtRibbon.setSize(buf.x, buf.y);
     this.resizeCatchers();
     for (const u of [this.compBackU, this.compFrontU]) u.uBuf.value.set(buf.x, buf.y);
@@ -348,6 +362,7 @@ export class RibbonCore {
       this.width,
       this.height,
       this.settings.material.faceA.color,
+      this.overscan,
     );
     this.forceShadow = true;
     this.catcherDirty = true;
@@ -450,7 +465,7 @@ export class RibbonCore {
     }
     this.catcherU.uFalloff.value = Math.max(s.contact.falloff, 1);
     this.bloomSrcU.uThreshold.value = s.post.bloomThreshold;
-    this.backdrop.apply(s.background, s.shadows, this.width, this.height, s.material.faceA.color);
+    this.backdrop.apply(s.background, s.shadows, this.width, this.height, s.material.faceA.color, this.overscan);
   }
 
   /** Run a frame. `emit` is called right after each composite so the adapter can transfer it. */
@@ -554,11 +569,12 @@ export class RibbonCore {
     const rt = this.rtRibbon;
     if (rr && s.post.scissor && !bloomOn) {
       const kx = this.bufW / this.width;
-      const ky = this.bufH / this.height;
+      const ky = this.bufH / this.bufCssH;
+      const yb = this.height + this.overscan; // viewport y -> buffer y from the bottom: yb - y
       const x0 = Math.max(0, Math.floor(rr[0] * kx) - 1);
       const x1 = Math.min(this.bufW, Math.ceil((rr[0] + rr[2]) * kx) + 1);
-      const y0 = Math.max(0, Math.floor((this.height - rr[1] - rr[3]) * ky) - 1);
-      const y1 = Math.min(this.bufH, Math.ceil((this.height - rr[1]) * ky) + 1);
+      const y0 = Math.max(0, Math.floor((yb - rr[1] - rr[3]) * ky) - 1);
+      const y1 = Math.min(this.bufH, Math.ceil((yb - rr[1]) * ky) + 1);
       rt.scissor.set(x0, y0, Math.max(x1 - x0, 1), Math.max(y1 - y0, 1));
       rt.scissorTest = true;
       rect.set(x0, y0, x1, y1);
@@ -626,7 +642,7 @@ export class RibbonCore {
       // ribbon can be (screen-space AABB of its bounds)
       if (rr) {
         r.setScissorTest(true);
-        r.setScissor(rr[0], this.height - rr[1] - rr[3], rr[2], rr[3]);
+        r.setScissor(rr[0], this.height + this.overscan - rr[1] - rr[3], rr[2], rr[3]);
       }
       this.stageBegin("compBack", measure);
       this.compBack.render(r);
@@ -649,11 +665,11 @@ export class RibbonCore {
         const margin = 2 + (bloomOn ? s.post.bloomRadius * 3 : 0);
         for (let i = 0; i < proxies.count; i++) {
           const x0 = Math.max(0, Math.floor(proxies.rects[i * 4] - margin));
-          const y0 = Math.max(0, Math.floor(proxies.rects[i * 4 + 1] - margin));
+          const y0 = Math.max(-this.overscan, Math.floor(proxies.rects[i * 4 + 1] - margin));
           const x1 = Math.min(this.width, Math.ceil(proxies.rects[i * 4] + proxies.rects[i * 4 + 2] + margin));
-          const y1 = Math.min(this.height, Math.ceil(proxies.rects[i * 4 + 1] + proxies.rects[i * 4 + 3] + margin));
+          const y1 = Math.min(this.height + this.overscan, Math.ceil(proxies.rects[i * 4 + 1] + proxies.rects[i * 4 + 3] + margin));
           if (x1 <= x0 || y1 <= y0) continue;
-          r.setScissor(x0, this.height - y1, x1 - x0, y1 - y0);
+          r.setScissor(x0, this.height + this.overscan - y1, x1 - x0, y1 - y0);
           this.compFront.render(r);
         }
         r.setScissorTest(false);
@@ -837,7 +853,9 @@ export class RibbonCore {
 
   private applyViewShift(): void {
     const cam = this.camera;
-    if (this.viewShift !== 0) cam.setViewOffset(this.width, this.height, 0, this.viewShift, this.width, this.height);
+    // the overscan margins extend the frustum above and below (the same lens, a taller window)
+    const o = this.overscan;
+    if (this.viewShift !== 0 || o > 0) cam.setViewOffset(this.width, this.height, 0, this.viewShift - o, this.width, this.height + 2 * o);
     else cam.clearViewOffset();
   }
 
@@ -893,7 +911,7 @@ export class RibbonCore {
     const lz = Math.max(L.z, 0.25);
     // css px of shadow shift per px of height (x right, y down)
     this.catcherU.uOff.value.set((-L.x / lz) * s.contact.offset, (L.y / lz) * s.contact.offset);
-    this.catcherU.uView.value.set(this.width, this.height);
+    this.catcherU.uView.value.set(this.width, this.bufCssH); // css px of the drawing buffer (clip-space offsets)
 
     r.setRenderTarget(this.rtCatchA);
     r.setClearColor(0x000000, 0);
@@ -945,7 +963,7 @@ export class RibbonCore {
   }
 
   /**
-   * Screen-space AABB (CSS px, y down) of the ribbon's world bounds plus a
+   * Screen-space AABB (viewport CSS px, y down; within the overscan margins) of the ribbon's world bounds plus a
    * margin, or null when it cannot be bounded (a corner behind the camera).
    */
   private ribbonScreenRect(extra: number): [number, number, number, number] | null {
@@ -962,7 +980,7 @@ export class RibbonCore {
       if (cw < this.camera.near) return null;
       v.project(this.camera);
       const px = ((v.x + 1) / 2) * this.width;
-      const py = ((1 - v.y) / 2) * this.height;
+      const py = ((1 - v.y) / 2) * this.bufCssH - this.overscan;
       if (px < x0) x0 = px;
       if (px > x1) x1 = px;
       if (py < y0) y0 = py;
@@ -970,9 +988,9 @@ export class RibbonCore {
     }
     const m = 6 + extra;
     x0 = Math.max(0, Math.floor(x0 - m));
-    y0 = Math.max(0, Math.floor(y0 - m));
+    y0 = Math.max(-this.overscan, Math.floor(y0 - m));
     x1 = Math.min(this.width, Math.ceil(x1 + m));
-    y1 = Math.min(this.height, Math.ceil(y1 + m));
+    y1 = Math.min(this.height + this.overscan, Math.ceil(y1 + m));
     if (x1 <= x0 || y1 <= y0) return [0, 0, 1, 1];
     return [x0, y0, x1 - x0, y1 - y0];
   }

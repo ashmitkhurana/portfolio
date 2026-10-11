@@ -39,6 +39,8 @@ export class Backdrop {
         uGrain: { value: 0.03 },
         uTime: { value: 0 },
         uGrainFps: { value: 12 },
+        // buffer uv.y -> viewport uv.y (the overscan margins): v = uv.y * x + y
+        uYMap: { value: new THREE.Vector2(1, 0) },
       },
       vertexShader: /* glsl */ `
         varying vec2 vUv;
@@ -59,6 +61,7 @@ export class Backdrop {
         uniform float uGrain;
         uniform float uTime;
         uniform float uGrainFps;
+        uniform vec2 uYMap;
         varying vec2 vUv;
         float bdHash(uvec2 p, uint seed) {
           uint h = p.x * 1664525u + p.y * 1013904223u + seed * 374761393u;
@@ -66,12 +69,13 @@ export class Backdrop {
           return float(h & 0xFFFFFFu) / 16777215.0;
         }
         void main() {
-          vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+          vec2 uv = vec2(vUv.x, vUv.y * uYMap.x + uYMap.y); // the viewport's uv (beyond 0..1 in the margins)
+          vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
           float vig = smoothstep(0.30, 1.25, length(p));
           vec3 col = uBg * (1.0 - uVig * vig);
-          col += uBg * uGrad * (1.0 - vUv.y);
+          col += uBg * uGrad * (1.0 - uv.y);
           // tight bounce under the ribbon (gaussian, elliptical: wider than tall)
-          vec2 g = (vUv - uGlowPos) * vec2(uAspect, 1.0) / vec2(max(uGlowRadius, 1e-3) * 1.6, max(uGlowRadius, 1e-3));
+          vec2 g = (uv - uGlowPos) * vec2(uAspect, 1.0) / vec2(max(uGlowRadius, 1e-3) * 1.6, max(uGlowRadius, 1e-3));
           col += uGlowColor * uGlowK * exp(-dot(g, g));
           // dither (kills 8-bit banding) + film grain (background only, uGrainFps re-seeds/sec;
           // 0 = one static pattern: the same pixels every frame)
@@ -114,8 +118,11 @@ export class Backdrop {
     viewH: number,
     /** face A colour: the glow colour when `sh.glowFollowFace` */
     faceColor: string,
+    /** css px drawn beyond the viewport above and below (the quad covers the whole buffer) */
+    overscan = 0,
   ): void {
     const u = this.quadMat.uniforms;
+    (u.uYMap.value as THREE.Vector2).set(1 + (2 * overscan) / Math.max(viewH, 1), -overscan / Math.max(viewH, 1));
     const c = new THREE.Color(bg.color); // linear
     c.getRGB(tmpRGB, THREE.SRGBColorSpace);
     u.uBg.value.set(tmpRGB.r, tmpRGB.g, tmpRGB.b);

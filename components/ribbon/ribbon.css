@@ -28,6 +28,22 @@
   z-index: 3;
 }
 
+/* Touch devices (the engine sets data-ribbon-scroll): between frames the layers ride the page (lib/ribbon/engine.ts
+   placeLayers), and the canvases reach 25lvh beyond the viewport above and below so a fast flick never shows their
+   edge (TOUCH_OVERSCAN there must match). The stage clips them to the page (no extra scroll room). */
+.ribbon-stage[data-ribbon-scroll] {
+  overflow: clip;
+}
+
+.ribbon-stage[data-ribbon-scroll] .ribbon-layer {
+  overflow: visible;
+}
+
+.ribbon-stage[data-ribbon-scroll] .ribbon-canvas-host {
+  top: -25lvh;
+  bottom: -25lvh;
+}
+
 /* live canvases fade in after the first frame, and out when the posters take over */
 .ribbon-canvas-host {
   position: absolute;

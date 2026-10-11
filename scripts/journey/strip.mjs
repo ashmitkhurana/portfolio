@@ -2,11 +2,13 @@
 // usage: node scripts/journey/strip.mjs <outPrefix> <WxH> <y1,y2,...> [settleMs]
 //   y: css px, "<k>vh", or "@<section>:<p>" = that section's pin progress p (0..1; negative = p viewport heights
 //   before the section's top; "<q>h" = q viewport heights below the section's top, for sections without a pin)
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 const [,, out, size, ys, settle = "1800"] = process.argv;
 const [w, h] = size.split("x").map(Number);
-const b = await chromium.launch({ args: ["--use-gl=angle"] });
-const p = await b.newPage({ viewport: { width: w, height: h } });
+const b = process.env.ENGINE === "webkit" ? await webkit.launch() : await chromium.launch({ args: ["--use-gl=angle"] });
+// TOUCH=1: a phone (coarse pointer, touch, 3x screen): the engine's touch path (page-attached layers, full density)
+const touch = process.env.TOUCH === "1";
+const p = await b.newPage({ viewport: { width: w, height: h }, ...(touch ? { deviceScaleFactor: 3, isMobile: true, hasTouch: true } : {}) });
 p.on("pageerror", (e) => console.log("pageerror", e.message));
 await p.goto("http://localhost:3100/", { waitUntil: "networkidle" });
 await p.waitForFunction(() => window.__ribbonState?.engine?.sim?.slide?.introSettled, null, { timeout: 40000 }).catch(() => console.log("intro not settled"));

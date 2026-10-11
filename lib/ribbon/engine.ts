@@ -83,6 +83,19 @@ const CROSSFADE_MS = 400;
 const STARTUP_ACTIVE_MS = 3200;
 /** a touch device keeps the URL bar showing/hiding without any resize: ignore height-only changes this small */
 const TOUCH_RESIZE_SLOP = 160;
+/**
+ * Touch devices: the OS scrolls the page on its own (compositor) thread, ahead of the frames this engine draws, so
+ * fixed layers trail the HTML by a frame or two. There, the layers ride the page instead (see placeLayers): each
+ * frame they are attached to the page at the scroll position the frame was drawn for, and the OS moves them with the
+ * HTML until the next frame. The canvases reach this fraction of the viewport height beyond it above and below
+ * (ribbon.css, 25lvh) so a fast flick never shows their edge. While a pinned section fills the screen the layers
+ * stay fixed like the pinned HTML.
+ */
+const TOUCH_OVERSCAN = 0.25;
+/** touch devices: the ribbon is drawn at the screen's own pixel density up to this (within the pixel budget) */
+const TOUCH_MAX_PR = 3;
+/** touch devices: adaptive resolution never steps below this (a soft, pixelated ribbon reads as broken) */
+const TOUCH_MIN_PR = 2;
 
 let weaveSupport: boolean | null = null;
 let infoLogged = false;
@@ -142,6 +155,15 @@ export class RibbonEngine {
   private profile: TierProfile | null = null;
   private governor: TierGovernor | null = null;
   private coarse = false;
+  /** touch devices: the layers ride the page between frames (see TOUCH_OVERSCAN) */
+  private stage: HTMLElement | null = null;
+  private layers: HTMLElement[] = [];
+  private overscanK = 0;
+  private layerMode: "fixed" | "page" = "fixed";
+  private layerY = Number.NaN;
+  /** the page's pinned (sticky) blocks, re-read now and then */
+  private pinEls: HTMLElement[] = [];
+  private pinScanAt = -1e9;
   private staticMode = false;
   private activeUntil = 0;
   private lastRenderAt = 0;
@@ -268,6 +290,17 @@ export class RibbonEngine {
     };
 
     this.coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (this.coarse && weave) {
+      this.stage = opts.front.closest<HTMLElement>(".ribbon-stage");
+      if (this.stage) {
+        this.overscanK = TOUCH_OVERSCAN;
+        this.stage.dataset.ribbonScroll = "";
+        for (const c of [opts.back, opts.front]) {
+          const l = c?.closest<HTMLElement>(".ribbon-layer");
+          if (l) this.layers.push(l);
+        }
+      }
+    }
     if (this.tier !== null && opts.watchdog !== false) {
       this.governor = new TierGovernor(this.tier);
     }
@@ -505,6 +538,11 @@ export class RibbonEngine {
     (this.offscreen ?? this.opts.front).removeEventListener("webglcontextlost", this.onContextLost);
     this.mqReduce?.removeEventListener("change", this.onReduce);
     document.documentElement.removeAttribute("data-ribbon-debug");
+    for (const l of this.layers) {
+      l.style.position = "";
+      l.style.transform = "";
+    }
+    if (this.stage) delete this.stage.dataset.ribbonScroll;
     this.proxies.dispose();
     this.core.dispose();
   }
@@ -542,7 +580,8 @@ export class RibbonEngine {
   /** @returns whether the drawing buffers were resized */
   private resize(force = false): boolean {
     const w = Math.max(this.opts.front.clientWidth, 1);
-    const h = Math.max(this.opts.front.clientHeight, 1);
+    // the canvas is the viewport plus the overscan margins (touch devices): the viewport's own height drives the camera
+    const h = Math.max(this.opts.front.clientHeight / (1 + 2 * this.overscanK), 1);
     // Layers are 100lvh tall, so mobile URL bars never resize them. As a second
     // line of defence a touch device ignores small height-only changes.
     if (
@@ -567,7 +606,7 @@ export class RibbonEngine {
     this.height = h;
     this.pixelRatio = pr;
     this.markActive(ACTIVE_MS);
-    this.core.setSize(w, h, pr);
+    this.core.setSize(w, h, pr, h * this.overscanK);
     if (this.mode === "weave") {
       // both visible canvases get exactly the offscreen drawing-buffer size
       for (const c of [this.opts.back, this.opts.front]) {
@@ -590,14 +629,21 @@ export class RibbonEngine {
       1,
       Math.min(
         window.devicePixelRatio || 1,
-        this.settings.post.pixelRatioCap,
+        this.prCap(),
         this.prCeil,
       ),
     );
     const budget = Math.min(this.profile?.maxPixels ?? MAX_CANVAS_PIXELS, MAX_CANVAS_PIXELS);
-    const px = Math.max(w * h, 1);
+    const px = Math.max(w * h * (1 + 2 * this.overscanK), 1);
     if (px * pr * pr > budget) pr = Math.max(0.6, Math.sqrt(budget / px));
     return pr;
+  }
+
+  /** the tier's pixel-ratio cap; touch devices draw at the screen's own density (phones are held close: a soft
+   *  ribbon next to crisp text reads as pixelated) */
+  private prCap(): number {
+    const cap = this.settings.post.pixelRatioCap;
+    return this.coarse ? Math.max(cap, Math.min(window.devicePixelRatio || 1, TOUCH_MAX_PR)) : cap;
   }
 
   /**
@@ -626,18 +672,19 @@ export class RibbonEngine {
       this.okSeconds = healthy ? this.okSeconds + dtMs / 1000 : 0;
     }
     const cur = this.pixelRatio;
-    if (this.slowFrames > 40 && cur > 1) {
+    const floor = this.coarse ? Math.min(TOUCH_MIN_PR, window.devicePixelRatio || 1) : 1;
+    if (this.slowFrames > 40 && cur > floor) {
       // a drop soon after a probe means the higher ratio does not fit: back off
       if (this.clock - this.lastProbeAt < 15) this.probeWait = Math.min(this.probeWait * 2, 600);
       rlog("adaptive-dpr-down", { from: cur, ema: this.emaMs });
-      this.prCeil = Math.max(1, cur - 0.25);
+      this.prCeil = Math.max(floor, cur - 0.25);
       this.slowFrames = 0;
       this.okSeconds = 0;
       this.resize();
       this.emaMs = this.refDt;
     } else if (this.okSeconds > this.probeWait && this.prCeil !== Infinity) {
       const up = cur + 0.25;
-      if (up <= Math.min(window.devicePixelRatio || 1, this.settings.post.pixelRatioCap)) {
+      if (up <= Math.min(window.devicePixelRatio || 1, this.prCap())) {
         rlog("adaptive-dpr-up", { from: cur, to: up });
         this.prCeil = up;
         this.okSeconds = 0;
@@ -683,6 +730,8 @@ export class RibbonEngine {
     if (this.resumeSkip > 0) this.resumeSkip--;
     if (measure) this.adapt(dtMs);
     const t0 = performance.now();
+    // the scroll position this frame is drawn for (the layers are attached to the page there: placeLayers)
+    const scrollY = window.scrollY;
     const sim = this.core.sim;
     if (sim.params.mode === "slide") {
       sim.slideScrollY = window.__scrollState?.y ?? window.scrollY;
@@ -695,6 +744,8 @@ export class RibbonEngine {
       if (sim.slide.animating) this.markActive(ACTIVE_MS);
     }
     this.core.frame(dtMs / 1000, now, this.proxies.update(), this.emit);
+    // in the same task as the canvases' new bitmaps, so both reach the screen together
+    this.placeLayers(scrollY, now);
     const cpu = performance.now() - t0;
     if (measure) {
       this.emaMs += (dtMs - this.emaMs) * 0.08;
@@ -709,6 +760,51 @@ export class RibbonEngine {
     st.rings = cs.rings;
     st.vertices = cs.vertices;
     st.frontActive = cs.frontActive;
+  }
+
+  /**
+   * Touch devices: where the layers live until the next frame. While a pinned section fills the screen they stay
+   * fixed (like the pinned HTML); otherwise they are attached to the page at `scrollY` (the scroll this frame was
+   * drawn for), so the OS scrolls them together with the HTML, exactly, however late the next frame is.
+   */
+  private placeLayers(scrollY: number, now: number): void {
+    if (!this.layers.length || !this.stage) return;
+    if (now - this.pinScanAt > 2000) {
+      this.pinScanAt = now;
+      this.pinEls = [...document.querySelectorAll<HTMLElement>("main [data-pin]")].filter(
+        (el) => getComputedStyle(el).position === "sticky",
+      );
+    }
+    let pinned = false;
+    for (const el of this.pinEls) {
+      const sec = el.parentElement;
+      if (!sec) continue;
+      const r = el.getBoundingClientRect();
+      // stuck at the top with scroll room left (at rest at the page top counts: the first scroll keeps it there)
+      if (Math.abs(r.top) < 1 && sec.getBoundingClientRect().bottom > r.bottom + 1) {
+        pinned = true;
+        break;
+      }
+    }
+    if (pinned) {
+      if (this.layerMode !== "fixed") {
+        for (const l of this.layers) {
+          l.style.position = "";
+          l.style.transform = "";
+        }
+        this.layerMode = "fixed";
+      }
+      return;
+    }
+    const y = Math.round((scrollY - (this.stage.getBoundingClientRect().top + scrollY)) * 100) / 100;
+    if (this.layerMode !== "page" || y !== this.layerY) {
+      for (const l of this.layers) {
+        l.style.position = "absolute";
+        l.style.transform = `translate3d(0, ${y}px, 0)`;
+      }
+      this.layerMode = "page";
+      this.layerY = y;
+    }
   }
 
   /** Feed the capability governor; apply a step down immediately. */
