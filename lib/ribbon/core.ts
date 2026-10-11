@@ -496,6 +496,9 @@ export class RibbonCore {
       this.camBase = base;
       this.camera.position.y = -base;
       this.camera.updateMatrixWorld();
+      // the floor / wall shadow receivers move with the camera (the AK's floor shadow, as in the hero)
+      this.backdrop.group.position.y = -base;
+      this.backdrop.group.updateMatrixWorld(true);
       this.forceShadow = true;
     }
     if (shift !== this.viewShift) {
@@ -1046,12 +1049,12 @@ export class RibbonCore {
     const hw = this.width / 2;
     const hh = this.height / 2;
     let bx = (b.min.x + b.max.x) / 2;
-    let by = b.min.y;
+    let by = b.min.y + this.camBase;
     let found = false;
     let minY = Infinity;
     for (let i = 0; i < n; i++) {
       const x = pos[i * 3];
-      const y = pos[i * 3 + 1];
+      const y = pos[i * 3 + 1] + this.camBase; // relative to the camera's height
       if (Math.abs(x) < hw * 0.92 && y > -hh * 0.88 && y < minY) {
         minY = y;
         bx = x;

@@ -381,6 +381,8 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   let stack: { passes: { s0: number; s1: number; g: number }[]; rings: [number, number][] } | undefined;
   // later sections are seen head-on through their own lens shift: their view shear, blended in from s0 to s1 (hidden)
   const shearKnots: { s0: number; s1: number; a: number }[] = [];
+  // the band's width per section (a factor on the half width), blended in from s0 to s1 (out of sight)
+  const widthKnots: { s0: number; s1: number; f: number }[] = [];
   if (!portrait && inp.stack && inp.stack.cards.length === 3) {
     // ── Selected Work, phone ──
     const st = buildStack(inp, inp.stack, margin, tilt, ds);
@@ -486,6 +488,8 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         });
         const sX = acc;
         shearKnots.push({ s0: sT0, s1: sX, a: inp.exterm.yE / inp.camZ });
+        // Experience: a slimmer band (owner: the long flat underline read too heavy)
+        widthKnots.push({ s0: sT0, s1: sX, f: 0.72 });
         for (let i = 1; i < ex.curve.length; i++) {
           acc += len(sub(ex.curve[i], pts[pts.length - 1]));
           pts.push(ex.curve[i]);
@@ -505,6 +509,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
           }
           // no view shear for the footer: the camera itself moves there (slide.cameraBase)
           shearKnots.push({ s0: sR0, s1: base + fr.sRouteEnd, a: 0 });
+          widthKnots.push({ s0: sR0, s1: base + fr.sRouteEnd, f: 1 });
           foot = { sS0: base + fr.sRouteEnd, sDive0: base + fr.sDive0, pre: { in: 0, out: 0, table: [], t0: 0, dt: 1 }, sFlyIn: base + fr.sFlyIn, sFlyOut: base + fr.sFlyOut, sTailOut: base + fr.sFlyOut, sBackIn: base + fr.sBackIn, sE2: base + fr.sE2, sE1: base + fr.sE1 };
         }
       }
@@ -528,6 +533,9 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     const sArc = (j + 1) * ds;
     let a = alphaMax * smoother(sArc / Math.max(1, a1));
     for (const kn of shearKnots) if (sArc > kn.s0) a += (kn.a - a) * smoother((sArc - kn.s0) / Math.max(1, kn.s1 - kn.s0));
+    let wf = 1;
+    for (const kn of widthKnots) if (sArc > kn.s0) wf += (kn.f - wf) * smoother((sArc - kn.s0) / Math.max(1, kn.s1 - kn.s0));
+    out.ruled[j * 4 + 3] *= wf;
     const z = out.pos[j * 3 + 2];
     out.pos[j * 3 + 1] += a * z;
     // the band's width vector shears with it (same linear map), keep the true half width
@@ -1000,7 +1008,7 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
   const hw = inp.end.hw;
   const st = ex.strip, tm = ex.term;
   // the band's half height on screen (its width along n, seen at ~45 degrees, a little nearer than z = 0)
-  const hb = 1.02 * hw;
+  const hb = 1.02 * hw * 0.72; // (the band is slimmer here: widthKnots)
   const yU = st.y1 + hb + 12; // its top edge just clear of the entries
   const xR = st.x1 - 60;
   // open U-turns (no loop crossing itself: a tight curl stepping out of its plane is distorted by the section's shear)
@@ -1159,8 +1167,28 @@ function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn:
   // the entry: straight into End 2 (no twist, no bend: it is the pose's own tail line)
   pushPts(lineSamples(A0, E2, step), wBE);
   const sE2 = acc;
-  // the AK, End 2 -> End 1
-  for (let i = n - 2; i >= 0; i--) pushPts(lineSamples(ak[i + 1].p, ak[i].p, step), ak[i].b);
+  // the AK, End 2 -> End 1: Catmull-Rom through its edge points (L, R separately), as the engine interpolates the
+  // hero's pose (straight chords between the rings left a small kink at every ring: visible ripples on tight turns)
+  const Ls = ak.map((r) => sub(r.p, [r.b[0] * r.hw, r.b[1] * r.hw, r.b[2] * r.hw]));
+  const Rs = ak.map((r) => add(r.p, r.b, r.hw));
+  const cr = (P: V3[], i0: number, i1: number, i2: number, i3: number, t: number): V3 => {
+    const a = P[Math.max(0, Math.min(n - 1, i0))], b = P[i1], c = P[i2], d = P[Math.max(0, Math.min(n - 1, i3))];
+    const t2 = t * t, t3 = t2 * t;
+    return [0, 1, 2].map((q) => 0.5 * (2 * b[q] + (-a[q] + c[q]) * t + (2 * a[q] - 5 * b[q] + 4 * c[q] - d[q]) * t2 + (-a[q] + 3 * b[q] - 3 * c[q] + d[q]) * t3)) as V3;
+  };
+  for (let i = n - 1; i > 0; i--) {
+    // from ring i to ring i - 1 (End 2 -> End 1)
+    const m = Math.max(2, Math.ceil(len(sub(ak[i - 1].p, ak[i].p)) / step));
+    const pl: V3[] = [];
+    const wl: V3[] = [];
+    for (let k = 1; k <= m; k++) {
+      const t = k / m;
+      const l = cr(Ls, i + 1, i, i - 1, i - 2, t), r = cr(Rs, i + 1, i, i - 1, i - 2, t);
+      pl.push([(l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2]);
+      wl.push(norm(sub(r, l)));
+    }
+    pushPts(pl, (j) => wl[j]);
+  }
   const sE1 = acc;
   // straight on past End 1
   const t1 = norm(sub(ak[0].p, ak[1].p));

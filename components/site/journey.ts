@@ -69,7 +69,7 @@ const FILL_DRAIN = 0.35;
  *  bottom left into the AK's hidden end and the AK forming like the hero intro (FOOT_FORM). The content fades in from
  *  FOOT_CONTENT; the heading types in with the AK. Scrolling up runs it backwards FOOT_REV times faster. */
 const FOOT_RUN = 1.6;
-const FOOT_FLY = 3.2;
+const FOOT_FLY = 2.6;
 const FOOT_GAP = 0;
 const FOOT_FORM = 3.6;
 const FOOT_T = FOOT_RUN + FOOT_FLY + FOOT_GAP + FOOT_FORM;
@@ -674,7 +674,7 @@ export function createJourney(engine: RibbonEngine): () => void {
                 // the fly-through: a piece of constant apparent length recedes from the camera to the top left, slow
                 // at first, quicker as it goes; in front of everything
                 const pr = fm.pre;
-                const lPre = 0.45 * (pr.out - pr.in);
+                const lPre = 0.65 * (pr.out - pr.in);
                 const outV = pr.in + FLY_OUT * (pr.out - pr.in);
                 const s0 = pr.in - (fm.sFlyIn - fm.sS0); // the fly-through's start, in design arcs
                 const hp = s0 + Math.pow((ft - t1) / FOOT_FLY, 1.6) * (outV + lPre - s0);
