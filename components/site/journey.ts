@@ -644,6 +644,6 @@ export function createJourney(engine: RibbonEngine): () => void {
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
     sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build };
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build, input: lastInput };
   };
 }

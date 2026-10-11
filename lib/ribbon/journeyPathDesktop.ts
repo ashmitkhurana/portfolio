@@ -920,10 +920,10 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
  * onto planes tilted `tilt` from the screen (up = toward the camera) with the band's width on their normal n, so it
  * only ever bends about its width:
  *   the underline: in from beyond the left edge, under the four entries, a gentle wave;
- *   loop 1 at the right end: 1.5 turns (clockwise on screen), a helix about n (the plane steps back along n by more
- *   than the band's width per turn, so the crossing strands clear each other), leaving heading left below;
+ *   an open U-turn at the right end (down and back left; no loop crossing itself: a tight curl would have to step out
+ *   of its plane, and the section's shear distorts that badly);
  *   the sweep: left along the band above the terminal, then an S down through the empty area;
- *   loop 2 at the bottom left: 1.5 turns the other way, stepping forward again (back onto the first plane);
+ *   a wider U-turn at the bottom left (back right);
  *   the end: rising gently to just left of the terminal; then straight on (behind the terminal) for the next part.
  * The plane passes through the screen's middle height at z = 0 (the ribbon's size changes by under ~9% across it).
  */
@@ -939,23 +939,17 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
   const hb = 1.02 * hw;
   const yU = st.y1 + hb + 12; // its top edge just clear of the entries
   const xR = st.x1 - 60;
-  const R1 = 42, R2 = 46;
-  const yS = yU + 2 * R1;
+  // open U-turns (no loop crossing itself: a tight curl stepping out of its plane is distorted by the section's shear)
+  const yS = Math.min(yU + 2 * 70, tm.y0 - hb - 14); // the leg back stays clear of the terminal
+  const R1 = (yS - yU) / 2;
+  const R2 = 80;
   const yEnd = tm.y0 + 0.35 * (tm.y1 - tm.y0);
-  const yB2 = yEnd + 20 - 2 * R2;
+  const yB2 = yEnd + 20 - 2 * 80;
   const xA = Math.max(st.x0 + 140, 0.17 * W);
   const x2 = tm.x0 - 70;
   const xEnd = tm.x0 - 34;
   const yRef = (yU + yEnd) / 2;
   const R = world(W / 2, yRef, 0);
-  const dW = 3.45 * hw; // the plane's step along n over a loop (2/3 of it per full turn: > the band's width)
-  // the step along n over a loop: a constant pitch (a constant helix angle: no twist inside the turn), eased in and out
-  // only over the first and last tenth of the loop
-  const pitchW = (u: number) => {
-    const e = 0.1;
-    const f = (x: number) => (x < e ? (x * x) / (2 * e) : x > 1 - e ? 1 - e - ((1 - x) * (1 - x)) / (2 * e) : x - e / 2);
-    return f(u) / (1 - e);
-  };
   const lift = (sx: number, sy: number, w: number): V3 => {
     const P0 = world(sx, sy, 0);
     const dir = sub(P0, C);
@@ -973,24 +967,24 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
   }
   const iUnder = scr.length - 1;
   // loop 1
-  const nL1 = Math.ceil((3 * Math.PI * R1) / step);
+  const nL1 = Math.ceil((Math.PI * R1) / step);
   for (let i = 1; i <= nL1; i++) {
-    const th = (3 * Math.PI * i) / nL1;
-    scr.push([xR + R1 * Math.sin(th), yU + R1 - R1 * Math.cos(th), -dW * pitchW(i / nL1)]);
+    const th = (Math.PI * i) / nL1;
+    scr.push([xR + R1 * Math.sin(th), yU + R1 - R1 * Math.cos(th), 0]);
   }
   // the sweep: left above the terminal, then an S down to loop 2's top
-  for (let x = xR - step; x >= x2; x -= step) scr.push([x, yS, -dW]);
+  for (let x = xR - step; x >= x2; x -= step) scr.push([x, yS, 0]);
   const nS = Math.ceil(Math.hypot(x2 - xA, yB2 - yS) * 1.15 / step);
   for (let i = 1; i <= nS; i++) {
     const t = i / nS;
     const wnd = 16 * t * t * (1 - t) * (1 - t);
-    scr.push([x2 + (xA - x2) * t, yS + (yB2 - yS) * smoother(t) + 70 * wnd * Math.sin(2 * Math.PI * t), -dW]);
+    scr.push([x2 + (xA - x2) * t, yS + (yB2 - yS) * smoother(t) + 70 * wnd * Math.sin(2 * Math.PI * t), 0]);
   }
   // loop 2
-  const nL2 = Math.ceil((3 * Math.PI * R2) / step);
+  const nL2 = Math.ceil((Math.PI * R2) / step);
   for (let i = 1; i <= nL2; i++) {
-    const th = (3 * Math.PI * i) / nL2;
-    scr.push([xA - R2 * Math.sin(th), yB2 + R2 - R2 * Math.cos(th), -dW + dW * pitchW(i / nL2)]);
+    const th = (Math.PI * i) / nL2;
+    scr.push([xA - R2 * Math.sin(th), yB2 + R2 - R2 * Math.cos(th), 0]);
   }
   // the end, then straight on behind the terminal (for the way on)
   const yL = yB2 + 2 * R2;
