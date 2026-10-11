@@ -841,24 +841,33 @@ export function createJourney(engine: RibbonEngine): () => void {
       const dTop = (coil.yTop - coil.yBot) * (k - 1);
       const { x: cx, z: cz, r, yBot, yTop, a } = coil;
       const pad = 70;
+      const sm = (e0: number, e1: number, v: number) => {
+        const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0)));
+        return t * t * (3 - 2 * t);
+      };
       sl.deform = (pos, ruled, n) => {
         for (let j = 0; j < n; j++) {
           const x = pos[j * 3], y = pos[j * 3 + 1], z = pos[j * 3 + 2];
           const yd = y - a * z; // design height (the section's view shear removed)
-          const inCoil = Math.abs(x - cx) <= r + pad && Math.abs(z - cz) <= r + pad && yd >= yBot - pad && yd <= yTop + pad;
-          if (inCoil) {
-            pos[j * 3 + 1] = yBot + k * (yd - yBot) + a * z;
-            // the band's width vector through the same linear map (dy' = k dy + a (1 - k) dz), true half width kept
+          // weight: on the coil itself (its radius from the pole, within its height), smooth falloff: the strand
+          // flying over the top passes the coil's box but never its surface, and no ring flips in or out
+          const rho = Math.hypot(x - cx, z - cz);
+          const w = (1 - sm(14, 42, Math.abs(rho - r))) * sm(yBot - 60, yBot - 20, yd) * (1 - sm(yTop + 20, yTop + 60, yd));
+          // the strand leaving the top moves with the top (faded out along it)
+          const d = Math.hypot(x - cx, yd - yTop, z - cz);
+          const f = Math.max(0, 1 - d / 520);
+          const shift = dTop * f * f * (3 - 2 * f) * sm(yTop - 160, yTop + 20, yd);
+          const ySq = yBot + k * (yd - yBot) + a * z;
+          pos[j * 3 + 1] = y + w * (ySq - y) + (1 - w) * shift;
+          if (w > 0) {
+            // the band's width vector through the same linear map (dy' = k dy + a (1 - k) dz), blended by w
             const o = j * 4;
-            const bx = ruled[o], by = k * ruled[o + 1] + a * (1 - k) * ruled[o + 2], bz = ruled[o + 2];
+            const kk = 1 + w * (k - 1);
+            const bx = ruled[o], by = kk * ruled[o + 1] + a * (1 - kk) * ruled[o + 2], bz = ruled[o + 2];
             const l = Math.hypot(bx, by, bz) || 1;
             ruled[o] = bx / l;
             ruled[o + 1] = by / l;
             ruled[o + 2] = bz / l;
-          } else if (yd > yTop - 10) {
-            const d = Math.hypot(x - cx, yd - yTop, z - cz);
-            const f = Math.max(0, 1 - d / 520);
-            pos[j * 3 + 1] = y + dTop * f * f * (3 - 2 * f);
           }
         }
       };

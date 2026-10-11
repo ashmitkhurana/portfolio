@@ -1,4 +1,4 @@
-# NEXT SESSION — start here (written 2026-10-10, end of session)
+# NEXT SESSION — start here (updated 2026-10-12)
 
 Branch: `claude/upbeat-hellman-f92bb7` (pushed). Never merge to main without the owner's OK.
 Read this file first, then the last sections of `docs/ribbon/JOURNEY.md`. Memory notes in `~/.claude/projects/.../memory/` carry the owner's working rules.
@@ -94,3 +94,19 @@ Latest commit on `claude/upbeat-hellman-f92bb7` is pushed. Journey log: docs/rib
 - Screenshot QA headless only (Playwright); never drive or resize the owner's own browser.
 - Shell: zsh does not word-split `$VAR` (use bash for loops); use `/bin/rm -f`, `/bin/ls`; never pkill dev servers (kill by port only).
 - Usage: work until limits; at 5% weekly or session left, save/commit/push, update this file, and give the owner the prompt for the next account.
+
+
+## STATE AT END OF THE 2026-10-11/12 SESSION (read this FIRST; it supersedes older "Next" lists above)
+Branch claude/upbeat-hellman-f92bb7, latest v368 (JOURNEY.md era 5 has every round, v345-v368). Dev server: preview_start "site-live" (port 3100, 0.0.0.0).
+
+### DESKTOP: DONE (owner approved section by section)
+Hero (intro on a 4.2 s timeline, notched tail visible from frame 1), section 2 wave, Selected Work (v346: Alpha Block + Sleepara raised, Arcadia low; the ribbon goes off left, back from the left, over/under the cards), How I Build (v352-v368: coil round a pole in the empty box right of the principles; scroll draws it in; ONE scroll compresses + jumps + auto-scrolls to Experience, one scroll up reverses; compression is a per-frame squash: slide.deform), Experience + Terminal (v357-v359: fixed-length ribbon underlines the entries, open U-turns (no tight curls: the view shear distorts helices), stops by the terminal; SCROLL TO FILL bar under its end, wheel fills it, drains when idle), footer (v360-v362: bar full -> page to footer, fly-through from bottom right IN FRONT of everything (.contact__veil), back from bottom left along the AK's own tail line into the hero's exact AK (camera moves to the footer: slide.cameraBase, no view shear), heading types in; one scroll up reverses). Ribbon ends (v364-v366): arrow point leading, matching notch trailing.
+Known small open item: hero intro, the notch's prongs render ~12% darker than the band past the cut (faint step); ruled out AO/shadows/aniso/specular/depthShade/masks/normals (see JOURNEY v366). Low priority.
+
+### PHONE: TODO (owner's spec 2026-10-12, approved; build in this order)
+Phone so far: hero, section 2 (v344 horizontal wave), Selected Work (v348: stacked cards, 3 zigzag-down crossings, no pin; leaves off the LEFT edge after Arcadia).
+1. **How I Build (phone, one screen, pinned):** the coil lies on its SIDE (a horizontal pole) in the space between the navbar and "HOW". Scroll draws it in; one swipe compresses it (sideways) + jump; it launches out to the RIGHT and the page slides down to Experience as that happens. (Desktop mechanics: buildCoil in lib/ribbon/journeyPathDesktop.ts + journey.ts BUILD_* / REL_* timeline + slide.deform squash; generalise the coil to a horizontal axis for portrait.)
+2. **Experience (phone, one screen, pinned):** the ribbon comes back in from the RIGHT, horizontally, near the top, then curls straight DOWN and flows down with LOOSE, widely spaced twists (3-4 visible on screen, like the rejected "twisting line" idea, not tight), a little to the RIGHT of the entries' text (never covering text), past the last entry; then no more twists: straight down with small gentle waves to the top of the terminal. Fixed-length traveller like desktop.
+3. **Terminal (phone):** SCROLL TO FILL bar BELOW the terminal (touch: swipe fills it). Full -> automatic: the ribbon comes down, crosses diagonally down-right IN FRONT of the terminal to its right side, wraps BEHIND the terminal (right side), comes back over the TOP heading left (in front), wraps down the LEFT side, runs along the BOTTOM heading right (in front) and flows off the RIGHT edge. Then the footer.
+4. **Footer (phone):** same as desktop: fly-through from bottom right over everything, back from bottom left into the phone AK pose, heading types in; one swipe up reverses.
+Touch notes: the gate/one-gesture logic listens to `wheel`; phones need touch/scroll-direction triggers (Lenis syncTouch is off: native touch scroll; layers ride the page on touch, engine placeLayers). Test with TOUCH=1 node scripts/journey/strip.mjs (and ENGINE=webkit).
