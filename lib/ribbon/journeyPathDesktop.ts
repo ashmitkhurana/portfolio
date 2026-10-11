@@ -761,7 +761,7 @@ function stackDepths(out: JourneyPathDesktop, stack: { cards: Rect[]; endY: numb
 function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number, ds: number) {
   const { W, H } = inp;
   const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), z];
-  const hwS = inp.end.hw * 1.06;
+  const hwS = inp.end.hw;
   const bx = bd.box;
   const r = Math.max(36, Math.min(0.34 * (bx.x1 - bx.x0), 110));
   const xc = (bx.x0 + bx.x1) / 2;
@@ -777,35 +777,29 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
   const step = ds / 3;
   const curve: V3[] = [];
   const want: V3[] = [];
-  const coilAt = (th: number): V3 => world(xc - r * Math.sin(th), yBot - ((yBot - yTop) * th) / (2 * Math.PI * N), r * Math.cos(th));
+  // the pole sits r behind the page plane, so the coil's nearest point is at z = 0: never nearer the camera (never
+  // drawn wider) than the rest of the ribbon. The climb eases in over the first quarter turn (flat at the start:
+  // the horizontal lead-in joins it without a kink)
+  const ramp = Math.PI / 2;
+  const climb = (th: number) => (th < ramp ? (th * th) / (2 * ramp) : th - ramp / 2);
+  const gEnd = climb(2 * Math.PI * N);
+  const coilAt = (th: number): V3 => world(xc - r * Math.sin(th), yBot - ((yBot - yTop) * climb(th)) / gEnd, r * Math.cos(th) - r);
   const coilWidth = (th: number): V3 => {
     const a = coilAt(th - 1e-3), b = coilAt(th + 1e-3);
     const T = norm(sub(b, a));
     return norm(cross([-Math.sin(th), 0, Math.cos(th)], T));
   };
-  // lead-in: a straight line into the coil's first point (in front of the pole, at the box's bottom) along the coil's
-  // own tangent there (it climbs at the coil's angle: no kink and no twist where it joins), from beyond the screen
+  // lead-in: horizontal, in from beyond the right edge at the box's bottom, straight into the coil's front point
   const w0 = coilWidth(0);
   const C0 = coilAt(0);
-  const Tc = norm(sub(coilAt(1e-3), coilAt(-1e-3)));
-  const f0 = inp.camZ / (inp.camZ - C0[2]);
-  let back = 0;
-  // back along the tangent until beyond the right or bottom edge (as seen: the point is nearer than z = 0)
-  for (;;) {
-    const q = add(C0, Tc, -back);
-    const sx = W / 2 + q[0] * f0, sy = H / 2 - (q[1] + bd.yB) * f0;
-    if (sx > W + margin || sy > H + margin || back > 4 * W) break;
-    back += step;
-  }
-  back += 120;
   let sEdge = 0;
   let acc = 0;
-  for (let b = back; b > 0; b -= step) {
-    const q = add(C0, Tc, -b);
+  for (let x = W + margin + 120; x > xc; x -= step) {
+    const q = world(x, yBot, 0);
     if (curve.length) acc += len(sub(q, curve[curve.length - 1]));
     curve.push(q);
     want.push(w0);
-    if (b >= back - 120) sEdge = acc;
+    if (x >= W + margin) sEdge = acc;
   }
   acc += len(sub(C0, curve[curve.length - 1]));
   curve.push(C0);
@@ -846,7 +840,7 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
     want.push(bT);
   });
   const wD = dot(wDiag, bT) < 0 ? ([-wDiag[0], -wDiag[1], -wDiag[2]] as V3) : wDiag;
-  // twist from the carried width to face-on along the diagonal's first 300 px (about the diagonal: square to it)
+  // twist from the carried width to face-on along a long stretch of the diagonal (gentle: a slow flip, never a pinch)
   const ang = Math.atan2(dot(cross(bT, wD), vW), dot(bT, wD));
   let dDone = 0;
   // the diagonal, down through the gap into the next section: the head stops near its top (above its first entry)
@@ -858,7 +852,7 @@ function buildCoil(inp: JourneyPathDesktopInput, bd: BuildInput, margin: number,
     dDone += len(sub(q, curve[curve.length - 1]));
     acc += len(sub(q, curve[curve.length - 1]));
     curve.push(q);
-    want.push(rotate(bT, vW, ang * smoother(dDone / 300)));
+    want.push(rotate(bT, vW, ang * smoother(dDone / Math.max(600, 0.6 * H))));
     if (!sBottom && (sy >= H || sx <= -margin)) sBottom = acc;
     if (!sStop && (sy >= yStop || sx <= -margin)) sStop = acc;
     if (sy > 3 * H || sx < -W) break;

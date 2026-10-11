@@ -25,7 +25,7 @@ await p.evaluate((y) => window.scrollTo(0, y), await at(FIRE + 0.003));
 for (let i = 0; i < +nArg; i++) {
   await p.waitForTimeout(+stepArg);
   const d = await p.evaluate(() => window.__journeyDebug);
-  console.log(i, "q", (d.relQ ?? -1).toFixed(2), "q2", (d.relQ2 ?? -1).toFixed(2), "c", d.buildC, "sigma", Math.round(d.sigma), "V", Math.round(d.V));
+  console.log(i, "state", d.relState, "u", (d.relU ?? 0).toFixed(2), "s", (d.relS ?? 0).toFixed(2), "c", d.buildC, "sigma", Math.round(d.sigma), "V", Math.round(d.V));
   await p.screenshot({ path: `${out}_${String(i).padStart(2, "0")}.png` });
 }
 await b.close();
