@@ -575,9 +575,10 @@ function cardDepths(out: JourneyPathDesktop, work: { y3: number; cards: Rect[]; 
 }
 
 /**
- * Selected Work on phones: three crossings, one in the gap under each card, slightly diagonal (high at the left,
- * low at the right, so the right end never reaches a card's arrow button): each band edge tucks ~a third of the band
- * over the card above (its bottom-left corner, empty padding) and the card below (its image's top-right corner).
+ * Selected Work on phones: three crossings, one in the gap under each card, slightly diagonal and downhill along the
+ * way they travel (a zigzag down the page): each comes out from UNDER the card above at its high end (crossings 1 and
+ * 3: the bottom-right corner, behind the arrow button; crossing 2: the bottom-left) and lies OVER the card below at
+ * its low end (its image's top corner), a band edge tucking ~a third of the band over each card.
  * Each crossing is designed as seen when its gap is 60% down the screen, and lifted (head-on camera rays) onto its own
  * plane, tilted `tilt` about the crossing's chord (up = toward the camera, as everywhere else), at its own depth:
  * crossing 1 nearest, crossing 3 farthest, so each card sits between the crossing above it (in front) and the one
@@ -593,12 +594,14 @@ function buildStack(inp: JourneyPathDesktopInput, stack: { cards: Rect[]; endY: 
     const above = stack.cards[k];
     const gTop = above.y1;
     const gBot = k < 2 ? stack.cards[k + 1].y0 : stack.endY;
-    const yL = gTop + hb - ov, yR = gBot - hb + ov;
+    // high where it comes out from under the card above, low where it lies over the card below
+    const yHigh = gTop + hb - ov, yLow = gBot - hb + ov;
     const g = (gTop + gBot) / 2;
     const v0 = g - 0.6 * H;
     const rtl = k !== 1; // right to left?
     const xa = rtl ? W + margin : -margin, xb = rtl ? -margin : W + margin;
-    const yAt = (x: number) => yL + (yR - yL) * smoother((x + margin) / (W + 2 * margin));
+    // downhill along the way it travels
+    const yAt = (x: number) => yHigh + (yLow - yHigh) * smoother((rtl ? W + margin - x : x + margin) / (W + 2 * margin));
     // the plane: tilted about the chord, through the chord's middle at depth Z[k]
     const C: V3 = [0, -v0, D];
     const world = (vx: number, vy: number): V3 => [vx - W / 2, H / 2 - vy, 0];
