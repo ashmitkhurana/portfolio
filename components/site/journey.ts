@@ -36,6 +36,9 @@ const PORTRAIT_PIN_FOLLOW = 0.4;
  *  WORK_OUT; then the rest of the ribbon follows through, faster, and is clear of the cards at 1 */
 const WORK_IN = 0.03;
 const WORK_OUT = 0.6;
+/** Selected Work (phones, not pinned): a crossing draws while its gap moves from STACK_FROM to STACK_TO down the screen */
+const STACK_FROM = 0.88;
+const STACK_TO = 0.45;
 
 declare global {
   interface Window {
@@ -124,9 +127,14 @@ export function createJourney(engine: RibbonEngine): () => void {
 
     const unravel = pins.find((p) => p.name === "unravel");
     const workPin = pins.find((p) => p.name === "work" && p.room > 1);
-    // in screen order (left to right): the desktop grid places them out of DOM order
-    const cards = workPin
-      ? [...workPin.pin.querySelectorAll<HTMLElement>(".project-card")].sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left)
+    // phones: Selected Work is not pinned (its pin block has no scroll room); the cards stack
+    const workAny = pins.find((p) => p.name === "work");
+    // in screen order (desktop: left to right, the grid places them out of DOM order; phones: top to bottom)
+    const cards = workAny
+      ? [...workAny.pin.querySelectorAll<HTMLElement>(".project-card")].sort((a, b) => {
+          const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+          return workPin ? ra.left - rb.left : ra.top - rb.top;
+        })
       : [];
     let sigma = ease(hero.p) * clear;
     let lead = 0;
@@ -142,6 +150,21 @@ export function createJourney(engine: RibbonEngine): () => void {
               return { x0: r.left, y0: r.top - t, x1: r.right, y1: r.bottom - t };
             })
           : null;
+      // phones: the stacked cards in VIRTUAL page coordinates, and where the section ends
+      const stackRects =
+        portrait && workAny && !workPin && cards.length === 3
+          ? (() => {
+              const t = workAny.section.getBoundingClientRect().top;
+              return {
+                cards: cards.map((c) => {
+                  const r = c.getBoundingClientRect();
+                  return { x0: r.left, y0: workAny.vTop + r.top - t, x1: r.right, y1: workAny.vTop + r.bottom - t };
+                }),
+                endY: workAny.vTop + workAny.section.offsetHeight,
+              };
+            })()
+          : null;
+      const sk = stackRects ? stackRects.cards.map((r) => `${r.y0.toFixed(0)},${r.y1.toFixed(0)}`).join(";") + `|${stackRects.endY.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
       const workTitle = workRects && titleEl
         ? (() => {
@@ -150,7 +173,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}`;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}`;
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
         const pinTop = unravel.pin.getBoundingClientRect().top;
@@ -208,6 +231,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           // phone: a long, gentle wave (the desktop's W / 1.75 is a zigzag on a narrow screen)
           waveLambda: portrait ? 0.95 * W : undefined,
           work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
+          stack: stackRects ?? undefined,
         });
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
         // the weave: each card's proxy depth puts it in front of or behind the ribbon (never between its z values,
@@ -215,6 +239,8 @@ export function createJourney(engine: RibbonEngine): () => void {
         cards.forEach((c, i) => {
           const d = pathD!.work?.depths[i];
           if (d !== undefined) c.dataset.ribbonDepth = d.toFixed(0);
+          const dp = pathD!.stack?.depths[i];
+          if (dp !== undefined) c.dataset.ribbonDepthPortrait = dp.toFixed(0);
         });
         }
         if (spiral) {
@@ -237,6 +263,30 @@ export function createJourney(engine: RibbonEngine): () => void {
           const lead0 = clamp01(unravel.p / 0.05);
           const draw = ease(clamp01((unravel.p - 0.05) / 0.95));
           sigma = pathD.sEntry + lead0 * (pathD.sVisible - pathD.sEntry) + draw * (pathD.sWaveEnd - pathD.sVisible);
+        }
+        const st = pathD.stack;
+        if (st && unravel.p >= 1) {
+          // PHONE Selected Work (no pin): each crossing draws as its gap moves up the screen (from 88% to 45% down);
+          // in between, the head turns round off-screen
+          let prevS = pathD.sWaveEnd, prevV = unravel.vTop;
+          let done = false;
+          for (const ps of st.passes) {
+            const v0 = ps.g - STACK_FROM * H, v1 = ps.g - STACK_TO * H;
+            if (V < v0) {
+              sigma = prevS + clamp01((V - prevV) / Math.max(1, v0 - prevV)) * (ps.sIn - prevS);
+              done = true;
+              break;
+            }
+            if (V < v1) {
+              sigma = ps.sIn + ease((V - v0) / (v1 - v0)) * (ps.sOut - ps.sIn);
+              done = true;
+              break;
+            }
+            prevS = ps.sOut;
+            prevV = v1;
+          }
+          // after the last crossing the ribbon flows on (off the left edge) with the scroll
+          if (!done) sigma = prevS + (V - prevV);
         }
         const w = pathD.work;
         if (w && workPin && unravel.p >= 1) {

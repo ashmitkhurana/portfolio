@@ -192,19 +192,19 @@
 
 /* ── 03 work ───────────────────────────────────────────── */
 
-/* Phone / portrait: three screens, one card each (the heading shares the first screen with card 1).
-   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards (components/site/journey.ts): the outer
-   cards raised, the middle one low; the lane above the middle card is the ribbon's way across. */
+/* Phone / portrait: the cards stack with ribbon-sized gaps; the ribbon crosses each gap (under every card) as the
+   page scrolls (components/site/journey.ts), no pinning.
+   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards: the outer cards raised, the middle
+   one low; the lane above the middle card is the ribbon's way across. */
 .work {
   --work-pin-room: 0px;
+  --work-gap: clamp(64px, 18vw, 84px);
   --section-h: auto;
 }
 
 .work .container {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) 100svh 100svh;
-  height: 300svh;
   padding-top: calc(var(--header-h) + var(--space-s));
+  padding-bottom: var(--work-gap);
 }
 
 .work__head {
@@ -221,18 +221,9 @@
 }
 
 .work__grid {
-  display: contents;
-}
-
-.work__item {
-  display: flex;
-  align-items: center;
-  min-height: 0;
-  padding-bottom: var(--space-m);
-}
-
-.work__item + .work__item {
-  padding-top: var(--header-h);
+  display: grid;
+  gap: var(--work-gap);
+  margin-top: var(--space-m);
 }
 
 .work__item .project-card {
@@ -249,13 +240,6 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-/* short phones: the image gives way first */
-@media (orientation: portrait) and (max-height: 700px) {
-  .work__item .project-card__media {
-    aspect-ratio: 16 / 10;
-  }
 }
 
 @media (min-width: 768px) and (orientation: landscape) {

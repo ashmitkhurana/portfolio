@@ -54,6 +54,21 @@ export interface JourneyPathDesktopInput {
    * off the left edge, comes back in from the left and sweeps across the cards off the right edge (see buildWork).
    */
   work?: { y3: number; cards: Rect[]; title: Rect };
+  /**
+   * Selected Work on phones (no pin): the three cards stacked (VIRTUAL page coordinates, css px) and the virtual y
+   * where the section ends. The ribbon crosses the gap under each card, slightly diagonal: under card 1 right to left
+   * (back in from the right after section 2), under card 2 left to right, under card 3 right to left and off the left
+   * edge; it turns round off-screen between the crossings (see buildStack).
+   */
+  stack?: { cards: Rect[]; endY: number };
+}
+
+export interface StackMarks {
+  /** per crossing: the head at its entry edge / past its exit edge (slide distances), and the virtual y of the gap's
+   *  middle (the page scroll that shows it) */
+  passes: { sIn: number; sOut: number; g: number }[];
+  /** per card (top to bottom), its proxy depth for the weave */
+  depths: number[];
 }
 
 export interface Rect {
@@ -87,6 +102,7 @@ export interface JourneyPathDesktop {
   sVisible: number;
   sWaveEnd: number;
   work?: WorkMarks;
+  stack?: StackMarks;
 }
 
 type V3 = [number, number, number];
@@ -249,8 +265,34 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   push(wave, waveNormal);
   const waveVisible = waveVisibleLen(wave, W, H, y2, portrait);
   let work: WorkMarks | undefined;
-  let shear3: { s0: number; s1: number; a3: number } | null = null;
-  if (!portrait && inp.work && inp.work.cards.length === 3) {
+  let stack: { passes: { s0: number; s1: number; g: number }[]; rings: [number, number][] } | undefined;
+  // later sections are seen head-on through their own lens shift: their view shear, blended in from s0 to s1 (hidden)
+  const shearKnots: { s0: number; s1: number; a: number }[] = [];
+  if (!portrait && inp.stack && inp.stack.cards.length === 3) {
+    // ── Selected Work, phone ──
+    const st = buildStack(inp, inp.stack, margin, tilt, ds);
+    const routeTo = (Q: V3, dq: V3, w: V3) => {
+      const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+      const tP = norm(sub(last, prev));
+      const h = 0.45 * len(sub(Q, last));
+      push(bezier(last, add(last, tP, h), add(Q, dq, -h), Q, 96), w);
+    };
+    const passes: { s0: number; s1: number; g: number }[] = [];
+    st.passes.forEach((ps, k) => {
+      const s0 = acc;
+      // section 2's wave -> the first crossing (off the right edge); then the turns off-screen between crossings
+      routeTo(ps.curve[0], norm(sub(ps.curve[1], ps.curve[0])), ps.normal);
+      shearKnots.push({ s0, s1: acc, a: ps.v0 / inp.camZ });
+      const sIn = acc;
+      push(ps.curve.slice(1), ps.normal);
+      passes.push({ s0: sIn, s1: acc, g: ps.g });
+      void k;
+    });
+    stack = { passes, rings: [] };
+    // straight on (off the left edge, hidden), far enough for the whole ribbon to follow
+    const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
+    push(lineSamples(l2, add(l2, norm(sub(l2, p2)), inp.ribbonLen + 2 * H), ds / 3), st.passes[2].normal);
+  } else if (!portrait && inp.work && inp.work.cards.length === 3) {
     // ── Selected Work ──
     const w3 = buildWork(inp, inp.work, margin, tilt, ds);
     // hidden route off the right edge: from the wave's end down to the entry beside the lane, a cubic that arrives
@@ -280,7 +322,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
       sClear: sEntry3 + w3.headOut + inp.ribbonLen + 2 * end.hw,
       depths: [],
     };
-    shear3 = { s0, s1: sEntry3, a3: inp.work.y3 / inp.camZ };
+    shearKnots.push({ s0, s1: sEntry3, a: inp.work.y3 / inp.camZ });
     // straight on, hidden, far enough for the whole ribbon to clear the cards
     const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
     push(lineSamples(l2, add(l2, norm(sub(l2, p2)), inp.ribbonLen + 2 * H), ds / 3), waveNormal);
@@ -298,8 +340,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   for (let j = 0; j < out.k; j++) {
     const sArc = (j + 1) * ds;
     let a = alphaMax * smoother(sArc / Math.max(1, a1));
-    // Selected Work is seen head-on through its own lens shift: its shear, blended in along the hidden route
-    if (shear3 && sArc > shear3.s0) a += (shear3.a3 - alphaMax) * smoother((sArc - shear3.s0) / Math.max(1, shear3.s1 - shear3.s0));
+    for (const kn of shearKnots) if (sArc > kn.s0) a += (kn.a - a) * smoother((sArc - kn.s0) / Math.max(1, kn.s1 - kn.s0));
     const z = out.pos[j * 3 + 2];
     out.pos[j * 3 + 1] += a * z;
     // the band's width vector shears with it (same linear map), keep the true half width
@@ -334,6 +375,12 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
       sTailIn: postArc(work.sEntry) + inp.ribbonLen,
       sClear: postArc(work.sHeadOut) + inp.ribbonLen + 2 * end.hw,
       depths: cardDepths(out, inp.work, W, H, inp.camZ),
+    };
+  }
+  if (stack && inp.stack) {
+    out.stack = {
+      passes: stack.passes.map((p) => ({ sIn: postArc(p.s0), sOut: postArc(p.s1), g: p.g })),
+      depths: stackDepths(out, inp.stack, stack.passes, ds, W, H, inp.camZ),
     };
   }
   return out;
@@ -523,6 +570,90 @@ function cardDepths(out: JourneyPathDesktop, work: { y3: number; cards: Rect[]; 
     if (Number.isFinite(loNear) && Number.isFinite(hiFar)) return (loNear + hiFar) / 2;
     if (Number.isFinite(loNear)) return loNear - MARGIN;
     if (Number.isFinite(hiFar)) return hiFar + MARGIN;
+    return 0;
+  });
+}
+
+/**
+ * Selected Work on phones: three crossings, one in the gap under each card, slightly diagonal (high at the left,
+ * low at the right, so the right end never reaches a card's arrow button): each band edge tucks ~a third of the band
+ * over the card above (its bottom-left corner, empty padding) and the card below (its image's top-right corner).
+ * Each crossing is designed as seen when its gap is 60% down the screen, and lifted (head-on camera rays) onto its own
+ * plane, tilted `tilt` about the crossing's chord (up = toward the camera, as everywhere else), at its own depth:
+ * crossing 1 nearest, crossing 3 farthest, so each card sits between the crossing above it (in front) and the one
+ * below it (behind). Returns world points pre-shear.
+ */
+function buildStack(inp: JourneyPathDesktopInput, stack: { cards: Rect[]; endY: number }, margin: number, tilt: number, ds: number) {
+  const { W, H, camZ: D } = inp;
+  const hb = inp.end.hw * Math.sin(tilt) * 1.06; // the band's half thickness on screen
+  const ov = 0.6 * hb; // how far a band edge tucks over a card
+  const Z = [120, 0, -120];
+  const passes: { curve: V3[]; normal: V3; v0: number; g: number }[] = [];
+  for (let k = 0; k < 3; k++) {
+    const above = stack.cards[k];
+    const gTop = above.y1;
+    const gBot = k < 2 ? stack.cards[k + 1].y0 : stack.endY;
+    const yL = gTop + hb - ov, yR = gBot - hb + ov;
+    const g = (gTop + gBot) / 2;
+    const v0 = g - 0.6 * H;
+    const rtl = k !== 1; // right to left?
+    const xa = rtl ? W + margin : -margin, xb = rtl ? -margin : W + margin;
+    const yAt = (x: number) => yL + (yR - yL) * smoother((x + margin) / (W + 2 * margin));
+    // the plane: tilted about the chord, through the chord's middle at depth Z[k]
+    const C: V3 = [0, -v0, D];
+    const world = (vx: number, vy: number): V3 => [vx - W / 2, H / 2 - vy, 0];
+    const A = world(xa, yAt(xa)), B = world(xb, yAt(xb));
+    const h = norm(sub(B, A));
+    let pp: V3 = [-h[1], h[0], 0];
+    if (pp[1] < 0) pp = [-pp[0], -pp[1], -pp[2]];
+    const d: V3 = [pp[0] * Math.cos(tilt), pp[1] * Math.cos(tilt), Math.sin(tilt)];
+    const n = norm(cross(h, d));
+    const M = world((xa + xb) / 2, yAt((xa + xb) / 2));
+    const tM = 1 - Z[k] / D;
+    const X0: V3 = add(C, sub(M, C), tM);
+    const lift = (vx: number, vy: number): V3 => {
+      const dir = sub(world(vx, vy), C);
+      const t = dot(n, sub(X0, C)) / dot(n, dir);
+      return add(C, dir, t);
+    };
+    const curve: V3[] = [];
+    const step = ds / 3;
+    const nS = Math.ceil(Math.abs(xb - xa) / step);
+    for (let i = 0; i <= nS; i++) {
+      const x = xa + ((xb - xa) * i) / nS;
+      curve.push(lift(x, yAt(x)));
+    }
+    passes.push({ curve, normal: n, v0, g });
+  }
+  return { passes };
+}
+
+/**
+ * Proxy depths for the stacked cards (top to bottom): card k sits behind crossing k-1 (the one over its top) and in
+ * front of crossing k (the one under it): halfway between their depths over the card, or a margin past the only one.
+ */
+function stackDepths(out: JourneyPathDesktop, stack: { cards: Rect[]; endY: number }, passes: { s0: number; s1: number }[], ds: number, W: number, H: number, D: number): number[] {
+  const MARGIN = 60;
+  return stack.cards.map((c, k) => {
+    const zr = (p: number) => {
+      if (p < 0 || p > 2) return null;
+      let lo = Infinity, hi = -Infinity;
+      const j0 = Math.max(0, Math.floor(passes[p].s0 / ds) - 1), j1 = Math.min(out.k - 1, Math.ceil(passes[p].s1 / ds));
+      for (let j = j0; j <= j1; j++) {
+        const x = out.pos[j * 3], y = out.pos[j * 3 + 1], z = out.pos[j * 3 + 2];
+        const f = D / Math.max(1, D - z);
+        const sx = W / 2 + x * f, vy = H / 2 - y * f;
+        const hw = out.ruled[j * 4 + 3] * f;
+        if (sx + hw < c.x0 || sx - hw > c.x1 || vy + hw < c.y0 || vy - hw > c.y1) continue;
+        lo = Math.min(lo, z);
+        hi = Math.max(hi, z);
+      }
+      return Number.isFinite(lo) ? { lo, hi } : null;
+    };
+    const over = zr(k - 1), under = zr(k);
+    if (over && under) return (over.lo + under.hi) / 2;
+    if (over) return over.lo - MARGIN;
+    if (under) return under.hi + MARGIN;
     return 0;
   });
 }
