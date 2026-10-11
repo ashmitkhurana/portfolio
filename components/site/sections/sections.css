@@ -731,6 +731,12 @@
 
 /* ── 06 contact ────────────────────────────────────────── */
 
+.contact__veil {
+  position: absolute;
+  inset: 0 0 calc(-1 * var(--footer-h, 0px));
+  pointer-events: none;
+}
+
 /* the last screen is the contact section + the footer, exactly one viewport: the content is centred between the
    fixed header and the footer, and the heading takes the height that is left (capped by its usual size).
    --footer-h and --contact-body-h come from FooterHeight. */

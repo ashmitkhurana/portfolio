@@ -12,6 +12,8 @@ export function ContactSection() {
       className="section contact"
       aria-labelledby="contact-title"
     >
+      {/* a full-screen weave layer: the footer's fly-through passes in front of everything (journey.ts) */}
+      <div className="contact__veil" data-ribbon-proxy="" data-ribbon-depth="5000" aria-hidden="true" />
       <div className="container">
         <DisplayHeading
           id="contact-title"

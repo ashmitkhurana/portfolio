@@ -488,7 +488,16 @@ export class RibbonCore {
       if (first) this.sim.invalidateSlide();
     }
     this.sim.step(dt);
-    const shift = this.sim.params.mode === "slide" ? Math.round(this.sim.slide.offsetY * 100) / 100 : 0;
+    // the camera's own height (slide.cameraBase: the page's journey moves it down to a far section while nothing is on
+    // screen, so that section is seen head-on) and the lens shift for the rest of the page scroll
+    const base = this.sim.params.mode === "slide" ? this.sim.slide.cameraBase : 0;
+    const shift = this.sim.params.mode === "slide" ? Math.round((this.sim.slide.offsetY - base) * 100) / 100 : 0;
+    if (base !== this.camBase) {
+      this.camBase = base;
+      this.camera.position.y = -base;
+      this.camera.updateMatrixWorld();
+      this.forceShadow = true;
+    }
     if (shift !== this.viewShift) {
       this.viewShift = shift;
       this.applyViewShift();
@@ -850,6 +859,8 @@ export class RibbonCore {
 
   /** css px the rendered image is shifted up (slide.offsetY), as a lens shift: the perspective never changes */
   private viewShift = 0;
+  /** css px the camera itself sits below the page top (world y = -camBase); see slide.cameraBase */
+  private camBase = 0;
 
   private applyViewShift(): void {
     const cam = this.camera;
@@ -864,10 +875,10 @@ export class RibbonCore {
     cam.fov = this.settings.camera.fov;
     cam.aspect = this.width / this.height;
     const dist = this.height / 2 / Math.tan((cam.fov * DEG) / 2);
-    cam.position.set(0, 0, dist);
+    cam.position.set(0, -this.camBase, dist);
     cam.near = Math.max(10, dist * 0.05);
     cam.far = dist + 8000;
-    cam.lookAt(0, 0, 0);
+    cam.lookAt(0, -this.camBase, 0);
     this.applyViewShift(); // (updates the projection matrix)
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();

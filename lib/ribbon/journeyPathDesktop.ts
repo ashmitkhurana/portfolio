@@ -116,6 +116,9 @@ export interface FootInput {
 }
 
 export interface FootMarks {
+  /** the fly-through's start (S0) and the entry line's start (A0, beyond the bottom left) */
+  sS0: number;
+  sDive0: number;
   /** the fly-through's exit (the head past the top left) */
   sFlyOut: number;
   /** the fly-through measured as designed (head-on, before the view shear: what the eye sees): its entry and exit,
@@ -500,8 +503,9 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
             pts.push(fr.curve[i]);
             want.push(fr.want[i]);
           }
-          shearKnots.push({ s0: sR0, s1: base + fr.sRouteEnd, a: inp.foot.yF / inp.camZ });
-          foot = { pre: { in: 0, out: 0, table: [], t0: 0, dt: 1 }, sFlyIn: base + fr.sFlyIn, sFlyOut: base + fr.sFlyOut, sTailOut: base + fr.sFlyOut, sBackIn: base + fr.sBackIn, sE2: base + fr.sE2, sE1: base + fr.sE1 };
+          // no view shear for the footer: the camera itself moves there (slide.cameraBase)
+          shearKnots.push({ s0: sR0, s1: base + fr.sRouteEnd, a: 0 });
+          foot = { sS0: base + fr.sRouteEnd, sDive0: base + fr.sDive0, pre: { in: 0, out: 0, table: [], t0: 0, dt: 1 }, sFlyIn: base + fr.sFlyIn, sFlyOut: base + fr.sFlyOut, sTailOut: base + fr.sFlyOut, sBackIn: base + fr.sBackIn, sE2: base + fr.sE2, sE1: base + fr.sE1 };
         }
       }
     } else {
@@ -571,7 +575,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     const t0 = foot.sFlyIn - 4000, dtT = 20;
     const table: number[] = [];
     for (let a = t0; a <= foot.sTailOut + 6000; a += dtT) table.push(postArc(a));
-    out.foot = { pre: { in: foot.sFlyIn, out: foot.sTailOut, table, t0, dt: dtT }, sFlyIn: postArc(foot.sFlyIn), sFlyOut: postArc(foot.sTailOut), sTailOut: postArc(foot.sTailOut) + (sE1 - sE2), sBackIn: postArc(foot.sBackIn), sE2, sE1 };
+    out.foot = { sS0: postArc(foot.sS0), sDive0: postArc(foot.sDive0), pre: { in: foot.sFlyIn, out: foot.sTailOut, table, t0, dt: dtT }, sFlyIn: postArc(foot.sFlyIn), sFlyOut: postArc(foot.sTailOut), sTailOut: postArc(foot.sTailOut) + (sE1 - sE2), sBackIn: postArc(foot.sBackIn), sE2, sE1 };
   }
   if (exterm) {
     out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), sTailEnd: postArc(exterm.sTailEnd), sStart: postArc(exterm.sStart), sFirst: postArc(exterm.sFirst), sOff: postArc(exterm.sOff), end: exterm.end };
@@ -1070,18 +1074,17 @@ function buildExterm(inp: JourneyPathDesktopInput, ex: ExtermInput, margin: numb
 }
 
 /**
- * The footer (landscape), world coordinates designed head-on for the footer's own screen (camera at y = -yF; the
- * section's view shear is blended in along the hidden route), plus the band orientation wanted at every point:
- *   the route: from beyond Experience's right edge, out of sight to the right, to the fly-through's start;
- *   the fly-through: a straight line from very close to the camera at the bottom right (the band almost fills the
- *   screen) away into depth toward the top left, the band's face toward the camera;
- *   a hidden link beyond the top left round to beyond the bottom left, long enough that the whole ribbon has left the
- *   screen before its head comes back;
- *   the dive: in from the bottom left, curving away into depth onto the camera ray behind the AK's hidden end (End 2)
- *   and along that ray to it (end-on: the ray projects onto End 2's own spot, behind the A's right leg), like the
- *   hero's hidden entry;
- *   the AK: the hero's pose, shifted onto the footer heading, from End 2 to End 1; then straight on past End 1.
- * Marks are arcs from the curve's first point (which is one step past `from`).
+ * The footer (landscape), world coordinates designed head-on for a camera at the footer's own height (y = -yF): the
+ * journey moves the camera there (slide.cameraBase) while nothing of the ribbon is on screen, so this part is NOT
+ * view-sheared: depth reads exactly as in the hero (a strong shear distorted the AK's depth: too big, too thick).
+ *   the route: from beyond Experience's right edge, out of sight, to the fly-through's start (never shown: the
+ *   journey jumps across it while the ribbon is hidden);
+ *   the fly-through: a straight line from beyond the bottom-right corner, very close to the camera, away into depth
+ *   toward the top left;
+ *   a hidden link round to beyond the bottom left;
+ *   the entry: the AK's own tail line (End 2's outward direction points down-left), straight from beyond the screen
+ *   into End 2, then the AK (the hero's pose, at the hero's own screen spot) from End 2 to End 1; then straight on.
+ * Marks are arcs from the curve's first point.
  */
 function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn: V3, wantIn: V3, margin: number, ds: number) {
   const { W, H, camZ: D } = inp;
@@ -1103,15 +1106,14 @@ function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn:
     });
   };
   const L = inp.ribbonLen;
-  // the fly-through line
-  // starts just beyond the bottom-right corner, so close to the camera the band almost fills the screen
-  const S0 = at(1.03 * W, 1.05 * H, D - 210);
+  // the fly-through line: its start well beyond the bottom-right corner (the band is ~9x its size there)
+  const S0 = at(1.55 * W, 1.75 * H, D - 210);
   const S1 = at(-0.3 * W, -0.35 * H, -2400);
   const dF = norm(sub(S1, S0));
   const mid = add(S0, sub(S1, S0), 0.35);
   const toCam = norm(sub([0, Cy, D], mid));
   const bF = norm(cross(dF, toCam));
-  // 1. the route (out of sight to the right) to the fly-through's start
+  // 1. the route to the fly-through's start (hidden; jumped across)
   const h1 = 0.4 * len(sub(S0, from)) + 300;
   const route = bezier(from, add(from, dirIn, h1), add(S0, dF, -Math.min(160, h1)), S0, 220);
   const wA = wantIn;
@@ -1131,48 +1133,31 @@ function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn:
     if (sFlyIn && !sFlyOut && !inView) sFlyOut = acc;
   }
   if (!sFlyOut) sFlyOut = acc;
-  // 3. the AK on the footer heading (rings End 2 .. End 1), and the camera ray behind End 2
+  // 3. the AK at the hero's own screen spot (the camera is at the footer's height: shift by -yF), End 2 .. End 1
   const n = ft.pose.length;
   const shift: V3 = [ft.dx, -ft.dy, 0];
   const ak = ft.pose.map((r) => ({ p: add(r.p, shift), b: r.b, hw: r.hw }));
   const E2 = ak[n - 1].p;
-  const ray = norm(sub(E2, [0, Cy, D])); // away from the camera through End 2
-  const Pfar = add(E2, ray, 1400);
-  // the dive: from beyond the bottom left, curving away into depth to Pfar, arriving along -ray
-  const A0 = at(-margin - 120, 0.9 * H, 0);
-  const dA = norm(sub(at(0.3 * W, 0.6 * H, -300), A0));
-  const hD = 0.45 * len(sub(Pfar, A0));
-  const dive = bezier(A0, add(A0, dA, hD), add(Pfar, ray, 0.6 * hD), Pfar, 220);
-  // 4. the hidden link from the fly-through's end round to A0: long enough that the whole ribbon has left the screen
-  //    (top left) before the head shows again (bottom left)
-  // (pre-shear arcs; the shear can shorten a hidden stretch, so a generous margin)
-  const needLink = 2.5 * L;
-  const linkFor = (l: number) => {
-    const B0 = add(flyEnd, dF, l);
-    const hL = 0.5 * len(sub(A0, B0)) + 400;
-    return { B0, bez: bezier(B0, add(B0, dF, hL), add(A0, dA, -hL), A0, 220) };
-  };
-  let lo = 0, hi = Math.max(needLink, 1);
-  for (let i = 0; i < 40; i++) {
-    const m = (lo + hi) / 2;
-    const r = linkFor(m);
-    if (m + polyLen(r.bez, r.B0) < needLink) lo = m;
-    else hi = m;
+  const tOut = norm(sub(E2, ak[n - 2].p)); // End 2's outward direction (down-left on screen)
+  // the entry line's start: along tOut until the band is beyond the screen's edge (left or bottom)
+  let k = 0;
+  for (;;) {
+    const q = add(E2, tOut, k);
+    const [sx, sy] = scr(q);
+    const hwS = (1.2 * inp.end.hw * D) / Math.max(1, D - q[2]);
+    if (sx + hwS < 0 || sy - hwS > H || k > 4 * W) break;
+    k += step;
   }
-  const lk = linkFor(hi);
-  const wD = ak[n - 1].b;
-  pushPts(lineSamples(flyEnd, lk.B0, step), wB);
-  const wBD = dot(wD, wB) < 0 ? ([-wD[0], -wD[1], -wD[2]] as V3) : wD;
-  pushPts(lk.bez, (i) => norm(add(wB, sub(wBD, wB), smoother((i + 1) / lk.bez.length))));
-  // the dive (visible): its band already turned to End 2's own (it bends in depth, carried untwisted)
-  let sBackIn = 0;
-  for (let i = 1; i < dive.length; i++) {
-    pushPts([dive[i]], wBD);
-    const [sx, sy] = scr(dive[i]);
-    if (!sBackIn && sx + 0.8 * inp.end.hw > 0 && sy - inp.end.hw < H) sBackIn = acc;
-  }
-  // along the ray (end-on) to End 2
-  pushPts(lineSamples(Pfar, E2, step), wBD);
+  const A0 = add(E2, tOut, k + 60);
+  // 4. the hidden link from the fly-through's end round to A0, arriving along the entry (-tOut)
+  const hL = 0.5 * len(sub(A0, flyEnd)) + 400;
+  const link = bezier(flyEnd, add(flyEnd, dF, hL), add(A0, tOut, hL), A0, 220);
+  const wE = ak[n - 1].b;
+  const wBE = dot(wE, wB) < 0 ? ([-wE[0], -wE[1], -wE[2]] as V3) : wE;
+  pushPts(link, (i) => norm(add(wB, sub(wBE, wB), smoother((i + 1) / link.length))));
+  const sDive0 = acc;
+  // the entry: straight into End 2 (no twist, no bend: it is the pose's own tail line)
+  pushPts(lineSamples(A0, E2, step), wBE);
   const sE2 = acc;
   // the AK, End 2 -> End 1
   for (let i = n - 2; i >= 0; i--) pushPts(lineSamples(ak[i + 1].p, ak[i].p, step), ak[i].b);
@@ -1180,5 +1165,5 @@ function buildFoot(inp: JourneyPathDesktopInput, ft: FootInput, from: V3, dirIn:
   // straight on past End 1
   const t1 = norm(sub(ak[0].p, ak[1].p));
   pushPts(lineSamples(ak[0].p, add(ak[0].p, t1, L + 2 * H), step), ak[0].b);
-  return { curve, want, sRouteEnd, sFlyIn, sFlyOut, sBackIn, sE2, sE1 };
+  return { curve, want, sRouteEnd, sFlyIn, sFlyOut, sBackIn: sDive0, sDive0, sE2, sE1 };
 }

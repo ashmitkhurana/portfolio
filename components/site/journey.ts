@@ -70,8 +70,8 @@ const FILL_DRAIN = 0.35;
  *  FOOT_CONTENT; the heading types in with the AK. Scrolling up runs it backwards FOOT_REV times faster. */
 const FOOT_RUN = 1.6;
 const FOOT_FLY = 3.2;
-const FOOT_GAP = 0.25;
-const FOOT_FORM = 4.2;
+const FOOT_GAP = 0;
+const FOOT_FORM = 3.6;
 const FOOT_T = FOOT_RUN + FOOT_FLY + FOOT_GAP + FOOT_FORM;
 const FOOT_CONTENT = FOOT_RUN + 0.3;
 const FOOT_REV = 1.8;
@@ -477,8 +477,9 @@ export function createJourney(engine: RibbonEngine): () => void {
           foot: footRects
             ? {
                 yF: footRects.yF,
-                dx: footRects.dx,
-                dy: footRects.dy,
+                // the AK at the hero's own screen spot (owner: "the exact same one as the hero")
+                dx: 0,
+                dy: footRects.yF,
                 pose: Array.from({ length: sl.count }, (_, i) => {
                   const r = sl.poseRing(i);
                   return { p: r.p, b: r.b, hw: r.hw };
@@ -648,38 +649,51 @@ export function createJourney(engine: RibbonEngine): () => void {
             // when the footer was reached some other way (it is then simply formed)
             if (fm && footState === 0 && !footFired && window.scrollY >= yFoot - 4) footState = 2;
             let ft = -1;
-            let flyTail = -1;
             if (footState === 1) ft = Math.min(FOOT_T, (now - footT0) / 1000);
             else if (footState === 2) ft = FOOT_T;
             else if (footState === -1) ft = Math.max(0, FOOT_T - ((now - footRevT0) / 1000) * FOOT_REV);
             // QA: window.__footT freezes the footer's timeline at that moment
             const qaT = (window as unknown as { __footT?: number }).__footT;
             if (typeof qaT === "number" && footState !== 0) ft = qaT;
+            // the footer's own head / tail (null: Experience's rules below)
+            let footHT: [number, number] | null = null;
+            let footSnap = false;
+            let footCam = false;
+            let footFly = false;
+            const lenAK = fm ? fm.sE1 - fm.sE2 : 0;
+            const lenXe = xm.sEnd - xm.sTailEnd;
             if (fm && ft >= 0) {
-              const t1 = FOOT_RUN, t2 = t1 + FOOT_FLY, t3 = t2 + FOOT_GAP;
-              if (ft < t1) head = xm.sEnd + ease(ft / t1) * (fm.sFlyIn - xm.sEnd);
-              // slow while close to the camera (its picture moves fast there), quicker as it recedes
-              // the fly-through: a piece of constant apparent length (measured as designed, before the view shear)
-              // recedes from the camera to the top left, slow at first, quicker as it goes
-              else if (ft < t2) {
+              const t1 = FOOT_RUN, t2 = t1 + FOOT_FLY;
+              if (ft < t1) {
+                // the page scrolls to the footer; the ribbon runs on off the right edge until all of it is out of sight
+                const hEnd = xm.sOff + lenXe + 40;
+                const h = xm.sEnd + ease(ft / t1) * (hEnd - xm.sEnd);
+                footHT = [h, h - lenXe];
+              } else if (ft < t2) {
+                // (hidden jump onto the footer's own path, the camera moved down to the footer: snap)
+                // the fly-through: a piece of constant apparent length recedes from the camera to the top left, slow
+                // at first, quicker as it goes; in front of everything
                 const pr = fm.pre;
                 const lPre = 0.45 * (pr.out - pr.in);
-                const outV = pr.in + FLY_OUT * (pr.out - pr.in); // where it really leaves the picture
-                const hp = pr.in + Math.pow((ft - t1) / FOOT_FLY, 1.6) * (outV - pr.in + lPre);
-                head = postOf(pr, hp);
-                flyTail = postOf(pr, hp - lPre);
-              } else if (ft < t3) {
-                const pr = fm.pre;
-                const hOut = postOf(pr, pr.in + FLY_OUT * (pr.out - pr.in) + 0.45 * (pr.out - pr.in));
-                head = hOut + ((ft - t2) / FOOT_GAP) * (fm.sBackIn - hOut);
+                const outV = pr.in + FLY_OUT * (pr.out - pr.in);
+                const s0 = pr.in - (fm.sFlyIn - fm.sS0); // the fly-through's start, in design arcs
+                const hp = s0 + Math.pow((ft - t1) / FOOT_FLY, 1.6) * (outV + lPre - s0);
+                footHT = [postOf(pr, hp), Math.max(fm.sS0, postOf(pr, hp - lPre))];
+                footCam = true;
+                footSnap = true;
+                footFly = true;
+              } else {
+                // back in from the bottom left along the AK's own tail line, briskly, and the AK forms from its tail
+                // end (the ribbon grows to the AK's length, its tail held beyond the screen until then)
+                const u = clamp01((ft - t2) / FOOT_FORM);
+                const h = fm.sDive0 + 4 + (1 - Math.pow(1 - u, 3)) * (fm.sE1 - fm.sDive0 - 4);
+                footHT = [h, Math.max(fm.sDive0, h - lenAK)];
+                footCam = true;
+                footSnap = true;
               }
-
-              else {
-                const u = clamp01((ft - t3) / FOOT_FORM);
-                head = fm.sBackIn + (1 - Math.pow(1 - u, 3) * (1 + 3 * u)) * (fm.sE1 - fm.sBackIn);
-              }
+              head = footHT[0];
               setFootIntro(ft >= FOOT_CONTENT ? "in" : "hidden");
-              typeFoot(clamp01((head - fm.sE2) / Math.max(1, (fm.sE1 - fm.sE2) * 0.995)));
+              typeFoot(clamp01((head - fm.sE2) / Math.max(1, lenAK * 0.995)));
             } else if (footFired) {
               head = xm.sEnd + easeOut3((now - footT0) / 1000 / FOOT_RUN) * 1.4 * W;
             } else if (q < EX_IN) head = xm.sWait;
@@ -695,14 +709,25 @@ export function createJourney(engine: RibbonEngine): () => void {
             const tA = xm.sWait - coilLen;
             if (head <= xm.sFirst) tail = tA + ease(clamp01((head - xm.sWait) / Math.max(1, xm.sFirst - xm.sWait))) * (xm.sStart - tA);
             else tail = Math.max(xm.sStart, head - lenX);
-            // on to the footer: once the tail is past Experience's right edge it holds there (out of sight) while the
-            // ribbon grows to its full length (the AK needs all of it), then travels at that length
-            if (fm && head - lenX > xm.sOff) {
-              // the footer: a piece of constant apparent length through the fly-through (its tail then held just past
-              // the exit, out of sight at the top left, while the head goes round), then the AK's full length
-              if (flyTail >= 0) tail = Math.max(xm.sOff, flyTail);
-              else if (head < fm.sFlyIn) tail = Math.max(xm.sOff, head - (fm.sE1 - fm.sE2));
-              else tail = Math.max(postOf(fm.pre, fm.pre.in + FLY_OUT * (fm.pre.out - fm.pre.in)) - 1, head - (fm.sE1 - fm.sE2));
+            if (footHT) [head, tail] = footHT;
+            // the camera moves to the footer's height only while the footer's own path is in use (switched while the
+            // ribbon is out of sight); its jumps are instant (the springs would sweep it across the screen)
+            const yFcam = footFired || footState !== 0 ? (fm && footCam ? (lastInput?.foot?.yF ?? 0) : 0) : 0;
+            if (sl.cameraBase !== yFcam) {
+              sl.cameraBase = yFcam;
+              footSnap = true;
+            }
+            if (footSnap) {
+              sl.sigma = tail + Lr;
+              sl.velocity = 0;
+              sl.lead = head;
+              sl.leadVelocity = 0;
+            }
+            // the fly-through passes in front of everything (a full-screen weave layer)
+            const veil = document.querySelector<HTMLElement>(".contact__veil");
+            if (veil) {
+              const d = footFly ? "-5000" : "5000";
+              if (veil.dataset.ribbonDepth !== d) veil.dataset.ribbonDepth = d;
             }
             // the gate: at the pin's end the page holds while the scrolling fills the bar
             const yGate = exPin.section.getBoundingClientRect().top + window.scrollY + exPin.room;

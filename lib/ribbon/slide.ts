@@ -103,6 +103,12 @@ export class SlideMotion {
    * (curves visibly tilt as they rise).
    */
   offsetY = 0;
+  /**
+   * css px the CAMERA itself is moved down the page (its world y = -cameraBase; the lens shift covers offsetY minus
+   * this). 0 everywhere except a far section that must be seen head-on (the footer): the journey moves it only while
+   * nothing of the ribbon is on screen.
+   */
+  cameraBase = 0;
   /** true while sigma still moves (the engine keeps rendering at full rate) */
   get animating(): boolean {
     return (
