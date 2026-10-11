@@ -193,13 +193,14 @@
 /* ── 03 work ───────────────────────────────────────────── */
 
 /* Phone / portrait: three screens, one card each (the heading shares the first screen with card 1).
-   Landscape (>= 768 wide): ONE screen, the three cards side by side, staggered so the ribbon can weave
-   in front of and behind them. */
+   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards (components/site/journey.ts): card 1
+   raised, cards 2 and 3 lower, the lane above them is the ribbon's way in. */
 .work {
+  --work-pin-room: 0px;
   --section-h: auto;
 }
 
-.work > .container {
+.work .container {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) 100svh 100svh;
   height: 300svh;
@@ -258,7 +259,21 @@
 }
 
 @media (min-width: 768px) and (orientation: landscape) {
-  .work > .container {
+  .work {
+    --section-h: calc(100svh + var(--work-pin-room));
+  }
+
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 180svh;
+  }
+
+  .work__pin {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+  }
+
+  .work .container {
     display: flex;
     flex-direction: column;
     height: 100svh;
@@ -278,10 +293,11 @@
     margin-top: min(var(--space-l), 5svh);
   }
 
-  /* each card is 82% of the row's height; the stagger (top / bottom / middle) leaves the ribbon gaps to pass */
+  /* every card is 76% of the row: card 1 at the top, cards 2 and 3 at the bottom */
   .work__item {
-    height: 82%;
+    height: 76%;
     padding: 0;
+    align-self: end;
   }
 
   .work__item + .work__item {
@@ -290,14 +306,6 @@
 
   .work__item[data-index="0"] {
     align-self: start;
-  }
-
-  .work__item[data-index="1"] {
-    align-self: end;
-  }
-
-  .work__item[data-index="2"] {
-    align-self: center;
   }
 
   .work__item .project-card {
@@ -316,6 +324,12 @@
 
   .work__item .project-card__summary {
     -webkit-line-clamp: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 0px;
   }
 }
 

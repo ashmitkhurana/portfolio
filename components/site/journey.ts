@@ -32,6 +32,10 @@ const SPIRAL_BOX_X = 0.4;
 const SPIRAL_R = 0.15;
 /** portrait: how far (in viewport heights) the head draws on down across section 2's pin */
 const PORTRAIT_PIN_FOLLOW = 0.4;
+/** Selected Work (landscape) pin progress: the head comes into view by WORK_IN, has threaded the cards and left by
+ *  WORK_OUT; then the rest of the ribbon follows through, faster, and is clear of the cards at 1 */
+const WORK_IN = 0.03;
+const WORK_OUT = 0.6;
 
 declare global {
   interface Window {
@@ -119,13 +123,31 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
 
     const unravel = pins.find((p) => p.name === "unravel");
+    const workPin = pins.find((p) => p.name === "work" && p.room > 1);
+    const cards = workPin ? [...workPin.pin.querySelectorAll<HTMLElement>(".project-card")] : [];
     let sigma = ease(hero.p) * clear;
     let lead = 0;
     if (unravel && clear > 0) {
       const portrait = !(W >= 768 && W > H);
       const textA = unravel.pin.querySelector<HTMLElement>(".unravel__line--a");
       const textB = unravel.pin.querySelector<HTMLElement>(".unravel__line--b");
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}`;
+      // Selected Work's cards at rest (css px in its pinned screen)
+      const workRects =
+        !portrait && workPin && cards.length === 3
+          ? cards.map((c) => {
+              const r = c.getBoundingClientRect(), t = workPin.pin.getBoundingClientRect().top;
+              return { x0: r.left, y0: r.top - t, x1: r.right, y1: r.bottom - t };
+            })
+          : null;
+      const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
+      const workTitle = workRects && titleEl
+        ? (() => {
+            const r = titleEl.getBoundingClientRect(), t = workPin!.pin.getBoundingClientRect().top;
+            return { x0: r.left, y0: r.top - t, x1: r.right, y1: r.bottom - t };
+          })()
+        : null;
+      const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}`;
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
         const pinTop = unravel.pin.getBoundingClientRect().top;
@@ -182,8 +204,15 @@ export function createJourney(engine: RibbonEngine): () => void {
           waveAmp: Math.max(20, Math.min(portrait ? 0.075 * H : 0.17 * H, (bTop - aBottom) / 2 - 1.2 * hwS - 16)),
           // phone: a long, gentle wave (the desktop's W / 1.75 is a zigzag on a narrow screen)
           waveLambda: portrait ? 0.95 * W : undefined,
+          work: workRects && workTitle ? { y3: workPin!.vTop, cards: workRects, title: workTitle! } : undefined,
         });
         sl.setHeadPath(pathD.pos, pathD.ruled, pathD.k);
+        // the weave: each card's proxy depth puts it in front of or behind the ribbon (never between its z values,
+        // so the ribbon can never cut through a card)
+        cards.forEach((c, i) => {
+          const d = pathD!.work?.depths[i];
+          if (d !== undefined) c.dataset.ribbonDepth = d.toFixed(0);
+        });
         }
         if (spiral) {
           spiral = null;
@@ -205,6 +234,23 @@ export function createJourney(engine: RibbonEngine): () => void {
           const lead0 = clamp01(unravel.p / 0.05);
           const draw = ease(clamp01((unravel.p - 0.05) / 0.95));
           sigma = pathD.sEntry + lead0 * (pathD.sVisible - pathD.sEntry) + draw * (pathD.sWaveEnd - pathD.sVisible);
+        }
+        const w = pathD.work;
+        if (w && workPin && unravel.p >= 1) {
+          if (workPin.p <= 0) {
+            // free scroll from section 2 to Selected Work: the wave flows on off the right edge, the head runs its
+            // hidden route down the right side to the lane's entry
+            const q = clamp01((V - unravel.vTop) / Math.max(1, workPin.vTop - unravel.vTop));
+            sigma = pathD.sWaveEnd + q * (w.sEntry - pathD.sWaveEnd);
+          } else if (workPin.p < WORK_IN) {
+            sigma = w.sEntry + (workPin.p / WORK_IN) * (w.sVisible - w.sEntry);
+          } else if (workPin.p < WORK_OUT) {
+            sigma = w.sVisible + ease((workPin.p - WORK_IN) / (WORK_OUT - WORK_IN)) * (w.sHeadOut - w.sVisible);
+          } else {
+            // the head is gone; the rest of the ribbon follows it through and speeds up as it leaves
+            const u = clamp01((workPin.p - WORK_OUT) / (1 - WORK_OUT));
+            sigma = w.sTailIn + (0.35 * u + 0.65 * u * u) * (w.sClear - w.sTailIn);
+          }
         }
       }
       if (spiral && portrait) {

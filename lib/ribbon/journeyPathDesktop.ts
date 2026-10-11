@@ -48,6 +48,31 @@ export interface JourneyPathDesktopInput {
   waveAmp?: number;
   /** the wave's wavelength (world px); default min(W / 1.75, 1.15 H) */
   waveLambda?: number;
+  /**
+   * Selected Work (landscape): the pinned screen's virtual top and the three cards' rects (css px in that screen, y
+   * down). The ribbon leaves section 2 off the right edge, comes back in from the right above cards 2 and 3, slides
+   * behind card 1 (turning round out of sight), sweeps out in front of card 2, behind card 3 and off the right edge.
+   */
+  work?: { y3: number; cards: Rect[]; title: Rect };
+}
+
+export interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface WorkMarks {
+  /** slide distances: the head reaches the right edge (pin starts) / is in view / has left after card 3 / the tail
+   *  has entered (the head is long gone) / the tail has left: the cards are clear */
+  sEntry: number;
+  sVisible: number;
+  sHeadOut: number;
+  sTailIn: number;
+  sClear: number;
+  /** per card, the proxy depth that puts it in front of (behind: larger than every z over it) or behind the ribbon */
+  depths: number[];
 }
 
 export interface JourneyPathDesktop {
@@ -58,6 +83,7 @@ export interface JourneyPathDesktop {
   sEntry: number;
   sVisible: number;
   sWaveEnd: number;
+  work?: WorkMarks;
 }
 
 type V3 = [number, number, number];
@@ -109,8 +135,10 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   // the dense centreline, plus per point: the band orientation it wants (null = carry the transported one)
   const pts: V3[] = [end.p];
   const want: (V3 | null)[] = [null];
+  let acc = 0; // arc of pts so far
   const push = (list: V3[], w: V3 | null) => {
     for (const p of list) {
+      acc += len(sub(p, pts[pts.length - 1]));
       pts.push(p);
       want.push(w);
     }
@@ -217,9 +245,45 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   const preLen = pre.length ? polyLen(pre, Q) : 0;
   push(wave, waveNormal);
   const waveVisible = waveVisibleLen(wave, W, H, y2, portrait);
-  // straight on past the wave's end (hidden)
-  const last = pts[pts.length - 1], prev = pts[pts.length - 2];
-  push(lineSamples(last, add(last, norm(sub(last, prev)), 2 * H), ds / 3), waveNormal);
+  let work: WorkMarks | undefined;
+  let shear3: { s0: number; s1: number; a3: number } | null = null;
+  if (!portrait && inp.work && inp.work.cards.length === 3) {
+    // ── Selected Work ──
+    const w3 = buildWork(inp, inp.work, margin, tilt, ds);
+    // hidden route off the right edge: from the wave's end down to the entry beside the lane, a cubic that arrives
+    // heading left (its length is the free scroll's flow)
+    const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+    const tP = norm(sub(last, prev));
+    const Q3 = w3.curve[0];
+    const dq3 = norm(sub(w3.curve[1], w3.curve[0]));
+    const route3 = (l: number) => {
+      const A: V3 = add(last, tP, l);
+      const h = 0.45 * len(sub(Q3, A));
+      return { A, bez: bezier(A, add(A, tP, h), add(Q3, dq3, -h), Q3, 96) };
+    };
+    const r = route3(0);
+    const s0 = acc;
+    push(r.bez, waveNormal);
+    const sEntry3 = acc;
+    push(w3.curve.slice(1), waveNormal);
+    // marks (pre-shear arc): the curve's own marks are arcs from its first point
+    work = {
+      sEntry: sEntry3,
+      sVisible: sEntry3 + w3.visible,
+      sHeadOut: sEntry3 + w3.headOut,
+      sTailIn: sEntry3 + inp.ribbonLen,
+      sClear: sEntry3 + w3.headOut + inp.ribbonLen + 2 * end.hw,
+      depths: [],
+    };
+    shear3 = { s0, s1: sEntry3, a3: inp.work.y3 / inp.camZ };
+    // straight on, hidden, far enough for the whole ribbon to clear the cards
+    const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
+    push(lineSamples(l2, add(l2, norm(sub(l2, p2)), inp.ribbonLen + 2 * H), ds / 3), waveNormal);
+  } else {
+    // straight on past the wave's end (hidden)
+    const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+    push(lineSamples(last, add(last, norm(sub(last, prev)), 2 * H), ds / 3), waveNormal);
+  }
 
   // resample at ds, frames by parallel transport, eased toward the wanted orientation on the hidden route
   const sWaveEndPre = sEntry + preLen + waveVisible;
@@ -228,7 +292,9 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   const alphaMax = y2 / inp.camZ;
   for (let j = 0; j < out.k; j++) {
     const sArc = (j + 1) * ds;
-    const a = alphaMax * smoother(sArc / Math.max(1, a1));
+    let a = alphaMax * smoother(sArc / Math.max(1, a1));
+    // Selected Work is seen head-on through its own lens shift: its shear, blended in along the hidden route
+    if (shear3 && sArc > shear3.s0) a += (shear3.a3 - alphaMax) * smoother((sArc - shear3.s0) / Math.max(1, shear3.s1 - shear3.s0));
     const z = out.pos[j * 3 + 2];
     out.pos[j * 3 + 1] += a * z;
     // the band's width vector shears with it (same linear map), keep the true half width
@@ -253,6 +319,16 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   // the head is in view after the hidden crossing (portrait) / the off-screen margin (landscape)
   out.sVisible = postArc(sEntry + (portrait ? preLen : margin));
   out.sWaveEnd = postArc(sWaveEndPre);
+  if (work && inp.work) {
+    out.work = {
+      sEntry: postArc(work.sEntry),
+      sVisible: postArc(work.sVisible),
+      sHeadOut: postArc(work.sHeadOut),
+      sTailIn: postArc(work.sEntry) + inp.ribbonLen,
+      sClear: postArc(work.sHeadOut) + inp.ribbonLen + 2 * end.hw,
+      depths: cardDepths(out, inp.work, W, H, inp.camZ),
+    };
+  }
   return out;
 }
 
@@ -336,4 +412,102 @@ function rotate(v: V3, a: V3, ang: number): V3 {
   const d = dot(a, v);
   const x = cross(a, v);
   return [v[0] * c + x[0] * s + a[0] * d * (1 - c), v[1] * c + x[1] * s + a[1] * d * (1 - c), v[2] * c + x[2] * s + a[2] * d * (1 - c)];
+}
+
+/**
+ * Selected Work's curve (landscape), world coordinates pre-shear: designed on the pinned screen (css px, y down) and
+ * lifted onto ONE plane tilted `tilt` from the screen (up = toward the camera, the same plane normal as section 2's
+ * wave, so the band never twists between the sections) by casting the head-on camera's rays through it: the curve
+ * projects exactly where it is designed, and the band (width = the plane's normal) only ever bends about its width.
+ *   top leg: in from the right edge, leftward along the lane above cards 2 and 3, into card 1 (behind it);
+ *   a half turn hidden behind card 1 (a turn in the plane shows the band's edge at its apex: out of sight there);
+ *   bottom leg: out of card 1's right edge, a gentle wave in front of card 2 (crest, nearer) and behind card 3
+ *   (trough, farther), off the right edge.
+ * Marks are arcs from the curve's first point: `visible` (the head is in view), `headOut` (the head has left).
+ */
+function buildWork(inp: JourneyPathDesktopInput, work: { y3: number; cards: Rect[]; title: Rect }, margin: number, tilt: number, ds: number) {
+  const { W, H, camZ: D } = inp;
+  const { y3 } = work;
+  const [c1, c2, c3] = work.cards;
+  const tanT = Math.tan(tilt);
+  // screen size of the band's half width (nearer than z = 0 on the top leg: a little bigger)
+  const hwS = inp.end.hw * 1.15;
+  const laneTop = c1.y0, laneBottom = Math.min(c2.y0, c3.y0);
+  const yT = (laneTop + laneBottom) / 2;
+  const yB = c2.y0 + 0.45 * (c2.y1 - c2.y0);
+  const r = (yB - yT) / 2;
+  const xU = Math.min(c1.x0 + r + 1.3 * hwS + 0.15 * (c1.x1 - c1.x0), c1.x1 - 0.5 * hwS);
+  const x2c = (c2.x0 + c2.x1) / 2, x3c = (c3.x0 + c3.x1) / 2;
+  const lambda = 2 * (x3c - x2c);
+  const aT = Math.max(0, Math.min(0.02 * H, (laneBottom - laneTop) / 2 - hwS - 8));
+  const aB = 0.07 * H;
+  const xIn = W + margin;
+
+  // the plane: through the bottom leg's line at z = zB, the legs' mid-height at z = 0
+  const zB = -tanT * r;
+  const yc = -y3; // the head-on camera's height (world)
+  const y0 = yc + (1 - zB / D) * (H / 2 - yB);
+  const lift = (sx: number, sy: number): V3 => {
+    const t = (D - zB - tanT * (yc - y0)) / (D + tanT * (H / 2 - sy));
+    return [t * (sx - W / 2), yc + t * (H / 2 - sy), D * (1 - t)];
+  };
+
+  const step = ds / 3;
+  const scr: [number, number][] = [];
+  // top leg (right to left): in beside the heading (behind "View all"), sweeping down into the lane above card 3,
+  // then level along the lane into card 1
+  const yE = Math.min((work.title.y0 + work.title.y1) / 2, yT - 0.12 * H);
+  const xa = x2c, xb = W;
+  for (let x = xIn; x > xU; x -= step) {
+    const e = smoother((xIn - x) / (0.5 * lambda)) * smoother((x - xU) / (0.5 * lambda));
+    const drop = smoother((xb - x) / (xb - xa));
+    scr.push([x, yE + (yT - yE) * drop + aT * e * Math.sin((2 * Math.PI * (xIn - x)) / lambda)]);
+  }
+  // the hidden half turn (left about (xU, mid))
+  const ym = (yT + yB) / 2;
+  const nTurn = Math.max(24, Math.ceil((Math.PI * r) / step));
+  for (let i = 0; i <= nTurn; i++) {
+    const th = (Math.PI * i) / nTurn;
+    scr.push([xU - r * Math.sin(th), ym - r * Math.cos(th)]);
+  }
+  // bottom leg (left to right): crest over card 2, trough over card 3
+  const iBottom = scr.length;
+  const xEnd = W + margin + 0.5 * lambda;
+  for (let x = xU + step; x <= xEnd; x += step) {
+    const e = smoother((x - xU) / Math.max(1, x2c - xU));
+    scr.push([x, yB - aB * e * Math.cos((2 * Math.PI * (x - x2c)) / lambda)]);
+  }
+  const curve = scr.map(([x, y]) => lift(x, y));
+  // marks (arc along the lifted curve)
+  let a = 0, visible = -1, headOut = -1;
+  for (let i = 1; i < curve.length; i++) {
+    a += len(sub(curve[i], curve[i - 1]));
+    const [x] = scr[i];
+    if (visible < 0 && x <= xIn - margin) visible = a;
+    if (i >= iBottom && headOut < 0 && x >= W + margin) headOut = a;
+  }
+  return { curve, visible, headOut: headOut < 0 ? a : headOut };
+}
+
+/**
+ * The proxy depth for each card: the ribbon in front of card 2 (its depth below every ribbon z over it), behind cards
+ * 1 and 3 (their depths above every z over them), with a margin, from the final rings as seen while Selected Work is pinned.
+ */
+function cardDepths(out: JourneyPathDesktop, work: { y3: number; cards: Rect[]; title: Rect }, W: number, H: number, D: number): number[] {
+  const front = [false, true, false]; // is the ribbon in front of card i? (then the card's depth is below every z)
+  const MARGIN = 60;
+  return work.cards.map((c, i) => {
+    let lo = Infinity, hi = -Infinity;
+    for (let j = 0; j < out.k; j++) {
+      const x = out.pos[j * 3], y = out.pos[j * 3 + 1], z = out.pos[j * 3 + 2];
+      const f = D / Math.max(1, D - z);
+      const sx = W / 2 + x * f, sy = H / 2 - y * f - work.y3;
+      const hw = out.ruled[j * 4 + 3] * f;
+      if (sx + hw < c.x0 || sx - hw > c.x1 || sy + hw < c.y0 || sy - hw > c.y1) continue;
+      lo = Math.min(lo, z);
+      hi = Math.max(hi, z);
+    }
+    if (!Number.isFinite(lo)) return front[i] ? -5000 : 5000;
+    return front[i] ? lo - MARGIN : hi + MARGIN;
+  });
 }
