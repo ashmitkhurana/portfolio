@@ -1284,7 +1284,8 @@ function buildCoilH(inp: JourneyPathDesktopInput, bd: { yB: number; box: Rect },
   };
   // lead-in: straight down from above the section's top into the coil's front point
   const w0 = coilWidth(0);
-  const yStart = -margin - 120;
+  // the hidden route above the section's top runs well clear of it (band width + perspective must not peek in)
+  const yStart = -margin - Math.max(260, 0.35 * H);
   let sEdge = 0;
   for (let y = yStart; y < yA; y += step) {
     pushQ(world(xL, y, 0), w0);
@@ -1318,6 +1319,6 @@ function buildCoilH(inp: JourneyPathDesktopInput, bd: { yB: number; box: Rect },
   if (!sOff) sOff = acc;
   const spanComp = N * pMin;
   const coil = { x: xL - W / 2, z: -r, r, yBot: 0, yTop: 0, yTopComp: 0, axis: "x" as const, y: H / 2 - (bd.yB + yA), x1: xL + spanLoose - W / 2, x1Comp: xL + spanComp - W / 2 };
-  const corner = world(-margin - 80, yStart - 60, 0);
+  const corner = world(-margin - 160, yStart - 120, 0);
   return { curve, want, sEdge, sCoil0, sTop, sOff, coil, corner };
 }

@@ -604,6 +604,9 @@ export function createJourney(engine: RibbonEngine): () => void {
             const q = clamp01((V - v0) / Math.max(1, buildPin.vTop - v0));
             head = s0 + q * (tailEdge - s0);
             tail = head - Lr;
+            // phone: the previous strand flows away fast (its tail races after the head out of sight), so it is gone
+            // before the pinned screen arrives and the spring ribbon drops in
+            if (phoneB) tail = head - Lr * (1 - Math.min(1, q * 1.6) ** 2);
           } else if (relState !== 0 || relBelow) {
             // the release (either way): the flight by the timeline, then on down the diagonal with the page
             const flightU = clamp01((relT - REL_COMPRESS) / REL_RIB);
@@ -616,6 +619,8 @@ export function createJourney(engine: RibbonEngine): () => void {
             head = tailEdge + u * (bm.sTop - tailEdge);
             const len0 = Lr, len1 = coilLen;
             tail = head - (len0 + (len1 - len0) * u);
+            // phone: the spring ribbon grows from the hidden corner (nothing of the previous strand comes back)
+            if (phoneB) tail = Math.max(tail, Math.min(bm.sK!, head - 1));
           } else {
             // complete; then the scroll compresses the coil (the path itself changes: buildC), the ends held
             head = bm.sTop;
