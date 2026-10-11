@@ -614,8 +614,11 @@ export class SlideMotion {
       this.outRuled.set(this.poseRuled);
     } else {
       const aS = this.headArc(); // arc of ring 0 (the head)
-      // the trailing end; at least 4 ring spacings after the head
-      const aT = Math.max(this.length - this.sigma, aS + (4 * this.length) / (n - 1));
+      // the trailing end; at least 4 ring spacings after the head. During a hidden-entry intro the tail stays at
+      // End 2 (the ribbon grows from there, its end shaped and seen as it is) instead of sliding out of the hidden
+      // extension along the camera ray (seen end-on there: the end's shape could not show)
+      const aT0 = this.length - this.sigma;
+      const aT = Math.max(!this.introSettled && this.params.hiddenEntry ? Math.min(aT0, this.length) : aT0, aS + (4 * this.length) / (n - 1));
       const wAt = (a: number) => this.weightAt((a - this.fa0) / this.fds);
       const w0 = wAt(aS);
       const w1 = wAt(aT);
