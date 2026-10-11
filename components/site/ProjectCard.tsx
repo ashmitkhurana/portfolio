@@ -26,7 +26,9 @@ export function ProjectCard({
       className="project-card"
       data-ribbon-proxy=""
       data-ribbon-depth={depth}
-      data-ribbon-radius={20}
+      // 2 px past the border: the weave's anti-aliased edge then falls on the page, not on the card's hairline
+      data-ribbon-pad={2}
+      data-ribbon-radius={22}
     >
       <Link href={`/work/${project.slug}`} className="project-card__link">
         <div className="project-card__media">

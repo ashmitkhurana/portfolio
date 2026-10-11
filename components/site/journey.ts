@@ -124,7 +124,10 @@ export function createJourney(engine: RibbonEngine): () => void {
 
     const unravel = pins.find((p) => p.name === "unravel");
     const workPin = pins.find((p) => p.name === "work" && p.room > 1);
-    const cards = workPin ? [...workPin.pin.querySelectorAll<HTMLElement>(".project-card")] : [];
+    // in screen order (left to right): the desktop grid places them out of DOM order
+    const cards = workPin
+      ? [...workPin.pin.querySelectorAll<HTMLElement>(".project-card")].sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left)
+      : [];
     let sigma = ease(hero.p) * clear;
     let lead = 0;
     if (unravel && clear > 0) {
@@ -245,11 +248,17 @@ export function createJourney(engine: RibbonEngine): () => void {
           } else if (workPin.p < WORK_IN) {
             sigma = w.sEntry + (workPin.p / WORK_IN) * (w.sVisible - w.sEntry);
           } else if (workPin.p < WORK_OUT) {
-            sigma = w.sVisible + ease((workPin.p - WORK_IN) / (WORK_OUT - WORK_IN)) * (w.sHeadOut - w.sVisible);
+            // across, fully off the left edge, back in from the left and across the cards; the turn out of sight
+            // takes no scroll
+            const top = w.sTopOut - w.sVisible, all = top + (w.sHeadOut - w.sBottomIn);
+            const v = ease((workPin.p - WORK_IN) / (WORK_OUT - WORK_IN)) * all;
+            sigma = v <= top ? w.sVisible + v : w.sBottomIn + (v - top);
           } else {
             // the head is gone; the rest of the ribbon follows it through and speeds up as it leaves
             const u = clamp01((workPin.p - WORK_OUT) / (1 - WORK_OUT));
-            sigma = w.sTailIn + (0.35 * u + 0.65 * u * u) * (w.sClear - w.sTailIn);
+            // (short ribbon on a wide screen: the tail is already on screen, so never step back behind the head)
+            const s0 = Math.max(w.sTailIn, w.sHeadOut);
+            sigma = s0 + (0.35 * u + 0.65 * u * u) * (w.sClear - s0);
           }
         }
       }

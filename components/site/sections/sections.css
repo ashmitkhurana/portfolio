@@ -193,8 +193,8 @@
 /* ── 03 work ───────────────────────────────────────────── */
 
 /* Phone / portrait: three screens, one card each (the heading shares the first screen with card 1).
-   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards (components/site/journey.ts): card 1
-   raised, cards 2 and 3 lower, the lane above them is the ribbon's way in. */
+   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards (components/site/journey.ts): the outer
+   cards raised, the middle one low; the lane above the middle card is the ribbon's way across. */
 .work {
   --work-pin-room: 0px;
   --section-h: auto;
@@ -293,7 +293,7 @@
     margin-top: min(var(--space-l), 5svh);
   }
 
-  /* every card is 76% of the row: card 1 at the top, cards 2 and 3 at the bottom */
+  /* every card is 76% of the row */
   .work__item {
     height: 76%;
     padding: 0;
@@ -304,8 +304,19 @@
     padding-top: 0;
   }
 
+  /* Alpha Block left and Sleepara right sit raised; Arcadia Design low in the middle */
   .work__item[data-index="0"] {
+    grid-area: 1 / 1;
     align-self: start;
+  }
+
+  .work__item[data-index="1"] {
+    grid-area: 1 / 3;
+    align-self: start;
+  }
+
+  .work__item[data-index="2"] {
+    grid-area: 1 / 2;
   }
 
   .work__item .project-card {

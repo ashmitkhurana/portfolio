@@ -2,7 +2,7 @@
 import sys
 from PIL import Image, ImageDraw, ImageFont
 out, h, cols = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-items = [a.rsplit(":", 1) if ":" in a and not a.endswith(".png") else (a, "") for a in sys.argv[4:]]
+items = [(a.split(".png:", 1)[0] + ".png", a.split(".png:", 1)[1]) if ".png:" in a else (a, "") for a in sys.argv[4:]]
 ims = []
 for path, lab in items:
     im = Image.open(path).convert("RGB")
