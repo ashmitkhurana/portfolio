@@ -68,6 +68,17 @@ export interface TailSpec {
   joinSwing?: number;
   /** depth of the exit point, world px (+ = towards the camera) */
   zExit: number;
+  /**
+   * Where the band finishes turning face-on to the camera, as a fraction of fromRing (default 0.55; the turn starts
+   * at 0.2 and is face-on below it). A longer turn spreads the same twist thinner: a short one on a strand that
+   * climbs toward the camera reads as a crease once the page scrolls it into view.
+   */
+  faceOnSpan?: number;
+  /**
+   * Cap (degrees) on how far the band turns from its own (transported) direction toward face-on. The turn grows on
+   * short screens (the exit strand climbs more steeply); capped, it stays a gentle twist at every aspect.
+   */
+  faceOnMaxDeg?: number;
 }
 
 /**

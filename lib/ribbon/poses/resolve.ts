@@ -367,7 +367,18 @@ export function steerTail(rings: readonly RuledRing[], ctx: ResolveContext, tail
     const v = norm([-pos[i][0], -pos[i][1], D - pos[i][2]]);
     let bf = norm([T[1] * v[2] - T[2] * v[1], T[2] * v[0] - T[0] * v[2], T[0] * v[1] - T[1] * v[0]]);
     if (bf[0] * tr[0] + bf[1] * tr[1] + bf[2] * tr[2] < 0) bf = [-bf[0], -bf[1], -bf[2]];
-    const x = Math.min(Math.max((0.55 * k0 - i) / (0.35 * k0), 0), 1);
+    if (tail.faceOnMaxDeg !== undefined) {
+      // turn from tr toward bf about T by at most the cap (both are square to T)
+      const c = Math.min(1, Math.max(-1, bf[0] * tr[0] + bf[1] * tr[1] + bf[2] * tr[2]));
+      const ang = Math.acos(c), cap = (tail.faceOnMaxDeg * Math.PI) / 180;
+      if (ang > cap) {
+        const tx = [T[1] * tr[2] - T[2] * tr[1], T[2] * tr[0] - T[0] * tr[2], T[0] * tr[1] - T[1] * tr[0]];
+        const sg = tx[0] * bf[0] + tx[1] * bf[1] + tx[2] * bf[2] < 0 ? -1 : 1;
+        bf = norm([0, 1, 2].map((q) => tr[q] * Math.cos(cap) + sg * tx[q] * Math.sin(cap)));
+      }
+    }
+    const f1 = tail.faceOnSpan ?? 0.55; // face-on below 0.2 k0, the authored ruling (transported) above f1 k0
+    const x = Math.min(Math.max((f1 * k0 - i) / ((f1 - 0.2) * k0), 0), 1);
     const w = x * x * (3 - 2 * x);
     let bb = [(1 - w) * tr[0] + w * bf[0], (1 - w) * tr[1] + w * bf[1], (1 - w) * tr[2] + w * bf[2]];
     const d = bb[0] * T[0] + bb[1] * T[1] + bb[2] * T[2];

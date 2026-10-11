@@ -215,10 +215,29 @@ export function createJourney(engine: RibbonEngine): () => void {
         // DESKTOP: the approved v335 choreography (off the left edge, back in from the left drawing the wave)
         flowK = 0;
         path = null;
+        // phones: continue along End 1's TRUE end direction (its last segment); the 3-ring chord blurs it and leaves a
+        // small corner where the strand leaves the pose (visible once the page scrolls it up). Desktop keeps the chord.
+        // ...and with its curvature, relaxed to straight (a curvature step there reads as a ridge)
+        const e1 = sl.end1();
+        let endBend: { axis: [number, number, number]; rate: number } | undefined;
+        if (portrait) {
+          const r1 = sl.poseRing(1), r2 = sl.poseRing(2);
+          const unit = (a: number[], b: number[]): [number, number, number] => {
+            const v = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], l = Math.hypot(v[0], v[1], v[2]) || 1;
+            return [v[0] / l, v[1] / l, v[2] / l];
+          };
+          const tb = unit(e1.p, r1.p), ta = unit(r1.p, r2.p);
+          e1.t = tb;
+          const ax: [number, number, number] = [ta[1] * tb[2] - ta[2] * tb[1], ta[2] * tb[0] - ta[0] * tb[2], ta[0] * tb[1] - ta[1] * tb[0]];
+          const sn = Math.hypot(ax[0], ax[1], ax[2]);
+          const seg = Math.hypot(e1.p[0] - r1.p[0], e1.p[1] - r1.p[1], e1.p[2] - r1.p[2]) || 1;
+          if (sn > 1e-6) endBend = { axis: ax, rate: Math.atan2(sn, ta[0] * tb[0] + ta[1] * tb[1] + ta[2] * tb[2]) / seg };
+        }
         pathD = buildJourneyPathDesktop({
           W,
           H,
-          end: sl.end1(),
+          end: e1,
+          endBend,
           ds: sl.spacing,
           y2: unravel.vTop,
           sClear: clear,

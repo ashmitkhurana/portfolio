@@ -32,6 +32,11 @@ export interface JourneyPathDesktopInput {
   end: { p: [number, number, number]; t: [number, number, number]; b: [number, number, number]; hw: number };
   /** ring spacing (world px) */
   ds: number;
+  /**
+   * The pose's bend at End 1 (rotation axis, radians per world px). Given, the strand leaving End 1 starts with that
+   * curvature and relaxes it to straight over a few rings (a curvature step reads as a ridge); else it is straight.
+   */
+  endBend?: { axis: [number, number, number]; rate: number };
   /** virtual y (css px) of section 2's top */
   y2: number;
   /** slide distance at the end of the hero pin (the head must be hidden there) */
@@ -165,21 +170,37 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
 
   // 1. straight on from End 1 until the band is off the left edge ON SCREEN (perspective: a strand diving into depth
   //    is pulled toward the centre, so the projected x decides, with the band's own half width)
-  const t1 = norm(end.t);
+  // the lead-in: End 1's curvature relaxed to zero over LEAD rings (only when endBend is given)
+  let t1 = norm(end.t);
+  let start: V3 = end.p;
+  const lead: V3[] = [];
+  if (inp.endBend && inp.endBend.rate > 0) {
+    const LEAD = 8 * ds, n = Math.ceil(LEAD / (ds / 3)), h = LEAD / n;
+    const ax = norm(inp.endBend.axis);
+    for (let i = 1; i <= n; i++) {
+      const sMid = (i - 0.5) * h;
+      const k = inp.endBend.rate * 0.5 * (1 + Math.cos((Math.PI * sMid) / LEAD));
+      t1 = norm(rotate(t1, ax, k * h));
+      start = add(start, t1, h);
+      lead.push(start);
+    }
+  }
+  const leadLen = lead.length ? polyLen(lead, end.p) : 0;
   const D = inp.camZ;
   const projX = (q: V3) => q[0] * (D / Math.max(1, D - q[2])); // world x on the z = 0 plane
   const offLeft = (q: V3) => projX(q) + end.hw * (D / Math.max(1, D - q[2])) < -W / 2 - 24;
   let exitLen = 0;
-  while (exitLen < 4 * H && !offLeft(add(end.p, t1, exitLen))) exitLen += ds / 3;
-  const P1 = add(end.p, t1, exitLen);
-  push(lineSamples(end.p, P1, ds / 3), null);
+  while (exitLen < 4 * H && !offLeft(add(start, t1, exitLen))) exitLen += ds / 3;
+  const P1 = add(start, t1, exitLen);
+  push(lead, null);
+  push(lineSamples(start, P1, ds / 3), null);
   // then turn smoothly out of the dive into the screen plane (hidden): a cubic from P1 (tangent t1) to C (tangent t1f)
   const t1f = norm([t1[0], t1[1], 0]);
   const blendL = 6 * end.hw;
   const C: V3 = add(add(P1, t1, blendL * 0.5), t1f, blendL * 0.5);
   const blend = bezier(P1, add(P1, t1, blendL * 0.35), add(C, t1f, -blendL * 0.35), C, 24);
   push(blend, null);
-  const a1 = exitLen + polyLen(blend, P1);
+  const a1 = leadLen + exitLen + polyLen(blend, P1);
 
   // the wave: entry point, direction and its band normal
   let Q: V3, dq: V3, wave: V3[], waveNormal: V3, pre: V3[] = [];
