@@ -254,6 +254,8 @@
 .term--inline .term__output {
   height: 20rem;
   flex: none;
+  /* flex: none would size it to its longest line; keep it the window's width so lines wrap */
+  width: 100%;
 }
 
 @media (min-width: 768px) {

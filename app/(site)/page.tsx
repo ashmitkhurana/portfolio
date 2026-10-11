@@ -3,6 +3,7 @@ import { HeroSection } from "@/components/site/sections/HeroSection";
 import { UnravelSection } from "@/components/site/sections/UnravelSection";
 import { WorkSection } from "@/components/site/sections/WorkSection";
 import { BuildSection } from "@/components/site/sections/BuildSection";
+import { ExperienceSection } from "@/components/site/sections/ExperienceSection";
 import { TerminalSection } from "@/components/site/sections/TerminalSection";
 import { ContactSection } from "@/components/site/sections/ContactSection";
 
@@ -33,7 +34,10 @@ export default function Home() {
       <UnravelSection />
       <WorkSection />
       <BuildSection />
-      <TerminalSection />
+      <div className="exterm">
+        <ExperienceSection />
+        <TerminalSection />
+      </div>
       <ContactSection />
     </>
   );

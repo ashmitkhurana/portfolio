@@ -192,9 +192,18 @@
 
 /* ── 03 work ───────────────────────────────────────────── */
 
+/* Phone / portrait: three screens, one card each (the heading shares the first screen with card 1).
+   Landscape (>= 768 wide): ONE screen, the three cards side by side, staggered so the ribbon can weave
+   in front of and behind them. */
 .work {
-  --section-h: var(--h-work);
-  padding-block: var(--section-y);
+  --section-h: auto;
+}
+
+.work > .container {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 100svh 100svh;
+  height: 300svh;
+  padding-top: calc(var(--header-h) + var(--space-s));
 }
 
 .work__head {
@@ -202,70 +211,145 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-s) var(--space-m);
-  margin-bottom: var(--space-2xl);
+  gap: var(--space-2xs) var(--space-m);
 }
 
 .work__all {
   flex: none;
-  padding-bottom: var(--space-2xs);
+  padding-bottom: 0.2em;
 }
 
 .work__grid {
-  display: grid;
-  gap: var(--space-xl);
+  display: contents;
 }
 
-/* phone: single column, cards nudged left/right so they read as staggered */
-.work__item[data-index="1"] {
-  margin-left: clamp(0px, 8vw, 48px);
+.work__item {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  padding-bottom: var(--space-m);
 }
 
-.work__item[data-index="2"] {
-  margin-right: clamp(0px, 8vw, 48px);
+.work__item + .work__item {
+  padding-top: var(--header-h);
 }
 
-@media (min-width: 1100px) {
-  .work__grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: var(--space-m);
-    row-gap: var(--space-2xl);
-    align-items: start;
+.work__item .project-card {
+  width: 100%;
+  height: auto;
+}
+
+.work__item .project-card__media {
+  aspect-ratio: 4 / 3;
+}
+
+.work__item .project-card__summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* short phones: the image gives way first */
+@media (orientation: portrait) and (max-height: 700px) {
+  .work__item .project-card__media {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .work > .container {
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    padding-bottom: min(var(--space-l), 5svh);
   }
 
+  .work .display {
+    --_size: min(var(--display-m), 12svh);
+  }
+
+  .work__grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: clamp(var(--space-s), 3vw, var(--space-2xl));
+    margin-top: min(var(--space-l), 5svh);
+  }
+
+  /* each card is 82% of the row's height; the stagger (top / bottom / middle) leaves the ribbon gaps to pass */
   .work__item {
-    margin: 0 !important;
+    height: 82%;
+    padding: 0;
+  }
+
+  .work__item + .work__item {
+    padding-top: 0;
   }
 
   .work__item[data-index="0"] {
-    grid-column: 1 / span 7;
+    align-self: start;
   }
 
   .work__item[data-index="1"] {
-    grid-column: 9 / span 4;
-    margin-top: var(--space-4xl) !important;
+    align-self: end;
   }
 
   .work__item[data-index="2"] {
-    grid-column: 4 / span 6;
+    align-self: center;
+  }
+
+  .work__item .project-card {
+    height: 100%;
+  }
+
+  .work__item .project-card__media {
+    aspect-ratio: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .work__item .project-card__body {
+    flex: none;
+  }
+
+  .work__item .project-card__summary {
+    -webkit-line-clamp: 2;
   }
 }
 
 /* ── 04 build ──────────────────────────────────────────── */
 
+/* one screen on every device: the heading takes the height the body leaves it.
+   Desktop: the empty box right of the heading (above the principles) is the ribbon's spring room;
+   phone: the space right of "HOW". */
 .build {
-  --section-h: var(--h-build);
-  padding-block: var(--section-y);
+  --section-h: 100svh;
+  display: flex;
+}
+
+.build > .container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-top: calc(var(--header-h) + min(var(--space-s), 2svh));
+  padding-bottom: min(var(--space-l), 4svh);
+}
+
+.build .display {
+  --_size: min(var(--display-xl), 14.5svh);
 }
 
 .build__body {
   display: grid;
-  gap: var(--space-xl);
-  margin-top: var(--space-xl);
+  gap: min(var(--space-l), 3.5svh);
+  margin-top: min(var(--space-l), 4svh);
 }
 
 .build__eyebrow {
-  margin-bottom: var(--space-xs);
+  margin-bottom: var(--space-2xs);
 }
 
 .build__intro {
@@ -283,10 +367,10 @@
 
 .principle {
   display: grid;
-  grid-template-columns: 48px 1fr;
+  grid-template-columns: 32px 1fr;
   column-gap: var(--space-xs);
   row-gap: var(--space-3xs);
-  padding-block: var(--space-s);
+  padding-block: min(var(--space-s), 2svh);
   border-bottom: 1px solid var(--line);
 }
 
@@ -308,11 +392,40 @@
   color: var(--fg-muted);
 }
 
-@media (min-width: 1100px) {
+/* short phones (iPhone SE class): a tighter body so the heading keeps its room */
+@media (orientation: portrait) and (max-height: 720px) {
+  .build .display {
+    --_size: min(var(--display-xl), 13svh);
+  }
+
+  .build__intro {
+    font-size: 1.0625rem;
+  }
+
+  .principle {
+    padding-block: 1.4svh;
+  }
+
+  .principle__title {
+    font-size: 1.1875rem;
+  }
+
+  .principle__text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .build .display {
+    --_size: min(var(--display-xl), (100svh - var(--header-h) - 23rem) / 1.7);
+  }
+
   .build__body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: var(--space-m);
     align-items: start;
+    margin-top: min(var(--space-xl), 5svh);
   }
 
   .build__lede {
@@ -322,13 +435,28 @@
   .build__principles {
     grid-column: 7 / span 6;
   }
+
+  .principle {
+    grid-template-columns: 48px 1fr;
+  }
 }
 
-.build__experience {
-  margin-top: var(--space-3xl);
+/* ── 05 experience + terminal ──────────────────────────── */
+
+/* phone / portrait: two screens (experience, terminal); landscape: ONE screen, the experience strip on top,
+   the terminal below it on the right (the empty space left of it is the ribbon's S-sweep) */
+.experience {
+  --section-h: 100svh;
+  display: flex;
+  align-items: center;
+  padding-top: var(--header-h);
 }
 
-.build__experience-head {
+.experience > .container {
+  width: 100%;
+}
+
+.experience__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -374,7 +502,7 @@
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 900px) and (orientation: landscape) {
   .strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -386,21 +514,24 @@
   }
 }
 
-/* ── 05 terminal ───────────────────────────────────────── */
+/* terminal */
 
 .terminal {
-  --section-h: var(--h-terminal);
+  --section-h: 100svh;
   display: flex;
   align-items: center;
-  padding-block: var(--section-y);
+  padding-top: var(--header-h);
+  padding-bottom: var(--space-m);
 }
 
 .terminal__inner {
   display: grid;
-  gap: var(--space-4xl);
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
 }
 
 .terminal__col {
+  min-width: 0;
   display: grid;
   gap: var(--space-s);
   justify-items: stretch;
@@ -419,15 +550,47 @@
   letter-spacing: 0.14em;
 }
 
-@media (min-width: 900px) {
+/* short phones: the output gives way */
+@media (orientation: portrait) and (max-height: 700px) {
+  .terminal .term--inline .term__output {
+    height: min(20rem, 100svh - 18rem);
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .exterm {
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    min-height: 34rem;
+    padding-top: calc(var(--header-h) + min(var(--space-s), 2svh));
+    padding-bottom: min(var(--space-l), 4svh);
+  }
+
+  .exterm > .section {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .experience {
+    flex: none;
+    display: block;
+  }
+
+  .terminal {
+    flex: 1;
+    align-items: flex-end;
+    margin-top: min(var(--space-xl), 5svh);
+  }
+
   .terminal__inner {
     grid-template-columns: 1fr minmax(0, 36rem);
     gap: var(--space-xl);
-    align-items: center;
+    align-items: end;
   }
 
-  .terminal__space {
-    min-height: 60svh;
+  .terminal .term--inline .term__output {
+    height: clamp(8rem, 100svh - var(--header-h) - 25rem, 24rem);
   }
 }
 

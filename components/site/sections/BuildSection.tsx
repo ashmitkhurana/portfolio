@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { DisplayHeading } from "@/components/type/DisplayHeading";
-import { ArrowRight } from "@/components/site/icons";
-import { build, experience } from "@/data/site-content";
+import { build } from "@/data/site-content";
 import "./sections.css";
 
 export function BuildSection() {
@@ -37,25 +35,6 @@ export function BuildSection() {
               </li>
             ))}
           </ol>
-        </div>
-
-        <div className="build__experience">
-          <div className="build__experience-head">
-            <h3 className="label">{build.experienceLabel}</h3>
-            <Link className="label link-arrow" href={build.experienceLink.href}>
-              {build.experienceLink.label}
-              <ArrowRight />
-            </Link>
-          </div>
-          <ul className="strip">
-            {experience.map((e) => (
-              <li key={e.company} className="strip__item">
-                <p className="strip__company">{e.company}</p>
-                <p className="strip__role">{e.role}</p>
-                <p className="strip__period label">{e.period}</p>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </section>
