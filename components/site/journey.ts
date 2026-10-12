@@ -15,24 +15,13 @@
  */
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
-import { buildPortraitFlow, type JourneyPath, type SpiralPath } from "@/lib/ribbon/journeyPath";
 import { buildContactPath, buildJourneyPathDesktop, type FootMarks, type JourneyPathDesktop, type JourneyPathDesktopInput } from "@/lib/ribbon/journeyPathDesktop";
 import { getLenis } from "@/components/scroll/SmoothScroll";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
 const CLEAR_MARGIN = 60;
-/** the head keeps this far down the screen (fraction of the height) while it follows the user */
-const FOLLOW_Y = 0.72;
 /** desktop: world px the ribbon flows during the free scroll from the hero to section 2, per px of viewport height */
 const DESKTOP_TRANSITION_PER_H = 0.6;
-/** phone: world px the rigid ribbon flows on during the free scroll / across section 2's pin (per px of height) */
-const PHONE_FLOW_TRANSITION = 0.45;
-const PHONE_FLOW_PIN = 0.5;
-/** portrait: where the tail turns down (fraction of the width) and the spiral's radius (fraction of the width) */
-const SPIRAL_BOX_X = 0.4;
-const SPIRAL_R = 0.15;
-/** portrait: how far (in viewport heights) the head draws on down across section 2's pin */
-const PORTRAIT_PIN_FOLLOW = 0.4;
 /** Selected Work (landscape) pin progress: the head comes into view by WORK_IN, has threaded the cards and left by
  *  WORK_OUT; then the rest of the ribbon follows through, faster, and is clear of the cards at 1 */
 const WORK_IN = 0.03;
@@ -148,13 +137,7 @@ export function createJourney(engine: RibbonEngine): () => void {
   let clear = 0;
   let clearKey = "";
   let pathKey = "";
-  let path: JourneyPath | null = null;
-  let flowK = 0;
-  let spiral: SpiralPath | null = null;
-  const spiralJ = 0;
-  let tailM = -1;
   let pathD: JourneyPathDesktop | null = null;
-  let ymax = new Float32Array(0);
   /** How I Build: when the spring was released (performance.now, -1 = armed) and whether the page was sent on */
   /** How I Build release: 0 = scroll-driven, 1 = the ribbon's run (timed, page held), 2 = the page's scroll on; armed
    *  again once the user is back above the fire point */
@@ -441,7 +424,7 @@ export function createJourney(engine: RibbonEngine): () => void {
         })
       : [];
     let sigma = ease(hero.p) * clear;
-    let lead = 0;
+    const lead = 0;
     // desktop: the head's own position (rigid unless a section sets it: How I Build shortens the ribbon)
     let leadD = Number.NaN;
     if (unravel && clear > 0) {
@@ -616,42 +599,9 @@ export function createJourney(engine: RibbonEngine): () => void {
         const pinTop = unravel.pin.getBoundingClientRect().top;
         const ra = textA.getBoundingClientRect(), rb = textB.getBoundingClientRect();
         const hwS = sl.end1().hw;
-        let wave: { c: number; amp: number; top: number; lambda?: number; crestY?: number };
         const aBottom = unravel.vTop + ra.bottom - pinTop, bTop = unravel.vTop + rb.top - pinTop;
-        // PHONE (owner, final): exactly the desktop choreography, horizontal: the hero ribbon goes off-screen left,
-        // the text splits above and below, the head re-enters from the left and draws the wave left to right (off
-        // right; the next section brings it back in from the right). The vertical phone builders are unused.
-        if (false as boolean) {
-          // (old) PHONE: one continuous ribbon, the desktop's look: the hero's tail flows on screen into one gentle
-          // curve to the centre and straight down the middle as the same tilted-plane wave; rigid (all of it moves)
-          // End 1's true end direction (last two rings): a 3-ring chord blurs it and leaves a corner at the join
-          const e0 = sl.end1(), r1 = sl.poseRing(1);
-          const tx = e0.p[0] - r1.p[0], ty = e0.p[1] - r1.p[1], tz = e0.p[2] - r1.p[2];
-          const tl = Math.hypot(tx, ty, tz) || 1;
-          const flow = buildPortraitFlow({
-            W,
-            H,
-            end: { ...e0, t: [tx / tl, ty / tl, tz / tl] },
-            ds: sl.spacing,
-            y2: unravel.vTop,
-            camZ: sl.cameraZ,
-            c: W / 2,
-            top: unravel.vTop + 0.46 * H,
-            amp: Math.max(16, Math.min(0.12 * W, (rb.left - ra.right) / 2 - hwS - 8)),
-            lambda: 0.32 * H,
-          });
-          pathD = null;
-          flowK = 0;
-          path = flow;
-          sl.setHeadPath(flow.pos, flow.ruled, flow.k);
-          // running max of each ring's screen height: the head may advance while its path stays above the follow line
-          ymax = new Float32Array(flow.k);
-          let mx = -Infinity;
-          for (let q = 0; q < flow.k; q++) ymax[q] = mx = Math.max(mx, flow.yv[q]);
-        } else {
-        // DESKTOP: the approved v335 choreography (off the left edge, back in from the left drawing the wave)
-        flowK = 0;
-        path = null;
+        // DESKTOP (v335, approved) and PHONE (owner, final: the same choreography, horizontal): the hero ribbon goes
+        // off-screen left, the text splits above and below, the head re-enters from the left and draws the wave
         // phones: continue along End 1's TRUE end direction (its last segment); the 3-ring chord blurs it and leaves a
         // small corner where the strand leaves the pose (visible once the page scrolls it up). Desktop keeps the chord.
         // ...and with its curvature, relaxed to straight (a curvature step there reads as a ridge)
@@ -716,18 +666,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           const dp = pathD!.stack?.depths[i];
           if (dp !== undefined) c.dataset.ribbonDepthPortrait = dp.toFixed(0);
         });
-        }
-        if (spiral) {
-          spiral = null;
-          tailM = -1;
-          sl.setTailOverride(null, null);
-        }
         pathKey = pk;
-      }
-      if (portrait && flowK > 0 && hero.p >= 1) {
-        // PHONE: the whole ribbon keeps flowing down the path as the user scrolls on (rigid)
-        const q = clamp01(V / Math.max(1, unravel.vTop));
-        sigma = clear + q * PHONE_FLOW_TRANSITION * H + ease(unravel.p) * PHONE_FLOW_PIN * H;
       }
       if (pathD && hero.p >= 1) {
         // DESKTOP (v335): a rigid window (head = tail - length): the hero's remaining strand flows down-left off the
@@ -905,8 +844,6 @@ export function createJourney(engine: RibbonEngine): () => void {
             const now = performance.now();
             const dt = Math.min(0.1, (now - fillAt) / 1000);
             fillAt = now;
-            const termEl = document.querySelector<HTMLElement>('[data-section="terminal"]');
-            const yGate = termEl ? termEl.getBoundingClientRect().top + window.scrollY : 0;
             const fm = pathD.foot;
             const footSecEl = document.querySelector<HTMLElement>('[data-section="contact"]');
             const yFoot = footSecEl ? footSecEl.getBoundingClientRect().top + window.scrollY : 0;
@@ -1226,39 +1163,6 @@ export function createJourney(engine: RibbonEngine): () => void {
           leadD = head;
         }
       }
-      if (spiral && portrait) {
-        // the tail below the box swings into the spiral over the first part of the hero exit
-        const m = Math.round(clamp01(hero.p / 0.3) * 60) / 60;
-        const swing = m * m * (3 - 2 * m);
-        if (Math.abs(swing - tailM) > 1e-4) {
-          sl.setTailOverride(spiral.tailPos, spiral.tailRuled, spiralJ, swing);
-          tailM = swing;
-        }
-      }
-      if (path && portrait && hero.p >= 1) {
-        // the head waits below the hero until the user reaches it, then keeps FOLLOW_Y down the screen as they scroll;
-        // during section 2's pin it keeps drawing (landscape: across the wave by pin progress; portrait: on down)
-        const followArc = (v: number) => {
-          const yLine = v + FOLLOW_Y * H;
-          let lo = 0, hi = path!.k - 1;
-          if (ymax[0] > yLine) return 0;
-          while (hi - lo > 1) {
-            const mid = (lo + hi) >> 1;
-            if (ymax[mid] <= yLine) lo = mid;
-            else hi = mid;
-          }
-          return (lo + 1) * sl.spacing;
-        };
-        if (!portrait) {
-          lead = Math.min(followArc(V), path.sWave);
-          if (unravel.p > 0) lead = path.sWave + ease(unravel.p) * (path.sWaveEnd - path.sWave);
-        } else {
-          lead = Math.min(followArc(V + unravel.p * PORTRAIT_PIN_FOLLOW * H), path.sWaveEnd);
-        }
-        // the whole ribbon moves on with the head (constant length after the hero exit): the S above flows forward
-        // as the head draws ahead of the user
-        sigma = clear + lead;
-      }
     }
     // How I Build: squash the coil (about its fixed bottom) by the compression, every frame; the strand leaving its
     // top moves with the top (faded out along it)
@@ -1341,7 +1245,7 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
-    sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;
-    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, sWave: path?.sWave, sWaveEnd: path?.sWaveEnd, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build, fm: pathD?.foot, xm: pathD?.exterm, footState, leadS: sl.lead, tailS: sl.sigma - sl.length, input: lastInput };
+    sl.driveLead = pathD ? (Number.isNaN(leadD) ? sigma : leadD) : lead;
+    if (window.__journeyDebug !== undefined) window.__journeyDebug = { V, clear, hero: hero.p, unravel: unravel?.p, sigma, lead, build: buildPin?.p, buildC, relT, relState, relS, bm: pathD?.build, fm: pathD?.foot, xm: pathD?.exterm, footState, leadS: sl.lead, tailS: sl.sigma - sl.length, input: lastInput };
   };
 }

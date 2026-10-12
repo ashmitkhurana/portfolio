@@ -137,3 +137,6 @@ Next, in order (owner asked for cleanup before merging):
 2. Dev scripts that read moved images (scripts/curve/*, scripts/mockup/*): leave or repoint to the archive; they are not part of the site. Check /lab (app/lab, components/lab) is not reachable in production (NEXT_PUBLIC_LAB) or remove it.
 3. Checks not yet done: iPad/tablet portrait (phone choreography), phone landscape (desktop choreography), Android Chrome, reduced motion / slow network / no-WebGL fallbacks for the new phone sections and /contact, low-end phone frame rate.
 4. Then, ONLY with the owner's OK: SQUASH-merge claude/upbeat-hellman-f92bb7 into main (one clean commit; the branch history holds the old images). Next version: v382.
+
+## UPDATE (v382 + cleanup, same day)
+Done: /contact opens with no flash; the terminal's output scrolls inside; dead code removed (journey.ts old phone experiments, lib/ribbon/journeyPath.ts) with a pixel regression check; /lab is 404 in production unless NEXT_PUBLIC_LAB=1. Remaining before the squash-merge: the device checks (iPad portrait, phone landscape, Android, reduced motion / slow network / no-WebGL fallbacks, low-end frame rate), then the owner's OK. Next version: v383.
