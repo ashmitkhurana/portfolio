@@ -183,6 +183,7 @@ export function createJourney(engine: RibbonEngine): () => void {
   /** a page without the hero was shown (the hero intro replays on the way back) */
   let cameAway = false;
   let homeReveal = 0;
+  let lastPath = "";
   /** phones: the scroll position the footer's run landed at */
   let footLandY = 0;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
@@ -367,9 +368,37 @@ export function createJourney(engine: RibbonEngine): () => void {
       return;
     }
     // back on the home page from another page: no running back along that page's path; the hero intro plays as on a
-    // fresh load (the ribbon grows from its hidden end into the AK, the name types in: HeroTypeIn)
+    // fresh load (the ribbon grows from its hidden end into the AK, the name types in: HeroTypeIn). Decided by the URL
+    // (the old page and the home page can swap within one frame)
+    const pathNow = window.location.pathname;
+    if (pathNow !== lastPath) {
+      if (lastPath !== "" && pathNow === "/") cameAway = true;
+      lastPath = pathNow;
+    }
     if (cameAway) {
       cameAway = false;
+      // everything of the earlier visit / the other page is dropped (the path is rebuilt below)
+      pathKey = "";
+      clearKey = "";
+      footState = 0;
+      footFired = false;
+      footRevScroll = false;
+      relState = 0;
+      relBelow = false;
+      relScrolling = false;
+      relScrolled = false;
+      gateOn = false;
+      touchHold = false;
+      fill = 0;
+      camPhone = null;
+      camWasFoot = false;
+      contactKey = "";
+      contactFoot = null;
+      setFootIntro("");
+      sl.cameraBase = 0;
+      sl.cameraBackdrop = true;
+      sl.deform = null;
+      getLenis()?.start();
       sl.setHeadPath(null, null);
       sl.restart();
       homeReveal = 3;

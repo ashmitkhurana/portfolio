@@ -40,12 +40,14 @@ export function HeroTypeIn({ targetId }: { targetId: string }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const slide = (st?.engine as any)?.sim?.slide;
       if (!started) {
-        if (st?.phase === "poster" || st?.phase === "off") return;
+        if (st?.phase === "poster" || st?.phase === "off") return live ? finish() : undefined;
         // (the slide's own state: the intro also replays when the home page is opened again from another page)
         if (slide?.ready && slide.length > 0 && !slide.introSettled && slide.sigma < -0.5 * slide.length) {
           started = true;
           h.dataset.typing = "on";
         } else if (performance.now() - t0 > 1500) {
+          // no intro after all: the name is shown (never left hidden)
+          if (live) return finish();
           return;
         } else {
           raf = requestAnimationFrame(tick);
