@@ -573,6 +573,22 @@
   }
 }
 
+/* phones with the live ribbon: the dividers stop just after the entries' text (the ribbon runs down the lane to their
+   right, behind the page; journey.ts sets --strip-cut) */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .strip {
+    border-top-color: transparent;
+    background: linear-gradient(var(--line-strong), var(--line-strong)) left top / calc(100% - var(--strip-cut, 0px)) 1px no-repeat;
+    background-origin: border-box;
+  }
+
+  :root[data-ribbon="live"] .strip__item {
+    border-bottom-color: transparent;
+    background: linear-gradient(var(--line), var(--line)) left bottom / calc(100% - var(--strip-cut, 0px)) 1px no-repeat;
+    background-origin: border-box;
+  }
+}
+
 /* terminal */
 
 .terminal {

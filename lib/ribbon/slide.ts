@@ -109,6 +109,8 @@ export class SlideMotion {
    * nothing of the ribbon is on screen.
    */
   cameraBase = 0;
+  /** the floor / wall shadow receivers follow the camera when it moves (the footer's AK); false = they stay */
+  cameraBackdrop = true;
   /** applied to the composed rings every frame (positions, rulings): the page's journey squashes the How I Build coil
    *  here (smooth, no path rebuild); null = none */
   deform: ((pos: Float32Array, ruled: Float32Array, n: number) => void) | null = null;

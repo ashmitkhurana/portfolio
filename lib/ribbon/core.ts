@@ -492,12 +492,14 @@ export class RibbonCore {
     // screen, so that section is seen head-on) and the lens shift for the rest of the page scroll
     const base = this.sim.params.mode === "slide" ? this.sim.slide.cameraBase : 0;
     const shift = this.sim.params.mode === "slide" ? Math.round((this.sim.slide.offsetY - base) * 100) / 100 : 0;
-    if (base !== this.camBase) {
+    const bdBase = this.sim.params.mode === "slide" && !this.sim.slide.cameraBackdrop ? 0 : base;
+    if (base !== this.camBase || bdBase !== this.bdBase) {
       this.camBase = base;
+      this.bdBase = bdBase;
       this.camera.position.y = -base;
       this.camera.updateMatrixWorld();
       // the floor / wall shadow receivers move with the camera (the AK's floor shadow, as in the hero)
-      this.backdrop.group.position.y = -base;
+      this.backdrop.group.position.y = -bdBase;
       this.backdrop.group.updateMatrixWorld(true);
       this.forceShadow = true;
     }
@@ -862,6 +864,7 @@ export class RibbonCore {
 
   /** css px the rendered image is shifted up (slide.offsetY), as a lens shift: the perspective never changes */
   private viewShift = 0;
+  private bdBase = 0;
   /** css px the camera itself sits below the page top (world y = -camBase); see slide.cameraBase */
   private camBase = 0;
 

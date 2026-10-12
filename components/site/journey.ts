@@ -85,6 +85,11 @@ const postOf = (pr: { table: number[]; t0: number; dt: number }, a: number) => {
   const u = Math.max(0, Math.min(1, f - i));
   return pr.table[i] + (pr.table[i + 1] - pr.table[i]) * u;
 };
+/** phone Experience: the head draws in from the right over the first EXP_RAMP screens of scroll, then keeps FOLLOW_EX
+ *  down the screen; the ribbon's length there (screens) */
+const EXP_RAMP = 0.3;
+const FOLLOW_EX = 0.75;
+const EXP_LEN = 0.6;
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
 declare global {
@@ -397,6 +402,37 @@ export function createJourney(engine: RibbonEngine): () => void {
               return { x0: c.left + gut, y0: header + 8, x1: c.right - gut, y1: d.top - t - 8 };
             })()
           : null;
+      // phones: Experience's header row, the entries' text and the terminal window (css px from Experience's top)
+      const exAny = pins.find((p) => p.name === "exterm");
+      const exPRects =
+        portrait && exAny && buildHRects && !exPin
+          ? (() => {
+              const t = exAny.section.getBoundingClientRect().top;
+              const head = exAny.section.querySelector<HTMLElement>(".experience__head")?.getBoundingClientRect();
+              const items = [...exAny.section.querySelectorAll<HTMLElement>(".strip__item")];
+              const win = exAny.section.querySelector<HTMLElement>(".terminal-window")?.getBoundingClientRect();
+              if (!head || !items.length || !win) return null;
+              let textR = 0;
+              for (const el of items.flatMap((i) => [...i.querySelectorAll<HTMLElement>("p")])) {
+                const rg = document.createRange();
+                rg.selectNodeContents(el);
+                for (const r of rg.getClientRects()) textR = Math.max(textR, r.right);
+              }
+              const strip = exAny.section.querySelector<HTMLElement>(".strip");
+              if (strip) {
+                const cut = `${Math.max(0, strip.getBoundingClientRect().right - (textR + 16)).toFixed(0)}px`;
+                if (strip.style.getPropertyValue("--strip-cut") !== cut) strip.style.setProperty("--strip-cut", cut);
+              }
+              return {
+                yE: exAny.vTop,
+                headY1: head.bottom - t,
+                textR,
+                lastY1: items[items.length - 1].getBoundingClientRect().bottom - t,
+                win: { x0: win.left, y0: win.top - t, x1: win.right, y1: win.bottom - t },
+              };
+            })()
+          : null;
+      const xpk = exPRects ? `${exPRects.yE.toFixed(0)}|${exPRects.headY1.toFixed(0)},${exPRects.textR.toFixed(0)},${exPRects.lastY1.toFixed(0)},${exPRects.win.y0.toFixed(0)}` : "-";
       const bhk = buildHRects ? `${buildPin!.vTop.toFixed(0)}|${buildHRects.y0.toFixed(0)},${buildHRects.y1.toFixed(0)},${buildHRects.x1.toFixed(0)}` : "-";
       const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
@@ -407,7 +443,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           })()
         : null;
       const wk = workRects ? `${workPin!.vTop.toFixed(0)}|${workRects.map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}` : "-";
-      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}|${fk}|${bhk}`;
+      const pk = `${key}|${unravel.vTop.toFixed(0)}|${portrait}|${textA?.offsetTop}|${textB?.offsetTop}|${textA?.offsetWidth}|${wk}|${sk}|${bk}|${xk}|${fk}|${bhk}|${xpk}`;
       // (while released, the release path is in place: the entry path is rebuilt once the ribbon is back in the box)
       if (pk !== pathKey && textA && textB) {
         // the wave goes between the two text blocks (rest coordinates: virtual = section top + offset in the pin)
@@ -490,6 +526,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           // the coil is built loose; the compression is a per-frame squash (sl.deform below): smooth at any frame rate
           build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: 0 } : undefined,
           exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
+          exP: exPRects ?? undefined,
           foot: footRects
             ? {
                 yF: footRects.yF,
@@ -612,6 +649,15 @@ export function createJourney(engine: RibbonEngine): () => void {
             const flightU = clamp01((relT - REL_COMPRESS) / REL_RIB);
             head = bm.sTop + easeOut3(flightU) * (bm.sBottom - bm.sTop) + relS * (bm.sStop - bm.sBottom);
             tail = head - coilLen;
+            // phone: the hidden route takes the first part of the page's slide; over the rest the head comes in from the
+            // right into Experience and curls down (the ribbon grows from the right edge: nothing behind it shows)
+            const xpR = pathD.exP;
+            if (xpR) {
+              const u1 = clamp01(relS / 0.45), u2 = clamp01((relS - 0.45) / 0.55);
+              head = bm.sTop + easeOut3(flightU) * (bm.sBottom - bm.sTop) + u1 * (xpR.sWait - bm.sBottom) + ease(u2) * (xpR.sReady - xpR.sWait);
+              tail = head - coilLen;
+              if (head > xpR.sWait) tail = Math.max(tail, Math.min(head - 40, xpR.sIn - 2 * sl.end1().hw));
+            }
           } else if (buildPin.p < BUILD_COIL) {
             // in at the bottom of the box and up round the pole to the top of "HOW"; the whole ribbon comes on screen:
             // its tail follows it in, and the coil is the whole ribbon once complete
@@ -665,6 +711,26 @@ export function createJourney(engine: RibbonEngine): () => void {
             relBelow = relState > 0;
             relState = 0;
             relScrolling = false;
+          }
+          // PHONE Experience (no pin): once released, the head comes in from the right as the user scrolls on, curls
+          // down and draws down the lane, then keeps FOLLOW_EX down the screen until it stops above the terminal; a
+          // ribbon of fixed length (it grows from the right edge: nothing of the incoming strand shows)
+          const xp = pathD.exP;
+          const exAnyP = pins.find((p) => p.name === "exterm");
+          if (xp && exAnyP && !exPin && relBelow && relState === 0) {
+            const v = V - exAnyP.vTop;
+            const arcAt = (sy: number) => {
+              const f = (sy - xp.ty0) / xp.tdy;
+              const i = Math.max(0, Math.min(xp.tarc.length - 2, Math.floor(f)));
+              const u = Math.max(0, Math.min(1, f - i));
+              return xp.tarc[i] + (xp.tarc[i + 1] - xp.tarc[i]) * u;
+            };
+            const vr = EXP_RAMP * H;
+            if (v <= 0) head = xp.sReady;
+            else if (v < vr) head = xp.sReady + ease(v / vr) * (arcAt(vr + FOLLOW_EX * H) - xp.sReady);
+            else head = arcAt(v + FOLLOW_EX * H);
+            head = Math.min(head, xp.sEnd);
+            tail = Math.max(head - EXP_LEN * H, Math.min(head - 40, xp.sIn - 2 * sl.end1().hw));
           }
           // Experience + Terminal: on from the waiting point (the same shortened ribbon)
           const xm = pathD.exterm;
@@ -932,6 +998,16 @@ export function createJourney(engine: RibbonEngine): () => void {
       };
       }
     } else sl.deform = null;
+    // phones: the camera sits at Experience's height once the head is past its waiting point (the ribbon is out of
+    // sight there), so Experience is seen head-on (no view shear on the twisting descent)
+    const xpC = pathD?.exP;
+    if (xpC && !(W >= 768 && W > H)) {
+      const exAnyC = pins.find((p) => p.name === "exterm");
+      const cam = exAnyC && sl.lead > xpC.sWait + 1 ? exAnyC.vTop : 0;
+      if (sl.cameraBase !== cam) sl.cameraBase = cam;
+      // (Experience on phones: no floor shadow there; the footer's AK keeps it)
+      sl.cameraBackdrop = cam === 0 || cam !== exAnyC?.vTop;
+    }
     sl.driveTarget = sigma;
     // desktop: rigid (the head moves with the tail); portrait: the head has its own position
     sl.driveLead = pathD || flowK > 0 ? (Number.isNaN(leadD) ? sigma : leadD) : lead;

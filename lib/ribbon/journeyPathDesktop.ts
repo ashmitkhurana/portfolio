@@ -75,7 +75,34 @@ export interface JourneyPathDesktopInput {
   /** How I Build on phones: the pinned screen's virtual top and the empty box above "HOW" (css px in that screen) */
   buildH?: { yB: number; box: Rect };
   exterm?: ExtermInput;
+  /** Experience + Terminal on phones (not pinned; css px relative to Experience's top, virtual yE) */
+  exP?: ExPInput;
   foot?: FootInput;
+}
+
+export interface ExPInput {
+  yE: number;
+  /** bottom of the header row ("EXPERIENCE ... FULL STORY") */
+  headY1: number;
+  /** the entries' text: right edge, and the last entry's bottom */
+  textR: number;
+  lastY1: number;
+  /** the terminal window */
+  win: Rect;
+}
+
+export interface ExPMarks {
+  /** the head waiting just beyond the right edge (How I Build's release ends here) / entering the screen */
+  sWait: number;
+  sIn: number;
+  /** the head just below the curl: where it is when Experience arrives (How I Build's release brings it there) */
+  sReady: number;
+  /** the head beside the terminal's top (it stops there) */
+  sEnd: number;
+  /** follow table: the head's arc for screen y (rel. Experience's top) ty0 + i * tdy, from the curl's end down */
+  ty0: number;
+  tdy: number;
+  tarc: number[];
 }
 
 /**
@@ -203,6 +230,7 @@ export interface JourneyPathDesktop {
   stack?: StackMarks;
   build?: BuildMarks;
   exterm?: ExtermMarks;
+  exP?: ExPMarks;
   foot?: FootMarks;
 }
 
@@ -385,6 +413,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
   let build: BuildMarks | undefined;
   let exterm: ExtermMarks | undefined;
   let foot: FootMarks | undefined;
+  let exP: ExPMarks | undefined;
   let stack: { passes: { s0: number; s1: number; g: number }[]; rings: [number, number][] } | undefined;
   // later sections are seen head-on through their own lens shift: their view shear, blended in from s0 to s1 (hidden)
   const shearKnots: { s0: number; s1: number; a: number }[] = [];
@@ -448,6 +477,34 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         sBottom: sQ + bh.sOff,
         sStop: sQ + bh.sOff + 0.6 * H,
       };
+      if (inp.exP) {
+        // ── Experience (phone): out of sight, a U-turn down the right side to the entry beside Experience's top;
+        // the camera moves to Experience's height there (journey.ts), so this part is designed head-on (no shear)
+        const xp = buildExP(inp, inp.exP, margin, ds);
+        const E = pts[pts.length - 1], dE = norm(sub(E, pts[pts.length - 2]));
+        const Q = xp.curve[0], dQ = norm(sub(xp.curve[1], xp.curve[0]));
+        const h = 0.4 * len(sub(Q, E)) + 300;
+        const route = bezier(E, add(E, dE, h), add(Q, dQ, -h), Q, 240);
+        const wA = want[want.length - 1] ?? xp.want[0];
+        const wB = dot(xp.want[0], wA) < 0 ? ([-xp.want[0][0], -xp.want[0][1], -xp.want[0][2]] as V3) : xp.want[0];
+        const sR0 = acc;
+        route.forEach((q, i) => {
+          acc += len(sub(q, pts[pts.length - 1]));
+          pts.push(q);
+          want.push(norm(add(wA, sub(wB, wA), smoother((i + 1) / route.length))));
+        });
+        const sX = acc;
+        shearKnots.push({ s0: sR0, s1: sX, a: 0 });
+        for (let i = 1; i < xp.curve.length; i++) {
+          acc += len(sub(xp.curve[i], pts[pts.length - 1]));
+          pts.push(xp.curve[i]);
+          want.push(xp.want[i]);
+        }
+        // ready: the head a little below the curl when Experience arrives (it came in during the page's slide)
+        const iR = Math.min(xp.tarc.length - 1, Math.round((0.1 * H) / xp.tdy));
+        exP = { sWait: sX + xp.sWait, sIn: sX + xp.sIn, sReady: sX + xp.tarc[iR], sEnd: sX + xp.sEnd, ty0: xp.ty0, tdy: xp.tdy, tarc: xp.tarc.map((a) => sX + a) };
+        build.sStop = exP.sReady;
+      }
     } else {
       // straight on (off the left edge, hidden), far enough for the whole ribbon to follow
       const l2 = pts[pts.length - 1], p2 = pts[pts.length - 2];
@@ -630,6 +687,9 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     const table: number[] = [];
     for (let a = t0; a <= foot.sTailOut + 6000; a += dtT) table.push(postArc(a));
     out.foot = { sS0: postArc(foot.sS0), sDive0: postArc(foot.sDive0), pre: { in: foot.sFlyIn, out: foot.sTailOut, table, t0, dt: dtT }, sFlyIn: postArc(foot.sFlyIn), sFlyOut: postArc(foot.sTailOut), sTailOut: postArc(foot.sTailOut) + (sE1 - sE2), sBackIn: postArc(foot.sBackIn), sE2, sE1 };
+  }
+  if (exP) {
+    out.exP = { sWait: postArc(exP.sWait), sIn: postArc(exP.sIn), sReady: postArc(exP.sReady), sEnd: postArc(exP.sEnd), ty0: exP.ty0, tdy: exP.tdy, tarc: exP.tarc.map(postArc) };
   }
   if (exterm) {
     out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), sTailEnd: postArc(exterm.sTailEnd), sStart: postArc(exterm.sStart), sFirst: postArc(exterm.sFirst), sOff: postArc(exterm.sOff), end: exterm.end };
@@ -1315,10 +1375,115 @@ function buildCoilH(inp: JourneyPathDesktopInput, bd: { yB: number; box: Rect },
     if (!sOff && q[0] > W / 2 + margin) sOff = acc;
   });
   const t1: V3 = [1, 0, 0];
-  for (let k = 1; k <= Math.ceil((inp.ribbonLen + 2 * W) / step); k++) pushQ(add(J, t1, k * step), bT);
+  for (let k = 1; k <= Math.ceil((inp.exP ? 300 : inp.ribbonLen + 2 * W) / step); k++) pushQ(add(J, t1, k * step), bT);
   if (!sOff) sOff = acc;
   const spanComp = N * pMin;
   const coil = { x: xL - W / 2, z: -r, r, yBot: 0, yTop: 0, yTopComp: 0, axis: "x" as const, y: H / 2 - (bd.yB + yA), x1: xL + spanLoose - W / 2, x1Comp: xL + spanComp - W / 2 };
   const corner = world(-margin - 160, yStart - 120, 0);
   return { curve, want, sEdge, sCoil0, sTop, sOff, coil, corner };
+}
+
+/**
+ * Experience on phones (not pinned), world coordinates for a camera at Experience's own height (journey.ts moves it
+ * there while the ribbon is out of sight: designed head-on, no view shear):
+ *   in from beyond the right edge, horizontal and face on, just under the header row;
+ *   a helical half loop curls it straight down (the band wrapped half round an invisible pole along the bisector of
+ *   left and down; its turn rate eased in and out, so no curvature step at either join; face on at both ends);
+ *   straight down a little right of the entries' text, loosely twisting about its own axis (a half turn per H / 3.5),
+ *   the twist easing out after the last entry into the wave's orientation;
+ *   small gentle waves (a tilted-plane wave, width on its normal) down to just above the terminal (the head stops
+ *   there); then straight on (the terminal's wrap comes next).
+ */
+function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds: number) {
+  const { W, H } = inp;
+  const hw = inp.end.hw;
+  const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (ex.yE + sy), z];
+  const step = ds / 3;
+  const curve: V3[] = [];
+  const want: V3[] = [];
+  let acc = 0;
+  const pushQ = (q: V3, w: V3) => {
+    if (curve.length) acc += len(sub(q, curve[curve.length - 1]));
+    curve.push(q);
+    want.push(w);
+  };
+  // the curl, integrated in a local frame from the origin: tangent on the cone round a = bisector(left, down)
+  const a: V3 = norm([-1, -1, 0]);
+  const e2: V3 = norm([-1, 1, 0]);
+  const e1: V3 = [0, 0, 1];
+  const S = Math.max(130, 4.6 * hw);
+  const nS = Math.ceil(S / step);
+  const loc: V3[] = [[0, 0, 0]];
+  const locW: V3[] = [];
+  const th = (u: number) => Math.PI * (u - Math.sin(2 * Math.PI * u) / (2 * Math.PI));
+  const tanAt = (t: number): V3 => norm(add(a, add([-Math.sin(t) * e1[0], -Math.sin(t) * e1[1], -Math.sin(t) * e1[2]], e2, Math.cos(t))));
+  const widthAt = (t: number): V3 => norm(cross(add([Math.cos(t) * e1[0], Math.cos(t) * e1[1], Math.cos(t) * e1[2]], e2, Math.sin(t)), tanAt(t)));
+  locW.push(widthAt(0));
+  for (let i = 1; i <= nS; i++) {
+    const tm = th((i - 0.5) / nS);
+    loc.push(add(loc[loc.length - 1], tanAt(tm), S / nS));
+    locW.push(widthAt(th(i / nS)));
+  }
+  const Ec = loc[loc.length - 1];
+  // the descent's x: a little right of the entries' text; the entry just under the header row (band clear of it)
+  const xc = ex.textR + 34 + hw;
+  const yIn = ex.headY1 + 10 + 1.06 * hw;
+  const yd = yIn - Ec[1]; // Ec[1] < 0 (world y up)
+  const D0 = world(xc, yd, 0);
+  const C0 = sub(D0, Ec); // the curl's start (z = -Ec[2] > 0: a little nearer the camera)
+  // 1. the entry: horizontal, from beyond the right edge
+  const wIn = locW[0];
+  let sWait = 0, sIn = 0;
+  const xFar = W + margin + 220;
+  const xStart = W / 2 + C0[0];
+  for (let x = xFar; x > xStart; x -= step) {
+    pushQ([x - W / 2, C0[1], C0[2]], wIn);
+    if (x >= W + margin) sWait = acc;
+    if (x >= W + hw + 6) sIn = acc;
+  }
+  // 2. the curl
+  for (let i = 0; i < loc.length; i++) pushQ(add(C0, loc[i]), locW[i]);
+  // 3. the descent: twist about the vertical (w = (-cos f, 0, -sin f)), easing in, a half turn per P, easing out
+  //    after the last entry so that it lands on the wave's width n = cross(down, d) (f = 145 deg mod 180)
+  const P = H / 3.5;
+  const yTw0 = yd, yTw1 = ex.lastY1 - 0.1 * P, yTw2 = yTw1 + 0.5 * P;
+  const env = (y: number) => smoother((y - yTw0) / (0.5 * P)) * (1 - smoother((y - yTw1) / (yTw2 - yTw1)));
+  let area = 0;
+  for (let y = yTw0; y < yTw2; y += 1) area += env(y + 0.5);
+  const target = (145 * Math.PI) / 180;
+  const nominal = (Math.PI / P) * area;
+  const kTurns = Math.max(1, Math.round((nominal - target) / Math.PI));
+  const r0 = (target + kTurns * Math.PI) / area;
+  const tilt = (55 * Math.PI) / 180;
+  const d: V3 = [Math.cos(tilt), 0, Math.sin(tilt)];
+  const nW = norm(cross([0, -1, 0], d));
+  // 4. the waves: from below the twist to just above the terminal; the head's end ring a band's half width above it
+  const yEnd = ex.win.y0 - 0.95 * hw - 2;
+  const yW0 = yTw2 + 10;
+  const lam = Math.max(120, Math.min(0.22 * H, (yEnd - 40 - yW0) / 1.25));
+  const ampS = 18 / Math.cos(tilt);
+  let f = 0;
+  const ty0 = Math.ceil(yd);
+  const tdy = 4;
+  const tarc: number[] = [];
+  let y = yd;
+  for (;;) {
+    y += step;
+    if (y > yEnd + 0.95 * H) break;
+    if (y < yTw2) f += r0 * env(y - step / 2) * step;
+    const wv = y > yW0 && y < yEnd ? ampS * smoother((y - yW0) / (0.4 * lam)) * smoother((yEnd - 40 - y) / (0.4 * lam)) * Math.sin((2 * Math.PI * (y - yW0)) / lam) : 0;
+    const q = add(world(xc, y, 0), d, wv);
+    const w: V3 = y < yTw2 ? [-Math.cos(f), 0, -Math.sin(f)] : nW;
+    pushQ(q, w);
+    while (y <= yEnd && ty0 + tarc.length * tdy <= y) tarc.push(acc - (y - (ty0 + tarc.length * tdy)));
+  }
+  let sEnd = 0;
+  {
+    let a2 = 0;
+    for (let i = 1; i < curve.length; i++) {
+      a2 += len(sub(curve[i], curve[i - 1]));
+      if (!sEnd && H / 2 - curve[i][1] - ex.yE >= yEnd) sEnd = a2;
+    }
+  }
+  return { curve, want, sWait, sIn, sEnd, ty0, tdy, tarc };
 }
