@@ -1610,3 +1610,35 @@ function helixCorner(T0: V3, T1: V3, dz: number, step: number) {
   }
   return { pts, w };
 }
+
+/**
+ * /contact (both devices): the home page's last screen on its own page, with the footer's own entrance: the path is
+ * the footer's (buildFoot: the close fly-through from beyond the bottom right away to the top left, the hidden link
+ * round to beyond the bottom left, the AK's own tail line into End 2 and the AK), designed for a camera at the page's
+ * top (yF = 0) and starting at End 1 of the pose (the AK copy then coincides with the pose itself). No view shear.
+ */
+export function buildContactPath(inp: { W: number; H: number; camZ: number; ds: number; ribbonLen: number; end: JourneyPathDesktopInput["end"]; pose: FootInput["pose"] }) {
+  const { ds, end } = inp;
+  const jin = { ...inp, y2: 0, sClear: 0, transition: 0, portrait: false } as JourneyPathDesktopInput;
+  const margin = end.hw * 2 + 40;
+  const fr = buildFoot(jin, { yF: 0, dx: 0, dy: 0, pose: inp.pose }, end.p, norm(end.t), norm(end.b), margin, ds);
+  const pts: V3[] = [end.p, ...fr.curve];
+  const want: (V3 | null)[] = [null, ...fr.want];
+  const out = resample(pts, want, end, ds, 0, 0);
+  // no shear: design arcs are the final arcs (an identity table for the fly-through's pre -> post lookup)
+  const t0 = fr.sFlyIn - 4000, dt = 20;
+  const table: number[] = [];
+  for (let a = t0; a <= fr.sFlyOut + 6000; a += dt) table.push(a);
+  const foot: FootMarks = {
+    sS0: fr.sRouteEnd,
+    sDive0: fr.sDive0,
+    pre: { in: fr.sFlyIn, out: fr.sFlyOut, table, t0, dt },
+    sFlyIn: fr.sFlyIn,
+    sFlyOut: fr.sFlyOut,
+    sTailOut: fr.sFlyOut + (fr.sE1 - fr.sE2),
+    sBackIn: fr.sBackIn,
+    sE2: fr.sE2,
+    sE1: fr.sE1,
+  };
+  return { pos: out.pos, ruled: out.ruled, k: out.k, foot };
+}

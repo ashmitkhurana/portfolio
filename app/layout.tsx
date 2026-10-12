@@ -72,7 +72,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/* a reload always starts at the very top (the scroll journey is built from the top; a restored mid-page
+            position would start it half way): the browser's own scroll restoration is off, before anything paints */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{history.scrollRestoration='manual';window.scrollTo(0,0)}catch(e){}",
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

@@ -16,7 +16,7 @@
 import type { RibbonEngine } from "@/lib/ribbon/engine";
 import { measureInk } from "@/lib/ribbon/poses/anchors";
 import { buildPortraitFlow, type JourneyPath, type SpiralPath } from "@/lib/ribbon/journeyPath";
-import { buildJourneyPathDesktop, type JourneyPathDesktop, type JourneyPathDesktopInput } from "@/lib/ribbon/journeyPathDesktop";
+import { buildContactPath, buildJourneyPathDesktop, type FootMarks, type JourneyPathDesktop, type JourneyPathDesktopInput } from "@/lib/ribbon/journeyPathDesktop";
 import { getLenis } from "@/components/scroll/SmoothScroll";
 
 /** world px beyond the last covering ring before the name counts as clear (about one band width) */
@@ -192,6 +192,10 @@ export function createJourney(engine: RibbonEngine): () => void {
   let draining = false;
   let touching = false;
   let touchHold = false;
+  /** /contact: the footer's entrance (layout key, its marks, its start) */
+  let contactKey = "";
+  let contactFoot: FootMarks | null = null;
+  let contactT0 = 0;
   /** phones: the scroll position the footer's run landed at */
   let footLandY = 0;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
@@ -272,7 +276,78 @@ export function createJourney(engine: RibbonEngine): () => void {
       sl.driveTarget = 0;
       sl.offsetY = 0;
       if (!hero) {
-        // another page (e.g. /contact: the AK at rest, its own intro): nothing of the home page's journey carries over
+        // /contact: the footer's own entrance on its own page (fly-through, back in from the bottom left into the AK,
+        // content fading in, the heading typing in), from the moment the page opens
+        const cpage = document.querySelector<HTMLElement>("[data-contact-page]");
+        if (cpage && sl.ready && sl.cameraZ > 0) {
+          const W = engine.width, H = engine.height, Lr = sl.length;
+          const keyC = `${W}|${H}|${sl.cameraZ.toFixed(1)}|${Lr.toFixed(1)}|${sl.count}`;
+          const now = performance.now();
+          if (keyC !== contactKey) {
+            const e1 = sl.end1(), r1 = sl.poseRing(1);
+            const tv: [number, number, number] = [e1.p[0] - r1.p[0], e1.p[1] - r1.p[1], e1.p[2] - r1.p[2]];
+            const cp = buildContactPath({
+              W, H, camZ: sl.cameraZ, ds: sl.spacing, ribbonLen: Lr,
+              end: { ...e1, t: tv },
+              pose: Array.from({ length: sl.count }, (_, i) => {
+                const r = sl.poseRing(i);
+                return { p: r.p, b: r.b, hw: r.hw };
+              }),
+            });
+            sl.setHeadPath(cp.pos, cp.ruled, cp.k);
+            contactFoot = cp.foot;
+            if (!contactKey) contactT0 = now;
+            contactKey = keyC;
+            if (!sl.introSettled) sl.skipIntro();
+          }
+          const fm = contactFoot!;
+          let ft = (now - contactT0) / 1000;
+          const qaT = (window as unknown as { __footT?: number }).__footT;
+          if (typeof qaT === "number") ft = qaT;
+          const lenAK = fm.sE1 - fm.sE2;
+          let head: number, tail: number;
+          if (ft < FOOT_FLY) {
+            const pr = fm.pre;
+            const lPre = 0.65 * (pr.out - pr.in);
+            const outV = pr.in + FLY_OUT * (pr.out - pr.in);
+            const s0 = pr.in - (fm.sFlyIn - fm.sS0);
+            const hp = s0 + Math.pow(Math.max(0, ft) / FOOT_FLY, 1.6) * (outV + lPre - s0);
+            head = postOf(pr, hp);
+            tail = Math.max(fm.sS0, postOf(pr, hp - lPre));
+          } else {
+            const u = clamp01((ft - FOOT_FLY) / FOOT_FORM);
+            head = fm.sDive0 + 4 + (1 - Math.pow(1 - u, 3)) * (fm.sE1 - fm.sDive0 - 4);
+            tail = Math.max(fm.sDive0, head - lenAK);
+          }
+          setFootIntro(ft >= 0.3 ? "in" : "hidden");
+          typeFoot(ft >= FOOT_FLY ? clamp01((head - fm.sE2) / Math.max(1, lenAK * 0.995)) : 0);
+          const veil = document.querySelector<HTMLElement>(".contact__veil");
+          if (veil) {
+            const dv = ft < FOOT_FLY ? "-5000" : "5000";
+            if (veil.dataset.ribbonDepth !== dv) veil.dataset.ribbonDepth = dv;
+          }
+          // (the head path's own arcs; snapped every frame: a spring would lag the timeline)
+          sl.sigma = tail + Lr;
+          sl.velocity = 0;
+          sl.lead = head;
+          sl.leadVelocity = 0;
+          sl.driveTarget = tail + Lr;
+          sl.driveLead = head;
+          sl.offsetY = 0;
+          sl.cameraBase = 0;
+          sl.cameraBackdrop = true;
+          sl.deform = null;
+          return;
+        }
+        if (contactKey) {
+          // left /contact: the slide's own path is the home page's again (rebuilt there)
+          contactKey = "";
+          contactFoot = null;
+          setFootIntro("");
+          typeFoot(1);
+          sl.setHeadPath(null, null);
+        }
+        // another page: nothing of the home page's journey carries over
         sl.driveLead = 0;
         sl.cameraBase = 0;
         sl.cameraBackdrop = true;

@@ -19,10 +19,10 @@ export function ContactSection() {
           id="contact-title"
           size="xl"
           lines={contact.heading}
-          // in front of the ribbon everywhere (desktop as before); phone: like the hero name, the A's apex rises over a
-          // couple of letters of SOMETHING and sits in front of them
+          // in front of the ribbon everywhere (desktop as before); phone: like the hero name, the A's apex rises over
+          // SOMETHING and sits in front of every letter it covers (M, E, T: a letter left out cuts it)
           ribbonFront={[[], []]}
-          ribbonFrontPortrait={[[], [2, 3]]}
+          ribbonFrontPortrait={[[], [2, 3, 4]]}
         />
 
         {/* (in front of the ribbon, like the hero's tagline) */}

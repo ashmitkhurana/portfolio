@@ -92,6 +92,12 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // a reload starts at the very top, wherever the page was (see the inline script in app/layout.tsx); late
+    // restorations (Safari after load) are undone too
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    const toTop = () => window.scrollTo(0, 0);
+    window.addEventListener("load", toTop, { once: true });
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     let raf = 0;
     let instance: Lenis | null = null;

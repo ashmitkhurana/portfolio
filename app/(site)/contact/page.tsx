@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { DisplayHeading } from "@/components/type/DisplayHeading";
 import { ContactSection } from "@/components/site/sections/ContactSection";
-import { ContactIntro } from "@/components/site/ContactIntro";
 import { identity } from "@/data/site-content";
 import "@/components/site/sections/sections.css";
 
@@ -20,14 +19,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * A 1:1 copy of the home page's last screen (contact + footer, one screen): the same section, and the AK forming like
- * the hero intro. The AK is the hero's own pose at the hero's own screen spot, so an invisible copy of the hero's name
+ * A 1:1 copy of the home page's last screen (contact + footer, one screen): the same section and the footer's own
+ * entrance (components/site/journey.ts: the fly-through, back in from the bottom left into the AK, the heading typing). The AK is the hero's own pose at the hero's own screen spot, so an invisible copy of the hero's name
  * block gives the pose its anchor (exactly where the name sits in the hero).
  */
 export default function ContactPage() {
   return (
     <>
-      <div className="hero contact-anchor" aria-hidden="true">
+      <div className="hero contact-anchor" aria-hidden="true" data-contact-page="">
         <div className="hero__pin">
           <div className="container hero__inner">
             <DisplayHeading as="div" size="hero" lines={identity.nameLines} proxy={false} anchor="hero-name" />
@@ -35,7 +34,6 @@ export default function ContactPage() {
         </div>
       </div>
       <ContactSection />
-      <ContactIntro />
     </>
   );
 }

@@ -459,6 +459,13 @@ export class SlideMotion {
     this.leadVelocity = 0;
   }
 
+  /** end the intro at once (sigma 0): a page that runs its own entrance (/contact: the footer's sequence) */
+  skipIntro(): void {
+    this.sigma = 0;
+    this.velocity = 0;
+    this.settle();
+  }
+
   private settle(): void {
     if (this.introSettled) return;
     this.introSettled = true;

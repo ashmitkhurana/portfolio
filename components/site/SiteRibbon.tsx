@@ -129,6 +129,12 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
     };
   }, [applyPose]);
 
+  // the ribbon lives on the home page and its /contact copy only (owner: the other pages go without it)
+  useEffect(() => {
+    const on = pathname === "/" || pathname === "/contact";
+    document.documentElement.toggleAttribute("data-ribbon-off", !on);
+  }, [pathname]);
+
   // route change: the anchor appears / disappears with the page
   useEffect(() => {
     const t = window.setTimeout(() => applyPose(false), 60);

@@ -121,3 +121,9 @@ html[data-ribbon-debug] [data-ribbon-proxy] {
   outline: 1px dashed rgba(80, 200, 255, 0.85);
   outline-offset: 0;
 }
+
+/* pages without the ribbon (site: everything but the home page and /contact) */
+:root[data-ribbon-off] .ribbon-layer,
+:root[data-ribbon-off] .ribbon-poster-wrap {
+  visibility: hidden;
+}
