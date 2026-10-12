@@ -58,8 +58,3 @@
 .display[data-typing="on"] .glyph.is-typed {
   opacity: 1;
 }
-
-/* the type-in started on a page opened again (HeroTypeIn): the letters hide at once, only the typing fades them in */
-.display[data-typing="on"][data-typing-instant] .glyph:not(.is-typed) {
-  transition: none;
-}

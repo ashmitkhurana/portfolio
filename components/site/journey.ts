@@ -180,10 +180,6 @@ export function createJourney(engine: RibbonEngine): () => void {
   let contactFoot: FootMarks | null = null;
   let contactT0 = 0;
   let contactFrames = 0;
-  /** a page without the hero was shown (the hero intro replays on the way back) */
-  let cameAway = false;
-  let homeReveal = 0;
-  let lastPath = "";
   /** phones: the scroll position the footer's run landed at */
   let footLandY = 0;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
@@ -341,7 +337,6 @@ export function createJourney(engine: RibbonEngine): () => void {
           sl.setHeadPath(null, null);
         }
         // another page: nothing of the home page's journey carries over
-        cameAway = true;
         sl.driveLead = 0;
         sl.cameraBase = 0;
         sl.cameraBackdrop = true;
@@ -367,45 +362,6 @@ export function createJourney(engine: RibbonEngine): () => void {
       }
       return;
     }
-    // back on the home page from another page: no running back along that page's path; the hero intro plays as on a
-    // fresh load (the ribbon grows from its hidden end into the AK, the name types in: HeroTypeIn). Decided by the URL
-    // (the old page and the home page can swap within one frame)
-    const pathNow = window.location.pathname;
-    if (pathNow !== lastPath) {
-      if (lastPath !== "" && pathNow === "/") cameAway = true;
-      lastPath = pathNow;
-    }
-    if (cameAway) {
-      cameAway = false;
-      // everything of the earlier visit / the other page is dropped (the path is rebuilt below)
-      pathKey = "";
-      clearKey = "";
-      footState = 0;
-      footFired = false;
-      footRevScroll = false;
-      relState = 0;
-      relBelow = false;
-      relScrolling = false;
-      relScrolled = false;
-      gateOn = false;
-      touchHold = false;
-      fill = 0;
-      camPhone = null;
-      camWasFoot = false;
-      contactKey = "";
-      contactFoot = null;
-      setFootIntro("");
-      sl.cameraBase = 0;
-      sl.cameraBackdrop = true;
-      sl.deform = null;
-      getLenis()?.start();
-      sl.setHeadPath(null, null);
-      sl.restart();
-      homeReveal = 3;
-    }
-    // the ribbon was kept hidden on the way in (SiteRibbon): shown once the restarted intro has drawn its first frames
-    if (homeReveal > 0 && --homeReveal === 0) document.documentElement.removeAttribute("data-ribbon-off");
-    else if (homeReveal === 0 && document.documentElement.hasAttribute("data-ribbon-off")) document.documentElement.removeAttribute("data-ribbon-off");
     // V: from the last pin that has reached the top (pinned now, or released and scrolling away)
     let ref = pins[0];
     for (const p of pins) if (p.pinTop <= 0.5) ref = p;

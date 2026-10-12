@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { RibbonStage } from "@/components/ribbon/RibbonStage";
 import { rlog } from "@/lib/ribbon/debugLog";
@@ -129,12 +129,21 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
     };
   }, [applyPose]);
 
+  // arriving on the home page from another page inside the site (back button, any link): a fresh page load, so the
+  // home page always starts from scratch (its scroll journey is built for a first visit from the top)
+  const prevPath = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const prev = prevPath.current;
+    prevPath.current = pathname;
+    if (prev !== null && prev !== "/" && pathname === "/") window.location.reload();
+  }, [pathname]);
+
   // the ribbon lives on the home page and its /contact copy only (owner: the other pages go without it)
   useEffect(() => {
     // (/contact: hidden until its own entrance has drawn its first frames; components/site/journey.ts reveals it, so
     // nothing of the previous page's ribbon ever flashes)
-    // (the home page: shown by journey.ts once the hero intro has restarted, when coming from another page)
     if (pathname !== "/") document.documentElement.setAttribute("data-ribbon-off", "");
+    else document.documentElement.removeAttribute("data-ribbon-off");
   }, [pathname]);
 
   // route change: the anchor appears / disappears with the page

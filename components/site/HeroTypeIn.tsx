@@ -17,14 +17,6 @@ export function HeroTypeIn({ targetId }: { targetId: string }) {
     const glyphs = Array.from(h.querySelectorAll<HTMLElement>(".glyph"));
     if (!glyphs.length) return;
     let started = false;
-    // opened again from another page (the engine is already running): the intro will replay, so the name is hidden
-    // at once (no flash of the whole name, no fade-out) and types in with it
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const live = (window.__ribbonState?.engine as any)?.sim?.slide?.ready;
-    if (live) {
-      h.dataset.typingInstant = "";
-      h.dataset.typing = "on";
-    }
     let shown = 0;
     let raf = 0;
     const t0 = performance.now();
@@ -40,21 +32,18 @@ export function HeroTypeIn({ targetId }: { targetId: string }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const slide = (st?.engine as any)?.sim?.slide;
       if (!started) {
-        if (st?.phase === "poster" || st?.phase === "off") return live ? finish() : undefined;
-        // (the slide's own state: the intro also replays when the home page is opened again from another page)
-        if (slide?.ready && slide.length > 0 && !slide.introSettled && slide.sigma < -0.5 * slide.length) {
+        if (st?.introSettled || st?.phase === "poster" || st?.phase === "off") return;
+        if (slide?.ready && slide.length > 0 && slide.sigma < -0.5 * slide.length) {
           started = true;
           h.dataset.typing = "on";
         } else if (performance.now() - t0 > 1500) {
-          // no intro after all: the name is shown (never left hidden)
-          if (live) return finish();
           return;
         } else {
           raf = requestAnimationFrame(tick);
           return;
         }
       }
-      if (slide ? slide.introSettled : st?.introSettled) return finish();
+      if (st?.introSettled) return finish();
       if (slide?.ready && slide.length > 0) {
         const p = Math.min(Math.max(1 + slide.sigma / slide.length, 0), 1);
         // the last glyph appears at p = 0.995 (as the ribbon lands: the two end together)
