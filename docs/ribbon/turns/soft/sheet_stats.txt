@@ -1,8 +1,0 @@
-sheet (1400, 3642) /Users/ashmitkhurana/Development/Personal/portfolio/docs/ribbon/turns/soft/sheet.png
-name      p5  p50  p95  %>200 %<60  medS  hiHue  midHue
-mockup    28   98  183   2.2  28.4  0.950   44.4   27.7
-f0        36   76  189   3.5  23.4  0.994   37.8   26.1
-f1        26   93  193   4.2  26.2  1.000   37.3   26.6
-f2        29  107  197   4.8  23.3  0.995   38.7   26.6
-f3        30  113  195   3.9  25.7  0.984   38.1   26.5
-f4        27   83  194   4.4  26.1  0.994   37.4   27.1

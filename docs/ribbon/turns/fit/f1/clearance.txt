@@ -1,8 +1,0 @@
-docs/ribbon/turns/fit/f1/dump/dump.json: 1500 rings, gap 14.36, skip 60: 1182 ring pairs closer than gap
-6 clusters, 0 INTERSECT (<2px)
-  #0 eng i 398-400 x j 1157-1162  min 14.04px at (399,1160)  pairs 11  front=i(i strand)
-  #1 eng i 423-459 x j 1085-1109  min 3.52px at (429,1091)  pairs 494  front=j(j strand)
-  #2 eng i 492-501 x j 1013-1025  min 10.55px at (497,1019)  pairs 92  front=j(j strand)
-  #3 eng i 877-886 x j 1444-1455  min 11.11px at (881,1449)  pairs 89  front=i(i strand)
-  #4 eng i 917-945 x j 1247-1276  min 10.25px at (930,1256)  pairs 255  front=j(j strand)
-  #5 eng i 967-983 x j 1228-1249  min 8.99px at (977,1239)  pairs 241  front=i(i strand)

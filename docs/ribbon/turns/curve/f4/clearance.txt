@@ -1,7 +1,0 @@
-docs/ribbon/turns/curve/f4/dump/dump.json: 1500 rings, gap 14.36, skip 60: 2832 ring pairs closer than gap
-5 clusters, 3 INTERSECT (<2px)
-  #0 eng i 413-469 x j 1101-1182  min 0.77px at (441,1168)  pairs 1627  front=i(i strand)  pose i 378-422 x j 942-1005  INTERSECT
-  #1 eng i 440-452 x j 1069-1089  min 10.52px at (446,1078)  pairs 106  front=j(j strand)  pose i 395-406 x j 917-931
-  #2 eng i 524-528 x j 1015-1023  min 12.68px at (526,1019)  pairs 29  front=i(i strand)  pose i 474-477 x j 876-879
-  #3 eng i 892-913 x j 1443-1464  min 0.53px at (901,1451)  pairs 345  front=i(i strand)  pose i 776-796 x j 1248-1268  INTERSECT
-  #4 eng i 936-978 x j 1228-1280  min 0.73px at (951,1267)  pairs 725  front=i(i strand)  pose i 818-858 x j 1049-1091  INTERSECT

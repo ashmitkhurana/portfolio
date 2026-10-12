@@ -1,5 +1,0 @@
-## section X: rings 859..1066 (data 844..1081), intervals [10, 11], rolls ['crossbar bend 1', 'crossbar bend 2', 'wrap curl', 'wrap twist 1', 'wrap twist 2'], free 28
-  72 starts; best init costs [(['tilt+25', 'db20', 'c+1', 'tw+1+1'], 4528802), (['tilt-25', 'db0', 'c+1', 'tw-1-1'], 4660206), (['tilt+0', 'db20', 'c+1', 'tw-1+1'], 4942774), (['tilt+25', 'db20', 'c+1', 'tw+1-1'], 4992270), (['tilt+0', 'db20', 'c+1', 'tw-1-1'], 4993392), (['tilt+0', 'db20', 'c+1', 'tw+1+1'], 5134688), (['tilt-25', 'db20', 'c+1', 'tw-1-1'], 5367081), (['tilt-25', 'db20', 'c+1', 'tw+1+1'], 5464680)]
-    [tilt+25/db20/c+1/tw+1+1] ok cost 2105079.2 evals 891 (50s)
-    [tilt-25/db0/c+1/tw-1-1] ok cost 2693467.4 evals 1387 (81s)
-    [tilt+0/db20/c+1/tw-1+1] ok cost 1439222.1 evals 771 (45s)

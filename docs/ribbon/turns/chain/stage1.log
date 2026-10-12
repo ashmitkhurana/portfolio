@@ -1,7 +1,0 @@
-## stage 1: interval 5 (apex_in__apex_out) rings 484..554; groups [['apex fold']]
-  group ['apex fold'] rings 484..554 free=11 candidates=1 init costs [(['paper3'], 268270)]
-    [paper3] ok cost 111.5 evals 476 (7s)
-    roll apex fold: tau 854.7 beta 67.8 rho 34.3 (0.66W) phi -122.4 [['paper3']]
-  stage fit: free 11 rings 484..554 cost0 111.5
-    [stage1] ok cost 111.5 evals 19 (0s)
-  METRICS {"act": 1, "lo": 484, "hi": 554, "cost": 111.5, "blocks": {"slide": 66.03, "anchor": 37.77, "cov": 5.4, "ou": 0.0, "weave": 0.0, "seen": 0.0, "lam": 2.33}, "data_all": {"n": 114, "rms": 20.788644493284565, "p95": 24.705161185790644, "max": 92.39978187982155}, "face": {"checked": 0, "agree": 0, "frac": 0.0}, "ou": {"pairs": 0, "viol_lt_2thk": 0, "viol_lt_thk": 0, "max_shortfall_css": 0.0, "weave_violations": 0}, "min_fold_rho_over_W": 0.6569237096398842, "new_interval": 5, "data_new": {"n": 114, "rms": 20.788644493284565, "p95": 24.705161185790644, "max": 92.39978187982155}, "stage": 1, "status": "ok", "seconds": 7.444286823272705, "gate_target": 12.0, "gate_stop": 20.0, "gate": "FAIL"}

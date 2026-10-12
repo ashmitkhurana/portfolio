@@ -1,6 +1,0 @@
-docs/ribbon/turns/fit/k2/dump/dump.json: 1500 rings, gap 14.36, skip 60: 1095 ring pairs closer than gap
-4 clusters, 0 INTERSECT (<2px)
-  #0 eng i 439-495 x j 1090-1123  min 3.41px at (481,1117)  pairs 827  front=j(j strand)  pose i 397-426 x j 917-957
-  #1 eng i 915-925 x j 1451-1457  min 12.69px at (922,1454)  pairs 60  front=i(i strand)  pose i 796-807 x j 1255-1261
-  #2 eng i 941-958 x j 1289-1300  min 7.20px at (948,1295)  pairs 160  front=i(i strand)  pose i 818-832 x j 1111-1118
-  #3 eng i 977-983 x j 1260-1270  min 12.64px at (980,1266)  pairs 48  front=i(i strand)  pose i 853-859 x j 1079-1089
