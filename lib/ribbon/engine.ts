@@ -780,8 +780,10 @@ export class RibbonEngine {
       const sec = el.parentElement;
       if (!sec) continue;
       const r = el.getBoundingClientRect();
-      // stuck at the top with scroll room left (at rest at the page top counts: the first scroll keeps it there)
-      if (Math.abs(r.top) < 1 && sec.getBoundingClientRect().bottom > r.bottom + 1) {
+      // stuck at its sticky offset (usually the top; the phone terminal's block sticks at -Experience's height) with
+      // scroll room left (at rest at the page top counts: the first scroll keeps it there)
+      const stickTop = parseFloat(el.style.top) || 0;
+      if (Math.abs(r.top - stickTop) < 1 && sec.getBoundingClientRect().bottom > r.bottom + 1) {
         pinned = true;
         break;
       }

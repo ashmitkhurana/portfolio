@@ -1485,7 +1485,8 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   const tdy = 4;
   const tarc: number[] = [];
   let y = yd;
-  const zA = 24;
+  // (no lift before the terminal: the first corner of the wrap climbs the whole way onto the slab, a long, gentle swoop)
+  const zA = 10;
   for (;;) {
     y += step;
     if (y > yEnd) break;
