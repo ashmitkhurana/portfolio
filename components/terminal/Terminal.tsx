@@ -62,16 +62,23 @@ function saveHistory(h: string[]) {
   }
 }
 
-const WELCOME = (variant: TerminalProps["variant"]): Line[] => [
-  "Welcome. Type 'help' to see available commands.",
-  {
-    text:
-      variant === "overlay"
-        ? "Esc closes this terminal. Tab completes, Up/Down recalls history."
-        : "Tab completes, Up/Down recalls history.",
-    tone: "muted",
-  },
-];
+/** a touch screen without a keyboard's Esc / Tab / arrows (the hints are keyboard-only) */
+const isTouchOnly = () => typeof window !== "undefined" && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+const WELCOME = (variant: TerminalProps["variant"]): Line[] =>
+  // (the overlay only mounts in the browser, on open: no server render to mismatch)
+  variant === "overlay" && isTouchOnly()
+    ? ["Welcome. Type 'help' to see available commands."]
+    : [
+        "Welcome. Type 'help' to see available commands.",
+        {
+          text:
+            variant === "overlay"
+              ? "Esc closes this terminal. Tab completes, Up/Down recalls history."
+              : "Tab completes, Up/Down recalls history.",
+          tone: "muted",
+        },
+      ];
 
 /* ── Matrix rain ──────────────────────────────────────── */
 

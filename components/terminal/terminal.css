@@ -312,6 +312,42 @@
   overscroll-behavior: contain;
 }
 
+/* phones: the sheet hangs from the top of the VISIBLE screen (a sheet pinned to the bottom slid under Safari's floating
+   toolbar, hiding the prompt), all corners rounded, sized to what is visible; no keyboard hints on touch screens */
+@media (max-width: 767.98px) {
+  .term-overlay {
+    inset: 0 0 auto;
+    height: 100dvh;
+    align-items: flex-start;
+    padding: max(env(safe-area-inset-top, 0px), 10px) 10px 0;
+  }
+
+  .term-overlay__panel {
+    height: min(68dvh, 100dvh - 150px);
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 18px;
+    padding-bottom: 0;
+    animation-name: term-in-top;
+  }
+}
+
+@keyframes term-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .term__kbd {
+    display: none;
+  }
+}
+
 @media (min-width: 768px) {
   .term-overlay {
     align-items: center;
