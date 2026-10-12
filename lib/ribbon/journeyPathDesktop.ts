@@ -1332,7 +1332,7 @@ function buildCoilH(inp: JourneyPathDesktopInput, bd: { yB: number; box: Rect },
   const world = (sx: number, sy: number, z = 0): V3 => [sx - W / 2, H / 2 - (bd.yB + sy), z];
   const hwS = inp.end.hw;
   const bx = bd.box;
-  const r = Math.max(24, Math.min(0.42 * (bx.y1 - bx.y0), 64));
+  const r = Math.max(24, Math.min(0.47 * (bx.y1 - bx.y0), 72));
   const yA = Math.max(bx.y0 + r, (bx.y0 + bx.y1) / 2);
   const xL = bx.x0 + 0.6 * hwS;
   const pMin = 2.08 * hwS;

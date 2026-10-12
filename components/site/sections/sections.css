@@ -351,7 +351,12 @@
   }
 
   .build .display {
-    --_size: min(var(--display-xl), 11svh) !important;
+    --_size: min(var(--display-xl), 9.5svh) !important;
+  }
+
+  /* (a little more height above "HOW": the coil's turns rounder, its satin highlight soft instead of a crease) */
+  .build__body {
+    margin-top: min(var(--space-m), 2svh) !important;
   }
 }
 
