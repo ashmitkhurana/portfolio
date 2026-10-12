@@ -589,6 +589,22 @@
   }
 }
 
+/* phones: the bar sits under the terminal (journey.ts places it) */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .exterm__pin {
+    position: relative;
+  }
+
+  :root[data-ribbon="live"] .exterm__pin .fillbar {
+    display: grid;
+  }
+
+  /* opaque: the ribbon's wrap passes behind it */
+  :root[data-ribbon="live"] .terminal-window {
+    background: #151311;
+  }
+}
+
 /* terminal */
 
 .terminal {

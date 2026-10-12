@@ -90,6 +90,11 @@ const postOf = (pr: { table: number[]; t0: number; dt: number }, a: number) => {
 const EXP_RAMP = 0.3;
 const FOLLOW_EX = 0.75;
 const EXP_LEN = 0.6;
+/** phone terminal: the wrap's time (s), and the whole timeline from the bar filling up (wrap + the footer's) */
+const WRAP_T = 2.4;
+const TOTAL_P = WRAP_T + 1.6 + 2.6 + 3.6;
+/** phones: px of finger travel that fill the bar */
+const FILL_TOUCH = 700;
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
 declare global {
@@ -175,6 +180,9 @@ export function createJourney(engine: RibbonEngine): () => void {
   let footRectsVal: { dx: number; dy: number; yF: number } | null = null;
   let footTyped = -1;
   let footIntro = "";
+  /** phones: the camera's height while the footer's own path is in use (null: Experience's rule), and whether it was */
+  let camPhone: number | null = null;
+  let camWasFoot = false;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
   const setFootIntro = (v: string) => {
     if (v === footIntro) return;
@@ -211,6 +219,28 @@ export function createJourney(engine: RibbonEngine): () => void {
     }
   };
   window.addEventListener("wheel", onWheel, { passive: true, capture: true });
+  // phones: a swipe up fills the bar while the page is held; a swipe down lets go
+  let touchY = -1;
+  const onTouchStart = (e: TouchEvent) => {
+    touchY = e.touches[0]?.clientY ?? -1;
+  };
+  const onTouchMove = (e: TouchEvent) => {
+    const y = e.touches[0]?.clientY ?? -1;
+    if (gateOn && touchY >= 0 && y >= 0) {
+      const dy = touchY - y;
+      if (e.cancelable) e.preventDefault();
+      if (dy > 0) {
+        fill = Math.min(1, fill + dy / FILL_TOUCH);
+        fillLast = performance.now();
+      } else if (dy < -12) {
+        gateOn = false;
+        getLenis()?.start();
+      }
+    }
+    touchY = y;
+  };
+  window.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+  window.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
   let lastInput: JourneyPathDesktopInput | null = null;
   /** How I Build's measured rects, per layout (measuring the ink is too costly for every frame) */
   let buildRectsKey = "";
@@ -432,7 +462,15 @@ export function createJourney(engine: RibbonEngine): () => void {
               };
             })()
           : null;
-      const xpk = exPRects ? `${exPRects.yE.toFixed(0)}|${exPRects.headY1.toFixed(0)},${exPRects.textR.toFixed(0)},${exPRects.lastY1.toFixed(0)},${exPRects.win.y0.toFixed(0)}` : "-";
+      // phones: the footer's virtual top (the AK at the hero's own screen spot, as on desktop)
+      const footRectsP =
+        portrait && exPRects && footSec
+          ? (() => {
+              const ft = footSec.getBoundingClientRect().top;
+              return { yF: ft + window.scrollY - rooms };
+            })()
+          : null;
+      const xpk = exPRects ? `${footRectsP?.yF.toFixed(0)}|${exPRects.yE.toFixed(0)}|${exPRects.headY1.toFixed(0)},${exPRects.textR.toFixed(0)},${exPRects.lastY1.toFixed(0)},${exPRects.win.y0.toFixed(0)}` : "-";
       const bhk = buildHRects ? `${buildPin!.vTop.toFixed(0)}|${buildHRects.y0.toFixed(0)},${buildHRects.y1.toFixed(0)},${buildHRects.x1.toFixed(0)}` : "-";
       const bk = buildRects ? `${buildPin!.vTop.toFixed(0)}|${[buildRects.box].map((r) => `${r.x0.toFixed(0)},${r.y0.toFixed(0)},${r.x1.toFixed(0)},${r.y1.toFixed(0)}`).join(";")}|${buildRects.gap.x.toFixed(0)},${buildRects.gap.y.toFixed(0)},${buildRects.top.toFixed(0)}` : "-";
       const titleEl = workPin?.pin.querySelector<HTMLElement>(".work__head .display");
@@ -527,12 +565,12 @@ export function createJourney(engine: RibbonEngine): () => void {
           build: buildRects ? { yB: buildPin!.vTop, ...buildRects, c: 0 } : undefined,
           exterm: exRects ? { yE: exPin!.vTop, ...exRects } : undefined,
           exP: exPRects ?? undefined,
-          foot: footRects
+          foot: footRects || footRectsP
             ? {
-                yF: footRects.yF,
+                yF: (footRects ?? footRectsP)!.yF,
                 // the AK at the hero's own screen spot (owner: "the exact same one as the hero")
                 dx: 0,
-                dy: footRects.yF,
+                dy: (footRects ?? footRectsP)!.yF,
                 pose: Array.from({ length: sl.count }, (_, i) => {
                   const r = sl.poseRing(i);
                   return { p: r.p, b: r.b, hw: r.hw };
@@ -717,6 +755,7 @@ export function createJourney(engine: RibbonEngine): () => void {
           // ribbon of fixed length (it grows from the right edge: nothing of the incoming strand shows)
           const xp = pathD.exP;
           const exAnyP = pins.find((p) => p.name === "exterm");
+          camPhone = null;
           if (xp && exAnyP && !exPin && relBelow && relState === 0) {
             const v = V - exAnyP.vTop;
             const arcAt = (sy: number) => {
@@ -730,7 +769,146 @@ export function createJourney(engine: RibbonEngine): () => void {
             else if (v < vr) head = xp.sReady + ease(v / vr) * (arcAt(vr + FOLLOW_EX * H) - xp.sReady);
             else head = arcAt(v + FOLLOW_EX * H);
             head = Math.min(head, xp.sEnd);
-            tail = Math.max(head - EXP_LEN * H, Math.min(head - 40, xp.sIn - 2 * sl.end1().hw));
+            const Lx = EXP_LEN * H;
+            tail = Math.max(head - Lx, Math.min(head - 40, xp.sIn - 2 * sl.end1().hw));
+            // TERMINAL (phone): the page holds when the terminal's screen fills the view; swiping fills the bar under
+            // it; full: the ribbon wraps the terminal and flows off the right edge, then the footer (as on desktop)
+            const lenis = getLenis();
+            const now = performance.now();
+            const dt = Math.min(0.1, (now - fillAt) / 1000);
+            fillAt = now;
+            const termEl = document.querySelector<HTMLElement>('[data-section="terminal"]');
+            const yGate = termEl ? termEl.getBoundingClientRect().top + window.scrollY : 0;
+            const fm = pathD.foot;
+            const footSecEl = document.querySelector<HTMLElement>('[data-section="contact"]');
+            const yFoot = footSecEl ? footSecEl.getBoundingClientRect().top + window.scrollY : 0;
+            if (fm && footState === 0 && !footFired && window.scrollY >= yFoot - 4) footState = 2;
+            let ft = -1;
+            if (footState === 1) ft = Math.min(TOTAL_P, (now - footT0) / 1000);
+            else if (footState === 2) ft = TOTAL_P;
+            else if (footState === -1) ft = Math.max(0, TOTAL_P - ((now - footRevT0) / 1000) * FOOT_REV);
+            const qaT = (window as unknown as { __footT?: number }).__footT;
+            if (typeof qaT === "number" && footState !== 0) ft = qaT;
+            let footSnap = false, footCam = false, footFly = false;
+            const tailHold = xp.sEnd - Lx;
+            const lenW = xp.sWrapOut - tailHold;
+            const lenAK = fm ? fm.sE1 - fm.sE2 : 0;
+            if (ft >= 0) {
+              const t0 = WRAP_T, t1 = t0 + FOOT_RUN, t2 = t1 + FOOT_FLY;
+              if (ft < t0) {
+                // the wrap: the head draws it, the tail held above
+                head = xp.sEnd + ease(ft / t0) * (xp.sWrapOut - xp.sEnd);
+                tail = tailHold;
+              } else if (ft < t1 || !fm) {
+                // the page scrolls to the footer; the ribbon runs on off the right edge until all of it is out of sight
+                const hEnd = xp.sWrapOut + lenW + 60;
+                head = xp.sWrapOut + ease(Math.min(1, (ft - t0) / FOOT_RUN)) * (hEnd - xp.sWrapOut);
+                tail = head - lenW;
+              } else if (ft < t2) {
+                const pr = fm.pre;
+                const lPre = 0.65 * (pr.out - pr.in);
+                const outV = pr.in + FLY_OUT * (pr.out - pr.in);
+                const s0 = pr.in - (fm.sFlyIn - fm.sS0);
+                const hp = s0 + Math.pow((ft - t1) / FOOT_FLY, 1.6) * (outV + lPre - s0);
+                head = postOf(pr, hp);
+                tail = Math.max(fm.sS0, postOf(pr, hp - lPre));
+                footCam = footSnap = footFly = true;
+              } else {
+                const u = clamp01((ft - t2) / FOOT_FORM);
+                head = fm.sDive0 + 4 + (1 - Math.pow(1 - u, 3)) * (fm.sE1 - fm.sDive0 - 4);
+                tail = Math.max(fm.sDive0, head - lenAK);
+                footCam = footSnap = true;
+              }
+              if (fm) {
+                setFootIntro(ft >= t0 + FOOT_CONTENT ? "in" : "hidden");
+                typeFoot(ft >= t2 ? clamp01((head - fm.sE2) / Math.max(1, lenAK * 0.995)) : 0);
+              }
+            }
+            if (footCam && lastInput?.foot) camPhone = lastInput.foot.yF;
+            if (footCam !== camWasFoot) {
+              camWasFoot = footCam;
+              footSnap = true;
+            }
+            if (footSnap) {
+              sl.sigma = tail + Lr;
+              sl.velocity = 0;
+              sl.lead = head;
+              sl.leadVelocity = 0;
+            }
+            const veil = document.querySelector<HTMLElement>(".contact__veil");
+            if (veil) {
+              const dv = footFly ? "-5000" : "5000";
+              if (veil.dataset.ribbonDepth !== dv) veil.dataset.ribbonDepth = dv;
+            }
+            // the gate
+            if (window.scrollY < yGate - 0.3 * H) gateArmed = true;
+            if (!footFired && !gateOn && gateArmed && lenis && dir > 0 && window.scrollY >= yGate - 2 && window.scrollY < yGate + 0.5 * H) {
+              gateOn = true;
+              gateArmed = false;
+              lenis.scrollTo(yGate, { immediate: true, force: true });
+              lenis.stop();
+            }
+            if (!gateOn && !footFired && fill > 0) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            if (gateOn && now - fillLast > 260) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            const sine = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
+            if (gateOn && fill >= 1) {
+              gateOn = false;
+              footFired = true;
+              footT0 = now;
+              footState = 1;
+              if (fm) {
+                setFootIntro("hidden");
+                typeFoot(0);
+              }
+            }
+            // after the wrap: the page scrolls on to the footer (input held)
+            if (footState === 1 && !footRevScroll && ft >= WRAP_T) {
+              footRevScroll = true;
+              lenis?.scrollTo(yFoot, { duration: FOOT_RUN, force: true, lock: true, easing: sine, onComplete: () => { if (!fm) lenis?.start(); } });
+            }
+            if (footState === 1 && ft >= TOTAL_P) {
+              footState = 2;
+              footRevScroll = false;
+              lenis?.start();
+            }
+            // one swipe up from the formed footer runs it all backwards and returns to the gate with the bar empty
+            if (footState === 2 && lenis && window.scrollY < yFoot - 4 && window.scrollY > yGate + 4) {
+              footState = -1;
+              footRevT0 = now;
+              footRevScroll = false;
+              lenis.scrollTo(yFoot, { immediate: true, force: true });
+              lenis.stop();
+            }
+            if (footState === -1 && !footRevScroll && ft <= WRAP_T + FOOT_RUN) {
+              footRevScroll = true;
+              lenis?.scrollTo(yGate, { duration: FOOT_RUN / FOOT_REV, force: true, lock: true, easing: sine });
+            }
+            if (footState === -1 && ft <= 0) {
+              footState = 0;
+              footFired = false;
+              footRevScroll = false;
+              fill = 0;
+              gateOn = true;
+              gateArmed = false;
+              setFootIntro("");
+              typeFoot(1);
+            }
+            if (footState === 0 && footFired && window.scrollY < yGate - 40) {
+              footFired = false;
+              fill = 0;
+            }
+            // the bar: under the terminal (right-aligned with it), shown while the page is held, until it is full
+            const bar = exAnyP.pin.querySelector<HTMLElement>(".fillbar");
+            const winR = lastInput?.exP?.win;
+            if (bar && winR) {
+              const cap = exAnyP.pin.querySelector<HTMLElement>(".terminal__caption");
+              const capB = cap ? cap.getBoundingClientRect().bottom - exAnyP.section.getBoundingClientRect().top : winR.y1 + 40;
+              bar.style.left = `${(winR.x1 - 220).toFixed(1)}px`;
+              bar.style.top = `${(capB + 22).toFixed(1)}px`;
+              bar.style.setProperty("--fill", fill.toFixed(3));
+              const on = (gateOn || (fill > 0 && !footFired)) && !footFired;
+              if (on !== bar.hasAttribute("data-on")) bar.toggleAttribute("data-on", on);
+            }
           }
           // Experience + Terminal: on from the waiting point (the same shortened ribbon)
           const xm = pathD.exterm;
@@ -1003,7 +1181,7 @@ export function createJourney(engine: RibbonEngine): () => void {
     const xpC = pathD?.exP;
     if (xpC && !(W >= 768 && W > H)) {
       const exAnyC = pins.find((p) => p.name === "exterm");
-      const cam = exAnyC && sl.lead > xpC.sWait + 1 ? exAnyC.vTop : 0;
+      const cam = camPhone ?? (exAnyC && sl.lead > xpC.sWait + 1 ? exAnyC.vTop : 0);
       if (sl.cameraBase !== cam) sl.cameraBase = cam;
       // (Experience on phones: no floor shadow there; the footer's AK keeps it)
       sl.cameraBackdrop = cam === 0 || cam !== exAnyC?.vTop;

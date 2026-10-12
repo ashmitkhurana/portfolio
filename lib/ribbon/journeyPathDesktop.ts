@@ -99,6 +99,8 @@ export interface ExPMarks {
   sReady: number;
   /** the head beside the terminal's top (it stops there) */
   sEnd: number;
+  /** the wrap done: the head past the right edge after running along the terminal's bottom */
+  sWrapOut: number;
   /** follow table: the head's arc for screen y (rel. Experience's top) ty0 + i * tdy, from the curl's end down */
   ty0: number;
   tdy: number;
@@ -502,8 +504,19 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
         }
         // ready: the head a little below the curl when Experience arrives (it came in during the page's slide)
         const iR = Math.min(xp.tarc.length - 1, Math.round((0.1 * H) / xp.tdy));
-        exP = { sWait: sX + xp.sWait, sIn: sX + xp.sIn, sReady: sX + xp.tarc[iR], sEnd: sX + xp.sEnd, ty0: xp.ty0, tdy: xp.tdy, tarc: xp.tarc.map((a) => sX + a) };
+        exP = { sWait: sX + xp.sWait, sIn: sX + xp.sIn, sReady: sX + xp.tarc[iR], sEnd: sX + xp.sEnd, sWrapOut: sX + xp.sWrapOut, ty0: xp.ty0, tdy: xp.tdy, tarc: xp.tarc.map((a) => sX + a) };
         build.sStop = exP.sReady;
+        if (inp.foot) {
+          // ── the footer (phone): as on desktop (buildFoot), from the wrap's way out beyond the right edge
+          const fr = buildFoot(inp, inp.foot, pts[pts.length - 1], norm(sub(pts[pts.length - 1], pts[pts.length - 2])), want[want.length - 1] ?? [0, 1, 0], margin, ds);
+          const base = acc;
+          for (let i = 0; i < fr.curve.length; i++) {
+            acc += len(sub(fr.curve[i], pts[pts.length - 1]));
+            pts.push(fr.curve[i]);
+            want.push(fr.want[i]);
+          }
+          foot = { sS0: base + fr.sRouteEnd, sDive0: base + fr.sDive0, pre: { in: 0, out: 0, table: [], t0: 0, dt: 1 }, sFlyIn: base + fr.sFlyIn, sFlyOut: base + fr.sFlyOut, sTailOut: base + fr.sFlyOut, sBackIn: base + fr.sBackIn, sE2: base + fr.sE2, sE1: base + fr.sE1 };
+        }
       }
     } else {
       // straight on (off the left edge, hidden), far enough for the whole ribbon to follow
@@ -689,7 +702,7 @@ export function buildJourneyPathDesktop(inp: JourneyPathDesktopInput): JourneyPa
     out.foot = { sS0: postArc(foot.sS0), sDive0: postArc(foot.sDive0), pre: { in: foot.sFlyIn, out: foot.sTailOut, table, t0, dt: dtT }, sFlyIn: postArc(foot.sFlyIn), sFlyOut: postArc(foot.sTailOut), sTailOut: postArc(foot.sTailOut) + (sE1 - sE2), sBackIn: postArc(foot.sBackIn), sE2, sE1 };
   }
   if (exP) {
-    out.exP = { sWait: postArc(exP.sWait), sIn: postArc(exP.sIn), sReady: postArc(exP.sReady), sEnd: postArc(exP.sEnd), ty0: exP.ty0, tdy: exP.tdy, tarc: exP.tarc.map(postArc) };
+    out.exP = { sWait: postArc(exP.sWait), sIn: postArc(exP.sIn), sReady: postArc(exP.sReady), sEnd: postArc(exP.sEnd), sWrapOut: postArc(exP.sWrapOut), ty0: exP.ty0, tdy: exP.tdy, tarc: exP.tarc.map(postArc) };
   }
   if (exterm) {
     out.exterm = { sWait: postArc(exterm.sWait), sUnder: postArc(exterm.sUnder), sEnd: postArc(exterm.sEnd), sTailEnd: postArc(exterm.sTailEnd), sStart: postArc(exterm.sStart), sFirst: postArc(exterm.sFirst), sOff: postArc(exterm.sOff), end: exterm.end };
@@ -1467,23 +1480,129 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   const tdy = 4;
   const tarc: number[] = [];
   let y = yd;
+  const zA = 8;
   for (;;) {
     y += step;
-    if (y > yEnd + 0.95 * H) break;
+    if (y > yEnd) break;
     if (y < yTw2) f += r0 * env(y - step / 2) * step;
     const wv = y > yW0 && y < yEnd ? ampS * smoother((y - yW0) / (0.4 * lam)) * smoother((yEnd - 40 - y) / (0.4 * lam)) * Math.sin((2 * Math.PI * (y - yW0)) / lam) : 0;
-    const q = add(world(xc, y, 0), d, wv);
+    const q = add(world(xc, y, y > yW0 ? zA * smoother((y - yW0) / Math.max(1, yEnd - yW0)) : 0), d, wv);
     const w: V3 = y < yTw2 ? [-Math.cos(f), 0, -Math.sin(f)] : nW;
     pushQ(q, w);
     while (y <= yEnd && ty0 + tarc.length * tdy <= y) tarc.push(acc - (y - (ty0 + tarc.length * tdy)));
   }
-  let sEnd = 0;
+  const sEnd = acc;
+  // ── the terminal's wrap: the band lies on an invisible rounded slab round the terminal (its rect grown by e, half
+  // thickness Rs: front face z = +Rs, back face z = -Rs, edges = cylinders of radius Rs), so it changes sides only
+  // round an edge, outside the window (never through it). On the faces and edges it runs as geodesics (straight
+  // when unrolled); the turns between wraps happen on the back face, hidden by the terminal.
+  const w = ex.win, e = 6, Rs = 26;
+  const xR = w.x1 + e - Rs, xL = w.x0 - e + Rs, yT = w.y0 - e + Rs;
+  const beta = (45 * Math.PI) / 180, gam = (35 * Math.PI) / 180, del = (4 * Math.PI) / 180;
+  const last = () => curve[curve.length - 1];
+  const scrX = (q: V3) => q[0] + W / 2;
+  const scrY = (q: V3) => H / 2 - q[1] - ex.yE;
+  // 1. a short straight on down (twisting to face on) and an eased helical corner into the diagonal, up onto the front
+  const T0: V3 = [0, -1, 0];
+  const wFace0: V3 = [1, 0, 0];
   {
-    let a2 = 0;
-    for (let i = 1; i < curve.length; i++) {
-      a2 += len(sub(curve[i], curve[i - 1]));
-      if (!sEnd && H / 2 - curve[i][1] - ex.yE >= yEnd) sEnd = a2;
+    const n = Math.ceil(44 / step);
+    const p0 = last();
+    for (let i = 1; i <= n; i++) {
+      const u = i / n;
+      pushQ([p0[0], p0[1] - 44 * u, p0[2]], norm(add(nW, sub(dot(wFace0, nW) < 0 ? ([-1, 0, 0] as V3) : wFace0, nW), smoother(u))));
     }
   }
-  return { curve, want, sWait, sIn, sEnd, ty0, tdy, tarc };
+  const T1: V3 = [Math.cos(beta), -Math.sin(beta), 0];
+  const c1 = helixCorner(T0, T1, Rs - last()[2], step);
+  { const p0 = last(); for (let i = 1; i < c1.pts.length; i++) pushQ(add(p0, c1.pts[i]), c1.w[i]); }
+  // 2. the diagonal on the front face to the right edge
+  { const p0 = last(); const L1 = Math.max(step, (xR - scrX(p0)) / Math.cos(beta)); for (const q of lineSamples(p0, add(p0, T1, L1), step)) pushQ([q[0], q[1], Rs], norm(cross([0, 0, 1], T1))); }
+  // 3. round the right edge (vertical axis): front heading down-right -> back heading down-left
+  const wrapV = (xc0: number, side: 1 | -1, front: boolean, ang: number, down: boolean) => {
+    // side: +1 right edge (bulges to +x), -1 left edge; front: starts on the front face
+    const p0 = last();
+    const n = Math.ceil((Math.PI * Rs) / Math.cos(ang) / step);
+    const Y0 = p0[1];
+    for (let i = 1; i <= n; i++) {
+      const ph = (Math.PI * i) / n;
+      const rad: V3 = [side * Math.sin(ph), 0, front ? Math.cos(ph) : -Math.cos(ph)];
+      const q: V3 = [xc0 - W / 2 + Rs * rad[0], Y0 + (down ? -1 : 1) * Rs * ph * Math.tan(ang), Rs * rad[2]];
+      const dph = 1e-3;
+      const rad2: V3 = [side * Math.sin(ph + dph), 0, front ? Math.cos(ph + dph) : -Math.cos(ph + dph)];
+      const q2: V3 = [xc0 - W / 2 + Rs * rad2[0], Y0 + (down ? -1 : 1) * Rs * (ph + dph) * Math.tan(ang), Rs * rad2[2]];
+      pushQ(q, norm(cross(rad, norm(sub(q2, q)))));
+    }
+  };
+  wrapV(xR, 1, true, beta, true);
+  // 4. hidden on the back face: round to up-left, to the top edge left of the incoming strand
+  const xTb = Math.min(xc - hw - 40, w.x0 + 0.62 * (w.x1 - w.x0));
+  const backTo = (Q: V3, dQ: V3) => {
+    const P = last(), dP = norm(sub(P, curve[curve.length - 2]));
+    const hh = 0.42 * len(sub(Q, P)) + 30;
+    for (const q of bezier(P, add(P, dP, hh), add(Q, dQ, -hh), Q, Math.max(24, Math.ceil(len(sub(Q, P)) / step)))) pushQ([q[0], q[1], -Rs], norm(cross([0, 0, -1], norm(sub(q, last())))));
+  };
+  const TupL: V3 = [-Math.cos(gam), Math.sin(gam), 0];
+  backTo([xTb - W / 2, H / 2 - (ex.yE + yT), -Rs], TupL);
+  // 5. over the top edge (horizontal axis): back heading up-left -> front heading down-left
+  {
+    const p0 = last();
+    const n = Math.ceil((Math.PI * Rs) / Math.sin(gam) / step);
+    const X0 = p0[0], Yc = H / 2 - (ex.yE + yT);
+    const at = (ph: number): V3 => [X0 - (Rs * ph) / Math.tan(gam), Yc + Rs * Math.sin(ph), -Rs * Math.cos(ph)];
+    for (let i = 1; i <= n; i++) {
+      const ph = (Math.PI * i) / n;
+      const q = at(ph);
+      const rad: V3 = [0, Math.sin(ph), -Math.cos(ph)];
+      pushQ(q, norm(cross(rad, norm(sub(at(ph + 1e-3), q)))));
+    }
+  }
+  // 6. the front strand on down-left to the left edge
+  const TdL: V3 = [-Math.cos(gam), -Math.sin(gam), 0];
+  { const p0 = last(); const L2 = Math.max(step, (scrX(p0) - xL) / Math.cos(gam)); for (const q of lineSamples(p0, add(p0, TdL, L2), step)) pushQ([q[0], q[1], Rs], norm(cross([0, 0, 1], TdL))); }
+  // 7. round the left edge to the back (heading down-right), hidden on the back down the left side, round it again
+  wrapV(xL, -1, true, gam, true);
+  const yC = w.y1 - 45;
+  backTo([xL - W / 2, H / 2 - (ex.yE + yC), -Rs], [-Math.cos(del), -Math.sin(del), 0]);
+  wrapV(xL, -1, false, del, true);
+  // 8. along the bottom heading right (in front), past the right edge and on out of sight
+  const TR: V3 = [Math.cos(del), -Math.sin(del), 0];
+  let sWrapOut = 0;
+  {
+    const p0 = last();
+    const L3 = (W + margin + 260 - scrX(p0)) / Math.cos(del);
+    for (const q of lineSamples(p0, add(p0, TR, L3), step)) {
+      pushQ([q[0], q[1], Rs], norm(cross([0, 0, 1], TR)));
+      if (!sWrapOut && scrX(q) > W + margin) sWrapOut = acc;
+    }
+  }
+  void scrY;
+  return { curve, want, sWait, sIn, sEnd, sWrapOut, ty0, tdy, tarc };
+}
+
+/**
+ * An eased helical corner: the band wrapped half round an invisible pole along the bisector of the in and out
+ * directions (both in the screen plane), its turn rate eased in and out (no curvature step at the joins), face on at
+ * both ends; it moves dz in depth (sign picks the pole's side). Local points from the origin and band widths.
+ */
+function helixCorner(T0: V3, T1: V3, dz: number, step: number) {
+  const a = norm(add(T0, T1));
+  const ca = dot(T0, a), sa = Math.sqrt(Math.max(1e-9, 1 - ca * ca));
+  const e2 = norm(sub(T0, [a[0] * ca, a[1] * ca, a[2] * ca]));
+  const e1: V3 = dz >= 0 ? [0, 0, -1] : [0, 0, 1];
+  const th = (u: number) => Math.PI * (u - Math.sin(2 * Math.PI * u) / (2 * Math.PI));
+  const tan = (t: number): V3 => norm(add([a[0] * ca, a[1] * ca, a[2] * ca], add([-Math.sin(t) * sa * e1[0], -Math.sin(t) * sa * e1[1], -Math.sin(t) * sa * e1[2]], e2, Math.cos(t) * sa)));
+  const wid = (t: number): V3 => norm(cross(add([Math.cos(t) * e1[0], Math.cos(t) * e1[1], Math.cos(t) * e1[2]], e2, Math.sin(t)), tan(t)));
+  // mean of sin(theta(u)) for the eased profile: its length for the wanted depth change
+  let m = 0;
+  for (let i = 0; i < 200; i++) m += Math.sin(th((i + 0.5) / 200)) / 200;
+  const S = Math.max(4 * step, Math.abs(dz) / (sa * m));
+  const n = Math.ceil(S / step);
+  const pts: V3[] = [[0, 0, 0]];
+  const w: V3[] = [wid(0)];
+  for (let i = 1; i <= n; i++) {
+    pts.push(add(pts[pts.length - 1], tan(th((i - 0.5) / n)), S / n));
+    w.push(wid(th(i / n)));
+  }
+  return { pts, w };
 }
