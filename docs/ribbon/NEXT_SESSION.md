@@ -140,3 +140,7 @@ Next, in order (owner asked for cleanup before merging):
 
 ## UPDATE (v382 + cleanup, same day)
 Done: /contact opens with no flash; the terminal's output scrolls inside; dead code removed (journey.ts old phone experiments, lib/ribbon/journeyPath.ts) with a pixel regression check; /lab is 404 in production unless NEXT_PUBLIC_LAB=1. Remaining before the squash-merge: the device checks (iPad portrait, phone landscape, Android, reduced motion / slow network / no-WebGL fallbacks, low-end frame rate), then the owner's OK. Next version: v383.
+
+## MERGED TO MAIN (2026-10-12)
+The branch claude/upbeat-hellman-f92bb7 (v268-v390) was squash-merged into main as one commit (3f90f9a), with the owner's OK, after the Vercel preview of b7fdc9c built Ready. Main deploys production on Vercel (project "portfolio-website"). Work from main (or a new branch off it) from now on; the old branch keeps the full history.
+Still open: a real Android test (owner, later); optional: hide "Up/Down for history, Tab to complete" in the terminal's help on phones. Next version: v391.
