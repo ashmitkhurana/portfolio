@@ -133,7 +133,8 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // (/contact: hidden until its own entrance has drawn its first frames; components/site/journey.ts reveals it, so
     // nothing of the previous page's ribbon ever flashes)
-    document.documentElement.toggleAttribute("data-ribbon-off", pathname !== "/");
+    // (the home page: shown by journey.ts once the hero intro has restarted, when coming from another page)
+    if (pathname !== "/") document.documentElement.setAttribute("data-ribbon-off", "");
   }, [pathname]);
 
   // route change: the anchor appears / disappears with the page
