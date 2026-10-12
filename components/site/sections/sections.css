@@ -594,10 +594,18 @@
   }
 }
 
-/* phones: the bar sits under the terminal (journey.ts places it) */
+/* phones: the block sticks once the terminal's screen fills the view (journey.ts sets top = -Experience's height) and
+   stays for the room below it (scrolling there fills the bar under the terminal); the browser holds it, natively */
 @media (orientation: portrait) {
+  :root[data-ribbon="live"] .exterm::after {
+    content: "";
+    display: block;
+    height: 130svh;
+  }
+
   :root[data-ribbon="live"] .exterm__pin {
-    position: relative;
+    position: sticky;
+    top: -100svh;
   }
 
   :root[data-ribbon="live"] .exterm__pin .fillbar {

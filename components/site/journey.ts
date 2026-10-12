@@ -95,6 +95,8 @@ const WRAP_T = 2.4;
 const TOTAL_P = WRAP_T + 1.6 + 2.6 + 3.6;
 /** phones: px of finger travel that fill the bar */
 const FILL_TOUCH = 700;
+/** phones: the share of the terminal's sticky room that fills the bar (the rest keeps it on screen after a flick) */
+const TERM_FILL = 0.65;
 const easeOut3 = (t: number) => 1 - (1 - clamp01(t)) ** 3;
 
 declare global {
@@ -183,6 +185,13 @@ export function createJourney(engine: RibbonEngine): () => void {
   /** phones: the camera's height while the footer's own path is in use (null: Experience's rule), and whether it was */
   let camPhone: number | null = null;
   let camWasFoot = false;
+  /** phones: the terminal's sticky room (scroll position seen last / when it last changed), draining back, a finger on
+   *  the screen, and touch scrolling held off (while the wrap and the footer run) */
+  let lastSY = -1;
+  let lastMove = 0;
+  let draining = false;
+  let touching = false;
+  let touchHold = false;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
   const setFootIntro = (v: string) => {
     if (v === footIntro) return;
@@ -223,9 +232,15 @@ export function createJourney(engine: RibbonEngine): () => void {
   let touchY = -1;
   const onTouchStart = (e: TouchEvent) => {
     touchY = e.touches[0]?.clientY ?? -1;
+    touching = true;
+  };
+  const onTouchEnd = () => {
+    touching = false;
   };
   const onTouchMove = (e: TouchEvent) => {
     const y = e.touches[0]?.clientY ?? -1;
+    // phones: while the wrap and the footer run on their own, the finger does not scroll the page
+    if (touchHold && e.cancelable) e.preventDefault();
     if (gateOn && touchY >= 0 && y >= 0) {
       const dy = touchY - y;
       if (e.cancelable) e.preventDefault();
@@ -241,6 +256,8 @@ export function createJourney(engine: RibbonEngine): () => void {
   };
   window.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
   window.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+  window.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
+  window.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
   let lastInput: JourneyPathDesktopInput | null = null;
   /** How I Build's measured rects, per layout (measuring the ink is too costly for every frame) */
   let buildRectsKey = "";
@@ -279,7 +296,8 @@ export function createJourney(engine: RibbonEngine): () => void {
     // phones: Selected Work is not pinned (its pin block has no scroll room); the cards stack
     const workAny = pins.find((p) => p.name === "work");
     const buildPin = pins.find((p) => p.name === "build" && p.room > 1);
-    const exPin = pins.find((p) => p.name === "exterm" && p.room > 1);
+    // (landscape only: on phones the same block is pinned too, for the terminal's screen; journey's phone branch)
+    const exPin = W >= 768 && W > H ? pins.find((p) => p.name === "exterm" && p.room > 1) : undefined;
     // How I Build: the release timeline (forward or backward) gives the coil's compression and the ribbon's flight; the
     // page's own progress between the complete coil and the next section moves the ribbon on down the diagonal
     let buildC = 0;
@@ -437,7 +455,7 @@ export function createJourney(engine: RibbonEngine): () => void {
       const exPRects =
         portrait && exAny && buildHRects && !exPin
           ? (() => {
-              const t = exAny.section.getBoundingClientRect().top;
+              const t = exAny.pin.getBoundingClientRect().top;
               const head = exAny.section.querySelector<HTMLElement>(".experience__head")?.getBoundingClientRect();
               const items = [...exAny.section.querySelectorAll<HTMLElement>(".strip__item")];
               const win = exAny.section.querySelector<HTMLElement>(".terminal-window")?.getBoundingClientRect();
@@ -842,28 +860,43 @@ export function createJourney(engine: RibbonEngine): () => void {
               const dv = footFly ? "-5000" : "5000";
               if (veil.dataset.ribbonDepth !== dv) veil.dataset.ribbonDepth = dv;
             }
-            // the gate
-            if (window.scrollY < yGate - 0.3 * H) gateArmed = true;
-            if (!footFired && !gateOn && gateArmed && lenis && dir > 0 && window.scrollY >= yGate - 2 && window.scrollY < yGate + 0.5 * H) {
-              gateOn = true;
-              gateArmed = false;
-              lenis.scrollTo(yGate, { immediate: true, force: true });
-              lenis.stop();
+            // the terminal's screen is held by the browser itself (the block is sticky on phones, top = -Experience's
+            // height: it sticks once the terminal's screen fills the view, for the room below it): scrolling through the
+            // first part of that room fills the bar; stopping short drains it (the page eases back); full: the wrap and
+            // the footer run on their own (input held)
+            const expEl = exAnyP.pin.querySelector<HTMLElement>('[data-section="experience"]');
+            const exH = expEl ? expEl.offsetHeight : H;
+            const topCss = `${-exH}px`;
+            if (exAnyP.pin.style.top !== topCss) exAnyP.pin.style.top = topCss;
+            const yStick = exAnyP.section.getBoundingClientRect().top + window.scrollY + exH;
+            const fillRoom = Math.max(1, TERM_FILL * exAnyP.room);
+            const sy = window.scrollY;
+            if (Math.abs(sy - lastSY) > 0.5) {
+              lastSY = sy;
+              lastMove = now;
             }
-            if (!gateOn && !footFired && fill > 0) fill = Math.max(0, fill - FILL_DRAIN * dt);
-            if (gateOn && now - fillLast > 260) fill = Math.max(0, fill - FILL_DRAIN * dt);
+            const prog = clamp01((sy - yStick) / fillRoom);
+            if (!footFired) fill = prog;
+            touchHold = footState === 1 || footState === -1;
             const sine = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * t);
-            if (gateOn && fill >= 1) {
-              gateOn = false;
+            if (!footFired && footState === 0 && prog >= 1) {
               footFired = true;
               footT0 = now;
               footState = 1;
+              touchHold = true;
+              lenis?.stop();
               if (fm) {
                 setFootIntro("hidden");
                 typeFoot(0);
               }
             }
-            // after the wrap: the page scrolls on to the footer (input held)
+            // stopped short (no touch, no scroll for a moment): ease back to the start, the bar drains with it
+            if (!footFired && footState === 0 && prog > 0.002 && prog < 1 && !touching && now - lastMove > 450 && !draining) {
+              draining = true;
+              lenis?.scrollTo(yStick, { duration: 0.35 + 0.9 * prog, easing: sine, onComplete: () => { draining = false; } });
+            }
+            if (draining && (touching || prog <= 0.002)) draining = false;
+            // after the wrap: the page scrolls on to the footer
             if (footState === 1 && !footRevScroll && ft >= WRAP_T) {
               footRevScroll = true;
               lenis?.scrollTo(yFoot, { duration: FOOT_RUN, force: true, lock: true, easing: sine, onComplete: () => { if (!fm) lenis?.start(); } });
@@ -871,44 +904,43 @@ export function createJourney(engine: RibbonEngine): () => void {
             if (footState === 1 && ft >= TOTAL_P) {
               footState = 2;
               footRevScroll = false;
+              touchHold = false;
               lenis?.start();
             }
-            // one swipe up from the formed footer runs it all backwards and returns to the gate with the bar empty
-            if (footState === 2 && lenis && window.scrollY < yFoot - 4 && window.scrollY > yGate + 4) {
+            // one swipe up from the formed footer runs it all backwards and returns to the terminal's screen, bar empty
+            if (footState === 2 && lenis && sy < yFoot - 4 && sy > yStick + 4) {
               footState = -1;
               footRevT0 = now;
               footRevScroll = false;
+              touchHold = true;
               lenis.scrollTo(yFoot, { immediate: true, force: true });
               lenis.stop();
             }
             if (footState === -1 && !footRevScroll && ft <= WRAP_T + FOOT_RUN) {
               footRevScroll = true;
-              lenis?.scrollTo(yGate, { duration: FOOT_RUN / FOOT_REV, force: true, lock: true, easing: sine });
+              lenis?.scrollTo(yStick, { duration: FOOT_RUN / FOOT_REV, force: true, lock: true, easing: sine });
             }
             if (footState === -1 && ft <= 0) {
               footState = 0;
               footFired = false;
               footRevScroll = false;
               fill = 0;
-              gateOn = true;
-              gateArmed = false;
+              touchHold = false;
+              lenis?.start();
               setFootIntro("");
               typeFoot(1);
             }
-            if (footState === 0 && footFired && window.scrollY < yGate - 40) {
-              footFired = false;
-              fill = 0;
-            }
+            void dt;
             // the bar: under the terminal (right-aligned with it), shown while the page is held, until it is full
             const bar = exAnyP.pin.querySelector<HTMLElement>(".fillbar");
             const winR = lastInput?.exP?.win;
             if (bar && winR) {
               const cap = exAnyP.pin.querySelector<HTMLElement>(".terminal__caption");
-              const capB = cap ? cap.getBoundingClientRect().bottom - exAnyP.section.getBoundingClientRect().top : winR.y1 + 40;
+              const capB = cap ? cap.getBoundingClientRect().bottom - exAnyP.pin.getBoundingClientRect().top : winR.y1 + 40;
               bar.style.left = `${((winR.x0 + winR.x1) / 2 - 110).toFixed(1)}px`;
               bar.style.top = `${(capB + 22).toFixed(1)}px`;
               bar.style.setProperty("--fill", fill.toFixed(3));
-              const on = (gateOn || (fill > 0 && !footFired)) && !footFired;
+              const on = !footFired && window.scrollY >= yStick - 2;
               if (on !== bar.hasAttribute("data-on")) bar.toggleAttribute("data-on", on);
             }
           }
