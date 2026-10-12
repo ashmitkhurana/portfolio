@@ -39,6 +39,8 @@ await drag(500); await p.waitForTimeout(200);
 console.log(await st("drag during wrap"));
 await p.waitForTimeout(11000);
 console.log(await st("after 11 s"));
+await p.waitForTimeout(4000);
+console.log(await st("after 15 s (must still be at the footer)"));
 if (out) await p.screenshot({ path: `${out}_foot.png` });
 await drag(-300); await p.waitForTimeout(7000);
 console.log(await st("swipe up + 7 s"));

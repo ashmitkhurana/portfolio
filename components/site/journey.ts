@@ -192,6 +192,8 @@ export function createJourney(engine: RibbonEngine): () => void {
   let draining = false;
   let touching = false;
   let touchHold = false;
+  /** phones: the scroll position the footer's run landed at */
+  let footLandY = 0;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
   const setFootIntro = (v: string) => {
     if (v === footIntro) return;
@@ -802,7 +804,11 @@ export function createJourney(engine: RibbonEngine): () => void {
             const fm = pathD.foot;
             const footSecEl = document.querySelector<HTMLElement>('[data-section="contact"]');
             const yFoot = footSecEl ? footSecEl.getBoundingClientRect().top + window.scrollY : 0;
-            if (fm && footState === 0 && !footFired && window.scrollY >= yFoot - 4) footState = 2;
+            const maxY = document.documentElement.scrollHeight - window.innerHeight;
+            if (fm && footState === 0 && !footFired && window.scrollY >= Math.min(yFoot, maxY) - 4) {
+              footState = 2;
+              footLandY = window.scrollY;
+            }
             let ft = -1;
             if (footState === 1) ft = Math.min(TOTAL_P, (now - footT0) / 1000);
             else if (footState === 2) ft = TOTAL_P;
@@ -864,6 +870,10 @@ export function createJourney(engine: RibbonEngine): () => void {
             // height: it sticks once the terminal's screen fills the view, for the room below it): scrolling through the
             // first part of that room fills the bar; stopping short drains it (the page eases back); full: the wrap and
             // the footer run on their own (input held)
+            // the front layer draws inside the window's rect with a 1 px ramp at its edge: grown a little, the ramp sits
+            // outside the window's border (else the border line shows through the ribbon wherever it crosses the edge)
+            const twEl = exAnyP.pin.querySelector<HTMLElement>(".terminal-window");
+            if (twEl && twEl.dataset.ribbonPad !== "3") twEl.dataset.ribbonPad = "3";
             const expEl = exAnyP.pin.querySelector<HTMLElement>('[data-section="experience"]');
             const exH = expEl ? expEl.offsetHeight : H;
             const topCss = `${-exH}px`;
@@ -905,10 +915,13 @@ export function createJourney(engine: RibbonEngine): () => void {
               footState = 2;
               footRevScroll = false;
               touchHold = false;
+              // where the page really landed: the last screen can be a little short of the footer's top on phones (it
+              // is exactly one screen tall), so "above the footer" must be measured from here, not from its top
+              footLandY = sy;
               lenis?.start();
             }
             // one swipe up from the formed footer runs it all backwards and returns to the terminal's screen, bar empty
-            if (footState === 2 && lenis && sy < yFoot - 4 && sy > yStick + 4) {
+            if (footState === 2 && lenis && sy < footLandY - 30 && sy > yStick + 4) {
               footState = -1;
               footRevT0 = now;
               footRevScroll = false;
