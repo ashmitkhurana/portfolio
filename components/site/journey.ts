@@ -905,7 +905,7 @@ export function createJourney(engine: RibbonEngine): () => void {
             if (bar && winR) {
               const cap = exAnyP.pin.querySelector<HTMLElement>(".terminal__caption");
               const capB = cap ? cap.getBoundingClientRect().bottom - exAnyP.section.getBoundingClientRect().top : winR.y1 + 40;
-              bar.style.left = `${(winR.x1 - 220).toFixed(1)}px`;
+              bar.style.left = `${((winR.x0 + winR.x1) / 2 - 110).toFixed(1)}px`;
               bar.style.top = `${(capB + 22).toFixed(1)}px`;
               bar.style.setProperty("--fill", fill.toFixed(3));
               const on = (gateOn || (fill > 0 && !footFired)) && !footFired;

@@ -604,6 +604,31 @@
     display: grid;
   }
 
+  /* the bar centred under the terminal */
+  :root[data-ribbon="live"] .exterm__pin .fillbar {
+    justify-items: center;
+    text-align: center;
+  }
+
+  :root[data-ribbon="live"] .exterm__pin .fillbar__track {
+    justify-self: stretch;
+  }
+
+  /* the terminal's screen on phones: the page holds with this section's top at the top of the screen, so it is at
+     least as tall as the LARGEST visible screen (Safari's bars collapsed: nothing of the footer peeks in), and the
+     terminal sits lower (the ribbon comes down to it in the space under the navbar); its output gives way so the
+     window, caption and bar fit the SMALLEST visible screen (bars shown) */
+  :root[data-ribbon="live"] .terminal {
+    --section-h: 100lvh;
+    --term-gap: clamp(96px, 16svh, 150px);
+    align-items: flex-start;
+    padding-top: calc(var(--header-h) + var(--term-gap));
+  }
+
+  :root[data-ribbon="live"] .terminal .term--inline .term__output {
+    height: clamp(6rem, 100svh - var(--header-h) - var(--term-gap) - 15rem, 20rem);
+  }
+
   /* opaque: the ribbon's wrap passes behind it */
   :root[data-ribbon="live"] .terminal-window {
     background: #151311;
