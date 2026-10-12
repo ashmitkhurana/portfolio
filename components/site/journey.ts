@@ -362,6 +362,11 @@ export function createJourney(engine: RibbonEngine): () => void {
       }
       return;
     }
+    // phones held sideways (the engine's still mode, no scroll story): the AK fades away once the hero is half
+    // scrolled off
+    const still = window.matchMedia("(orientation: landscape) and (max-height: 540px) and (hover: none)").matches;
+    const past = still && window.scrollY > 0.5 * hero.section.offsetHeight;
+    if (past !== document.documentElement.hasAttribute("data-ribbon-past")) document.documentElement.toggleAttribute("data-ribbon-past", past);
     // V: from the last pin that has reached the top (pinned now, or released and scrolling away)
     let ref = pins[0];
     for (const p of pins) if (p.pinTop <= 0.5) ref = p;

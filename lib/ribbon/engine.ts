@@ -316,7 +316,8 @@ export class RibbonEngine {
     window.addEventListener("pageshow", this.onPageShow);
     window.addEventListener("scroll", this.onActivity, { passive: true });
     window.addEventListener("touchmove", this.onActivity, { passive: true });
-    this.mqReduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // (a phone held sideways is treated the same: the scroll story is built for portrait; a still AK in the hero there)
+    this.mqReduce = window.matchMedia("(prefers-reduced-motion: reduce), (orientation: landscape) and (max-height: 540px) and (hover: none)");
     this.mqReduce.addEventListener("change", this.onReduce);
     this.applyReducedMotion();
 

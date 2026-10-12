@@ -951,3 +951,90 @@
 .contact .display[data-typing="on"] .glyph:not(.is-typed) {
   transition: none;
 }
+
+/* phones held sideways: no scroll story (the engine shows a still AK in the hero, as with reduced motion): every
+   section is one plain screen, no pinned scroll room */
+@media (orientation: landscape) and (max-height: 540px) and (hover: none) {
+  :root[data-ribbon="live"] .hero {
+    --hero-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .unravel {
+    --unravel-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 0px;
+  }
+
+  /* each section as tall as its content (a 390 px-high screen cannot hold the one-screen desktop layouts) */
+  .work,
+  .build,
+  .exterm,
+  .experience,
+  .terminal {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .work__pin,
+  .build__pin,
+  .exterm__pin {
+    position: relative !important;
+    height: auto !important;
+    min-height: 100svh;
+  }
+
+  .work__pin,
+  .build__pin,
+  .exterm__pin {
+    padding-block: calc(var(--header-h) + 16px) 32px !important;
+  }
+
+  .exterm__pin > .section {
+    padding-block: 24px !important;
+  }
+
+  .terminal .term--inline .term__output {
+    height: 14rem !important;
+  }
+
+  .exterm__pin .fillbar {
+    display: none !important;
+  }
+
+  /* the big headings take a set size here (their one-screen sizing, from the height left over, comes out at zero) */
+  .build .display,
+  .contact .display {
+    --_size: clamp(3.5rem, 20svh, 6rem) !important;
+  }
+
+  .contact {
+    min-height: 0 !important;
+  }
+
+  .principle__title {
+    font-size: 1.0625rem;
+  }
+}
+
+/* iPad / tablets held upright (the phone choreography): the entries in one column like on phones (the ribbon runs
+   down the lane to their right) */
+@media (orientation: portrait) and (min-width: 600px) {
+  :root[data-ribbon="live"] .strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* the name (and the AK, fitted to it) a little smaller, so the AK clears the tagline as on phones */
+  :root {
+    --hero-span: 0.74;
+  }
+}

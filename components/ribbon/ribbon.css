@@ -134,3 +134,13 @@ html[data-ribbon-debug] [data-ribbon-proxy] {
   position: absolute !important;
   transform: none !important;
 }
+
+/* phones held sideways (a still AK, no scroll story): the AK fades away as the hero scrolls off (journey.ts sets
+   data-ribbon-past), so nothing of it shows over the sections below */
+.ribbon-layer {
+  transition: opacity 0.35s ease;
+}
+
+:root[data-ribbon-past] .ribbon-layer {
+  opacity: 0;
+}

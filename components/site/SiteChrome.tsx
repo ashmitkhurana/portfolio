@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteRibbon } from "@/components/site/SiteRibbon";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { TerminalOverlay } from "@/components/terminal/TerminalOverlay";
+import { LandscapeNotice } from "@/components/site/LandscapeNotice";
 
 /**
  * The shared page chrome: skip link, Lenis provider, header, <main id="content">,
@@ -34,6 +35,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
         </SiteRibbon>
 
         <TerminalOverlay />
+        <LandscapeNotice />
       </SmoothScroll>
     </>
   );
