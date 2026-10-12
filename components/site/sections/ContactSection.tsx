@@ -19,10 +19,14 @@ export function ContactSection() {
           id="contact-title"
           size="xl"
           lines={contact.heading}
-          depth={5000}
+          // in front of the ribbon everywhere (desktop as before); phone: like the hero name, the A's apex rises over a
+          // couple of letters of SOMETHING and sits in front of them
+          ribbonFront={[[], []]}
+          ribbonFrontPortrait={[[], [2, 3]]}
         />
 
-        <div className="contact__body">
+        {/* (in front of the ribbon, like the hero's tagline) */}
+        <div className="contact__body" data-ribbon-proxy="" data-ribbon-depth="5000" data-ribbon-pad="6">
           <p className="contact__copy">{contact.copy}</p>
           <CopyEmail />
           <ul className="contact__links">

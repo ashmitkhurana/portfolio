@@ -869,3 +869,61 @@
 .contact .copy-email__link {
   font-size: min(4rem, 100cqw / 12.4, 7svh);
 }
+
+/* phones with the live ribbon: the last screen laid out like the hero (the footer's AK is the hero's own pose at the
+   hero's own screen spot): the heading where the name is, at the name's size; the body low in the gap left of the
+   AK's tail (where the hero's tagline sits), smaller; the links under it */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .contact {
+    align-items: stretch;
+    padding-top: max(var(--header-h), 14svh);
+    padding-bottom: var(--space-m);
+  }
+
+  :root[data-ribbon="live"] .contact > .container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* at the name's fit-to-width size; "LET'S BUILD" is wider than the name, so the type is a little smaller: moved down
+     by the difference (both scale with the width) so SOMETHING's baseline sits where KHURANA's does */
+  :root[data-ribbon="live"] .contact .display {
+    --_size: min(var(--_fit), 36svh);
+    margin-top: calc(7.4cqw);
+  }
+
+  :root[data-ribbon="live"] .contact__body {
+    margin-top: auto;
+    gap: var(--space-2xs);
+    justify-self: start;
+  }
+
+  :root[data-ribbon="live"] .contact__copy {
+    max-width: 30ch;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+
+  :root[data-ribbon="live"] .contact .copy-email {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  :root[data-ribbon="live"] .contact__links {
+    flex-wrap: wrap;
+  }
+
+  :root[data-ribbon="live"] .contact .copy-email__link {
+    font-size: min(1.25rem, 5.4cqw);
+    overflow-wrap: normal;
+    white-space: nowrap;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  :root[data-ribbon="live"] .contact__links {
+    gap: var(--space-2xs) var(--space-m);
+    margin-top: var(--space-2xs);
+  }
+}
