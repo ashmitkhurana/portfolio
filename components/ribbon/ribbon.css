@@ -127,3 +127,10 @@ html[data-ribbon-debug] [data-ribbon-proxy] {
 :root[data-ribbon-off] .ribbon-poster-wrap {
   visibility: hidden;
 }
+
+/* posters (no WebGL, slow devices): the still AK belongs to the hero (and /contact's top), so the layers sit at the
+   page's top and scroll away with it instead of staying fixed over every section */
+:root[data-ribbon="poster"] .ribbon-layer {
+  position: absolute !important;
+  transform: none !important;
+}
