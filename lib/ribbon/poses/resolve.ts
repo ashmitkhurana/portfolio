@@ -211,7 +211,7 @@ export function fitRuled(src: readonly RuledRing[], ctx: ResolveContext, fit: Fi
     W[i * 6 + 3] = t3[0]; W[i * 6 + 4] = t3[1]; W[i * 6 + 5] = t3[2];
   }
   const b0 = Math.max(0, Math.min(n - 2, Math.round(fit.bodyFrom)));
-  let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (let i = b0; i < n; i++) for (let e = 0; e < 2; e++) for (let q = 0; q < 3; q++) {
     const v = W[i * 6 + e * 3 + q]; if (v < mn[q]) mn[q] = v; if (v > mx[q]) mx[q] = v;
   }
@@ -274,7 +274,7 @@ export function fitRuled(src: readonly RuledRing[], ctx: ResolveContext, fit: Fi
     const [l, t, r, b] = bbox();
     k *= Math.min(bw / (r - l), bh / (b - t));
     xform();
-    const [l2, t2, r2, b2] = bbox();
+    const [, t2, r2, b2] = bbox();
     // right-align horizontally (the sculpture hugs the right side of its box), centre vertically
     cxs += bx1 - r2;
     cys += (by0 + by1) / 2 - (t2 + b2) / 2;
