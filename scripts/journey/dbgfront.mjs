@@ -7,7 +7,7 @@ const yT = await p.evaluate(() => document.querySelector('[data-section="termina
 for (const y of [yT - 300, yT - 40, yT + 1]) { await p.evaluate((y) => window.scrollTo(0, y), y); await p.waitForTimeout(600); }
 if (process.env.TOUCH === "1") {
   const cdp = await p.context().newCDPSession(p);
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < +(process.env.SWIPES ?? 3); k++) {
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 700 }] });
     for (let j = 1; j <= 10; j++) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 200, y: 700 - 30 * j }] }); await p.waitForTimeout(16); }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });

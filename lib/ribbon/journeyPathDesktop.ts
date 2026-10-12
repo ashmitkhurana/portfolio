@@ -1506,7 +1506,9 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   // when unrolled); the turns between wraps happen on the back face, hidden by the terminal.
   const w = ex.win, e = 6, Rs = 40;
   const xR = w.x1 + e - Rs, xL = w.x0 - e + Rs, yT = w.y0 - e + Rs;
-  const beta = (45 * Math.PI) / 180, gam = (42 * Math.PI) / 180, del = (4 * Math.PI) / 180;
+  // the diagonal reaches the right edge ~40% down the window (45 deg on phones; shallower on a wide window, e.g. an
+  // iPad, where 45 deg would run below the window and the hidden turns would show beneath it)
+  const beta = Math.max((16 * Math.PI) / 180, Math.min((45 * Math.PI) / 180, Math.atan2(0.4 * (w.y1 - w.y0), Math.max(1, xR - xc)))), gam = (42 * Math.PI) / 180, del = (4 * Math.PI) / 180;
   const last = () => curve[curve.length - 1];
   const scrX = (q: V3) => q[0] + W / 2;
   const scrY = (q: V3) => H / 2 - q[1] - ex.yE;
