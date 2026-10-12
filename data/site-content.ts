@@ -73,7 +73,7 @@ export const socials: SocialLink[] = [
 export const nav: NavItem[] = [
   { label: "Work", href: "/work" },
   { label: "About", href: "/about" },
-  { label: "Contact", href: "/#contact" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export const hero = {

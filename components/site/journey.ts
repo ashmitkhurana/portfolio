@@ -271,6 +271,31 @@ export function createJourney(engine: RibbonEngine): () => void {
     if (!hero || !sl.ready) {
       sl.driveTarget = 0;
       sl.offsetY = 0;
+      if (!hero) {
+        // another page (e.g. /contact: the AK at rest, its own intro): nothing of the home page's journey carries over
+        sl.driveLead = 0;
+        sl.cameraBase = 0;
+        sl.cameraBackdrop = true;
+        sl.deform = null;
+        if (pathKey || footState !== 0 || relState !== 0 || relBelow || touchHold || gateOn) {
+          pathKey = "";
+          clearKey = "";
+          footState = 0;
+          footFired = false;
+          footRevScroll = false;
+          relState = 0;
+          relBelow = false;
+          relScrolling = false;
+          relScrolled = false;
+          gateOn = false;
+          touchHold = false;
+          fill = 0;
+          camPhone = null;
+          camWasFoot = false;
+          setFootIntro("");
+          getLenis()?.start();
+        }
+      }
       return;
     }
     // V: from the last pin that has reached the top (pinned now, or released and scrolling away)

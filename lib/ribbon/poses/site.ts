@@ -17,7 +17,8 @@ const POSE_OVERRIDE = !!process.env.NEXT_PUBLIC_POSE_OVERRIDE;
 
 /** route -> authored pose; everything else keeps the interim lab sweep */
 export function poseNameForRoute(pathname: string): string {
-  return pathname === "/" ? "ak-hero" : "sweep";
+  // /contact is a 1:1 copy of the home page's last screen: the same AK, at the hero's own screen spot
+  return pathname === "/" || pathname === "/contact" ? "ak-hero" : "sweep";
 }
 
 export interface PoseTarget {

@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * Publishes the footer's height (--footer-h) and the contact body's height (--contact-body-h) on :root, so the
  * last screen (contact + footer) fits exactly one viewport and the contact heading takes the height that is left.
  */
 export function FooterHeight() {
+  // re-measure on every route: the footer stays mounted, the contact block is a new element on each page
+  const pathname = usePathname();
   useEffect(() => {
     const footer = document.querySelector<HTMLElement>(".site-footer");
     if (!footer) return;
@@ -25,6 +28,6 @@ export function FooterHeight() {
       root.style.removeProperty("--footer-h");
       root.style.removeProperty("--contact-body-h");
     };
-  }, []);
+  }, [pathname]);
   return null;
 }

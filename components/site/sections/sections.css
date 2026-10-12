@@ -927,3 +927,11 @@
     margin-top: var(--space-2xs);
   }
 }
+
+/* /contact: the invisible copy of the hero's name block (the AK's anchor), over the page, never seen or hit */
+.contact-anchor {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+  pointer-events: none;
+}
