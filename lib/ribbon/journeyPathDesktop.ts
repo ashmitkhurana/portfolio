@@ -87,8 +87,10 @@ export interface ExPInput {
   /** the entries' text: right edge, and the last entry's bottom */
   textR: number;
   lastY1: number;
-  /** the terminal window */
+  /** the terminal window; the Terminal section's top and the navbar's height (css px) */
   win: Rect;
+  termTop: number;
+  headerH: number;
 }
 
 export interface ExPMarks {
@@ -1459,7 +1461,9 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   // 3. the descent: twist about the vertical (w = (-cos f, 0, -sin f)), easing in, a half turn per P, easing out
   //    after the last entry so that it lands on the wave's width n = cross(down, d) (f = 145 deg mod 180)
   const P = H / 3.5;
-  const yTw0 = yd, yTw1 = ex.lastY1 - 0.1 * P, yTw2 = yTw1 + 0.5 * P;
+  // the twist eases out by the last entry's bottom + 0.4 P, or earlier when the terminal is close (small screens)
+  const yEndPre = Math.max(ex.win.y0 - 0.95 * hw - 2 - 70, ex.termTop + ex.headerH + 0.95 * hw + 8);
+  const yTw2 = Math.min(ex.lastY1 + 0.4 * P, yEndPre - 60), yTw1 = yTw2 - 0.5 * P, yTw0 = yd;
   const env = (y: number) => smoother((y - yTw0) / (0.5 * P)) * (1 - smoother((y - yTw1) / (yTw2 - yTw1)));
   let area = 0;
   for (let y = yTw0; y < yTw2; y += 1) area += env(y + 0.5);
@@ -1471,7 +1475,8 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   const d: V3 = [Math.cos(tilt), 0, Math.sin(tilt)];
   const nW = norm(cross([0, -1, 0], d));
   // 4. the waves: from below the twist to just above the terminal; the head's end ring a band's half width above it
-  const yEnd = ex.win.y0 - 0.95 * hw - 2;
+  // (the head stops just above the terminal: the wrap's first corner happens there, over empty background)
+  const yEnd = Math.max(ex.win.y0 - 0.95 * hw - 2 - 70, ex.termTop + ex.headerH + 0.95 * hw + 8);
   const yW0 = yTw2 + 10;
   const lam = Math.max(120, Math.min(0.22 * H, (yEnd - 40 - yW0) / 1.25));
   const ampS = 18 / Math.cos(tilt);
@@ -1480,14 +1485,16 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   const tdy = 4;
   const tarc: number[] = [];
   let y = yd;
-  const zA = 8;
+  const zA = 24;
   for (;;) {
     y += step;
     if (y > yEnd) break;
     if (y < yTw2) f += r0 * env(y - step / 2) * step;
-    const wv = y > yW0 && y < yEnd ? ampS * smoother((y - yW0) / (0.4 * lam)) * smoother((yEnd - 40 - y) / (0.4 * lam)) * Math.sin((2 * Math.PI * (y - yW0)) / lam) : 0;
-    const q = add(world(xc, y, y > yW0 ? zA * smoother((y - yW0) / Math.max(1, yEnd - yW0)) : 0), d, wv);
-    const w: V3 = y < yTw2 ? [-Math.cos(f), 0, -Math.sin(f)] : nW;
+    const wv = y > yW0 && y < yEnd && yEnd - 40 - yW0 > 100 ? ampS * smoother((y - yW0) / (0.4 * lam)) * smoother((yEnd - 40 - y) / (0.4 * lam)) * Math.sin((2 * Math.PI * (y - yW0)) / lam) : 0;
+    const q = add(world(xc, y, zA * smoother((y - (yEnd - 160)) / 160)), d, wv);
+    // (the last stretch above the head's stop: straight, twisting to face on for the wrap's first corner)
+    const wFace: V3 = dot([1, 0, 0], nW) < 0 ? [-1, 0, 0] : [1, 0, 0];
+    const w: V3 = y < yTw2 ? [-Math.cos(f), 0, -Math.sin(f)] : y > yEnd - 44 ? norm(add(nW, sub(wFace, nW), smoother((y - (yEnd - 44)) / 44))) : nW;
     pushQ(q, w);
     while (y <= yEnd && ty0 + tarc.length * tdy <= y) tarc.push(acc - (y - (ty0 + tarc.length * tdy)));
   }
@@ -1496,23 +1503,16 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   // thickness Rs: front face z = +Rs, back face z = -Rs, edges = cylinders of radius Rs), so it changes sides only
   // round an edge, outside the window (never through it). On the faces and edges it runs as geodesics (straight
   // when unrolled); the turns between wraps happen on the back face, hidden by the terminal.
-  const w = ex.win, e = 6, Rs = 26;
+  const w = ex.win, e = 6, Rs = 40;
   const xR = w.x1 + e - Rs, xL = w.x0 - e + Rs, yT = w.y0 - e + Rs;
-  const beta = (45 * Math.PI) / 180, gam = (35 * Math.PI) / 180, del = (4 * Math.PI) / 180;
+  const beta = (45 * Math.PI) / 180, gam = (42 * Math.PI) / 180, del = (4 * Math.PI) / 180;
   const last = () => curve[curve.length - 1];
   const scrX = (q: V3) => q[0] + W / 2;
   const scrY = (q: V3) => H / 2 - q[1] - ex.yE;
   // 1. a short straight on down (twisting to face on) and an eased helical corner into the diagonal, up onto the front
   const T0: V3 = [0, -1, 0];
   const wFace0: V3 = [1, 0, 0];
-  {
-    const n = Math.ceil(44 / step);
-    const p0 = last();
-    for (let i = 1; i <= n; i++) {
-      const u = i / n;
-      pushQ([p0[0], p0[1] - 44 * u, p0[2]], norm(add(nW, sub(dot(wFace0, nW) < 0 ? ([-1, 0, 0] as V3) : wFace0, nW), smoother(u))));
-    }
-  }
+  void wFace0;
   const T1: V3 = [Math.cos(beta), -Math.sin(beta), 0];
   const c1 = helixCorner(T0, T1, Rs - last()[2], step);
   { const p0 = last(); for (let i = 1; i < c1.pts.length; i++) pushQ(add(p0, c1.pts[i]), c1.w[i]); }
@@ -1520,10 +1520,13 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   { const p0 = last(); const L1 = Math.max(step, (xR - scrX(p0)) / Math.cos(beta)); for (const q of lineSamples(p0, add(p0, T1, L1), step)) pushQ([q[0], q[1], Rs], norm(cross([0, 0, 1], T1))); }
   // 3. round the right edge (vertical axis): front heading down-right -> back heading down-left
   const wrapV = (xc0: number, side: 1 | -1, front: boolean, ang: number, down: boolean) => {
+    void xc0;
     // side: +1 right edge (bulges to +x), -1 left edge; front: starts on the front face
     const p0 = last();
     const n = Math.ceil((Math.PI * Rs) / Math.cos(ang) / step);
     const Y0 = p0[1];
+    // the cylinder's axis through the strand's actual arrival (never a jump, whatever the corner before it did)
+    xc0 = p0[0] + W / 2;
     for (let i = 1; i <= n; i++) {
       const ph = (Math.PI * i) / n;
       const rad: V3 = [side * Math.sin(ph), 0, front ? Math.cos(ph) : -Math.cos(ph)];
@@ -1562,7 +1565,7 @@ function buildExP(inp: JourneyPathDesktopInput, ex: ExPInput, margin: number, ds
   { const p0 = last(); const L2 = Math.max(step, (scrX(p0) - xL) / Math.cos(gam)); for (const q of lineSamples(p0, add(p0, TdL, L2), step)) pushQ([q[0], q[1], Rs], norm(cross([0, 0, 1], TdL))); }
   // 7. round the left edge to the back (heading down-right), hidden on the back down the left side, round it again
   wrapV(xL, -1, true, gam, true);
-  const yC = w.y1 - 45;
+  const yC = w.y1 - 75;
   backTo([xL - W / 2, H / 2 - (ex.yE + yC), -Rs], [-Math.cos(del), -Math.sin(del), 0]);
   wrapV(xL, -1, false, del, true);
   // 8. along the bottom heading right (in front), past the right edge and on out of sight

@@ -602,6 +602,8 @@
   /* opaque: the ribbon's wrap passes behind it */
   :root[data-ribbon="live"] .terminal-window {
     background: #151311;
+    /* no drop shadow: it would paint over the ribbon where the wrap rounds the window's edges */
+    box-shadow: none;
   }
 }
 

@@ -459,6 +459,8 @@ export function createJourney(engine: RibbonEngine): () => void {
                 textR,
                 lastY1: items[items.length - 1].getBoundingClientRect().bottom - t,
                 win: { x0: win.left, y0: win.top - t, x1: win.right, y1: win.bottom - t },
+                termTop: (exAny.section.querySelector<HTMLElement>('[data-section="terminal"]')?.getBoundingClientRect().top ?? t + window.innerHeight) - t,
+                headerH: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 72,
               };
             })()
           : null;
