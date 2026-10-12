@@ -1,0 +1,145 @@
+:root {
+  /* color */
+  --bg: #0d0c0b;
+  --bg-raised: #151311;
+  --bg-raised-2: #1b1816;
+  --fg: #f4efe7;
+  --fg-muted: rgba(244, 239, 231, 0.7);
+  --fg-faint: rgba(244, 239, 231, 0.55);
+  --line: rgba(244, 239, 231, 0.12);
+  --line-strong: rgba(244, 239, 231, 0.24);
+  --accent: #ff6a00;
+
+  /* spacing: an 8px grid (4px for the smallest step). Stepped, not fluid, so every
+     value is a multiple of 8; the large steps grow at the breakpoints below. */
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 16px;
+  --space-s: 24px;
+  --space-m: 32px;
+  --space-l: 40px;
+  --space-xl: 56px;
+  --space-2xl: 72px;
+  --space-3xl: 96px; /* vertical padding of every page section (--section-y) */
+  --space-4xl: 128px;
+
+  /* one gutter + one container for the whole site (header, hero, sections, footer) */
+  --gutter: 20px;
+  --page-max: 120rem; /* content cap (1920px); giant type scales to the container, not the viewport */
+  --section-y: var(--space-3xl);
+  --header-h: 72px;
+  --radius-card: 20px;
+  --radius-ui: 12px;
+
+  /* type scale (fluid, body text) */
+  --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
+  --text-s: clamp(0.875rem, 0.84rem + 0.17vw, 0.9375rem);
+  --text-m: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-l: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --text-xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --text-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
+  --text-lede: clamp(1.125rem, 1rem + 0.55vw, 1.5rem);
+  --measure: 65ch; /* body line length */
+
+  /* giant display type: Mona Sans 900, tight. Width (wdth axis) per screen class. */
+  --display-weight: 900;
+  --display-tracking: -0.04em;
+  --display-leading: 0.82;
+  --wdth-phone: 82;
+  --wdth-tablet: 90;
+  --wdth-desktop: 96;
+  --wdth-ultrawide: 100;
+  --display-wdth: var(--wdth-phone);
+
+  /* max font sizes; every heading also fits its longest line to the container width */
+  --display-xl: 15rem; /* HOW I BUILD, LET'S BUILD, page titles */
+  --display-l: 12rem; /* case study titles */
+  --display-m: 8rem; /* section headings */
+
+  /* hero name: share of the container width the longest line fills, and a height cap */
+  --hero-span: 1;
+  --hero-cap: 36svh;
+
+  /* mono label */
+  --label-size: clamp(0.6875rem, 0.66rem + 0.14vw, 0.8125rem);
+  --label-tracking: 0.12em;
+
+  /* section heights. The ribbon's scroll journey needs extra room; until the
+     choreography exists the sections size to their content (the "room" values are
+     restored by setting data-ribbon-journey on <html>, see below). */
+  --h-hero: 100svh;
+  --h-unravel: auto;
+  --h-work: auto;
+  --h-build: auto;
+  --h-terminal: auto;
+  --h-contact: auto;
+
+  /* z layers (the ribbon stage owns 0..3 internally) */
+  --z-header: 50;
+  --z-menu: 60;
+  --z-dialog: 80;
+  --z-skip: 100;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 180ms;
+}
+
+/* ── screen classes ─────────────────────────────────────
+   phone < 768 · tablet 768-1099 · desktop 1100-2199 · ultrawide >= 2200 */
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 32px;
+    --header-h: 80px;
+    --display-wdth: var(--wdth-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 48px;
+    --header-h: 88px;
+    --space-l: 48px;
+    --space-xl: 64px;
+    --space-2xl: 96px;
+    --space-3xl: 128px;
+    --space-4xl: 192px;
+  }
+}
+
+@media (min-width: 1100px) {
+  :root {
+    --display-wdth: var(--wdth-desktop);
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --gutter: 64px;
+    --header-h: 96px;
+  }
+}
+
+@media (min-width: 2200px) {
+  :root {
+    --display-wdth: var(--wdth-ultrawide);
+  }
+}
+
+/* landscape: the name sits left at ~75% of the container (KHURANA), like the desktop mockup */
+@media (min-width: 768px) and (orientation: landscape) {
+  :root {
+    --hero-span: 0.75;
+    --hero-cap: 27svh;
+  }
+}
+
+/* ribbon scroll room, switched on together with the scroll choreography */
+:root[data-ribbon-journey] {
+  --h-unravel: 120svh;
+  --h-work: 150svh;
+  --h-build: 140svh;
+  --h-terminal: 130svh;
+  --h-contact: 100svh;
+}

@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const b = await chromium.launch({ args: ["--use-gl=angle"] });
+const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+const errs = [];
+p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errs.push(m.text().slice(0, 160)); });
+p.on("requestfailed", (r) => errs.push("FAILED " + r.url().slice(0, 120)));
+await p.goto(process.argv[2], { waitUntil: "networkidle" });
+const ok = await p.waitForFunction(() => window.__ribbonState?.engine?.sim?.slide?.introSettled, null, { timeout: 40000 }).then(() => true).catch(() => false);
+console.log("ribbon live + intro settled:", ok);
+console.log(errs.slice(0, 8).join("\n"));
+await b.close();

@@ -1,0 +1,60 @@
+/* Giant, heavy, tight display type: Mona Sans 900, width (wdth axis) per screen class.
+   Tokens live in app/styles/tokens.css (--display-*, --wdth-*, --hero-*). */
+
+.display {
+  --_size: var(--display-l);
+  /* estimated width of the longest line in em, interpolated between the two
+     measured widths (Mona Sans wdth 75 and 100) at the current --display-wdth */
+  --em-w: calc(
+    var(--em-w75, 6) + (var(--display-wdth) - 75) * (var(--em-w100, 8) - var(--em-w75, 6)) / 25
+  );
+  /* the size at which the longest line exactly fills the container (.container = size container) */
+  --_fit: calc(100cqw / var(--em-w));
+  margin: 0;
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-weight: var(--display-weight);
+  font-variation-settings: "wdth" var(--display-wdth);
+  font-stretch: calc(var(--display-wdth) * 1%);
+  font-size: min(var(--_size), var(--_fit));
+  letter-spacing: var(--display-tracking);
+  line-height: var(--display-leading);
+  font-kerning: normal;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.display[data-size="hero"] {
+  /* name fills --hero-span of the container, never taller than --hero-cap */
+  --_size: min(calc(var(--_fit) * var(--hero-span)), var(--hero-cap));
+}
+
+.display[data-size="xl"] {
+  --_size: var(--display-xl);
+}
+
+.display[data-size="l"] {
+  --_size: var(--display-l);
+}
+
+.display[data-size="m"] {
+  --_size: var(--display-m);
+}
+
+.display__line {
+  display: block;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.glyph {
+  display: inline;
+}
+
+/* hero type-in (HeroTypeIn): glyphs stay hidden until the ribbon's intro reaches them */
+.display[data-typing="on"] .glyph {
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+.display[data-typing="on"] .glyph.is-typed {
+  opacity: 1;
+}

@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""R1-b: lift the rotoscoped edges (edges.json) onto their camera rays.
+
+Each ruling (E1 -> E2, screen px at the 1672x941 fit frame) gets a centre depth z_c(s) from the named
+anchors (PCHIP) and a depth difference dz solving |R3 - L3| = W (constant true width). The sign of dz
+is chosen by a DP minimising the change of the ruling direction in 3D; sign changes are only allowed
+inside the turn windows. Output: $SP/rotoscope/ruled_desktop.json (rings L3/R3 in anchor space).
+
+Usage: .venv/bin/python lift.py
+"""
+import json
+import math
+import os
+import sys
+
+import numpy as np
+from scipy.interpolate import PchipInterpolator
+
+sys.path.insert(0, os.path.dirname(__file__))
+import edges as ed  # noqa: E402
+
+OUTD = ed.OUTD
+VW, VH = 1672.0, 941.0
+FOV = 26.4
+D = (VH / 2) / math.tan(math.radians(FOV) / 2)
+ANCHOR = dict(left=56.609375, top=192.625, width=1196.921875, height=400.71875)
+
+# world px (ASHMIT plane -45, KHURANA plane +45)
+Z_ANCHORS = [
+    ("T1_hidden_end", -130), ("A_left_leg", -130), ("A_apex", -40),
+    ("A_right_leg_top", 20), ("A_right_leg_q", 50), ("A_right_leg_mid", 70), ("A_right_leg_low", 70),
+    ("lower_out", 90), ("lower_tip", 20), ("lower_back", 40),
+    ("K_junction", 60),
+    ("upper_out", 40), ("upper_tip", -20), ("upper_back", 10),
+    ("ret_hidden_start", -5), ("crossbar_right", -20), ("crossbar", -20), ("drop_R", -20),
+    ("S_left", 40), ("S_mid", 90), ("S_turn", 150),
+    ("tail_a", 230), ("tail_b", 420),
+]
+
+
+def k_of(z):
+    return (D - z) / D
+
+
+def lift(p, z):
+    k = k_of(z)
+    return np.array([(p[0] - VW / 2) * k, (VH / 2 - p[1]) * k, z])
+
+
+def ruling_len(pL, pR, zc, dz):
+    L = lift(pL, zc - dz / 2)
+    R = lift(pR, zc + dz / 2)
+    return L, R, float(np.linalg.norm(R - L))
+
+
+def solve_dz(pL, pR, zc, sign, W):
+    """magnitude m >= 0 with |R3 - L3| = W for dz = sign*m; (0, True) when the projected ruling already exceeds W"""
+    _, _, l0 = ruling_len(pL, pR, zc, 0.0)
+    if l0 >= W:
+        return 0.0, True
+    lo, hi = 0.0, 3000.0
+    for _ in range(50):
+        mid = 0.5 * (lo + hi)
+        if ruling_len(pL, pR, zc, sign * mid)[2] < W:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi), False
+
+
+def _lift_vec(P, z):
+    k = (D - z) / D
+    return np.stack([(P[:, 0] - VW / 2) * k, (VH / 2 - P[:, 1]) * k, z], 1)
+
+
+def solve_rings(E1, E2, t, zc, tw, trusted, pct=95, Wfix=None, verbose=True, obs=None, fs=1, lam=0.06, forced=None, nosolve=None):
+    """True width W = percentile `pct` of the projected ruling lengths (world px at the centre depth) over trusted samples outside the
+    turn windows; per ring the depth difference dz of the two ruling ends solves |R3 - L3| = W; the sign of dz is chosen by a DP
+    minimising the change of the 3D ruling direction, flips only inside the turn windows (tw).
+    Returns W, sign, flips, L3, R3, dz, grown (dz = 0: projected ruling already >= W), 3D ruling lengths. (vectorised)"""
+    N = len(t)
+    l0 = np.linalg.norm(_lift_vec(E2, zc) - _lift_vec(E1, zc), axis=1)
+    Wt = float(np.percentile(l0[trusted & ~tw], pct)) if Wfix is None else float(Wfix)
+    if verbose:
+        print("true width W = %.2f world px (p%d of projected ruling lengths at centre depth; median %.2f)" % (Wt, pct, np.median(l0[trusted & ~tw])))
+    grown = l0 >= Wt
+    nos_runs = []
+    if nosolve is not None:      # the apex flat fold: sheared rulings are longer than W by design, no W-depth solve there: dz blends smoothly
+        grown = grown | nosolve    # between the values just outside the window (both layers stay in the legs' plane)
+        i = 0
+        while i < N:
+            if nosolve[i]:
+                j2 = i
+                while j2 + 1 < N and nosolve[j2 + 1]:
+                    j2 += 1
+                if i > 0 and j2 < N - 1:
+                    nos_runs.append((i, j2))
+                i = j2 + 1
+            else:
+                i += 1
+    mag = np.zeros((N, 2))
+    Ls = np.zeros((N, 2, 3)); Rs = np.zeros((N, 2, 3)); B = np.zeros((N, 2, 3))
+    for j, sg_ in enumerate((+1, -1)):
+        lo = np.zeros(N); hi = np.full(N, 3000.0)
+        for _ in range(55):
+            mid = 0.5 * (lo + hi)
+            ln_ = np.linalg.norm(_lift_vec(E2, zc + sg_ * mid / 2) - _lift_vec(E1, zc - sg_ * mid / 2), axis=1)
+            small = ln_ < Wt
+            lo = np.where(small, mid, lo); hi = np.where(small, hi, mid)
+        m = np.where(grown, 0.0, 0.5 * (lo + hi))
+        for (a_, b_) in nos_runs:
+            u = np.linspace(0, 1, b_ - a_ + 1)
+            u = u * u * (3 - 2 * u)
+            m[a_:b_ + 1] = m[a_ - 1] * (1 - u) + m[b_ + 1] * u
+        mag[:, j] = m
+        Ls[:, j] = _lift_vec(E1, zc - sg_ * m / 2)
+        Rs[:, j] = _lift_vec(E2, zc + sg_ * m / 2)
+        d = Rs[:, j] - Ls[:, j]
+        B[:, j] = d / np.maximum(np.linalg.norm(d, axis=1), 1e-9)[:, None]
+    # observation term: the face the camera sees (N_z > 0 side) must match the sculpture's shading class (bright = face A, dark inner = face B)
+    Tc = _lift_vec(0.5 * (E1 + E2), zc)
+    Tc = np.gradient(Tc, axis=0)
+    Tc /= np.maximum(np.linalg.norm(Tc, axis=1), 1e-9)[:, None]
+    obsc = np.zeros((N, 2))
+    if obs is not None:
+        for j in range(2):
+            Nz = -fs * np.cross(Tc, B[:, j])[:, 2]      # the engine shows face A on the -N side
+            vis = np.where(Nz > 0, 1, -1)
+            obsc[:, j] = lam * ((vis != obs) & (obs != 0) & (np.abs(Nz) > 0.2))
+    if forced is not None:    # {sample idx range: sign index} hard choices (e.g. the apex rolls with its top edge towards the camera)
+        for (a_, b_), j in forced.items():
+            obsc[a_:b_ + 1, 1 - j] += 10.0
+    cost = np.full((N, 2), np.inf)
+    arg = np.zeros((N, 2), int)
+    cost[0] = obsc[0]
+    for i in range(1, N):
+        for a_ in range(2):
+            for b_ in range(2):
+                if a_ != b_ and not tw[i]:
+                    continue
+                c = float(np.arccos(np.clip(B[i, a_] @ B[i - 1, b_], -1, 1))) + obsc[i, a_]
+                if a_ != b_:
+                    c += 1e-3
+                if cost[i - 1, b_] + c < cost[i, a_]:
+                    cost[i, a_] = cost[i - 1, b_] + c
+                    arg[i, a_] = b_
+    solve_rings.last_cost = float(cost[-1].min())
+    sg = np.zeros(N, int)
+    sg[-1] = int(np.argmin(cost[-1]))
+    for i in range(N - 1, 0, -1):
+        sg[i - 1] = arg[i, sg[i]]
+    flips = [int(i) for i in range(1, N) if sg[i] != sg[i - 1]]
+    ar = np.arange(N)
+    Lw = Ls[ar, sg]; Rw = Rs[ar, sg]
+    dzs = np.where(sg == 0, 1, -1) * mag[ar, sg]
+    gr = grown.copy()
+    ln = np.linalg.norm(Rw - Lw, axis=1)
+    return Wt, sg, flips, Lw, Rw, dzs, gr, ln
+
+
+def main():
+    E = json.load(open(OUTD + "/edges.json"))
+    t = np.array(E["s"])
+    E1 = np.array(E["edge1"])
+    E2 = np.array(E["edge2"])
+    N = len(t)
+    M, T, X, rgb, cl, g = ed.load()
+    Q, tt, vis, P, s_orig = ed.prep_trace(cl)
+    names = cl["anchors"]
+    xs, zs = [], []
+    for nm, z in Z_ANCHORS:
+        xs.append(float(s_orig[names[nm]]))
+        zs.append(float(z))
+    xs.append(float(t[-1]))
+    zs.append(520.0)       # the 200 px extension keeps rising towards the camera
+    for i in range(1, len(xs)):
+        assert xs[i] > xs[i - 1], (Z_ANCHORS[i - 1], xs[i - 1], xs[i])
+    zc = PchipInterpolator(xs, zs)(np.clip(t, xs[0], xs[-1]))
+
+    tw = np.zeros(N, bool)
+    for w in E["turn_windows"]:
+        if "i0" in w:
+            tw[w["i0"]:w["i1"] + 1] = True
+    trusted = np.array(E["trusted"], bool)
+    Wt, sg, flips, Lw, Rw, dzs, gr, ln = solve_rings(E1, E2, t, zc, tw, trusted, 95)
+
+    # roll (angle of B about the centre tangent, unwrapped) range per turn window
+    C = 0.5 * (Lw + Rw)
+    Tg = np.gradient(C, axis=0)
+    Tg /= np.maximum(np.linalg.norm(Tg, axis=1)[:, None], 1e-9)
+    Bn = (Rw - Lw) / np.maximum(ln[:, None], 1e-9)
+    roll = np.zeros(N)
+    ref = None
+    for i in range(N):
+        bp = Bn[i] - Tg[i] * (Bn[i] @ Tg[i])
+        bp /= max(np.linalg.norm(bp), 1e-9)
+        if ref is None:
+            ref = np.cross(Tg[i], bp)
+        roll[i] = math.atan2(np.cross(Tg[i], bp) @ Tg[i], 1.0)
+    # signed angle between consecutive perpendicular parts, accumulated
+    acc = np.zeros(N)
+    for i in range(1, N):
+        b0 = Bn[i - 1] - Tg[i - 1] * (Bn[i - 1] @ Tg[i - 1])
+        b1 = Bn[i] - Tg[i] * (Bn[i] @ Tg[i])
+        b0 /= max(np.linalg.norm(b0), 1e-9)
+        b1 /= max(np.linalg.norm(b1), 1e-9)
+        acc[i] = acc[i - 1] + math.atan2(np.cross(b0, b1) @ Tg[i], b0 @ b1)
+    rr = []
+    for w in E["turn_windows"]:
+        if "i0" in w:
+            seg = acc[w["i0"]:w["i1"] + 1]
+            rr.append((w["id"], round(math.degrees(seg.max() - seg.min()), 1), round(math.degrees(abs(seg[-1] - seg[0])), 1)))
+    print("roll range per turn (id, max-min deg, net deg):", rr)
+    print("grown (dz=0) share: %.1f %%" % (100.0 * gr.mean()))
+    # to anchor space: x,y = screen position as a fraction of the anchor box, z in anchor heights
+    def to_anchor(P3, scr):
+        return [round((scr[0] - ANCHOR["left"]) / ANCHOR["width"], 5), round((scr[1] - ANCHOR["top"]) / ANCHOR["height"], 5),
+                round(P3[2] / ANCHOR["height"], 5)]
+    rings = []
+    for i in range(0, N, 2):
+        l = to_anchor(Lw[i], E1[i])
+        r = to_anchor(Rw[i], E2[i])
+        rings.append(dict(L=l, R=r))
+    json.dump(dict(rings=rings, W=Wt, anchor=ANCHOR, fov=FOV, flips=flips, zc=[round(float(v), 1) for v in zc],
+                   dz=[round(float(v), 1) for v in dzs], t=[round(float(v), 1) for v in t], sign=[int(v) for v in sg],
+                   grown=[bool(v) for v in gr]), open(OUTD + "/ruled_desktop.json", "w"))
+    print("wrote", OUTD + "/ruled_desktop.json", len(rings), "rings")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+import { chromium } from "/Users/ashmitkhurana/Development/studio/portfolio/node_modules/playwright/index.mjs";
+import sharp from "/Users/ashmitkhurana/Development/studio/portfolio/node_modules/sharp/lib/index.js";
+const base = process.argv[2] ?? "http://localhost:3961";
+const [w,h]=(process.argv[3]??"1672x941").split("x").map(Number);
+const browser = await chromium.launch({ channel: "chromium", headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
+const page = await (await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })).newPage();
+await page.goto(`${base}/?tier=3`, { waitUntil: "load" });
+await page.waitForFunction(() => window.__ribbonState && window.__ribbonState.engine, null, { timeout: 120000 });
+await page.evaluate(() => document.fonts.ready);
+await page.waitForTimeout(1500);
+await page.addStyleTag({content:'canvas{display:none!important} body,html{background:#000!important}'});
+const anchor = await page.evaluate(() => { let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;document.querySelectorAll('[data-ribbon-anchor="hero-name"] .display__line').forEach(l=>{const b=l.getBoundingClientRect();x0=Math.min(x0,b.left);y0=Math.min(y0,b.top);x1=Math.max(x1,b.right);y1=Math.max(y1,b.bottom)}); return {left:x0,top:y0,width:x1-x0,height:y1-y0}; });
+const buf = await page.screenshot({ clip:{x:0,y:0,width:w,height:Math.min(h,800)} });
+const {data,info}=await sharp(buf).raw().toBuffer({resolveWithObject:true});
+const ch=info.channels; const W=info.width,H=info.height;
+const isT=(x,y)=>{const o=(y*W+x)*ch; return data[o]>200&&data[o+1]>200&&data[o+2]>190};
+const rows=[]; for(let y=0;y<H;y++){let n=0; for(let x=0;x<W;x++) if(isT(x,y)) n++; rows.push(n)}
+const runs=[];let s=null; rows.forEach((n,y)=>{ if(n>3&&s===null)s=y; if(n<=3&&s!==null){runs.push([s,y-1]);s=null}});
+const big=runs.filter(r=>r[1]-r[0]>100);
+const res=big.map(([a,b])=>{let x0=1e9,x1=-1;for(let y=a;y<=b;y++)for(let x=0;x<W;x++)if(isT(x,y)){x0=Math.min(x0,x);x1=Math.max(x1,x)} return {y0:a,y1:b+1,x0,x1:x1+1}});
+const mode=(a)=>{const m={};a.forEach(v=>m[v]=(m[v]||0)+1);return +Object.entries(m).sort((p,q)=>q[1]-p[1])[0][0]};
+const flat=big.map(([a,b])=>{const tops=[],bots=[];for(let x=0;x<W;x++){let t=-1,bt=-1;for(let y=a;y<=b;y++)if(isT(x,y)){if(t<0)t=y;bt=y} if(t>=0){tops.push(t);bots.push(bt+1)}} return {flatTop:mode(tops),flatBot:mode(bots)}});
+console.log(JSON.stringify({anchor,res,flat}));
+await browser.close();

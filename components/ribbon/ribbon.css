@@ -1,0 +1,146 @@
+/* Ribbon stage layering: back layer (z0) < HTML (z2) < front layer (z3).
+   Film grain is drawn in the back canvas background only. */
+.ribbon-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Layers are sized by the LARGE viewport height (lvh): the iOS / Android URL bar
+   showing or hiding never resizes (and never re-renders) the canvases. */
+.ribbon-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100lvh;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
+}
+
+.ribbon-layer--back {
+  z-index: 0;
+  background: var(--bg);
+}
+
+.ribbon-layer--front {
+  z-index: 3;
+}
+
+/* Touch devices (the engine sets data-ribbon-scroll): between frames the layers ride the page (lib/ribbon/engine.ts
+   placeLayers), and the canvases reach 25lvh beyond the viewport above and below so a fast flick never shows their
+   edge (TOUCH_OVERSCAN there must match). The stage clips them to the page (no extra scroll room). */
+.ribbon-stage[data-ribbon-scroll] {
+  overflow: clip;
+}
+
+.ribbon-stage[data-ribbon-scroll] .ribbon-layer {
+  overflow: visible;
+}
+
+.ribbon-stage[data-ribbon-scroll] .ribbon-canvas-host {
+  top: -25lvh;
+  bottom: -25lvh;
+}
+
+/* live canvases fade in after the first frame, and out when the posters take over */
+.ribbon-canvas-host {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.ribbon-stage[data-ribbon="live"] .ribbon-canvas-host {
+  opacity: 1;
+}
+
+.ribbon-canvas-host canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+
+/* posters: same two layers, same stacking, so the weave works with the HTML between */
+.ribbon-poster-wrap {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.ribbon-poster-wrap.is-in {
+  opacity: 1;
+}
+
+.ribbon-poster,
+.ribbon-poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.ribbon-poster img {
+  object-fit: cover;
+  object-position: 50% 0;
+  pointer-events: none;
+}
+
+/* no JS: the <noscript> posters are simply there */
+.ribbon-poster--static {
+  position: absolute;
+  inset: 0;
+}
+
+.ribbon-content {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+/* forced colors: content only, no ribbon of any kind */
+@media (forced-colors: active) {
+  .ribbon-layer {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-canvas-host,
+  .ribbon-poster-wrap {
+    transition-duration: 0.01s;
+  }
+}
+
+/* debug: outline every depth proxy */
+html[data-ribbon-debug] [data-ribbon-proxy] {
+  outline: 1px dashed rgba(80, 200, 255, 0.85);
+  outline-offset: 0;
+}
+
+/* pages without the ribbon (site: everything but the home page and /contact) */
+:root[data-ribbon-off] .ribbon-layer,
+:root[data-ribbon-off] .ribbon-poster-wrap {
+  visibility: hidden;
+}
+
+/* posters (no WebGL, slow devices): the still AK belongs to the hero (and /contact's top), so the layers sit at the
+   page's top and scroll away with it instead of staying fixed over every section */
+:root[data-ribbon="poster"] .ribbon-layer {
+  position: absolute !important;
+  transform: none !important;
+}
+
+/* phones held sideways (a still AK, no scroll story): the AK fades away as the hero scrolls off (journey.ts sets
+   data-ribbon-past), so nothing of it shows over the sections below */
+.ribbon-layer {
+  transition: opacity 0.35s ease;
+}
+
+:root[data-ribbon-past] .ribbon-layer {
+  opacity: 0;
+}

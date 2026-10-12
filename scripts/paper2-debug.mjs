@@ -1,0 +1,52 @@
+// Part A debug captures: apex crop (cutout px 180,530,480,760) at DPR 3 under engine debug views, with proxies on/off.
+import { chromium } from "playwright";
+import { readFileSync, mkdirSync } from "node:fs";
+import path from "node:path";
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const out = path.join(root, "docs/ribbon/turns/paper2");
+mkdirSync(out, { recursive: true });
+const pose = JSON.parse(readFileSync(path.join(root, "docs/ribbon/turns/paper/apex_candidate.json"), "utf8"));
+const SX = 852 / 390, SY = 1846 / 844;
+const [x0, y0, x1, y1] = [180, 530, 480, 760];
+const clip = { x: x0 / SX, y: y0 / SY, width: (x1 - x0) / SX, height: (y1 - y0) / SY };
+const browser = await chromium.launch({ channel: "chromium", headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 });
+await ctx.addInitScript((p) => { window.__poseOverride = p; }, pose);
+const page = await ctx.newPage();
+page.on("pageerror", (e) => console.warn("pageerror", e.message));
+await page.goto("http://localhost:4100/?tier=4", { waitUntil: "load" });
+await page.waitForFunction(() => window.__ribbonState?.phase === "live", null, { timeout: 40000 });
+await page.evaluate(() => document.fonts.ready);
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.waitForTimeout(1500);
+await page.evaluate(() => { const e = window.__ribbonState.engine; e.patchSettings({ post: { pixelRatioCap: 3 } }); e.applySettings(true); });
+await page.waitForTimeout(1500);
+const snap = async (name) => { await page.waitForTimeout(700); await page.screenshot({ path: path.join(out, `engine_${name}.png`), clip }); };
+const view = async (v) => { await page.evaluate((v) => { const e = window.__ribbonState.engine; e.patchSettings({ debug: { view: v } }); e.applySettings(true); }, v); };
+console.log("proxies", await page.evaluate(() => window.__ribbonState.engine.proxies.data.count));
+await snap("normal");
+await view("mask"); await snap("mask");
+await view("ribbon"); await snap("ribbonRT");
+await view("off");
+// proxies off
+await page.evaluate(() => {
+  document.querySelectorAll("[data-ribbon-proxy]").forEach((el) => el.removeAttribute("data-ribbon-proxy"));
+  const s = document.createElement("style"); s.textContent = "[data-ribbon-proxy]{display:none !important}"; document.head.appendChild(s);
+  window.__ribbonState.engine.proxies.invalidate();
+});
+await page.waitForTimeout(800);
+console.log("proxies after", await page.evaluate(() => window.__ribbonState.engine.proxies.data.count));
+await snap("noproxy_normal");
+await view("mask"); await snap("noproxy_mask");
+await view("ribbon"); await snap("noproxy_ribbonRT");
+await view("off");
+await page.addStyleTag({ content: ".ribbon-content { visibility: hidden !important; }" });
+await snap("noproxy_ribbononly");
+// double-sided override (runtime, no source change)
+const ds = await page.evaluate(() => { const m = window.__ribbonState.engine.core.mesh.material; const before = m.side; m.side = 2; m.needsUpdate = true; return before; });
+console.log("side before", ds, "(0 Front, 1 Back, 2 Double)");
+await page.evaluate(() => { const e = window.__ribbonState.engine; e.applySettings(true); });
+await page.addStyleTag({ content: ".ribbon-content { visibility: visible !important; }" });
+await snap("doubleside_ribbononly");
+await view("ribbon"); await snap("doubleside_ribbonRT");
+await browser.close();

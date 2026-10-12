@@ -1,0 +1,1040 @@
+/* ── Home sections ─────────────────────────────────────────
+   Every section is transparent (the ribbon's back canvas paints the page
+   colour) and takes its minimum height from a token (--h-*), so the ribbon's
+   scroll room is tuned in app/styles/tokens.css, or per section by
+   overriding --section-h.
+
+   Layout contract: every section's content lives in a `.container` (one gutter,
+   one left edge, see base.css). Vertical padding is --section-y. */
+
+/* ── 01 hero ───────────────────────────────────────────── */
+
+/* the hero is one screen (.hero__pin, sticky) plus scroll room while the live ribbon slides off the name
+   (--hero-pin-room; only when the ribbon is live and motion is allowed, else the hero is just one screen) */
+.hero {
+  /* 100svh, but never so short (phone landscape) that the intro runs into the foot */
+  --hero-h: max(var(--h-hero), 34rem);
+  --hero-pin-room: 0px;
+  --section-h: calc(var(--hero-h) + var(--hero-pin-room));
+}
+
+:root[data-ribbon="live"] .hero {
+  --hero-pin-room: 110svh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .hero {
+    --hero-pin-room: 0px;
+  }
+}
+
+.hero__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: var(--hero-h);
+  padding-bottom: max(var(--space-m), env(safe-area-inset-bottom));
+}
+
+.hero__inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: max(var(--header-h), 14svh);
+}
+
+/* phone / portrait: name at the top, tagline lower, a big empty field between */
+.hero__intro {
+  margin-top: auto;
+  padding-bottom: var(--space-2xl);
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.hero__role {
+  font-size: clamp(1.375rem, 1.1rem + 1.2vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.hero__tagline {
+  max-width: 22ch;
+  font-size: clamp(1.0625rem, 0.95rem + 0.6vw, 1.5rem);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--fg-muted);
+}
+
+.hero__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-m);
+}
+
+.hero__scroll {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  color: var(--fg-muted);
+  transition: color var(--dur-fast) ease;
+}
+
+.hero__scroll svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.2;
+  transition: transform var(--dur-fast) ease;
+}
+
+.hero__scroll:hover {
+  color: var(--fg);
+}
+
+.hero__scroll:hover svg {
+  transform: translateY(3px);
+}
+
+.hero__domain {
+  display: none;
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-size: clamp(0.8rem, 0.74rem + 0.25vw, 1rem);
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .hero__inner {
+    padding-top: max(var(--header-h), 20svh);
+  }
+
+  .hero__intro {
+    margin-top: clamp(var(--space-xs), 4svh, var(--space-xl));
+    padding-bottom: 0;
+  }
+
+  .hero__domain {
+    display: inline;
+  }
+}
+
+/* Desktop class: the hero name matches the desktop mockup (public/lab/ref/hero-desktop.webp, 1672 x 941:
+   KHURANA ink x 70 -> 1265, ASHMIT cap top y 208, KHURANA baseline y 589) so the AK ribbon pose lines up with the type.
+   Phone / tablet / ultrawide keep the generic hero. scripts/pose-check.mjs asserts the match at 1672 x 941. */
+@media (min-width: 1100px) and (max-width: 2199.98px) and (orientation: landscape) {
+  .hero .display[data-size="hero"] {
+    --display-wdth: 97;
+    --hero-span: 0.78;
+    --display-leading: 0.812;
+    margin: 0.018em 0 0 -0.03em;
+  }
+}
+
+/* ── 02 unravel ────────────────────────────────────────── */
+
+.unravel {
+  --unravel-pin-room: 0px;
+  --section-h: calc(100svh + var(--unravel-pin-room));
+}
+
+:root[data-ribbon="live"] .unravel {
+  --unravel-pin-room: 100svh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .unravel {
+    --unravel-pin-room: 0px;
+  }
+}
+
+.unravel__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100svh;
+}
+
+/* the first line ABOVE the horizontal wave, "One continuous line." BELOW it (phones and desktop alike) */
+.unravel__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.unravel__line {
+  position: absolute;
+  left: var(--gutter);
+  max-width: calc(100% - 2 * var(--gutter));
+  font-size: clamp(1.9rem, 8.6vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+}
+
+.unravel__line--a {
+  top: calc(var(--header-h) + clamp(var(--space-s), 5svh, var(--space-2xl)));
+}
+
+.unravel__line--b {
+  bottom: clamp(var(--space-l), 9svh, var(--space-3xl));
+  color: var(--fg-muted);
+}
+
+/* landscape: one line each, larger */
+@media (min-width: 768px) and (orientation: landscape) {
+  .unravel__line {
+    font-size: min(5.2vw, 9svh, 6.5rem);
+  }
+}
+
+/* ── 03 work ───────────────────────────────────────────── */
+
+/* Phone / portrait: the cards stack with ribbon-sized gaps; the ribbon crosses each gap (under every card) as the
+   page scrolls (components/site/journey.ts), no pinning.
+   Landscape (>= 768 wide): ONE screen, pinned while the ribbon threads the cards: the outer cards raised, the middle
+   one low; the lane above the middle card is the ribbon's way across. */
+.work {
+  --work-pin-room: 0px;
+  --work-gap: clamp(64px, 18vw, 84px);
+  --section-h: auto;
+}
+
+.work .container {
+  padding-top: calc(var(--header-h) + var(--space-s));
+  padding-bottom: var(--work-gap);
+}
+
+.work__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2xs) var(--space-m);
+}
+
+.work__all {
+  flex: none;
+  padding-bottom: 0.2em;
+}
+
+.work__grid {
+  display: grid;
+  gap: var(--work-gap);
+  margin-top: var(--space-m);
+}
+
+.work__item .project-card {
+  width: 100%;
+  height: auto;
+}
+
+.work__item .project-card__media {
+  aspect-ratio: 4 / 3;
+}
+
+.work__item .project-card__summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .work {
+    --section-h: calc(100svh + var(--work-pin-room));
+  }
+
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 180svh;
+  }
+
+  .work__pin {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+  }
+
+  .work .container {
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    padding-bottom: min(var(--space-l), 5svh);
+  }
+
+  .work .display {
+    --_size: min(var(--display-m), 12svh);
+  }
+
+  .work__grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: clamp(var(--space-s), 3vw, var(--space-2xl));
+    margin-top: min(var(--space-l), 5svh);
+  }
+
+  /* every card is 76% of the row */
+  .work__item {
+    height: 76%;
+    padding: 0;
+    align-self: end;
+  }
+
+  .work__item + .work__item {
+    padding-top: 0;
+  }
+
+  /* Alpha Block left and Sleepara right sit raised; Arcadia Design low in the middle */
+  .work__item[data-index="0"] {
+    grid-area: 1 / 1;
+    align-self: start;
+  }
+
+  .work__item[data-index="1"] {
+    grid-area: 1 / 3;
+    align-self: start;
+  }
+
+  .work__item[data-index="2"] {
+    grid-area: 1 / 2;
+  }
+
+  .work__item .project-card {
+    height: 100%;
+  }
+
+  .work__item .project-card__media {
+    aspect-ratio: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .work__item .project-card__body {
+    flex: none;
+  }
+
+  .work__item .project-card__summary {
+    -webkit-line-clamp: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 0px;
+  }
+}
+
+/* ── 04 build ──────────────────────────────────────────── */
+
+/* one screen on every device: the heading takes the height the body leaves it.
+   Desktop: the empty box right of the heading (above the principles) is the ribbon's spring room;
+   phone: the space right of "HOW". */
+.build {
+  --build-pin-room: 0px;
+  --section-h: calc(100svh + var(--build-pin-room));
+}
+
+/* phones / portrait: pinned too; the coil lies on its side in the space above "HOW" (the content sits at the bottom,
+   the heading a little smaller) */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 150svh;
+  }
+
+  .build .container {
+    justify-content: flex-end !important;
+    padding-bottom: max(16px, 2.5svh) !important;
+  }
+
+  .build .display {
+    --_size: min(var(--display-xl), 9.5svh) !important;
+  }
+
+  /* (a little more height above "HOW": the coil's turns rounder, its satin highlight soft instead of a crease) */
+  .build__body {
+    margin-top: min(var(--space-m), 2svh) !important;
+  }
+}
+
+/* landscape: pinned while the ribbon coils into a spring and is compressed by the scroll (components/site/journey.ts) */
+@media (min-width: 768px) and (orientation: landscape) {
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 150svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 0px;
+  }
+}
+
+.build__pin {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100svh;
+}
+
+.build .container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-top: calc(var(--header-h) + min(var(--space-s), 2svh));
+  padding-bottom: min(var(--space-l), 4svh);
+}
+
+.build .display {
+  --_size: min(var(--display-xl), 14.5svh);
+}
+
+.build__body {
+  display: grid;
+  gap: min(var(--space-l), 3.5svh);
+  margin-top: min(var(--space-l), 4svh);
+}
+
+.build__eyebrow {
+  margin-bottom: var(--space-2xs);
+}
+
+.build__intro {
+  max-width: 32ch;
+  font-size: var(--text-lede);
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+
+.build__principles {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.principle {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  column-gap: var(--space-xs);
+  row-gap: var(--space-3xs);
+  padding-block: min(var(--space-s), 2svh);
+  border-bottom: 1px solid var(--line);
+}
+
+.principle__number {
+  grid-row: 1 / span 2;
+  padding-top: 0.45em;
+  color: var(--accent);
+}
+
+.principle__title {
+  font-size: var(--text-l);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.principle__text {
+  max-width: 40ch;
+  font-size: var(--text-s);
+  color: var(--fg-muted);
+}
+
+/* short phones (iPhone SE class): a tighter body so the heading keeps its room */
+@media (orientation: portrait) and (max-height: 720px) {
+  .build .display {
+    --_size: min(var(--display-xl), 13svh);
+  }
+
+  .build__intro {
+    font-size: 1.0625rem;
+  }
+
+  .principle {
+    padding-block: 1.4svh;
+  }
+
+  .principle__title {
+    font-size: 1.1875rem;
+  }
+
+  .principle__text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .build .display {
+    --_size: min(var(--display-xl), (100svh - var(--header-h) - 23rem) / 1.7);
+  }
+
+  .build__body {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--space-m);
+    align-items: start;
+    margin-top: min(var(--space-xl), 5svh);
+  }
+
+  .build__lede {
+    grid-column: 1 / span 5;
+  }
+
+  .build__principles {
+    grid-column: 7 / span 6;
+  }
+
+  /* the third column stays empty: the box where the ribbon's spring settles (components/site/journey.ts) */
+  .principle {
+    grid-template-columns: 48px minmax(0, 1fr) clamp(150px, 32%, 340px);
+  }
+
+  .principle__title,
+  .principle__text {
+    grid-column: 2;
+  }
+}
+
+/* small landscape screens: the principles wrap taller beside the spring column; the heading gives way */
+@media (min-width: 768px) and (max-width: 1099.98px) and (orientation: landscape) {
+  .build .display {
+    --_size: min(var(--display-xl), (100svh - var(--header-h) - 26rem) / 1.7);
+  }
+}
+
+/* ── 05 experience + terminal ──────────────────────────── */
+
+/* phone / portrait: two screens (experience, terminal); landscape: ONE screen, the experience strip on top,
+   the terminal below it on the right (the empty space left of it is the ribbon's S-sweep) */
+.experience {
+  --section-h: 100svh;
+  display: flex;
+  align-items: center;
+  padding-top: var(--header-h);
+}
+
+.experience > .container {
+  width: 100%;
+}
+
+.experience__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-m);
+  margin-bottom: var(--space-s);
+}
+
+/* experience strip: 4 columns on desktop, 2 on tablet, a stacked list on phones */
+.strip {
+  display: grid;
+  border-top: 1px solid var(--line-strong);
+}
+
+.strip__item {
+  display: grid;
+  gap: var(--space-3xs);
+  align-content: start;
+  padding-block: var(--space-s);
+  border-bottom: 1px solid var(--line);
+}
+
+.strip__company {
+  font-size: var(--text-l);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.strip__role {
+  font-size: var(--text-s);
+  color: var(--fg-muted);
+}
+
+.strip__period {
+  margin-top: var(--space-3xs);
+  color: var(--fg-faint);
+}
+
+@media (min-width: 600px) {
+  .strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-m);
+  }
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .strip__item {
+    border-bottom: 0;
+    padding-top: var(--space-m);
+    padding-bottom: 0;
+  }
+}
+
+/* phones with the live ribbon: the dividers stop just after the entries' text (the ribbon runs down the lane to their
+   right, behind the page; journey.ts sets --strip-cut) */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .strip {
+    border-top-color: transparent;
+    background: linear-gradient(var(--line-strong), var(--line-strong)) left top / calc(100% - var(--strip-cut, 0px)) 1px no-repeat;
+    background-origin: border-box;
+  }
+
+  :root[data-ribbon="live"] .strip__item {
+    border-bottom-color: transparent;
+    background: linear-gradient(var(--line), var(--line)) left bottom / calc(100% - var(--strip-cut, 0px)) 1px no-repeat;
+    background-origin: border-box;
+  }
+}
+
+/* phones: the block sticks once the terminal's screen fills the view (journey.ts sets top = -Experience's height) and
+   stays for the room below it (scrolling there fills the bar under the terminal); the browser holds it, natively */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .exterm::after {
+    content: "";
+    display: block;
+    height: 130svh;
+  }
+
+  :root[data-ribbon="live"] .exterm__pin {
+    position: sticky;
+    top: -100svh;
+  }
+
+  :root[data-ribbon="live"] .exterm__pin .fillbar {
+    display: grid;
+  }
+
+  /* the bar centred under the terminal */
+  :root[data-ribbon="live"] .exterm__pin .fillbar {
+    justify-items: center;
+    text-align: center;
+  }
+
+  :root[data-ribbon="live"] .exterm__pin .fillbar__track {
+    justify-self: stretch;
+  }
+
+  /* the terminal's screen on phones: the page holds with this section's top at the top of the screen, so it is at
+     least as tall as the LARGEST visible screen (Safari's bars collapsed: nothing of the footer peeks in), and the
+     terminal sits lower (the ribbon comes down to it in the space under the navbar); its output gives way so the
+     window, caption and bar fit the SMALLEST visible screen (bars shown) */
+  :root[data-ribbon="live"] .terminal {
+    --section-h: 100lvh;
+    --term-gap: clamp(96px, 16svh, 150px);
+    align-items: flex-start;
+    padding-top: calc(var(--header-h) + var(--term-gap));
+  }
+
+  :root[data-ribbon="live"] .terminal .term--inline .term__output {
+    height: clamp(6rem, 100svh - var(--header-h) - var(--term-gap) - 15rem, 20rem);
+  }
+
+  /* opaque: the ribbon's wrap passes behind it */
+  :root[data-ribbon="live"] .terminal-window {
+    background: #151311;
+    /* no drop shadow: it would paint over the ribbon where the wrap rounds the window's edges */
+    box-shadow: none;
+  }
+}
+
+/* terminal */
+
+.terminal {
+  --section-h: 100svh;
+  display: flex;
+  align-items: center;
+  padding-top: var(--header-h);
+  padding-bottom: var(--space-m);
+}
+
+.terminal__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+}
+
+.terminal__col {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-s);
+  justify-items: stretch;
+}
+
+.terminal-window {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: rgba(21, 19, 17, 0.92);
+  overflow: hidden;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.45);
+}
+
+.terminal__caption {
+  text-align: right;
+  letter-spacing: 0.14em;
+}
+
+/* short phones: the output gives way */
+@media (orientation: portrait) and (max-height: 700px) {
+  .terminal .term--inline .term__output {
+    height: min(20rem, 100svh - 18rem);
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  /* one screen, pinned while the ribbon underlines the entries and sweeps to the terminal (components/site/journey.ts) */
+  .exterm {
+    --exterm-pin-room: 0px;
+    height: calc(100svh + var(--exterm-pin-room));
+  }
+
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 200svh;
+  }
+
+  .exterm__pin {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100svh;
+    min-height: 34rem;
+    padding-top: calc(var(--header-h) + min(var(--space-s), 2svh));
+    padding-bottom: min(var(--space-l), 4svh);
+  }
+
+  .exterm__pin .fillbar {
+    display: grid;
+  }
+
+  .exterm__pin > .section {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .experience {
+    flex: none;
+    display: block;
+  }
+
+  .terminal {
+    flex: 1;
+    align-items: flex-end;
+    margin-top: min(var(--space-xl), 5svh);
+  }
+
+  .terminal__inner {
+    grid-template-columns: 1fr minmax(0, 36rem);
+    gap: var(--space-xl);
+    align-items: end;
+  }
+
+  .terminal .term--inline .term__output {
+    /* shorter than the room allows: the band between the entries and the terminal is the ribbon's (loop + sweep) */
+    height: clamp(8rem, 100svh - var(--header-h) - 37rem, 20rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 0px;
+  }
+}
+
+/* the progress bar under the ribbon's end: scrolling fills it, it drains when the scrolling stops; full, it fades
+   and the ribbon flows on to the footer (components/site/journey.ts sets its position, fill and visibility) */
+.fillbar {
+  position: absolute;
+  z-index: 4;
+  display: none;
+  gap: 10px;
+  width: 220px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.45s var(--ease-out);
+  pointer-events: none;
+}
+
+.fillbar[data-on] {
+  opacity: 1;
+  transform: none;
+}
+
+.fillbar__label {
+  color: var(--fg-muted);
+  letter-spacing: 0.16em;
+}
+
+.fillbar__track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+
+.fillbar__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--fill, 0));
+}
+
+/* the footer's own intro (components/site/journey.ts): while the ribbon flies past, the content fades in behind it,
+   one block after another; the heading types in with the AK (display.css data-typing) */
+:root[data-foot-intro] .contact__body > *,
+:root[data-foot-intro] .site-footer__inner {
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s var(--ease-out);
+}
+
+:root[data-foot-intro="hidden"] .contact__body > *,
+:root[data-foot-intro="hidden"] .site-footer__inner {
+  opacity: 0;
+  transform: translateY(12px);
+  transition-duration: 0.35s;
+}
+
+:root[data-foot-intro="in"] .contact__body > :nth-child(2) {
+  transition-delay: 0.3s;
+}
+
+:root[data-foot-intro="in"] .contact__body > :nth-child(3) {
+  transition-delay: 0.6s;
+}
+
+:root[data-foot-intro="in"] .site-footer__inner {
+  transition-delay: 0.9s;
+}
+
+/* ── 06 contact ────────────────────────────────────────── */
+
+.contact__veil {
+  position: absolute;
+  inset: 0 0 calc(-1 * var(--footer-h, 0px));
+  pointer-events: none;
+}
+
+/* the last screen is the contact section + the footer, exactly one viewport: the content is centred between the
+   fixed header and the footer, and the heading takes the height that is left (capped by its usual size).
+   --footer-h and --contact-body-h come from FooterHeight. */
+.contact {
+  --section-h: var(--h-contact);
+  --_pad-top: calc(var(--header-h) + min(var(--space-s), 2.5svh));
+  --_pad-bottom: min(var(--space-l), 4svh);
+  --_gap: min(var(--space-xl), 5svh);
+  display: flex;
+  align-items: center;
+  min-height: calc(100svh - var(--footer-h, 0px));
+  padding-block: var(--_pad-top) var(--_pad-bottom);
+}
+
+.contact > .container {
+  display: grid;
+  gap: var(--_gap);
+}
+
+/* 2 lines at 0.82 leading = 1.64em, plus a little room for the glyphs */
+.contact .display {
+  --_size: min(
+    var(--display-xl),
+    (100svh - var(--footer-h, 0px) - var(--_pad-top) - var(--_pad-bottom) - var(--_gap) - var(--contact-body-h, 20rem)) / 1.7
+  );
+}
+
+.contact__body {
+  display: grid;
+  gap: min(var(--space-m), 3svh);
+  justify-items: start;
+}
+
+.contact__copy {
+  max-width: 40ch;
+  font-size: var(--text-m);
+  color: var(--fg-muted);
+}
+
+/* short screens: the email scales with the height too, so the heading keeps its room */
+.contact .copy-email__link {
+  font-size: min(4rem, 100cqw / 12.4, 7svh);
+}
+
+/* phones with the live ribbon: the last screen laid out like the hero (the footer's AK is the hero's own pose at the
+   hero's own screen spot): the heading where the name is, at the name's size; the body low in the gap left of the
+   AK's tail (where the hero's tagline sits), smaller; the links under it */
+@media (orientation: portrait) {
+  :root[data-ribbon="live"] .contact {
+    align-items: stretch;
+    padding-top: max(var(--header-h), 14svh);
+    padding-bottom: var(--space-m);
+  }
+
+  :root[data-ribbon="live"] .contact > .container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* at the name's fit-to-width size; "LET'S BUILD" is wider than the name, so the type is a little smaller: moved down
+     by the difference (both scale with the width) so SOMETHING's baseline sits where KHURANA's does */
+  :root[data-ribbon="live"] .contact .display {
+    --_size: min(var(--_fit), 36svh);
+    margin-top: calc(7.4cqw);
+  }
+
+  :root[data-ribbon="live"] .contact__body {
+    margin-top: auto;
+    gap: var(--space-2xs);
+    justify-self: start;
+  }
+
+  :root[data-ribbon="live"] .contact__copy {
+    max-width: 30ch;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+
+  :root[data-ribbon="live"] .contact .copy-email {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  :root[data-ribbon="live"] .contact__links {
+    flex-wrap: wrap;
+  }
+
+  :root[data-ribbon="live"] .contact .copy-email__link {
+    font-size: min(1.25rem, 5.4cqw);
+    overflow-wrap: normal;
+    white-space: nowrap;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  :root[data-ribbon="live"] .contact__links {
+    gap: var(--space-2xs) var(--space-m);
+    margin-top: var(--space-2xs);
+  }
+}
+
+/* /contact: the invisible copy of the hero's name block (the AK's anchor), over the page, never seen or hit */
+.contact-anchor {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* /contact with the live ribbon: the content starts hidden (the footer's entrance fades it in and types the heading,
+   journey.ts sets data-foot-intro), so it never shows, vanishes and comes back. Posters / no WebGL: shown as usual */
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]) .contact-anchor ~ .contact .contact__body > *,
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]) .contact-anchor ~ .contact .display {
+  opacity: 0;
+}
+
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]):has(.contact-anchor) .site-footer__inner {
+  opacity: 0;
+}
+
+/* the footer / contact heading: letters hide at once when the type-in starts (only the typing fades them in) */
+.contact .display[data-typing="on"] .glyph:not(.is-typed) {
+  transition: none;
+}
+
+/* phones held sideways: no scroll story (the engine shows a still AK in the hero, as with reduced motion): every
+   section is one plain screen, no pinned scroll room */
+@media (orientation: landscape) and (max-height: 540px) and (hover: none) {
+  :root[data-ribbon="live"] .hero {
+    --hero-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .unravel {
+    --unravel-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .work {
+    --work-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .build {
+    --build-pin-room: 0px;
+  }
+
+  :root[data-ribbon="live"] .exterm {
+    --exterm-pin-room: 0px;
+  }
+
+  /* each section as tall as its content (a 390 px-high screen cannot hold the one-screen desktop layouts) */
+  .work,
+  .build,
+  .exterm,
+  .experience,
+  .terminal {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .work__pin,
+  .build__pin,
+  .exterm__pin {
+    position: relative !important;
+    height: auto !important;
+    min-height: 100svh;
+  }
+
+  .work__pin,
+  .build__pin,
+  .exterm__pin {
+    padding-block: calc(var(--header-h) + 16px) 32px !important;
+  }
+
+  .exterm__pin > .section {
+    padding-block: 24px !important;
+  }
+
+  .terminal .term--inline .term__output {
+    height: 14rem !important;
+  }
+
+  .exterm__pin .fillbar {
+    display: none !important;
+  }
+
+  /* the big headings take a set size here (their one-screen sizing, from the height left over, comes out at zero) */
+  .build .display,
+  .contact .display {
+    --_size: clamp(3.5rem, 20svh, 6rem) !important;
+  }
+
+  .contact {
+    min-height: 0 !important;
+  }
+
+  .principle__title {
+    font-size: 1.0625rem;
+  }
+}
+
+/* iPad / tablets held upright (the phone choreography): the entries in one column like on phones (the ribbon runs
+   down the lane to their right) */
+@media (orientation: portrait) and (min-width: 600px) {
+  :root[data-ribbon="live"] .strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* the name (and the AK, fitted to it) a little smaller, so the AK clears the tagline as on phones */
+  :root {
+    --hero-span: 0.74;
+  }
+}
