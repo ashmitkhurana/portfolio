@@ -196,6 +196,7 @@ export function createJourney(engine: RibbonEngine): () => void {
   let contactKey = "";
   let contactFoot: FootMarks | null = null;
   let contactT0 = 0;
+  let contactFrames = 0;
   /** phones: the scroll position the footer's run landed at */
   let footLandY = 0;
   /** the heading's type-in and the content's fade-in (attributes the CSS keys on) */
@@ -296,7 +297,10 @@ export function createJourney(engine: RibbonEngine): () => void {
             });
             sl.setHeadPath(cp.pos, cp.ruled, cp.k);
             contactFoot = cp.foot;
-            if (!contactKey) contactT0 = now;
+            if (!contactKey) {
+              contactT0 = now;
+              contactFrames = 0;
+            }
             contactKey = keyC;
             if (!sl.introSettled) sl.skipIntro();
           }
@@ -326,6 +330,8 @@ export function createJourney(engine: RibbonEngine): () => void {
             const dv = ft < FOOT_FLY ? "-5000" : "5000";
             if (veil.dataset.ribbonDepth !== dv) veil.dataset.ribbonDepth = dv;
           }
+          // the ribbon was kept hidden on the way in (SiteRibbon): shown once this entrance has drawn two frames
+          if (++contactFrames === 3) document.documentElement.removeAttribute("data-ribbon-off");
           // (the head path's own arcs; snapped every frame: a spring would lag the timeline)
           sl.sigma = tail + Lr;
           sl.velocity = 0;

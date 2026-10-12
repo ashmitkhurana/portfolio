@@ -935,3 +935,19 @@
   visibility: hidden;
   pointer-events: none;
 }
+
+/* /contact with the live ribbon: the content starts hidden (the footer's entrance fades it in and types the heading,
+   journey.ts sets data-foot-intro), so it never shows, vanishes and comes back. Posters / no WebGL: shown as usual */
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]) .contact-anchor ~ .contact .contact__body > *,
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]) .contact-anchor ~ .contact .display {
+  opacity: 0;
+}
+
+:root[data-ribbon]:not([data-ribbon="poster"]):not([data-ribbon="off"]):not([data-foot-intro]):has(.contact-anchor) .site-footer__inner {
+  opacity: 0;
+}
+
+/* the footer / contact heading: letters hide at once when the type-in starts (only the typing fades them in) */
+.contact .display[data-typing="on"] .glyph:not(.is-typed) {
+  transition: none;
+}

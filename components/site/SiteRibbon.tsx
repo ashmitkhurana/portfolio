@@ -131,8 +131,9 @@ function RibbonMount({ children }: { children: React.ReactNode }) {
 
   // the ribbon lives on the home page and its /contact copy only (owner: the other pages go without it)
   useEffect(() => {
-    const on = pathname === "/" || pathname === "/contact";
-    document.documentElement.toggleAttribute("data-ribbon-off", !on);
+    // (/contact: hidden until its own entrance has drawn its first frames; components/site/journey.ts reveals it, so
+    // nothing of the previous page's ribbon ever flashes)
+    document.documentElement.toggleAttribute("data-ribbon-off", pathname !== "/");
   }, [pathname]);
 
   // route change: the anchor appears / disappears with the page

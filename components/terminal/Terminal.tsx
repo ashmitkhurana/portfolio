@@ -232,11 +232,10 @@ export function Terminal({ variant, onClose }: TerminalProps) {
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.deltaY === 0) return;
       const max = el.scrollHeight - el.clientHeight;
-      if (max <= 1) return; // not scrollable: the page handles it natively
       const atStart = el.scrollTop <= 0 && e.deltaY < 0;
       const atEnd = el.scrollTop >= max - 1 && e.deltaY > 0;
-      if (!atStart && !atEnd) return; // let the output scroll
-      // Lenis ignores wheel events over scrollable elements, so hand the page the delta.
+      if (max > 1 && !atStart && !atEnd) return; // let the output scroll (natively: Lenis skips it, data-lenis-prevent)
+      // not scrollable, or at its end in that direction: hand the page the delta
       e.preventDefault();
       const lenis = getLenis();
       if (lenis) lenis.scrollTo(lenis.targetScroll + e.deltaY, { lerp: 0.1 });
@@ -461,6 +460,7 @@ export function Terminal({ variant, onClose }: TerminalProps) {
         <div
           ref={outputRef}
           className="term__output"
+          data-lenis-prevent=""
           aria-live="polite"
           aria-label="Terminal output"
           role="log"
