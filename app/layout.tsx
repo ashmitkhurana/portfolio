@@ -51,8 +51,16 @@ export const metadata: Metadata = {
     title,
     description,
   },
+  // the AK mark (components/brand/AKMark.tsx) on a transparent background, in the brand orange (reads on light and
+  // dark tabs); PNGs for browsers without SVG favicons (Safari) and the home-screen icon (scripts/brand-png.mjs)
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
 
