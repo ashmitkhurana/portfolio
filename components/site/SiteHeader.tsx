@@ -92,13 +92,16 @@ export function SiteHeader() {
       data-covered={covered || undefined}
     >
       <div className="site-header__bar">
-        <Link
+        {/* a plain link (a full page load, not a client-side route change): the home page always starts from
+            scratch, at the top, with its intro (nothing of the page you were on carries over) */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
           href="/"
           className="site-header__logo"
           aria-label={`${identity.name}, home`}
         >
           <AKMark className="site-header__mark" />
-        </Link>
+        </a>
 
         <nav className="site-header__nav" aria-label="Primary">
           <ul>
