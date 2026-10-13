@@ -1,0 +1,23 @@
+import { chromium, devices } from "playwright";
+const dev = devices[process.env.DEVICE ?? "Pixel 5"];
+const b = await chromium.launch({ args: ["--use-gl=angle"] });
+const ctx = await b.newContext({ ...dev });
+const p = await ctx.newPage();
+await p.goto((process.env.BASE ?? "https://www.ashmitkhurana.com") + "/", { waitUntil: "networkidle" });
+await p.waitForFunction(() => window.__ribbonState?.engine?.sim?.slide?.introSettled, null, { timeout: 30000 }).catch(() => {});
+const { width: W, height: H } = dev.viewport;
+const cdp = await ctx.newCDPSession(p);
+const drag = async (dy) => { const x = W / 2, y0 = H * +(process.env.Y0 ?? 0.8); await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: y0 }] }); for (let k = 1; k <= 12; k++) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y0 - (dy * k) / 12 }] }); await p.waitForTimeout(16); } await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); };
+const st = (tag) => p.evaluate((tag) => {
+  const ex = document.querySelector(".exterm"), pin = ex.querySelector("[data-pin]"), bar = document.querySelector(".fillbar"), tw = document.querySelector(".terminal-window").getBoundingClientRect(), cap = document.querySelector(".terminal__caption").getBoundingClientRect();
+  const exp = document.querySelector('[data-section="experience"]');
+  return `${tag}: scroll ${Math.round(scrollY)} innerH ${innerHeight} exTop ${Math.round(ex.getBoundingClientRect().top + scrollY)} expH ${exp.offsetHeight} exH ${ex.offsetHeight} pinH ${pin.offsetHeight} pinTopCss ${pin.style.top} pinRectTop ${Math.round(pin.getBoundingClientRect().top)} winTop ${Math.round(tw.top)} winBot ${Math.round(tw.bottom)} capBot ${Math.round(cap.bottom)} bar ${bar.style.top} on ${bar.hasAttribute("data-on")} fill ${bar.style.getPropertyValue("--fill")} relBelow? lenisStopped ${document.documentElement.classList.contains("lenis-stopped")}`;
+}, tag);
+const yT = await p.evaluate(() => document.querySelector('[data-section="terminal"]').getBoundingClientRect().top + scrollY);
+console.log("yTerminal", Math.round(yT));
+await p.evaluate((y) => scrollTo(0, y - 60), yT); await p.waitForTimeout(1000);
+console.log(await st("near"));
+await drag(120); await p.waitForTimeout(900); console.log(await st("drag1"));
+await drag(380); await p.waitForTimeout(400); console.log(await st("drag2"));
+await drag(380); await p.waitForTimeout(400); console.log(await st("drag3"));
+await b.close();

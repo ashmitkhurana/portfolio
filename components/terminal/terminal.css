@@ -576,3 +576,10 @@ html.term-nuke .term-overlay__panel {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* the inline terminal's output scrolls on its own (data-lenis-prevent), but lenis.css makes such elements
+   overscroll-behavior: contain, which stopped a swipe that starts on the terminal from scrolling the page on phones
+   (the terminal fills most of a short screen there): the page takes over once the output cannot scroll further */
+.lenis .term--inline .term__output[data-lenis-prevent] {
+  overscroll-behavior: auto;
+}
