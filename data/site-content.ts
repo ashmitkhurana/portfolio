@@ -52,7 +52,8 @@ export const identity = {
   role: "Full-Stack Developer",
   tagline: "Building across interfaces, systems, and AI.",
   domain: "ashmitkhurana.com",
-  url: "https://ashmitkhurana.com",
+  // the canonical address (Vercel serves www as the primary domain; the bare domain redirects to it)
+  url: "https://www.ashmitkhurana.com",
   email: "itsme@ashmitkhurana.com",
   location: "Greater Noida, India",
   year: 2026,
@@ -194,7 +195,7 @@ export const experience: ExperienceEntry[] = [
     ],
   },
   {
-    company: "MonkT",
+    company: "Monk Technology",
     role: "Web Development Intern",
     period: "Dec 2023 — Jan 2024",
     type: "Remote",

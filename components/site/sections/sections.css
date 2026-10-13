@@ -81,23 +81,20 @@
   align-items: flex-start;
   gap: var(--space-xs);
   color: var(--fg-muted);
-  transition: color var(--dur-fast) ease;
+  transition: opacity 0.5s ease;
+}
+
+/* a hint, not a link: it fades out as the journey begins (HeroScrollHint) */
+:root[data-journey-started] .hero__scroll {
+  opacity: 0;
 }
 
 .hero__scroll svg {
   width: 24px;
   height: 24px;
   stroke-width: 1.2;
-  transition: transform var(--dur-fast) ease;
 }
 
-.hero__scroll:hover {
-  color: var(--fg);
-}
-
-.hero__scroll:hover svg {
-  transform: translateY(3px);
-}
 
 .hero__domain {
   display: none;
@@ -409,6 +406,16 @@
   line-height: 1.4;
   letter-spacing: -0.015em;
   color: var(--fg);
+}
+
+/* the coil's box (desktop; journey.ts sets its rect, zero elsewhere): a weave proxy only, nothing visible */
+.build__veil {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 .build__principles {

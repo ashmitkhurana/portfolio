@@ -213,8 +213,28 @@
   pointer-events: auto;
 }
 
-.mobile-menu[hidden] {
-  display: none;
+/* a full-screen sheet that slides in from the right (and back out on close) */
+.mobile-menu {
+  transform: translate3d(100%, 0, 0);
+  visibility: hidden;
+  transition:
+    transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0s linear 0.42s;
+}
+
+.mobile-menu[data-open] {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0s linear 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu,
+  .mobile-menu[data-open] {
+    transition: none;
+  }
 }
 
 .mobile-menu__nav {

@@ -10,13 +10,11 @@ import {
   type MouseEvent,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { getLenis } from "@/components/scroll/SmoothScroll";
 import {
   FILES,
   FUN_FACTS,
-  GOTO_NAMES,
-  GOTO_TARGETS,
+  HELP_KEYS,
   HELP_LINES,
   PROMPT,
   RESUME,
@@ -29,7 +27,6 @@ import {
   pagesLines,
   resolveFile,
   type Entry,
-  type GotoTarget,
   type Line,
 } from "./commands";
 import { nukeEffect, prefersReducedMotion } from "./effects";
@@ -37,8 +34,15 @@ import "./terminal.css";
 
 export interface TerminalProps {
   variant: "overlay" | "inline";
+  /** overlay: close (Esc, backdrop, Close, yellow light: the session is kept for the next open) */
   onClose?: () => void;
+  /** overlay: the green light (fill the whole window / back) */
+  onToggleFull?: () => void;
+  full?: boolean;
 }
+
+/** the overlay's session, kept while it is minimised (closed any way but the red light) */
+let savedSession: { entries: Entry[]; nextId: number } | null = null;
 
 const HISTORY_KEY = "terminal:history";
 const HISTORY_MAX = 50;
@@ -196,16 +200,25 @@ function LineView({ line, onNavigate }: { line: Line; onNavigate?: () => void })
 
 /* ── Component ────────────────────────────────────────── */
 
-export function Terminal({ variant, onClose }: TerminalProps) {
-  const router = useRouter();
-  const pathname = usePathname();
+export function Terminal({ variant, onClose, onToggleFull, full }: TerminalProps) {
   const uid = useId();
   const inputId = `${uid}-input`;
 
-  const idRef = useRef(1);
-  const [entries, setEntries] = useState<Entry[]>(() => [
-    { id: 0, lines: WELCOME(variant) },
-  ]);
+  const resumed = variant === "overlay" ? savedSession : null;
+  const idRef = useRef(resumed?.nextId ?? 1);
+  const [entries, setEntries] = useState<Entry[]>(() => resumed?.entries ?? [{ id: 0, lines: WELCOME(variant) }]);
+  // overlay: the session survives a close (minimise) unless the red light discarded it
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  const discardRef = useRef(false);
+  useEffect(() => {
+    if (variant !== "overlay") return;
+    // (the latest values at close time, on purpose)
+    const live = { entries: entriesRef, ids: idRef, discard: discardRef };
+    return () => {
+      savedSession = live.discard.current ? null : { entries: live.entries.current, nextId: live.ids.current };
+    };
+  }, [variant]);
   const [value, setValue] = useState("");
   const [matrix, setMatrix] = useState(false);
 
@@ -264,22 +277,6 @@ export function Terminal({ variant, onClose }: TerminalProps) {
     ], "warn");
   }, [push]);
 
-  const scrollToId = useCallback(
-    (id: string) => {
-      const go = () => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const lenis = getLenis();
-        if (lenis) lenis.scrollTo(el, { duration: 1.2 });
-        else el.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
-      };
-      // let an overlay close (and release its scroll lock) first
-      if (variant === "overlay") window.setTimeout(go, 60);
-      else go();
-    },
-    [variant],
-  );
-
   const run = useCallback(
     (raw: string) => {
       const input = raw.trim();
@@ -290,7 +287,7 @@ export function Terminal({ variant, onClose }: TerminalProps) {
 
       switch (name) {
         case "help":
-          return echo(HELP_LINES);
+          return echo(isTouchOnly() ? HELP_LINES : [...HELP_LINES, ...HELP_KEYS]);
         case "about":
           return echo(aboutLines());
         case "contact":
@@ -313,26 +310,11 @@ export function Terminal({ variant, onClose }: TerminalProps) {
           if (!key) return echo([`cat: ${args[0]}: No such file or directory`], "error");
           return echo(FILES[key]);
         }
-        case "goto": {
-          const usage = `usage: goto <${GOTO_NAMES.join("|")}>`;
-          if (!a0) return echo([usage], "error");
-          if (!(a0 in GOTO_TARGETS)) return echo([`goto: unknown target '${args[0]}'`, usage], "error");
-          const id = GOTO_TARGETS[a0 as GotoTarget];
-          echo([`Going to ${a0}...`]);
-          if (pathname !== "/") {
-            onClose?.();
-            router.push(`/#${id}`);
-          } else {
-            onClose?.();
-            scrollToId(id);
-          }
-          return;
-        }
         case "exit":
           if (variant === "overlay" && onClose) {
             onClose();
           } else {
-            echo(["This terminal is part of the page. Try 'goto home'."]);
+            echo(["This terminal is part of the page. Open the full one with the >_ button at the top."]);
           }
           return;
         case "download": {
@@ -381,7 +363,7 @@ export function Terminal({ variant, onClose }: TerminalProps) {
           return echo([`command not found: ${first}. Try 'help'.`], "error");
       }
     },
-    [onClose, pathname, push, router, scrollToId, variant],
+    [onClose, push, variant],
   );
 
   const submit = () => {
@@ -448,11 +430,33 @@ export function Terminal({ variant, onClose }: TerminalProps) {
       data-term-variant={variant}
     >
       <div className="term__bar">
-        <span className="term__dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
+        {variant === "overlay" && onClose ? (
+          <span className="term__dots term__dots--live">
+            <button
+              type="button"
+              className="term__light term__light--close"
+              aria-label="Close and clear the terminal"
+              onClick={() => {
+                discardRef.current = true;
+                onClose();
+              }}
+            />
+            <button type="button" className="term__light term__light--min" aria-label="Minimise (keeps your session)" onClick={onClose} />
+            <button
+              type="button"
+              className="term__light term__light--full"
+              aria-label={full ? "Exit full screen" : "Full screen"}
+              aria-pressed={!!full}
+              onClick={onToggleFull}
+            />
+          </span>
+        ) : (
+          <span className="term__dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
         <span className="term__title" aria-hidden="true">
           ashmit@portfolio:~
         </span>

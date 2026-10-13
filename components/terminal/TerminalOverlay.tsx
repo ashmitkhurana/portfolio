@@ -25,6 +25,8 @@ function isTypingTarget(t: EventTarget | null): boolean {
  */
 export function TerminalOverlay() {
   const [state, setState] = useState<"closed" | "open" | "closing">("closed");
+  /** the green light: the panel fills the whole window */
+  const [full, setFull] = useState(false);
   const stateRef = useRef(state);
   const triggerRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -61,7 +63,10 @@ export function TerminalOverlay() {
     const t = triggerRef.current;
     if (t && t.isConnected) t.focus({ preventScroll: true });
     triggerRef.current = null;
-    timerRef.current = window.setTimeout(() => set("closed"), CLOSE_MS);
+    timerRef.current = window.setTimeout(() => {
+      set("closed");
+      setFull(false);
+    }, CLOSE_MS);
   }, [unlock, set]);
 
   useEffect(() => {
@@ -127,7 +132,7 @@ export function TerminalOverlay() {
   if (state === "closed") return null;
 
   return (
-    <div className="term-overlay" data-state={state}>
+    <div className="term-overlay" data-state={state} data-full={full || undefined}>
       <div className="term-overlay__backdrop" onClick={close} aria-hidden="true" />
       <div
         ref={panelRef}
@@ -137,7 +142,7 @@ export function TerminalOverlay() {
         aria-label="Terminal"
         onKeyDown={trap}
       >
-        <Terminal variant="overlay" onClose={close} />
+        <Terminal variant="overlay" onClose={close} full={full} onToggleFull={() => setFull((f) => !f)} />
       </div>
     </div>
   );

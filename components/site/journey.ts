@@ -485,6 +485,18 @@ export function createJourney(engine: RibbonEngine): () => void {
                 rg.selectNodeContents(el);
                 for (const r of rg.getClientRects()) textR = Math.max(textR, r.right);
               }
+              // the coil's box is a weave proxy in front of the page: the divider lines pass behind the coil
+              const veil = pinEl.querySelector<HTMLElement>(".build__veil");
+              if (veil) {
+                // the coil's full width (centre +- radius, as buildCoil sizes it, plus the band and a margin): every part
+                // of it, front and back strands, is in front of the lines
+                const bx0 = textR + 16, bx1 = rp.right;
+                const rC = Math.max(36, Math.min(0.46 * (bx1 - bx0) - 4, 150));
+                const vx0 = Math.max(0, (bx0 + bx1) / 2 - rC - 1.3 * sl.end1().hw - 10);
+                const vx1 = Math.min(window.innerWidth, (bx0 + bx1) / 2 + rC + 1.3 * sl.end1().hw + 10);
+                Object.assign(veil.style, { left: `${vx0}px`, top: `${rp.top - t - 2}px`, width: `${vx1 - vx0}px`, height: `${rp.bottom - rp.top + 4}px` });
+                engine.proxies.invalidate();
+              }
               return {
                 box: { x0: textR + 16, y0: rp.top - t, x1: rp.right, y1: rp.bottom - t },
                 gap: { x: (d.x1 - window.scrollX + rn.left) / 2, y: (d.y1 - secTop + rn.top - t) / 2 },

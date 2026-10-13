@@ -15,6 +15,13 @@ export const metadata: Metadata = {
     siteName: "Ashmit Khurana",
     type: "website",
     locale: "en_US",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Ashmit Khurana — Full-Stack Developer" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Contact — Ashmit Khurana",
+    description: "Open to full-time roles, freelance projects and ideas with room to play.",
+    images: ["/twitter-image"],
   },
 };
 
@@ -33,7 +40,7 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
-      <ContactSection />
+      <ContactSection headingAs="h1" />
     </>
   );
 }

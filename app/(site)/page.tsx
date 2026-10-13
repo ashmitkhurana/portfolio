@@ -6,6 +6,7 @@ import { BuildSection } from "@/components/site/sections/BuildSection";
 import { ExperienceSection } from "@/components/site/sections/ExperienceSection";
 import { TerminalSection } from "@/components/site/sections/TerminalSection";
 import { ContactSection } from "@/components/site/sections/ContactSection";
+import { identity, socials } from "@/data/site-content";
 
 export const metadata: Metadata = {
   // home uses the root default title
@@ -28,8 +29,19 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  // structured data for search engines: who this site is about
+  const person = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: identity.name,
+    jobTitle: identity.role,
+    url: identity.url,
+    email: `mailto:${identity.email}`,
+    sameAs: socials.map((s) => s.href),
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(person) }} />
       <HeroSection />
       <UnravelSection />
       <WorkSection />

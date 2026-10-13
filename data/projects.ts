@@ -68,13 +68,13 @@ export const projects: Project[] = [
   },
   {
     slug: "arcadia-design",
-    title: "Arcadia Design — Architecture Portfolio",
-    name: "Arcadia Design",
+    title: "Arcadia Designs Inc. — Architecture Portfolio",
+    name: "Arcadia Designs Inc.",
     kind: "Architecture portfolio",
     descriptor: "Architecture · Portfolio",
     summary: "A considered digital home for a Canadian architecture studio.",
     tagline:
-      "A modern and visually striking portfolio website for Arcadia Design, a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
+      "A modern and visually striking portfolio website for Arcadia Designs Inc., a Canadian architecture firm. The site highlights their innovative projects, design philosophy, and expertise, offering an immersive experience for potential clients and collaborators.",
     problem:
       "Client needed a modern, conversion-focused website that reflected their premium architecture brand.",
     solution:
@@ -141,7 +141,7 @@ export const projects: Project[] = [
     tagline:
       "A modern business website showcasing development and design excellence for creators, featuring a dynamic 3D interface and seamless user experience.",
     problem:
-      "MonkT needed a professional web presence with cross-device compatibility.",
+      "Monk Technology needed a professional web presence with cross-device compatibility.",
     solution:
       "Designed and launched a fully responsive business website with UX optimization and user testing.",
     impact: [

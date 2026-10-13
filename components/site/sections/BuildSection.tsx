@@ -11,6 +11,9 @@ export function BuildSection() {
       aria-labelledby="build-title"
     >
       <div className="build__pin" data-pin="build">
+        {/* desktop: the coil's box (placed by components/site/journey.ts); the ribbon draws in front of the page here,
+            so the principles' divider lines always pass behind the coil */}
+        <div className="build__veil" data-ribbon-proxy="" data-ribbon-depth="-5000" aria-hidden="true" />
         <div className="container">
           <DisplayHeading
             id="build-title"

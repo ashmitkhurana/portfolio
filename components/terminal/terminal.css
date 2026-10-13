@@ -64,6 +64,67 @@
   background: #28c840;
 }
 
+/* the overlay's lights are buttons: red closes and clears, yellow minimises (keeps the session), green fills the
+   window; their glyphs show on hover (macOS) */
+.term__light {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ff5f57;
+  color: rgba(60, 20, 10, 0.75);
+  cursor: pointer;
+}
+
+/* a larger touch target than the 12 px dot */
+.term__light::before {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.term__light--min {
+  background: #febc2e;
+}
+
+.term__light--full {
+  background: #28c840;
+}
+
+.term__light::after {
+  font: 700 9px/1 system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.term__light--close::after {
+  content: "\00d7";
+  font-size: 11px;
+}
+
+.term__light--min::after {
+  content: "\2212";
+  font-size: 11px;
+}
+
+.term__light--full::after {
+  content: "\2197";
+}
+
+.term__dots--live:hover .term__light::after,
+.term__light:focus-visible::after {
+  opacity: 1;
+}
+
+.term__light:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
 .term__title {
   flex: 1;
   min-width: 0;
@@ -495,4 +556,23 @@ html.term-nuke .term-overlay__panel {
   html.term-nuke .term-overlay__panel {
     animation: none;
   }
+}
+
+/* the green light: the terminal fills the whole window */
+.term-overlay[data-full] {
+  inset: 0;
+  height: 100dvh;
+  padding: 0;
+  align-items: stretch;
+}
+
+.term-overlay[data-full] .term-overlay__panel {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

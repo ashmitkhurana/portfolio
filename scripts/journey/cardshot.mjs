@@ -1,0 +1,10 @@
+import { chromium } from "playwright";
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await p.goto("http://localhost:3100/work", { waitUntil: "networkidle" });
+await p.waitForTimeout(1200);
+const card = p.locator(".project-card").first();
+await card.scrollIntoViewIfNeeded(); await p.waitForTimeout(400);
+await card.screenshot({ path: process.argv[2] });
+console.log(await p.evaluate(() => [...document.querySelectorAll(".project-card")].map((c) => c.querySelector("[class*=descriptor], [class*=meta], .label")?.textContent.trim()).join(" | ")));
+await b.close();

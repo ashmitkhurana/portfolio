@@ -30,23 +30,12 @@ export interface Entry {
 
 export const PROMPT = "ashmit@portfolio:~$";
 
-export const GOTO_TARGETS = {
-  home: "hero",
-  work: "work",
-  build: "build",
-  terminal: "terminal",
-  contact: "contact",
-} as const;
-export type GotoTarget = keyof typeof GOTO_TARGETS;
-export const GOTO_NAMES = Object.keys(GOTO_TARGETS) as GotoTarget[];
-
 export const TOP_LEVEL = [
   "help",
   "about",
   "contact",
   "ls",
   "cat",
-  "goto",
   "pages",
   "sudo",
   "hack",
@@ -145,7 +134,6 @@ export const HELP_LINES: Line[] = [
   { cmd: "contact", desc: "how to reach me" },
   { cmd: "ls [skills/|projects/]", desc: "list files and folders" },
   { cmd: "cat <file>", desc: "read a file (see ls)" },
-  { cmd: "goto <section>", desc: "home, work, build, terminal, contact" },
   { cmd: "pages", desc: "list site routes" },
   { cmd: "download resume", desc: "download my resume (PDF)" },
   { cmd: "clear", desc: "clear the screen" },
@@ -155,9 +143,10 @@ export const HELP_LINES: Line[] = [
   { cmd: "sudo ask-me-anything", desc: "a random fact" },
   { cmd: "hack", desc: "try it and see" },
   { cmd: "nuke", desc: "do not press (asks first)" },
-  "",
-  { text: "Up/Down for history, Tab to complete.", tone: "muted" },
 ];
+
+/** keyboard hints: only where there is a keyboard (Terminal.tsx appends them on non-touch screens) */
+export const HELP_KEYS: Line[] = ["", { text: "Up/Down for history, Tab to complete.", tone: "muted" }];
 
 export const FUN_FACTS: string[] = [
   `I cut page load times by 25% at Bruxford Digital.`,
@@ -189,6 +178,7 @@ export function pagesLines(): Line[] {
     { text: "/work", href: "/work" },
     ...projects.map((p) => ({ text: `/work/${p.slug}`, href: `/work/${p.slug}` })),
     { text: "/about", href: "/about" },
+    { text: "/contact", href: "/contact" },
   ];
 }
 
@@ -216,7 +206,7 @@ function commonPrefix(items: string[]): string {
   return p;
 }
 
-/** Tab completion over commands, second-level words, `cat` files and `goto` targets. */
+/** Tab completion over commands, second-level words and `cat` files. */
 export function complete(input: string): Completion | null {
   const m = input.match(/^(\s*)(\S*)(\s+)?(.*)$/);
   if (!m) return null;
@@ -243,9 +233,6 @@ export function complete(input: string): Completion | null {
   if (cmd === "cat") {
     const options = [...FILE_NAMES];
     return pick(rest, options, (v) => prefix + v, false);
-  }
-  if (cmd === "goto") {
-    return pick(rest, GOTO_NAMES, (v) => prefix + v, false);
   }
   const opts = SECOND_LEVEL[cmd];
   if (opts) return pick(rest, opts, (v) => prefix + v, false);

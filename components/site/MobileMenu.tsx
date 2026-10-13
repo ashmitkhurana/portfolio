@@ -91,7 +91,9 @@ export function MobileMenu({
       role="dialog"
       aria-modal="true"
       aria-label="Menu"
-      hidden={!open}
+      aria-hidden={!open}
+      // closed: off-screen to the right (header.css slides it in and out), unreachable by keyboard / screen readers
+      inert={!open}
     >
       <nav className="mobile-menu__nav" aria-label="Mobile">
         <ul>

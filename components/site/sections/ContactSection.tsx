@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUpRight } from "@/components/site/icons";
 import { contact, resume, socials } from "@/data/site-content";
 import "./sections.css";
 
-export function ContactSection() {
+/** `headingAs`: the heading's element (the /contact page makes it the page's h1; on the home page it is an h2) */
+export function ContactSection({ headingAs = "h2" }: { headingAs?: "h1" | "h2" } = {}) {
   return (
     <section
       id="contact"
@@ -16,6 +17,7 @@ export function ContactSection() {
       <div className="contact__veil" data-ribbon-proxy="" data-ribbon-depth="5000" aria-hidden="true" />
       <div className="container">
         <DisplayHeading
+          as={headingAs}
           id="contact-title"
           size="xl"
           lines={contact.heading}
