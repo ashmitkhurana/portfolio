@@ -108,3 +108,27 @@
   border-color: var(--fg);
 }
 
+
+/* the descriptor's parts wrap as whole units; each part's "·" sits in the gap before it, and the row is shifted left by
+   that gap inside a clipping box, so a part that starts a line has its dot clipped: never a dangling "·" */
+.project-card__descriptor {
+  overflow: hidden;
+}
+
+.project-card__descriptor-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -1.9em;
+}
+
+.project-card__descriptor-part {
+  position: relative;
+  margin-left: 1.9em;
+  white-space: nowrap;
+}
+
+.project-card__descriptor-part::before {
+  content: "\00b7";
+  position: absolute;
+  left: -1.33em;
+}

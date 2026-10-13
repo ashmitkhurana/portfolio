@@ -46,7 +46,16 @@ export function ProjectCard({
         <div className="project-card__body">
           <div className="project-card__text">
             <Heading className="project-card__title">{project.name}</Heading>
-            <p className="label project-card__descriptor">{project.descriptor}</p>
+            {/* the "·" separators only show between parts on the same line (cards.css clips a line-start dot) */}
+            <p className="label project-card__descriptor" aria-label={project.descriptor}>
+              <span className="project-card__descriptor-row" aria-hidden="true">
+                {project.descriptor.split(" · ").map((part, i) => (
+                  <span key={i} className="project-card__descriptor-part">
+                    {part}
+                  </span>
+                ))}
+              </span>
+            </p>
             <p className="project-card__summary">{project.summary}</p>
           </div>
           <span className="project-card__arrow" aria-hidden="true">
