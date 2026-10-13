@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { DisplayHeading } from "@/components/type/DisplayHeading";
 import { ContactSection } from "@/components/site/sections/ContactSection";
-import { identity } from "@/data/site-content";
+import { hero, identity } from "@/data/site-content";
+import { ArrowDown } from "@/components/site/icons";
 import "@/components/site/sections/sections.css";
 
 export const metadata: Metadata = {
@@ -37,6 +38,18 @@ export default function ContactPage() {
         <div className="hero__pin">
           <div className="container hero__inner">
             <DisplayHeading as="div" size="hero" lines={identity.nameLines} proxy={false} anchor="hero-name" />
+            {/* (the tagline block too: on short phones the AK is sized to end above it, exactly as in the hero) */}
+            <div className="hero__intro">
+              <p className="hero__role">{identity.role}</p>
+              <p className="hero__tagline">{identity.tagline}</p>
+            </div>
+          </div>
+          <div className="container hero__foot">
+            <p className="hero__scroll label">
+              <span>{hero.scrollLabel}</span>
+              <ArrowDown />
+            </p>
+            <span className="hero__domain label">{identity.domain}</span>
           </div>
         </div>
       </div>
